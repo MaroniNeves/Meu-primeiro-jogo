@@ -23,6 +23,7 @@ const geometry={
  computeBoundingBox(){}
 };
 const context={
+ window:{},
  T:{Vector2,Vector4},
  material:()=>({}),meshLibrary:{grassShort1:geometry},
  api:{
