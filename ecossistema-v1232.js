@@ -138,7 +138,7 @@ function material(kind){
 // resposta: em 100% a grama dobra visivelmente e oscila com rajadas.
 // Proximidade e pisadas abrem os tufos sem diminuir contagem nem escala.
 const grassVisual={
- clock:0,stepDistance:0,lastPlayerX:NaN,lastPlayerZ:NaN,
+ clock:0,lastWallTime:-1,stepDistance:0,lastPlayerX:NaN,lastPlayerZ:NaN,
  trailIndex:0,
  uniforms:{
   uArcWindTime:{value:0},
@@ -181,6 +181,7 @@ uniform float uArcGrassInvHeight;
   arcBlade*=arcBlade;
   vec2 arcRoot=instanceMatrix[3].xz;
   float arcT=uArcWindTime;
+  float arcCompression=0.0;
   float arcWave=sin(arcT*(2.05+uArcStorm*.85)+arcRoot.x*.28+arcRoot.y*.37);
   float arcFlutter=sin(arcT*(3.65+uArcStorm*1.25)+arcRoot.x*.61-arcRoot.y*.23);
   float arcGust=max(.07,.70+.32*arcWave+.16*arcFlutter);
@@ -196,7 +197,8 @@ uniform float uArcGrassInvHeight;
    if(pressure>.001){
     vec2 across=vec2(cos(uArcPlayer.z),-sin(uArcPlayer.z));
     vec2 away=normalize(d+across*.075);
-    arcMove+=away*(.48*uArcPlayer.w*pressure);
+    arcMove+=away*(.83*uArcPlayer.w*pressure);
+    arcCompression=max(arcCompression,.32*uArcPlayer.w*pressure);
    }
   }
   // Marcas passageiras continuam a ceder por cerca de um segundo,
@@ -205,13 +207,15 @@ uniform float uArcGrassInvHeight;
    vec2 d=arcRoot-uArcTrail0.xy;
    float reach=max(0.0,1.0-length(d)/1.12);
    float pressure=reach*reach*(3.0-2.0*reach);
-   arcMove+=normalize(d+vec2(.015,.019))*(.26*uArcTrail0.w*pressure);
+   arcMove+=normalize(d+vec2(.015,.019))*(.34*uArcTrail0.w*pressure);
+   arcCompression=max(arcCompression,.16*uArcTrail0.w*pressure);
   }
   if(uArcTrail1.w>.001){
    vec2 d=arcRoot-uArcTrail1.xy;
    float reach=max(0.0,1.0-length(d)/1.12);
    float pressure=reach*reach*(3.0-2.0*reach);
-   arcMove+=normalize(d+vec2(-.017,.013))*(.26*uArcTrail1.w*pressure);
+   arcMove+=normalize(d+vec2(-.017,.013))*(.34*uArcTrail1.w*pressure);
+   arcCompression=max(arcCompression,.16*uArcTrail1.w*pressure);
   }
   // Deslocamento mundo XZ -> coordenadas do tufo, que pode estar rotacionado.
   vec2 arcAxisX=instanceMatrix[0].xz,arcAxisZ=instanceMatrix[2].xz;
@@ -219,11 +223,15 @@ uniform float uArcGrassInvHeight;
    max(dot(arcAxisX,arcAxisX),.0001)*arcBlade;
   transformed.z+=dot(arcMove,arcAxisZ)/
    max(dot(arcAxisZ,arcAxisZ),.0001)*arcBlade;
+  // Tufos cedem para o lado e também abaixam levemente ao redor
+  // das canelas. Só os vértices superiores sofrem deformação.
+  transformed.y-=arcCompression*arcBlade/
+   max(length(instanceMatrix[1].xyz),.01);
  }
 #endif
 `);
  };
- mat.customProgramCacheKey=()=> 'arcano-grass-storm-physical-contact-v1260-'+name;
+ mat.customProgramCacheKey=()=> 'arcano-grass-realtime-physical-contact-v1261-'+name;
  return mat;
 }
 function animateGrassVisuals(dt){
@@ -232,9 +240,18 @@ function animateGrassVisuals(dt){
  const heading=atm?.getGrassWindHeading?.()||0;
  const userPower=clamp(atm?.getGrassWindPower?.()??70,0,100)/100;
  const storm=!!atm?.getGrassStorm?.();
- grassVisual.clock+=dt;
+ // Com milhões de gramíneas, quadros podem levar > 90 ms no celular.
+ // O acumulador ecológico limita dt para estabilidade da física; animar
+ // vento com esse dt deixava as ondas artificialmente lentas no FPS baixo.
+ // Apenas esta animação visual usa o relógio real (não a física).
+ const wallNow=typeof performance!=='undefined'?
+  performance.now()*.001:grassVisual.clock+dt;
+ const realDt=grassVisual.lastWallTime<0?Math.min(dt,.09):
+  clamp(wallNow-grassVisual.lastWallTime,0,.8);
+ grassVisual.lastWallTime=wallNow;
+ grassVisual.clock=wallNow;
  const u=grassVisual.uniforms;
- u.uArcWindTime.value=grassVisual.clock;
+ u.uArcWindTime.value=wallNow;
  u.uArcWindDir.value.set(Math.cos(heading),Math.sin(heading));
  u.uArcStorm.value=storm?1:0;
  // V12.59 aplicava wind*.092, ~2 cm nos ventos usuais.
@@ -249,7 +266,7 @@ function animateGrassVisuals(dt){
  const trail=[u.uArcTrail0.value,u.uArcTrail1.value];
  for(let i=0;i<2;i++){
   const t=trail[i];
-  if(t.w>0)t.w=Math.max(0,t.w-dt*1.20);
+  if(t.w>0)t.w=Math.max(0,t.w-realDt*1.20);
  }
  if(!p||p.grassOnGround===false){
   current.w=0;grassVisual.stepDistance=0;
