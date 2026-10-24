@@ -12,21 +12,21 @@ const eco=fs.readFileSync(path.join(root,'ecossistema-v1232.js'),'utf8');
 const budget='const grassBudgets=mobileDevice?{high:1900000,balanced:1900000,low:800000}:{high:2400000,balanced:2400000,low:1000000};';
 if(!eco.includes(budget))throw Error('Orçamento de grama mudou; verificar teste');
 fs.writeFileSync(path.join(dir,'ecossistema-v1232.js'),eco.replace(budget,'const grassBudgets={high:12000,balanced:12000,low:12000};'));
-let server,browser;
+let server,browser,page;
+const issues=[];
 (async()=>{
  try{
   server=cp.spawn('python3',['-m','http.server','8897','--bind','127.0.0.1','--directory',dir],{stdio:'ignore'});
   await new Promise(r=>setTimeout(r,900));
   browser=await chromium.launch({executablePath:'/usr/bin/google-chrome',headless:true,
    args:['--no-sandbox','--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']});
-  const page=await browser.newPage({viewport:{width:1000,height:740}});
-  const issues=[];
+  page=await browser.newPage({viewport:{width:1000,height:740}});
   page.on('pageerror',e=>issues.push(e.message));
   page.on('console',e=>{if(e.type()==='error')issues.push(e.text().slice(0,500));});
   await page.goto('http://127.0.0.1:8897/index.html',{waitUntil:'domcontentloaded',timeout:45000});
   await page.waitForFunction(()=>window.arcanoEcoV1232?.ready?.()&&
    window.arcanoEcoV1232.getGrassMotionState?.().chunks>0,
-   null,{timeout:100000});
+   null,{timeout:24000});
   const before=await page.evaluate(()=>window.arcanoEcoV1232.getGrassMotionState());
   await page.evaluate(()=>{
    const slider=document.getElementById('windIntensity');
@@ -65,7 +65,20 @@ let server,browser;
    active.meshes.animated===active.meshes.n;
   console.log(JSON.stringify({ok,before,windy,active,issues:issues.slice(0,12)}));
   if(!ok)process.exitCode=1;
- }catch(e){console.error('INTEGRATION FAIL',e.stack||e);process.exitCode=1;
+ }catch(e){
+  console.error('INTEGRATION FAIL',e.stack||e);
+  if(page)try{
+   const snapshot=await page.evaluate(()=>({
+    title:document.title,three:!!window.THREE,eco:!!window.arcanoEcoV1232,
+    ecoStatus:document.getElementById('ecoStatus')?.textContent,
+    status:document.getElementById('gameStatus')?.textContent,
+    game:!!window.arcanoWaterV1226,
+    grassMeshes:(()=>{let n=0;window.arcanoWaterV1226?.scene?.traverse(o=>{if(o.name?.includes('Tapete de grama'))n++});return n})(),
+    errors:document.querySelector('#error')?.textContent
+   }));console.error('SNAPSHOT',JSON.stringify(snapshot));
+  }catch(error){console.error('SNAPSHOT ERROR',error.message)}
+  console.error('BROWSER ERRORS',JSON.stringify(issues.slice(0,30)));
+  process.exitCode=1;
  }finally{
   if(browser)await browser.close();
   if(server)server.kill('SIGTERM');
