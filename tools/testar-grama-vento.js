@@ -48,7 +48,7 @@ assert.match(shader.vertexShader,/instanceMatrix\[0\]\.xz/);
 assert.match(shader.vertexShader,/#include <begin_vertex>/);
 assert.match(shader.vertexShader,/#include <project_vertex>/);
 assert.equal(shader.uniforms.uArcGrassBase.value,-.1);
-assert.equal(shader.uniforms.uArcGrassInvHeight.value,1/1.4);
+assert.ok(Math.abs(shader.uniforms.uArcGrassInvHeight.value-1/1.4)<1e-12);
 assert.equal(shader.uniforms.uArcPlayer,grassVisual.uniforms.uArcPlayer);
 assert.equal(shader.uniforms.uArcWindTime,grassVisual.uniforms.uArcWindTime);
 assert.equal(shader.uniforms.uArcWindStrength.value,0);
