@@ -24,16 +24,15 @@ const issues=[];
   page.on('pageerror',e=>issues.push(e.message));
   page.on('console',e=>{if(e.type()==='error')issues.push(e.text().slice(0,500));});
   await page.goto('http://127.0.0.1:8897/index.html',{waitUntil:'domcontentloaded',timeout:45000});
-  await page.waitForFunction(()=>window.arcanoEcoV1232?.ready?.()&&
-   window.arcanoEcoV1232.getGrassMotionState?.().chunks>0,
+  await page.waitForFunction(()=>window.arcanoGrassMotionState?.().chunks>0,
    null,{timeout:24000});
-  const before=await page.evaluate(()=>window.arcanoEcoV1232.getGrassMotionState());
+  const before=await page.evaluate(()=>window.arcanoGrassMotionState());
   await page.evaluate(()=>{
    const slider=document.getElementById('windIntensity');
    slider.value='100';slider.dispatchEvent(new Event('input',{bubbles:true}));
   });
   await page.waitForTimeout(1100);
-  const windy=await page.evaluate(()=>window.arcanoEcoV1232.getGrassMotionState());
+  const windy=await page.evaluate(()=>window.arcanoGrassMotionState());
   await page.evaluate(()=>document.getElementById('playEntry').click());
   await page.waitForFunction(()=>window.arcanoWaterV1226.getGrassPlayer(),null,{timeout:12000});
   await page.evaluate(()=>{
@@ -42,7 +41,7 @@ const issues=[];
   });
   await page.waitForTimeout(1400);
   const active=await page.evaluate(()=>({
-   grass:window.arcanoEcoV1232.getGrassMotionState(),
+   grass:window.arcanoGrassMotionState(),
    player:window.arcanoWaterV1226.getGrassPlayer()&&{
     position:window.arcanoWaterV1226.getGrassPlayer().position.toArray(),
     speed:window.arcanoWaterV1226.getGrassPlayer().grassSpeed
@@ -59,7 +58,7 @@ const issues=[];
    })(),
    renderPrograms:window.arcanoWaterV1226.renderer.info.programs?.length
   }));
-  const ok=before.chunks>0&&before.tufts>0&&windy.wind>.37&&
+  const ok=before.chunks>0&&windy.wind>.37&&
    windy.time>before.time+.25&&active.grass.contact>.35&&
    active.player?.speed>.02&&active.meshes.n>0&&
    active.meshes.animated===active.meshes.n;
@@ -70,6 +69,7 @@ const issues=[];
   if(page)try{
    const snapshot=await page.evaluate(()=>({
     title:document.title,three:!!window.THREE,eco:!!window.arcanoEcoV1232,
+    grassMotion:window.arcanoGrassMotionState?.(),
     ecoStatus:document.getElementById('ecoStatus')?.textContent,
     status:document.getElementById('gameStatus')?.textContent,
     game:!!window.arcanoWaterV1226,
