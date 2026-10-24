@@ -35,16 +35,19 @@ const issues=[];
   const windy=await page.evaluate(()=>window.arcanoGrassMotionState());
   await page.evaluate(()=>document.getElementById('playEntry').click());
   await page.waitForFunction(()=>window.arcanoWaterV1226.getGrassPlayer(),null,{timeout:12000});
-  await page.evaluate(()=>{
-   const player=window.arcanoWaterV1226.getGrassPlayer();
-   player.keys.add('w');
-  });
+  // Pressão real de teclado em navegador após a tentativa de fullscreen,
+  // evitando que um evento de blur limpe a tecla simulada.
+  await page.waitForTimeout(500);
+  await page.keyboard.down('w');
   await page.waitForTimeout(1400);
   const active=await page.evaluate(()=>({
    grass:window.arcanoGrassMotionState(),
    player:window.arcanoWaterV1226.getGrassPlayer()&&{
     position:window.arcanoWaterV1226.getGrassPlayer().position.toArray(),
-    speed:window.arcanoWaterV1226.getGrassPlayer().grassSpeed
+    speed:window.arcanoWaterV1226.getGrassPlayer().grassSpeed,
+    active:window.arcanoWaterV1226.getGrassPlayer().active,
+    hasRoot:!!window.arcanoWaterV1226.getGrassPlayer().root,
+    keys:[...window.arcanoWaterV1226.getGrassPlayer().keys]
    },
    meshes:(()=>{
     let n=0,animated=0;
