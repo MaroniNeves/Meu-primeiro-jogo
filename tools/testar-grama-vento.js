@@ -17,7 +17,7 @@ class Vector4{
  constructor(x=0,y=0,z=0,w=0){this.set(x,y,z,w);}
  set(x,y,z,w){Object.assign(this,{x,y,z,w});return this;}
 }
-let player=null,wind=.35,heading=0,power=70,storm=false;
+let player=null,wind=.35,heading=0,power=70,storm=false,wallMs=10000;
 const geometry={
  boundingBox:{min:{y:0},max:{y:1}},
  computeBoundingBox(){}
@@ -34,6 +34,7 @@ const context={
   },
   getGrassPlayer:()=>player
  },
+ performance:{now:()=>wallMs},
  clamp:(x,a,b)=>Math.max(a,Math.min(b,x)),Math
 };
 vm.createContext(context);
@@ -50,7 +51,8 @@ for(const fragment of [
  'arcBlade*=arcBlade','arcRoot=instanceMatrix[3].xz',
  'arcMove=uArcWindDir*(uArcWindStrength*arcGust)',
  'vec2 away=normalize(d+across*.075)',
- 'arcMove+=away*(.48*uArcPlayer.w*pressure)',
+ 'arcMove+=away*(.83*uArcPlayer.w*pressure)',
+ 'transformed.y-=arcCompression*arcBlade',
  'arcMove+=normalize(d+vec2(.015,.019))',
  'instanceMatrix[0].xz','instanceMatrix[2].xz',
  '#include <begin_vertex>','#include <project_vertex>'
@@ -91,7 +93,11 @@ assert.ok(trail.some(t=>t.w>.001),'Passos deslocam a grama atrás do personagem'
 player.grassOnGround=false;
 animateGrassVisuals(.1);
 assert.equal(u.uArcPlayer.value.w,0,'Sem contato na ponte não afasta o gramado');
-player=null;for(let i=0;i<22;i++)animateGrassVisuals(.1);
+// O shader avança com o relógio real, mesmo quando dt do simulador limita a 90 ms.
+const t0=u.uArcWindTime.value;
+wallMs+=2300;animateGrassVisuals(.09);
+assert.ok(u.uArcWindTime.value>t0+2.2,'Vento deve seguir segundos reais mesmo com FPS baixo');
+player=null;for(let i=0;i<22;i++){wallMs+=120;animateGrassVisuals(.09);}
 assert.equal(u.uArcPlayer.value.w,0);
 assert.ok(trail.every(t=>t.w===0),'Grama retorna progressivamente após os passos');
 assert.match(main,/getGrassPlayer:\(\)=>game\.active\?game:null/);
@@ -101,6 +107,7 @@ assert.match(main,/game\.grassOnGround=!onBridge/);
 assert.match(main,/game\.grassSpeed=walked\/Math\.max\(dt,\.001\)/);
 assert.match(ecology,/materials\.set\(name,grassAnimatedMaterial\(name,kind\)\)/);
 assert.match(ecology,/animateGrassVisuals\(dt\)/);
+assert.match(ecology,/performance\.now\(\)\*\.001/);
 assert.match(ecology,/const step=mobileDevice\?\.140:\.125/);
 assert.match(ecology,/const names=\['grassShort1','grassMixed1','grassTall1','grassMixed2'\]/);
 console.log('OK: vento 0/100%, tempestade, orientação, pressão da grama, ponte e recuperação gradual.');
