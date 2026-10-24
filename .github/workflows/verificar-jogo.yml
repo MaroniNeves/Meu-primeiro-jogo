@@ -14,3 +14,9 @@ jobs:
         uses: actions/checkout@v4
       - name: Conferir integridade do jogo
         run: python3 tools/validar-jogo.py
+      - name: Conferir sintaxe dos scripts JavaScript
+        run: |
+          node --check agua-v1226.js
+          node --check ecossistema-v1232.js
+      - name: Testar colisão sólida da ponte e passos na água
+        run: node tools/testar-ponte-agua.js
