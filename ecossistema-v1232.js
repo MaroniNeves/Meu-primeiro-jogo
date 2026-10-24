@@ -2068,6 +2068,12 @@ async function setup(){
   registerAnimalFootfall,movementCost,largeAnimals,
   trample,addCarcass,update,status,api,ready:()=>ready,setMagnification:n=>previewMagnification=n,
   getColony:id=>colonies.find(c=>c.id===id),getWorms:()=>worms,inspectColony:updateColonyInspector,
+  getGrassMotionState:()=>({chunks:grassChunkMeshes.size,tufts:grassDrawn,
+   wind:grassVisual.uniforms.uArcWindStrength.value,
+   time:grassVisual.uniforms.uArcWindTime.value,
+   contact:grassVisual.uniforms.uArcPlayer.value.w,
+   playerX:grassVisual.uniforms.uArcPlayer.value.x,
+   playerZ:grassVisual.uniforms.uArcPlayer.value.y}),
   events:ecoEvents,getDays:()=>ecologicalDays};
  let last=performance.now();function frame(now){requestAnimationFrame(frame);const dt=Math.min(.09,(now-last)/1000);last=now;if(!document.hidden)update(dt);}
  requestAnimationFrame(frame);status();
