@@ -1,16 +1,14 @@
-// V12.59: teste de integração das animações da grama sem WebGL.
+// V12.60: integração do shader GPU de vento/temporal e afastamento por contato.
 'use strict';
 const assert=require('node:assert/strict');
-const fs=require('node:fs');
-const vm=require('node:vm');
-const path=require('node:path');
+const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const root=path.resolve(__dirname,'..');
 const ecology=fs.readFileSync(path.join(root,'ecossistema-v1232.js'),'utf8');
 const main=fs.readFileSync(path.join(root,'agua-v1226.js'),'utf8');
 const start=ecology.indexOf('const grassVisual={');
 const stop=ecology.indexOf('function makeMesh(name,kind)',start);
-assert.ok(start>=0&&stop>start,'Código visual da grama deve estar no módulo ecológico');
-const sample=ecology.slice(start,stop);
+assert.ok(start>=0&&stop>start,'Shader e movimento da grama devem estar no módulo ecológico');
+const source=ecology.slice(start,stop);
 class Vector2{
  constructor(x=0,y=0){this.x=x;this.y=y;}
  set(x,y){this.x=x;this.y=y;return this;}
@@ -19,59 +17,90 @@ class Vector4{
  constructor(x=0,y=0,z=0,w=0){this.set(x,y,z,w);}
  set(x,y,z,w){Object.assign(this,{x,y,z,w});return this;}
 }
-let player=null,wind=0,heading=0;
+let player=null,wind=.35,heading=0,power=70,storm=false;
 const geometry={
- boundingBox:{min:{y:-.1},max:{y:1.3}},
+ boundingBox:{min:{y:0},max:{y:1}},
  computeBoundingBox(){}
 };
-const ctx={
+const context={
  T:{Vector2,Vector4},
- material:()=>({}),
- meshLibrary:{grassShort1:geometry},
+ material:()=>({}),meshLibrary:{grassShort1:geometry},
  api:{
-   atmosphere:{getMetrics:()=>({wind}),getGrassWindHeading:()=>heading},
-   getGrassPlayer:()=>player
+  atmosphere:{
+   getMetrics:()=>({wind}),
+   getGrassWindHeading:()=>heading,
+   getGrassWindPower:()=>power,
+   getGrassStorm:()=>storm
+  },
+  getGrassPlayer:()=>player
  },
- clamp:(x,a,b)=>Math.min(b,Math.max(a,x)),
- Math
+ clamp:(x,a,b)=>Math.max(a,Math.min(b,x)),Math
 };
-vm.createContext(ctx);
-vm.runInContext(sample+';globalThis.result={grassVisual,grassAnimatedMaterial,animateGrassVisuals};',ctx);
-const {grassVisual,grassAnimatedMaterial,animateGrassVisuals}=ctx.result;
+vm.createContext(context);
+vm.runInContext(source+';globalThis.result={grassVisual,grassAnimatedMaterial,animateGrassVisuals};',context);
+const {grassVisual,grassAnimatedMaterial,animateGrassVisuals}=context.result;
 const mat=grassAnimatedMaterial('grassShort1','grassShort');
-const shader={uniforms:{},vertexShader:'void main(){\\n#include <begin_vertex>\\n#include <project_vertex>\\n}'};
+const shader={
+ uniforms:{},
+ vertexShader:'void main(){\n#include <begin_vertex>\n#include <project_vertex>\n}'
+};
 mat.onBeforeCompile(shader);
-assert.match(shader.vertexShader,/arcBlade\*=arcBlade/);
-assert.match(shader.vertexShader,/arcRoot-uArcPlayer\.xy/);
-assert.match(shader.vertexShader,/arcMove\+=d\*/);
-assert.match(shader.vertexShader,/instanceMatrix\[0\]\.xz/);
-assert.match(shader.vertexShader,/#include <begin_vertex>/);
-assert.match(shader.vertexShader,/#include <project_vertex>/);
-assert.equal(shader.uniforms.uArcGrassBase.value,-.1);
-assert.ok(Math.abs(shader.uniforms.uArcGrassInvHeight.value-1/1.4)<1e-12);
+for(const fragment of [
+ 'uniform float uArcWindTime;','uniform float uArcStorm;',
+ 'arcBlade*=arcBlade','arcRoot=instanceMatrix[3].xz',
+ 'arcMove=uArcWindDir*(uArcWindStrength*arcGust)',
+ 'vec2 away=normalize(d+across*.075)',
+ 'arcMove+=away*(.48*uArcPlayer.w*pressure)',
+ 'arcMove+=normalize(d+vec2(.015,.019))',
+ 'instanceMatrix[0].xz','instanceMatrix[2].xz',
+ '#include <begin_vertex>','#include <project_vertex>'
+])assert.ok(shader.vertexShader.includes(fragment),'Shader sem '+fragment);
+assert.equal(shader.uniforms.uArcGrassBase.value,0);
+assert.equal(shader.uniforms.uArcGrassInvHeight.value,1);
 assert.equal(shader.uniforms.uArcPlayer,grassVisual.uniforms.uArcPlayer);
 assert.equal(shader.uniforms.uArcWindTime,grassVisual.uniforms.uArcWindTime);
-assert.equal(shader.uniforms.uArcWindStrength.value,0);
-wind=1.5;heading=Math.PI/2;animateGrassVisuals(.1);
-assert.ok(Math.abs(grassVisual.uniforms.uArcWindStrength.value-.138)<1e-8);
-assert.ok(Math.abs(grassVisual.uniforms.uArcWindDir.value.y-1)<1e-8);
-player={position:{x:0,z:0},grassSpeed:1.65};
+assert.equal(shader.uniforms.uArcStorm,grassVisual.uniforms.uArcStorm);
+const u=grassVisual.uniforms;
+power=0;wind=0;storm=false;
 animateGrassVisuals(.1);
-assert.ok(grassVisual.uniforms.uArcPlayer.value.w>.4);
-for(let i=1;i<=8;i++){
+assert.equal(u.uArcWindStrength.value,0,'Vento desligado não agita a grama');
+power=100;wind=.35;heading=Math.PI/2;storm=false;
+animateGrassVisuals(.1);
+const maxNormal=u.uArcWindStrength.value;
+assert.ok(maxNormal>.37,'Vento a 100% deve produzir dobra claramente visível');
+assert.ok(Math.abs(u.uArcWindDir.value.y-1)<1e-8);
+storm=true;
+animateGrassVisuals(.1);
+const maxStorm=u.uArcWindStrength.value;
+assert.ok(maxStorm>maxNormal+.20,'Temporal reforça rajadas');
+assert.ok(maxStorm>=.62&&maxStorm<=.68,'Temporal forte deve respeitar limites do shader');
+assert.equal(u.uArcStorm.value,1);
+power=20;wind=.15;storm=true;
+animateGrassVisuals(.1);
+assert.ok(u.uArcWindStrength.value<maxStorm*.5,'Painel diminui a reação visual do temporal');
+player={position:{x:0,z:0},heading:1.2,grassSpeed:1.65,grassOnGround:true};
+animateGrassVisuals(.1);
+assert.ok(u.uArcPlayer.value.w>=.95);
+assert.equal(u.uArcPlayer.value.z,1.2);
+for(let i=1;i<=12;i++){
  player.position.x=i*.13;
  animateGrassVisuals(.09);
 }
-const trails=[grassVisual.uniforms.uArcTrail0.value,grassVisual.uniforms.uArcTrail1.value];
-assert.ok(trails.some(t=>t.w>.001),'Passagem deve afligir grama atrás do boneco');
+const trail=[u.uArcTrail0.value,u.uArcTrail1.value];
+assert.ok(trail.some(t=>t.w>.001),'Passos deslocam a grama atrás do personagem');
+player.grassOnGround=false;
+animateGrassVisuals(.1);
+assert.equal(u.uArcPlayer.value.w,0,'Sem contato na ponte não afasta o gramado');
 player=null;for(let i=0;i<22;i++)animateGrassVisuals(.1);
-assert.equal(grassVisual.uniforms.uArcPlayer.value.w,0);
-assert.ok(trails.every(t=>t.w===0),'Grama volta gradualmente à posição após passagem');
+assert.equal(u.uArcPlayer.value.w,0);
+assert.ok(trail.every(t=>t.w===0),'Grama retorna progressivamente após os passos');
 assert.match(main,/getGrassPlayer:\(\)=>game\.active\?game:null/);
-assert.match(main,/getGrassWindHeading:\(\)=>atmWindHeading/);
+assert.match(main,/getGrassWindPower:\(\)=>windUserPower/);
+assert.match(main,/getGrassStorm:\(\)=>stormActive\(\)\|\|climate==='storm'/);
+assert.match(main,/game\.grassOnGround=!onBridge/);
 assert.match(main,/game\.grassSpeed=walked\/Math\.max\(dt,\.001\)/);
 assert.match(ecology,/materials\.set\(name,grassAnimatedMaterial\(name,kind\)\)/);
 assert.match(ecology,/animateGrassVisuals\(dt\)/);
 assert.match(ecology,/const step=mobileDevice\?\.140:\.125/);
 assert.match(ecology,/const names=\['grassShort1','grassMixed1','grassTall1','grassMixed2'\]/);
-console.log('OK: vento em GPU, direção física, contato radial, trilha temporária e densidade original preservada.');
+console.log('OK: vento 0/100%, tempestade, orientação, pressão da grama, ponte e recuperação gradual.');
