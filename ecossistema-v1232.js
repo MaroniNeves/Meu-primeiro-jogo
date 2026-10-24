@@ -243,7 +243,11 @@ function makeRoadSurfaceDetails(){
  console.info('[Arcano V12.41] Estrada de terra:',count,
   'grãos e fragmentos ancorados, sem tapar o solo.');
 }
+// O tablado ecológico é uma superfície sólida: o modo Jogar consulta
+// a MESMA posição, ângulo e largura usados para construir suas tábuas.
+// Não cria malhas invisíveis, rampas decorativas ou nova física de solo.
 function makeRoad(){
+ window.arcanoBridgeSolid=null;
  // Um tablado CONTÍNUO, horizontal, sustentado por vigas e fixado em dois
  // encontros elevados. Nenhuma tábua cresce em degraus sobre o terreno.
  // O vão precisa atravessar rio com margens opostas — sem ponte aleatória.
@@ -309,6 +313,39 @@ function makeRoad(){
      addBox(span+.10,.095,.10,deckMat,0,.47,lateral,'Corrimão da ponte');
     }
     roads.add(bridge);
+    // Coordenadas locais da ponte: X = comprimento, Z = largura.
+    // O centro do boneco não pode atravessar os corrimãos laterais.
+    const alongX=Math.cos(direction),alongZ=Math.sin(direction);
+    const halfSpan=span*.5,walkHalfWidth=.425,railRadius=.215;
+    const local=(x,z)=>{
+     const px=x-mx,pz=z-mz;
+     return {along:px*alongX+pz*alongZ,
+      side:-px*alongZ+pz*alongX};
+    };
+    const surfaceAt=(x,z)=>{
+     if(!realm.visible)return null;
+     const p=local(x,z);
+     return Math.abs(p.along)<=halfSpan-.006&&
+      Math.abs(p.side)<=walkHalfWidth?deckY+.0325:null;
+    };
+    const blocksSegment=(x0,z0,x1,z1)=>{
+     if(!realm.visible)return false;
+     // Amostragem em passos pequenos impede cruzar o corrimão em corrida.
+     const distance=Math.hypot(x1-x0,z1-z0);
+     const steps=Math.max(1,Math.ceil(distance/.055));
+     for(let i=1;i<=steps;i++){
+      const u=i/steps,p=local(x0+(x1-x0)*u,z0+(z1-z0)*u);
+      if(Math.abs(p.along)>halfSpan+.035)continue;
+      // Postes e corrimãos ocupam ±0.57 no Z local. Somar o raio
+      // do boneco permite bloquear colisão sem tocar no piso da ponte.
+      if(Math.abs(Math.abs(p.side)-.57)<railRadius)return true;
+     }
+     return false;
+    };
+    window.arcanoBridgeSolid={surfaceAt,blocksSegment,
+     center:{x:mx,z:mz},deckY:deckY+.0325,span,width:1.32,
+     rotation:-direction};
+    console.info('[Arcano V12.58] Ponte com piso e corrimãos sólidos',window.arcanoBridgeSolid.center);
     console.info('[Arcano V12.37] Ponte horizontal entre margens',
      {left,right,span,deckY,clearance:deckY-height(mx,mz)});
    }else console.warn('[Arcano] Vão fora da faixa segura, ponte omitida.');
