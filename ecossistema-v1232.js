@@ -316,7 +316,7 @@ function makeRoad(){
     // Coordenadas locais da ponte: X = comprimento, Z = largura.
     // O centro do boneco não pode atravessar os corrimãos laterais.
     const alongX=Math.cos(direction),alongZ=Math.sin(direction);
-    const halfSpan=span*.5,walkHalfWidth=.425,railRadius=.215;
+    const halfSpan=span*.5,walkHalfWidth=.33,railRadius=.215;
     const local=(x,z)=>{
      const px=x-mx,pz=z-mz;
      return {along:px*alongX+pz*alongZ,
