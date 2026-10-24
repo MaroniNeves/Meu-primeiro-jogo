@@ -1,0 +1,16 @@
+name: Verificar Jogo 3D
+on:
+  push:
+    branches: [main]
+  public:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar codigo e modelos
+        uses: actions/checkout@v4
+      - name: Conferir integridade do jogo
+        run: python3 tools/validar-jogo.py
