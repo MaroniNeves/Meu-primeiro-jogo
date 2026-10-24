@@ -133,13 +133,18 @@ function material(kind){
 // V12.59: um só conjunto de uniformes alimenta TODOS os setores 3D.
 // O vento atua no shader, sem reduzir gramíneas ou atualizar matrizes na CPU.
 // As duas marcas recentes de passagem desaparecem gradualmente (<1 s).
+// V12.60: dinâmica visual no GPU, mantendo todas as instâncias 3D originais.
+// Velocidade física, potência definida no painel e temporais participam da
+// resposta: em 100% a grama dobra visivelmente e oscila com rajadas.
+// Proximidade e pisadas abrem os tufos sem diminuir contagem nem escala.
 const grassVisual={
  clock:0,stepDistance:0,lastPlayerX:NaN,lastPlayerZ:NaN,
- trailIndex:0,trailAges:[0,0],
+ trailIndex:0,
  uniforms:{
   uArcWindTime:{value:0},
   uArcWindDir:{value:new T.Vector2(1,0)},
   uArcWindStrength:{value:0},
+  uArcStorm:{value:0},
   uArcPlayer:{value:new T.Vector4(0,0,0,0)},
   uArcTrail0:{value:new T.Vector4(0,0,0,0)},
   uArcTrail1:{value:new T.Vector4(0,0,0,0)}
@@ -157,6 +162,7 @@ function grassAnimatedMaterial(name,kind){
   shader.vertexShader=`uniform float uArcWindTime;
 uniform vec2 uArcWindDir;
 uniform float uArcWindStrength;
+uniform float uArcStorm;
 uniform vec4 uArcPlayer;
 uniform vec4 uArcTrail0;
 uniform vec4 uArcTrail1;
@@ -168,43 +174,46 @@ uniform float uArcGrassInvHeight;
   shader.vertexShader=shader.vertexShader.replace(marker,`
 #include <begin_vertex>
 #ifdef USE_INSTANCING
- // O pé da planta nunca é deslocado: a ponta dobra, preservando o volume 3D.
  float arcBlade=clamp((transformed.y-uArcGrassBase)*uArcGrassInvHeight,0.0,1.0);
  if(arcBlade>0.001){
+  // Base fixa, caules dobram progressivamente com a altura; nenhuma
+  // instância é deletada ou escalada para simular o afastamento.
   arcBlade*=arcBlade;
   vec2 arcRoot=instanceMatrix[3].xz;
-  float arcGust=sin(uArcWindTime*1.75+arcRoot.x*.31+arcRoot.y*.43);
-  vec2 arcMove=uArcWindDir*uArcWindStrength*(.72+.28*arcGust);
-  // O deslocamento humano é radial, afastando tufos dos tornozelos.
+  float arcT=uArcWindTime;
+  float arcWave=sin(arcT*(2.05+uArcStorm*.85)+arcRoot.x*.28+arcRoot.y*.37);
+  float arcFlutter=sin(arcT*(3.65+uArcStorm*1.25)+arcRoot.x*.61-arcRoot.y*.23);
+  float arcGust=max(.07,.70+.32*arcWave+.16*arcFlutter);
+  vec2 arcSide=vec2(-uArcWindDir.y,uArcWindDir.x);
+  vec2 arcMove=uArcWindDir*(uArcWindStrength*arcGust);
+  arcMove+=arcSide*(uArcWindStrength*(.07+.13*uArcStorm)*arcFlutter);
+  // Colisão visual radial com a região das pernas do boneco.
+  // Um pequeno desvio lateral evita que d=0 deixe as lâminas imóveis.
   if(uArcPlayer.w>.001){
    vec2 d=arcRoot-uArcPlayer.xy;
-   float d2=dot(d,d);
-   if(d2<1.44){
-    float attenuation=max(1.0-d2/1.44,0.0);
-    arcMove+=d*(.29*uArcPlayer.w*attenuation*attenuation/
-      sqrt(d2+.025));
+   float reach=max(0.0,1.0-length(d)/1.38);
+   float pressure=reach*reach*(3.0-2.0*reach);
+   if(pressure>.001){
+    vec2 across=vec2(cos(uArcPlayer.z),-sin(uArcPlayer.z));
+    vec2 away=normalize(d+across*.075);
+    arcMove+=away*(.48*uArcPlayer.w*pressure);
    }
   }
+  // Marcas passageiras continuam a ceder por cerca de um segundo,
+  // recuperando altura sem reduzir a quantidade de plantas.
   if(uArcTrail0.w>.001){
    vec2 d=arcRoot-uArcTrail0.xy;
-   float d2=dot(d,d);
-   if(d2<1.0){
-    float attenuation=max(1.0-d2,0.0);
-    arcMove+=d*(.18*uArcTrail0.w*attenuation*attenuation/
-      sqrt(d2+.025));
-   }
+   float reach=max(0.0,1.0-length(d)/1.12);
+   float pressure=reach*reach*(3.0-2.0*reach);
+   arcMove+=normalize(d+vec2(.015,.019))*(.26*uArcTrail0.w*pressure);
   }
   if(uArcTrail1.w>.001){
    vec2 d=arcRoot-uArcTrail1.xy;
-   float d2=dot(d,d);
-   if(d2<1.0){
-    float attenuation=max(1.0-d2,0.0);
-    arcMove+=d*(.18*uArcTrail1.w*attenuation*attenuation/
-      sqrt(d2+.025));
-   }
+   float reach=max(0.0,1.0-length(d)/1.12);
+   float pressure=reach*reach*(3.0-2.0*reach);
+   arcMove+=normalize(d+vec2(-.017,.013))*(.26*uArcTrail1.w*pressure);
   }
-  // Converte o afastamento mundo-XZ para os eixos da instância.
-  // Mantém direção correta mesmo com tufos girados ou escalados.
+  // Deslocamento mundo XZ -> coordenadas do tufo, que pode estar rotacionado.
   vec2 arcAxisX=instanceMatrix[0].xz,arcAxisZ=instanceMatrix[2].xz;
   transformed.x+=dot(arcMove,arcAxisX)/
    max(dot(arcAxisX,arcAxisX),.0001)*arcBlade;
@@ -214,42 +223,49 @@ uniform float uArcGrassInvHeight;
 #endif
 `);
  };
- mat.customProgramCacheKey=()=> 'arcano-grass-sway-and-footsteps-v1259-'+name;
+ mat.customProgramCacheKey=()=> 'arcano-grass-storm-physical-contact-v1260-'+name;
  return mat;
 }
 function animateGrassVisuals(dt){
- const wind=api.atmosphere?.getMetrics?.().wind||0;
- const heading=api.atmosphere?.getGrassWindHeading?.()||0;
+ const atm=api.atmosphere;
+ const wind=atm?.getMetrics?.().wind||0;
+ const heading=atm?.getGrassWindHeading?.()||0;
+ const userPower=clamp(atm?.getGrassWindPower?.()??70,0,100)/100;
+ const storm=!!atm?.getGrassStorm?.();
  grassVisual.clock+=dt;
  const u=grassVisual.uniforms;
  u.uArcWindTime.value=grassVisual.clock;
  u.uArcWindDir.value.set(Math.cos(heading),Math.sin(heading));
- u.uArcWindStrength.value=clamp(wind*.092,0,.19);
+ u.uArcStorm.value=storm?1:0;
+ // V12.59 aplicava wind*.092, ~2 cm nos ventos usuais.
+ // Agora respeita 0%, 100% e as rajadas do temporal sem alterar
+ // a velocidade física, apenas a flexibilidade visual das hastes.
+ const windPhysical=clamp(wind/2.4,0,1);
+ const control=userPower*(.12+.28*Math.pow(userPower,.9));
+ u.uArcWindStrength.value=userPower<.001?0:
+  clamp(control+windPhysical*.20+(storm?userPower*.27:0),0,.68);
  const p=api.getGrassPlayer?.();
  const current=u.uArcPlayer.value;
  const trail=[u.uArcTrail0.value,u.uArcTrail1.value];
  for(let i=0;i<2;i++){
   const t=trail[i];
-  if(t.w>0)t.w=Math.max(0,t.w-dt*1.25);
+  if(t.w>0)t.w=Math.max(0,t.w-dt*1.20);
  }
- if(!p){
+ if(!p||p.grassOnGround===false){
   current.w=0;grassVisual.stepDistance=0;
   grassVisual.lastPlayerX=NaN;grassVisual.lastPlayerZ=NaN;
   return;
  }
- const x=p.position.x,z=p.position.z;
- const speed=p.grassSpeed||0;
- current.set(x,z,0,clamp(.32+speed*.22,.32,1));
+ const x=p.position.x,z=p.position.z,speed=p.grassSpeed||0;
+ current.set(x,z,p.heading||0,clamp(.67+speed*.20,.67,1.3));
  if(Number.isFinite(grassVisual.lastPlayerX)){
   const moved=Math.hypot(x-grassVisual.lastPlayerX,z-grassVisual.lastPlayerZ);
-  // Ao correr não se criam milhões de efeitos, apenas duas trilhas de pressão.
   if(moved>.001&&moved<1.5&&speed>.12){
    grassVisual.stepDistance+=moved;
    const step=speed>2.4?.31:.43;
    if(grassVisual.stepDistance>=step){
     grassVisual.stepDistance%=step;
-    const t=trail[grassVisual.trailIndex];
-    t.set(x,z,0,1);
+    trail[grassVisual.trailIndex].set(x,z,0,1);
     grassVisual.trailIndex=1-grassVisual.trailIndex;
    }
   }
