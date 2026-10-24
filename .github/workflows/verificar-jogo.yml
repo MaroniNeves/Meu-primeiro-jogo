@@ -20,5 +20,7 @@ jobs:
           node --check ecossistema-v1232.js
       - name: Testar colisão sólida da ponte e passos na água
         run: node tools/testar-ponte-agua.js
+      - name: Diagnosticar orientação das malhas Quaternius
+        run: node tools/inspecionar-grama.js
       - name: Testar animação da grama, vento e afastamento dos passos
         run: node tools/testar-grama-vento.js
