@@ -150,6 +150,15 @@ const grassVisual={
   uArcTrail1:{value:new T.Vector4(0,0,0,0)}
  }
 };
+// Disponível mesmo enquanto as milhões de instâncias ainda são plantadas.
+window.arcanoGrassMotionState=()=>({
+ chunks:grassChunkMeshes.size,tufts:grassDrawn,
+ wind:grassVisual.uniforms.uArcWindStrength.value,
+ time:grassVisual.uniforms.uArcWindTime.value,
+ contact:grassVisual.uniforms.uArcPlayer.value.w,
+ playerX:grassVisual.uniforms.uArcPlayer.value.x,
+ playerZ:grassVisual.uniforms.uArcPlayer.value.y
+});
 function grassAnimatedMaterial(name,kind){
  const mat=material(kind),geo=meshLibrary[name];
  geo.computeBoundingBox();
@@ -1982,7 +1991,23 @@ function updateColonyInspector(){
  ' · feromônios '+c.pheromones.reduce((a,v)=>a+v,0).toFixed(1);
 }
 async function setup(){
- await loadMeshes();initializeLandscape();initialColonies();await grassShape();rockShape();setupLeafVisuals();setupFruits();visualizeAnimals();initializeLargeAnimalRoutes();
+ await loadMeshes();initializeLandscape();initialColonies();
+ // V12.61: o plantio das ~2 milhões de plantas é assíncrono.
+ // Antes, a animação só começava depois do plantio completo: enquanto
+ // apareciam os primeiros setores, o vento e o contato ficavam congelados.
+ // Rodar os uniformes GPU desde o primeiro setor, sem antecipar a física
+ // ecológica para não mudar o desenvolvimento do solo.
+ let sceneReady=false,lastFrame=performance.now();
+ function frame(now){
+  requestAnimationFrame(frame);
+  const dt=Math.min(.09,Math.max(0,(now-lastFrame)/1000));
+  lastFrame=now;
+  if(document.hidden)return;
+  if(sceneReady)update(dt);
+  else animateGrassVisuals(dt);
+ }
+ requestAnimationFrame(frame);
+ await grassShape();rockShape();setupLeafVisuals();setupFruits();visualizeAnimals();initializeLargeAnimalRoutes();
  drawNestCutaway();hideDetachedAntModels();
  const board=$('ecoStatus');if(board)board.textContent='Pacotes enviados integrados: '+Object.keys(meshLibrary).length+' malhas · '+colonies.length+' colônias.';
  const s=$('ecoSpeed');if(s){s.oninput=e=>{biologicalSpeed=clamp(+e.target.value,1,200);$('ecoSpeedVal').textContent=biologicalSpeed+'×';};}
@@ -2075,8 +2100,8 @@ async function setup(){
    playerX:grassVisual.uniforms.uArcPlayer.value.x,
    playerZ:grassVisual.uniforms.uArcPlayer.value.y}),
   events:ecoEvents,getDays:()=>ecologicalDays};
- let last=performance.now();function frame(now){requestAnimationFrame(frame);const dt=Math.min(.09,(now-last)/1000);last=now;if(!document.hidden)update(dt);}
- requestAnimationFrame(frame);status();
+ sceneReady=true;
+ status();
 }
 setup().catch(e=>{
  console.error('[Arcano V12.32] falha ao inicializar ecossistema:',e);
