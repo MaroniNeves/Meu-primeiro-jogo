@@ -130,6 +130,132 @@ function material(kind){
  return new T.MeshStandardMaterial({color:tint,map,roughness:1,metalness:0,side:T.DoubleSide,
   alphaTest:kind==='rock'?0:kind==='grassTall'?.15:.10,transparent:false,depthWrite:true});
 }
+// V12.59: um só conjunto de uniformes alimenta TODOS os setores 3D.
+// O vento atua no shader, sem reduzir gramíneas ou atualizar matrizes na CPU.
+// As duas marcas recentes de passagem desaparecem gradualmente (<1 s).
+const grassVisual={
+ clock:0,stepDistance:0,lastPlayerX:NaN,lastPlayerZ:NaN,
+ trailIndex:0,trailAges:[0,0],
+ uniforms:{
+  uArcWindTime:{value:0},
+  uArcWindDir:{value:new T.Vector2(1,0)},
+  uArcWindStrength:{value:0},
+  uArcPlayer:{value:new T.Vector4(0,0,0,0)},
+  uArcTrail0:{value:new T.Vector4(0,0,0,0)},
+  uArcTrail1:{value:new T.Vector4(0,0,0,0)}
+ }
+};
+function grassAnimatedMaterial(name,kind){
+ const mat=material(kind),geo=meshLibrary[name];
+ geo.computeBoundingBox();
+ const minY=geo.boundingBox.min.y,span=Math.max(.0001,geo.boundingBox.max.y-minY);
+ const base={value:minY},inverseHeight={value:1/span};
+ mat.onBeforeCompile=shader=>{
+  Object.assign(shader.uniforms,grassVisual.uniforms);
+  shader.uniforms.uArcGrassBase=base;
+  shader.uniforms.uArcGrassInvHeight=inverseHeight;
+  shader.vertexShader=`uniform float uArcWindTime;
+uniform vec2 uArcWindDir;
+uniform float uArcWindStrength;
+uniform vec4 uArcPlayer;
+uniform vec4 uArcTrail0;
+uniform vec4 uArcTrail1;
+uniform float uArcGrassBase;
+uniform float uArcGrassInvHeight;
+`+shader.vertexShader;
+  const marker='#include <begin_vertex>';
+  if(!shader.vertexShader.includes(marker))throw new Error('Shader padrão da grama incompatível');
+  shader.vertexShader=shader.vertexShader.replace(marker,`
+#include <begin_vertex>
+#ifdef USE_INSTANCING
+ // O pé da planta nunca é deslocado: a ponta dobra, preservando o volume 3D.
+ float arcBlade=clamp((transformed.y-uArcGrassBase)*uArcGrassInvHeight,0.0,1.0);
+ if(arcBlade>0.001){
+  arcBlade*=arcBlade;
+  vec2 arcRoot=instanceMatrix[3].xz;
+  float arcGust=sin(uArcWindTime*1.75+arcRoot.x*.31+arcRoot.y*.43);
+  vec2 arcMove=uArcWindDir*uArcWindStrength*(.72+.28*arcGust);
+  // O deslocamento humano é radial, afastando tufos dos tornozelos.
+  if(uArcPlayer.w>.001){
+   vec2 d=arcRoot-uArcPlayer.xy;
+   float d2=dot(d,d);
+   if(d2<1.44){
+    float attenuation=max(1.0-d2/1.44,0.0);
+    arcMove+=d*(.29*uArcPlayer.w*attenuation*attenuation/
+      sqrt(d2+.025));
+   }
+  }
+  if(uArcTrail0.w>.001){
+   vec2 d=arcRoot-uArcTrail0.xy;
+   float d2=dot(d,d);
+   if(d2<1.0){
+    float attenuation=max(1.0-d2,0.0);
+    arcMove+=d*(.18*uArcTrail0.w*attenuation*attenuation/
+      sqrt(d2+.025));
+   }
+  }
+  if(uArcTrail1.w>.001){
+   vec2 d=arcRoot-uArcTrail1.xy;
+   float d2=dot(d,d);
+   if(d2<1.0){
+    float attenuation=max(1.0-d2,0.0);
+    arcMove+=d*(.18*uArcTrail1.w*attenuation*attenuation/
+      sqrt(d2+.025));
+   }
+  }
+  // Converte o afastamento mundo-XZ para os eixos da instância.
+  // Mantém direção correta mesmo com tufos girados ou escalados.
+  vec2 arcAxisX=instanceMatrix[0].xz,arcAxisZ=instanceMatrix[2].xz;
+  transformed.x+=dot(arcMove,arcAxisX)/
+   max(dot(arcAxisX,arcAxisX),.0001)*arcBlade;
+  transformed.z+=dot(arcMove,arcAxisZ)/
+   max(dot(arcAxisZ,arcAxisZ),.0001)*arcBlade;
+ }
+#endif
+`);
+ };
+ mat.customProgramCacheKey=()=> 'arcano-grass-sway-and-footsteps-v1259-'+name;
+ return mat;
+}
+function animateGrassVisuals(dt){
+ const wind=api.atmosphere?.getMetrics?.().wind||0;
+ const heading=api.atmosphere?.getGrassWindHeading?.()||0;
+ grassVisual.clock+=dt;
+ const u=grassVisual.uniforms;
+ u.uArcWindTime.value=grassVisual.clock;
+ u.uArcWindDir.value.set(Math.cos(heading),Math.sin(heading));
+ u.uArcWindStrength.value=clamp(wind*.092,0,.19);
+ const p=api.getGrassPlayer?.();
+ const current=u.uArcPlayer.value;
+ const trail=[u.uArcTrail0.value,u.uArcTrail1.value];
+ for(let i=0;i<2;i++){
+  const t=trail[i];
+  if(t.w>0)t.w=Math.max(0,t.w-dt*1.25);
+ }
+ if(!p){
+  current.w=0;grassVisual.stepDistance=0;
+  grassVisual.lastPlayerX=NaN;grassVisual.lastPlayerZ=NaN;
+  return;
+ }
+ const x=p.position.x,z=p.position.z;
+ const speed=p.grassSpeed||0;
+ current.set(x,z,0,clamp(.32+speed*.22,.32,1));
+ if(Number.isFinite(grassVisual.lastPlayerX)){
+  const moved=Math.hypot(x-grassVisual.lastPlayerX,z-grassVisual.lastPlayerZ);
+  // Ao correr não se criam milhões de efeitos, apenas duas trilhas de pressão.
+  if(moved>.001&&moved<1.5&&speed>.12){
+   grassVisual.stepDistance+=moved;
+   const step=speed>2.4?.31:.43;
+   if(grassVisual.stepDistance>=step){
+    grassVisual.stepDistance%=step;
+    const t=trail[grassVisual.trailIndex];
+    t.set(x,z,0,1);
+    grassVisual.trailIndex=1-grassVisual.trailIndex;
+   }
+  }
+ }else grassVisual.stepDistance=0;
+ grassVisual.lastPlayerX=x;grassVisual.lastPlayerZ=z;
+}
 function makeMesh(name,kind){const geo=meshLibrary[name];return geo?new T.Mesh(geo,material(kind)):null;}
 // V12.34: a estrada é uma ALTERAÇÃO DE COR no shader do solo,
  // nunca uma fita de polígonos sobreposta. Apenas a ponte é geometria extra.
@@ -402,7 +528,7 @@ async function grassShape(){
  for(const name of names){
   const kind=name.startsWith('grassMixed')?'grassMixed':
    name==='grassTall1'?'grassTall':'grassShort';
-  if(meshLibrary[name])materials.set(name,material(kind));
+  if(meshLibrary[name])materials.set(name,grassAnimatedMaterial(name,kind));
  }
  if(!materials.size)return;
  const step=mobileDevice?.140:.125,chunkSize=10;
@@ -525,6 +651,9 @@ async function grassShape(){
     mesh.setColorAt(i,matColor);
    }
    mesh.computeBoundingSphere();
+   // A ponta pode inclinar-se ~30 cm além da caixa estática original.
+   // Expande só o limite de culling, sem mudar a geometria nem a densidade.
+   if(mesh.boundingSphere)mesh.boundingSphere.radius+=.55;
    mesh.instanceMatrix.needsUpdate=true;
    if(mesh.instanceColor)mesh.instanceColor.needsUpdate=true;
    foliage.add(mesh);chunkCount++;
@@ -1637,6 +1766,7 @@ let ecologicalAccumulator=0,time=0,grassAccumulator=0,uiAccumulator=0;
 function update(dt){
  if(!ready)return;
  dt=Math.min(dt,.09);time+=dt;ecologicalAccumulator+=ecologicalDayRate(dt);
+ animateGrassVisuals(dt);
  animateLeafFall(dt);animateFruits(dt);
  grassAccumulator+=dt;uiAccumulator+=dt;
  // Recarrega o rio somente pela fonte a montante, sem água infinita em toda a cena.
