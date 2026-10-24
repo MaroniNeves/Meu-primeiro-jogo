@@ -22,7 +22,7 @@ assert not missing, f"Arquivos essenciais ausentes: {missing}"
 html = (root / "index.html").read_bytes()
 assert html == (root / "agua.html").read_bytes(), "Index do jogo não equivale ao laboratório"
 html_text = html.decode("utf-8")
-for name in re.findall(r'<script[^>]*\\bsrc=["\\\']\\./([^"\\\']+)', html_text):
+for name in re.findall(r'<script[^>]+src="\./([^"]+)', html_text):
     assert (root / name).is_file(), f"Script referenciado mas ausente: {name}"
 
 gltfs = list((root / "assets").rglob("*.gltf"))
