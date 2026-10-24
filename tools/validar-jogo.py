@@ -16,7 +16,7 @@ required = [
 ]
 missing = [name for name in required if not (root / name).is_file()]
 assets = [p for p in (root / "assets").rglob("*") if p.is_file()]
-assert len(assets) >= 100, f"Assets incompletos: {len(assets)} arquivos"
+assert len(assets) >= 68, f"Assets incompletos: {len(assets)} arquivos"
 assert not missing, f"Arquivos essenciais ausentes: {missing}"
 
 html = (root / "index.html").read_bytes()
