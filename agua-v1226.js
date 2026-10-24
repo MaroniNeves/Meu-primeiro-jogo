@@ -3421,7 +3421,7 @@ const game={
  heading:Math.PI,position:new T.Vector3(),camHeading:Math.PI,camPitch:.35,camDistance:4.8,orbitPointer:null,orbitX:0,orbitY:0,
  input:{x:0,y:0,run:false},keys:new Set(),touch:false,
  elapsed:0,steps:0,loading:false,hasModel:false,openedFullscreen:false,fpsElapsed:0,fpsFrames:0,
- waterStride:0,wasInWater:false,footSide:1
+ waterStride:0,wasInWater:false,footSide:1,grassSpeed:0
 };
 function gameStatus(message){
  if($('gameStatus'))$('gameStatus').textContent=message;
@@ -3610,6 +3610,8 @@ function updateGame(dt){
  // Gerar ondas apenas quando há um passo real em água e os pés não
  // estão apoiados na ponte. Nenhuma mudança na física ou no campo de chuva.
  const walked=Math.hypot(game.position.x-previousX,game.position.z-previousZ);
+ // Apenas leitura visual: a grama responde à velocidade real dos pés.
+ game.grassSpeed=walked/Math.max(dt,.001);
  const onBridge=window.arcanoBridgeSolid?.surfaceAt(game.position.x,game.position.z)!=null;
  const footWater=!onBridge&&sample(depth,game.position.x,game.position.z)>=SURFACE_RIPPLE&&
    rockHeightAt(game.position.x,game.position.z)<waterHeight(game.position.x,game.position.z)-.005;
@@ -3664,7 +3666,7 @@ async function setPlayActive(active){
  document.body.classList.toggle('play-active',active);
  if($('gameHUD'))$('gameHUD').setAttribute('aria-hidden',String(!active));
  game.keys.clear();game.input.x=0;game.input.y=0;game.input.run=false;game.orbitPointer=null;
- game.waterStride=0;game.wasInWater=false;
+ game.waterStride=0;game.wasInWater=false;game.grassSpeed=0;
  if(active){
   if(!game.root){
    game.root=new T.Group();game.root.name='Personagem jogável';
@@ -4083,6 +4085,6 @@ function loop(now){
 
 window.addEventListener('resize',resize);
 window.addEventListener('error',e=>{if((e.filename||'').includes('agua-v1226'))fail(e.error||e.message);});
-window.arcanoWaterV1226={scene,renderer,setGraphicsQuality,getGraphicsQuality:()=>graphicsQuality,getViewDistance:()=>viewDistance,getViewFov:()=>viewFov,setViewSettings,biomeField,QUALITY_PRESETS,snapForestToGround,setForestCollection,leafWindUniforms,leafWindMaterials,getFog:()=>({strength:fogStrength,target:fogTarget,rainMemory:fogRainMemory,age:fogRainAge,dewGap:fogDewGap,wind:atmWindMean,reason:fogCause}),forestGroup,forestModels,forestInstances,setFloraVisible,seed,setMode,add,setSoilType,addSoilOrganic,addSoilNutrients,terrain:land,water,stones,grass,sprouts:sproutGroup,soilProfiles:SOIL_PROFILES,soilKeyIndex,soilOrganic,soilLitter,soilN,soilP,soilK,soilCa,soilPH,soilSalinity,soilBiota,soilPlant,soilHealth,soilLimiting,soilCapacity,permeability,ecologyStep,soilMoisture,deepWater,canopy,depth,soil,turbidity,stats,impactHeightAt,rockHeightAt,rockSolids,setRainLevel,getRainLevel:()=>level,applyClimate,skyDome,atmosphere:{temp:atmTemp,humidity:atmHumidity,pressure:atmPressure,cloud:atmCloud,rain:atmRain,rainField,getDayClock:()=>dayClock,getMetrics:()=>({temperature:atmTempMean,humidity:atmHumMean,pressure:atmPressureMean,wind:atmWindMean,clouds:atmCloudMean,rain:atmRainMean,daySeconds:dayClock})},reflectionCamera,reflectionCamera2,getMode:()=>mode,getWetArea:()=>wetted,getImpacts:()=>totalImpacts};
+window.arcanoWaterV1226={scene,renderer,getGrassPlayer:()=>game.active?game:null,setGraphicsQuality,getGraphicsQuality:()=>graphicsQuality,getViewDistance:()=>viewDistance,getViewFov:()=>viewFov,setViewSettings,biomeField,QUALITY_PRESETS,snapForestToGround,setForestCollection,leafWindUniforms,leafWindMaterials,getFog:()=>({strength:fogStrength,target:fogTarget,rainMemory:fogRainMemory,age:fogRainAge,dewGap:fogDewGap,wind:atmWindMean,reason:fogCause}),forestGroup,forestModels,forestInstances,setFloraVisible,seed,setMode,add,setSoilType,addSoilOrganic,addSoilNutrients,terrain:land,water,stones,grass,sprouts:sproutGroup,soilProfiles:SOIL_PROFILES,soilKeyIndex,soilOrganic,soilLitter,soilN,soilP,soilK,soilCa,soilPH,soilSalinity,soilBiota,soilPlant,soilHealth,soilLimiting,soilCapacity,permeability,ecologyStep,soilMoisture,deepWater,canopy,depth,soil,turbidity,stats,impactHeightAt,rockHeightAt,rockSolids,setRainLevel,getRainLevel:()=>level,applyClimate,skyDome,atmosphere:{temp:atmTemp,humidity:atmHumidity,pressure:atmPressure,cloud:atmCloud,rain:atmRain,rainField,getDayClock:()=>dayClock,getGrassWindHeading:()=>atmWindHeading,getMetrics:()=>({temperature:atmTempMean,humidity:atmHumMean,pressure:atmPressureMean,wind:atmWindMean,clouds:atmCloudMean,rain:atmRainMean,daySeconds:dayClock})},reflectionCamera,reflectionCamera2,getMode:()=>mode,getWetArea:()=>wetted,getImpacts:()=>totalImpacts};
 try{resize();setMode('puddle');setGraphicsQuality(graphicsQuality);setViewSettings(viewFov,viewDistance);requestAnimationFrame(loop);}catch(e){fail(e);}
 })();
