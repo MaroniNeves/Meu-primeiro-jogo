@@ -24,3 +24,6 @@ jobs:
         run: node tools/inspecionar-grama.js
       - name: Testar animação da grama, vento e afastamento dos passos
         run: node tools/testar-grama-vento.js
+      - name: Diagnosticar shader com Chrome WebGL real
+        continue-on-error: true
+        run: node tools/testar-grama-webgl.cjs
