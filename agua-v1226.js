@@ -3298,7 +3298,7 @@ const gameFootstepRng=rand(202658),gameFootWaterTint=new T.Color('#b9dce5');
 function emitGameWaterFootstep(x,z,heading,running,side){
  const fx=x+Math.cos(heading)*side*.115+Math.sin(heading)*.085;
  const fz=z-Math.sin(heading)*side*.115+Math.cos(heading)*.085;
- if(sample(depth,fx,fz)<.022)return;
+ if(sample(depth,fx,fz)<SURFACE_RIPPLE)return;
  const top=waterHeight(fx,fz);
  if(rockHeightAt(fx,fz)>=top-.005)return;
  const ripple=ripplePool.find(mesh=>!mesh.visible&&!ripples.some(r=>r.mesh===mesh));
@@ -3602,14 +3602,16 @@ function updateGame(dt){
   game.elapsed+=dt*speed*length;
   if(game.elapsed>1.1){
    game.elapsed=0;game.steps++;
-   window.arcanoEcoV1232?.trample?.(game.position.x,game.position.z,.10);
+   // As tábuas suportam o peso: não compactar o solo sob a ponte.
+   if(window.arcanoBridgeSolid?.surfaceAt(game.position.x,game.position.z)==null)
+    window.arcanoEcoV1232?.trample?.(game.position.x,game.position.z,.10);
   }
  }
  // Gerar ondas apenas quando há um passo real em água e os pés não
  // estão apoiados na ponte. Nenhuma mudança na física ou no campo de chuva.
  const walked=Math.hypot(game.position.x-previousX,game.position.z-previousZ);
  const onBridge=window.arcanoBridgeSolid?.surfaceAt(game.position.x,game.position.z)!=null;
- const footWater=!onBridge&&sample(depth,game.position.x,game.position.z)>.022&&
+ const footWater=!onBridge&&sample(depth,game.position.x,game.position.z)>=SURFACE_RIPPLE&&
    rockHeightAt(game.position.x,game.position.z)<waterHeight(game.position.x,game.position.z)-.005;
  if(walked>.0002&&footWater){
   const stride=control.run?.37:.49;
