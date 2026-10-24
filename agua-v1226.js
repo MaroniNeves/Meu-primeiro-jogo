@@ -2544,12 +2544,19 @@ function animateForest(dt){
  const t=visualTime;
  const gust=(Math.sin(t*.83+Math.sin(t*.21)*1.7)+
              .45*Math.sin(t*2.11+.75))*.5;
- const weatherMin=climate==='storm'?.7:climate==='overcast'?.25:0;
+ const stormVisual=stormActive()||climate==='storm';
+ const userGain=windUserPower/100;
+ const weatherMin=stormVisual?.7:climate==='overcast'?.25:0;
  const actualWind=Math.max(atmWindMean,weatherMin*windUserPower/70);
- const strength=clamp(actualWind/2.4,0,1.2);
+ // O antigo limite dependia somente de velocidades médias de ~0.2-0.5,
+ // escondendo a diferença visual entre 70% e 100% e entre chuva/temporal.
+ // Os campos de vento FÍSICO ficam intocados. Apenas árvores/folhas e
+ // ondulações visuais têm uma curva de flexibilidade mais expressiva.
+ const visualGain=userGain*(.22+.46*userGain)+(stormVisual?.25*userGain:0);
+ const strength=userGain<.001?0:clamp(Math.max(actualWind/2.4,visualGain),0,1.2);
  leafWindUniforms.time.value=t;
- leafWindUniforms.power.value=.006+strength*.13;
- leafWindUniforms.gust.value=gust*strength;
+ leafWindUniforms.power.value=.006+strength*.23;
+ leafWindUniforms.gust.value=gust*strength*(stormVisual?1.45:1);
  leafWindUniforms.direction.value.set(Math.cos(atmWindHeading),0,
    Math.sin(atmWindHeading)).normalize();
  waterM.uniforms.uWind.value=clamp(strength,0,1.2);
@@ -2569,7 +2576,7 @@ function animateForest(dt){
   }
   // A onda continua animada em TODOS os quadros, sem perda de movimento.
   const wave=.72+.28*Math.sin(t*(.84+a.windLocalStrength)+a.phase);
-  const sway=(.002+.024*a.windLocalStrength)*(.8+.2*gust)*wave;
+  const sway=(.002+.020*a.windLocalStrength+.064*strength)*(.8+.2*gust)*wave;
   a.obj.rotation.z=a.baseRz+sway*a.windX*a.windInverse;
   a.obj.rotation.x=a.baseRx-sway*a.windZ*a.windInverse;
  }
