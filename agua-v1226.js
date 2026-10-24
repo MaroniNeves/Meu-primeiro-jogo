@@ -3292,6 +3292,37 @@ function spawnSplash(x,z,h){
   }
  }
 }
+// V12.58: os pés geram as MESMAS partículas e anéis visuais já usados
+// nas gotas de chuva, sem adicionar chuva, turbidez ou impacto físico.
+const gameFootstepRng=rand(202658),gameFootWaterTint=new T.Color('#b9dce5');
+function emitGameWaterFootstep(x,z,heading,running,side){
+ const fx=x+Math.cos(heading)*side*.115+Math.sin(heading)*.085;
+ const fz=z-Math.sin(heading)*side*.115+Math.cos(heading)*.085;
+ if(sample(depth,fx,fz)<.022)return;
+ const top=waterHeight(fx,fz);
+ if(rockHeightAt(fx,fz)>=top-.005)return;
+ const ripple=ripplePool.find(mesh=>!mesh.visible&&!ripples.some(r=>r.mesh===mesh));
+ if(ripple&&ripples.length<MAX_RIPPLES){
+  ripple.material=rippleMaterial;ripple.visible=true;
+  ripples.push({mesh:ripple,x:fx,z:fz,kind:'water',
+    age:0,life:running?.94:.78});
+ }
+ const count=running?10:6,power=running?.66:.42;
+ for(let i=0;i<count&&splashes.length<MAX_SPLASH;i++){
+  const angle=gameFootstepRng()*Math.PI*2;
+  const speed=power*(.5+gameFootstepRng()*.75);
+  splashes.push({
+   x:fx+(gameFootstepRng()-.5)*.075,
+   z:fz+(gameFootstepRng()-.5)*.075,
+   y:top+.035,
+   vx:Math.cos(angle)*speed,vz:Math.sin(angle)*speed,
+   vy:(running?.78:.55)*(.55+gameFootstepRng()*.75),
+   life:running?.30+gameFootstepRng()*.15:.24+gameFootstepRng()*.14,
+   age:0,color:gameFootWaterTint.clone(),
+   size:running?.17+gameFootstepRng()*.075:.13+gameFootstepRng()*.065
+  });
+ }
+}
 function dropStep(dt){
  // A densidade visual segue o MESMO nível aplicado à física.
  // O clima só modula o número de gotas e a distribuição entre as regiões.
@@ -3389,7 +3420,8 @@ const game={
  active:false,root:null,character:null,mixer:null,actions:{},animation:'',
  heading:Math.PI,position:new T.Vector3(),camHeading:Math.PI,camPitch:.35,camDistance:4.8,orbitPointer:null,orbitX:0,orbitY:0,
  input:{x:0,y:0,run:false},keys:new Set(),touch:false,
- elapsed:0,steps:0,loading:false,hasModel:false,openedFullscreen:false,fpsElapsed:0,fpsFrames:0
+ elapsed:0,steps:0,loading:false,hasModel:false,openedFullscreen:false,fpsElapsed:0,fpsFrames:0,
+ waterStride:0,wasInWater:false,footSide:1
 };
 function gameStatus(message){
  if($('gameStatus'))$('gameStatus').textContent=message;
@@ -3510,6 +3542,11 @@ function gameInput(){
  const norm=Math.max(1,Math.hypot(x,y));
  return {x:x/norm,y:y/norm,run:game.input.run||game.keys.has('shift')};
 }
+// V12.58: a altura dos pés usa o tablado real da ponte, não a terra sob ele.
+function solidGameFootHeight(x,z){
+ const bridgeY=window.arcanoBridgeSolid?.surfaceAt(x,z);
+ return bridgeY==null?terrainContact(x,z):bridgeY;
+}
 // Árvore espacial por blocos de 3 unidades; evita percorrer milhares
 // de modelos a cada passo do jogador.
 const gameTreeGrid=new Map();let gameTreeCount=-1;
@@ -3536,6 +3573,7 @@ function treesNearGame(x,z){
 function updateGame(dt){
  if(!game.active||!game.root)return;
  const control=gameInput(),length=Math.hypot(control.x,control.y);
+ const previousX=game.position.x,previousZ=game.position.z;
  if(length>.08){
   // Movimento RELATIVO à direção da câmera: a seta para cima sempre
   // avança na direção em que o jogador está olhando.
@@ -3549,9 +3587,13 @@ function updateGame(dt){
   const speed=control.run?3.25:1.65;
   const nx=clamp(game.position.x+dirX*dt*speed*length,-W*.48,W*.48);
   const nz=clamp(game.position.z+dirZ*dt*speed*length,-L*.48,L*.48);
-  const y=terrainContact(nx,nz),oldY=terrainContact(game.position.x,game.position.z);
-  if(Math.abs(y-oldY)<.43&&!rockAt(nx,nz)&&sample(depth,nx,nz)<.18&&
-     !treesNearGame(nx,nz)){
+  const bridge=window.arcanoBridgeSolid;
+  const deck=bridge?.surfaceAt(nx,nz);
+  const y=deck==null?terrainContact(nx,nz):deck;
+  const oldY=solidGameFootHeight(game.position.x,game.position.z);
+  const blockedByBridge=bridge?.blocksSegment(game.position.x,game.position.z,nx,nz);
+  if(Math.abs(y-oldY)<.43&&!blockedByBridge&&!rockAt(nx,nz)&&
+     (deck!=null||sample(depth,nx,nz)<.18)&&!treesNearGame(nx,nz)){
     game.position.x=nx;game.position.z=nz;
   }
   const newHeading=Math.atan2(dirX,dirZ);
@@ -3563,7 +3605,29 @@ function updateGame(dt){
    window.arcanoEcoV1232?.trample?.(game.position.x,game.position.z,.10);
   }
  }
- game.position.y=terrainContact(game.position.x,game.position.z);
+ // Gerar ondas apenas quando há um passo real em água e os pés não
+ // estão apoiados na ponte. Nenhuma mudança na física ou no campo de chuva.
+ const walked=Math.hypot(game.position.x-previousX,game.position.z-previousZ);
+ const onBridge=window.arcanoBridgeSolid?.surfaceAt(game.position.x,game.position.z)!=null;
+ const footWater=!onBridge&&sample(depth,game.position.x,game.position.z)>.022&&
+   rockHeightAt(game.position.x,game.position.z)<waterHeight(game.position.x,game.position.z)-.005;
+ if(walked>.0002&&footWater){
+  const stride=control.run?.37:.49;
+  game.waterStride+=walked;
+  if(!game.wasInWater){
+   game.waterStride=0;
+   game.footSide*=-1;
+   emitGameWaterFootstep(game.position.x,game.position.z,game.heading,control.run,game.footSide);
+  }else if(game.waterStride>=stride){
+   game.waterStride%=stride;
+   game.footSide*=-1;
+   emitGameWaterFootstep(game.position.x,game.position.z,game.heading,control.run,game.footSide);
+  }
+ }else if(!footWater){
+  game.waterStride=0;
+ }
+ game.wasInWater=footWater;
+ game.position.y=solidGameFootHeight(game.position.x,game.position.z);
  game.root.position.copy(game.position);
  game.root.rotation.y=game.heading;
  const anim=length>.1?(control.run?'run':'walk'):'idle';
@@ -3598,6 +3662,7 @@ async function setPlayActive(active){
  document.body.classList.toggle('play-active',active);
  if($('gameHUD'))$('gameHUD').setAttribute('aria-hidden',String(!active));
  game.keys.clear();game.input.x=0;game.input.y=0;game.input.run=false;game.orbitPointer=null;
+ game.waterStride=0;game.wasInWater=false;
  if(active){
   if(!game.root){
    game.root=new T.Group();game.root.name='Personagem jogável';
