@@ -27,3 +27,8 @@ jobs:
       - name: Diagnosticar shader com Chrome WebGL real
         continue-on-error: true
         run: node tools/testar-grama-webgl.cjs
+      - name: Preparar navegador para teste do jogo completo
+        run: npm install --no-save playwright-core@1.56.1
+      - name: Verificar jogo real com grama e personagem
+        continue-on-error: true
+        run: node tools/testar-jogo-integrado.cjs
