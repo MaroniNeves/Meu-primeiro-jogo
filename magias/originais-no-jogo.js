@@ -4,12 +4,10 @@
  */
 import {R as originalUniforms} from './assets/settings-DdywqLlV.js';
 import {t as ParticleEngine} from './assets/ParticleEngine-DLxipNH0.js';
-const SOURCES=[
- './assets/ArcaneVolleyAbility-F0sG67Uf.js',
- './assets/DragonbreathAbility-x2rdc5jW.js',
- './assets/GlacierAbility-CelHSKik.js'
-];
-const EXPORTS=['ArcaneVolleyAbility','DragonbreathAbility','GlacierAbility'];
+import {ArcaneVolleyAbility} from './assets/ArcaneVolleyAbility-F0sG67Uf.js';
+import {DragonbreathAbility} from './assets/DragonbreathAbility-x2rdc5jW.js';
+import {GlacierAbility} from './assets/GlacierAbility-CelHSKik.js';
+const TYPES=[ArcaneVolleyAbility,DragonbreathAbility,GlacierAbility];
 export function createOriginalMagicBridge(THREE,scene,options={}){
  const limit=options.mobile?180:440;
  const system=new ParticleEngine(scene);
@@ -62,12 +60,8 @@ export function createOriginalMagicBridge(THREE,scene,options={}){
  }
  async function prepare(slot){
   slot=Math.max(0,Math.min(2,slot|0));
-  options.onProgress?.('import-'+slot);
-  const mod=await import(SOURCES[slot]);
   options.onProgress?.('module-ready-'+slot);
-  const Type=mod[EXPORTS[slot]];
-  if(!Type)throw new Error('Efeito original indisponível: '+EXPORTS[slot]);
-  const effect=new Type(ctx);
+  const effect=new TYPES[slot](ctx);
   options.onProgress?.('instantiated-'+slot);
   return effect;
  }
