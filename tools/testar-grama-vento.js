@@ -25,6 +25,7 @@ const geometry={
 const context={
  window:{createArcanoWildfireV1267:()=>({texture:{id:'burn-map'}})},
  T:{Vector2,Vector4},
+ W:128,L:100,mobileDevice:false,
  material:()=>({}),meshLibrary:{grassShort1:geometry},
  api:{
   atmosphere:{
