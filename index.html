@@ -512,7 +512,7 @@ body.play-active #rainControls[hidden]{display:none!important}
  let hotkey='KeyP',capturing=false;
  try{const saved=localStorage.getItem(storageKey);if(saved&&/^(Key[A-Z]|Digit[0-9]|F(?:[1-9]|1[0-2]))$/.test(saved)&&!forbidden.has(saved))hotkey=saved;}catch(e){}
  function label(){hint.textContent=readable(hotkey);capture.textContent='Alterar: '+readable(hotkey);capture.setAttribute('aria-label','Definir tecla de atalho. Atual: '+readable(hotkey));}
- function setOpen(visible){document.body.classList.toggle('ui-hidden',!visible);toggle.setAttribute('aria-expanded',String(visible));document.getElementById('showControls')?.setAttribute('aria-expanded',String(visible));document.getElementById('collapseControls')?.setAttribute('aria-expanded',String(visible));}
+ function setOpen(visible){const p=document.getElementById('rainControls');if(p)p.hidden=!visible;document.body.classList.toggle('ui-hidden',!visible);for(const id of ['arcanoSettingsToggle','gameSettingsOpen','showControls','collapseControls'])document.getElementById(id)?.setAttribute('aria-expanded',String(visible));}
  function isOpen(){return !document.body.classList.contains('ui-hidden');}
  label();
  toggle.addEventListener('click',()=>setOpen(!isOpen()));
