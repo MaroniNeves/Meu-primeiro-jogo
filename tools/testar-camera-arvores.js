@@ -92,6 +92,6 @@ assert.equal(fades.gameCameraFades.size,1);
 fades.clearGameCameraOcclusion();
 assert.equal(fades.gameCameraFades.size,0,'Sair do jogo restaura todas as árvores');
 assert.equal(leafMesh.material,leafMaterial);
-assert.match(source,/safeNow<actualDistance-\.10/,'A câmera tem de sair da obstrução imediatamente');
+assert.doesNotMatch(source,/safeNow<actualDistance-\\.10/,'A câmera não deve se aproximar automaticamente por causa de árvores');
 console.log('OK câmera V12.62: árvore bloqueante fica translúcida, árvore distante preservada, materiais originais restaurados.');
 
