@@ -3726,6 +3726,10 @@ function updateMageMagic(dt){
  }
 }
 function clearMageMagic(){
+ if(game.castAction&&game.isMage){
+  game.castAction.stop();
+  game.actions.idle?.reset().play();
+ }
  game.spellPending=null;game.castCooldown=0;game.castAction=null;
  for(const p of mageProjectiles)removeMageProjectile(p);
  mageProjectiles.length=0;
