@@ -26,3 +26,5 @@ jobs:
         run: node tools/testar-grama-vento.js
       - name: Validar deslocamento real da grama em WebGL
         run: node tools/testar-grama-webgl.cjs
+      - name: Testar camera e obstrucao por arvores
+        run: node tools/testar-camera-arvores.js
