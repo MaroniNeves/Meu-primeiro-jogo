@@ -575,8 +575,13 @@ function loadFireballFbx(file){
    o.material.transparent=true;o.material.opacity=.96;
   }
   // Para orbitar, converter a posição original de cada peça para um centro próprio.
-  const orbitCenter=orbit.geometry.boundingBox.getCenter(new THREE.Vector3()).sub(center);
-  orbit.position.sub(orbitCenter);pivot.position.copy(orbitCenter);
+  const orbitCenter=orbit.geometry.boundingBox.getCenter(new THREE.Vector3());
+  orbit.geometry.translate(-orbitCenter.x,-orbitCenter.y,-orbitCenter.z);
+  orbit.position.copy(orbitCenter).sub(center);
+  // A órbita acontece ao redor do centro do núcleo, não do centro da casca.
+  const minimumOrbit=Math.max(.12,sphere.geometry.boundingSphere.radius*.32);
+  if(orbit.position.length()<minimumOrbit)orbit.position.set(minimumOrbit,0,0);
+  pivot.position.set(0,0,0);
   group.add(sphere);pivot.add(orbit);outer.add(pivot);group.add(outer);
   for(const o of all)if(o!==sphere&&o!==orbit)group.add(o);
   const box=new THREE.Box3().setFromObject(group),size=box.getSize(new THREE.Vector3());
