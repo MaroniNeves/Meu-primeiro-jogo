@@ -18,9 +18,9 @@ window.createArcanoWildfireV1267=function(T,scene,opts={}){
  let texture=null,flameMesh=null,smokeMesh=null,burnMesh=null,atlas=null;
  // Um GLB CC0 de fogo (ex.: Flame Decal do Poly Pizza) pode substituir
  // alguns sprites, mantendo a queima/chuva/cinzas totalmente independentes.
+ const mobile=!!opts.mobile,MAX=mobile?72:138;
  const MODEL_MAX=mobile?12:24;
  let modelFlames=[],modelSource=null,modelError='',modelReady=false;
- const mobile=!!opts.mobile,MAX=mobile?72:138;
  if(T&&scene){
   texture=new T.DataTexture(pixels,NX,NZ,T.RGBAFormat);
   texture.magFilter=T.LinearFilter;texture.minFilter=T.LinearFilter;
@@ -105,8 +105,9 @@ window.createArcanoWildfireV1267=function(T,scene,opts={}){
   const clones=[];
   try{
    for(let i=0;i<MODEL_MAX;i++){
-    const model=normalized.clone(true);
-    model.visible=false;model.name='Fogo Poly Pizza CC0 '+i;
+    const model=new T.Group();
+    model.add(normalized.clone(true)); // preserva a normalização de escala
+    model.visible=false;model.name='Fogo Poly Pizza GLB '+i;
     model.traverse(o=>{if(o.isMesh){o.frustumCulled=false;o.castShadow=false;}});
     scene.add(model);clones.push(model);
    }
