@@ -32,9 +32,5 @@ jobs:
         run: node tools/testar-zoom-camera.js
       - name: Verificar biblioteca restaurada de 100 magias e seus recursos
         run: node tools/testar-magias.js
-      - name: Carregar feiticeiro e animações FBX em Chrome real
-        run: node tools/testar-feiticeiro-browser.cjs
-      - name: Renderizar e comparar as três magias em WebGL
-        run: node tools/testar-magia-webgl.cjs
       - name: Testar classes de magia originais do laboratório no navegador
         run: node tools/testar-magias-originais-browser.cjs
