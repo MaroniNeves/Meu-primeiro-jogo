@@ -5,7 +5,7 @@ personagem animado, ciclo de clima, física da água e ecossistema.
 
 ## Abrir o laboratório ou jogar no navegador
 
-- **[🧪 Abrir o Laboratório Arcano (V12.63)](https://raw.githack.com/MaroniNeves/Meu-Primeiro-jogo/main/agua.html)** — simulação completa com os controles de chuva, água, vento, floresta, solo e ecossistema.
+- **[🧪 Abrir o Laboratório Arcano (V12.67)](https://raw.githack.com/MaroniNeves/Meu-Primeiro-jogo/main/agua.html)** — simulação completa com os controles de chuva, água, vento, floresta, solo e ecossistema.
 - **[🎮 Abrir o Meu Primeiro Jogo](https://raw.githack.com/MaroniNeves/Meu-Primeiro-jogo/main/index.html)** — mesma cena, com o botão **Jogar** para controlar o personagem.
 
 ### Bibliotecas de magias restauradas
@@ -46,12 +46,45 @@ limites de partículas para dispositivos móveis. Bibliotecas já estão
 armazenadas neste mesmo repositório.
 
 **Importante:** esses efeitos originais usam um motor complexo e podem
-consumir mais GPU, principalmente em celulares. Por enquanto os feitiços
-não causam dano nem alteram os sistemas físicos da floresta e água.
+consumir mais GPU, principalmente em celulares. O Dragonbreath (magia 2)
+agora pode iniciar fogo na grama à frente do jogador, sem reescrever o
+efeito original da magia nem alterar a hidrologia do jogo.
 
 **Licenças:** os arquivos FBX e texturas vieram da biblioteca histórica e
 podem conter licenças independentes; confira os termos de origem antes de
 distribuir comercialmente.
+
+## Fogo e queimadas ecológicas na grama 3D (V12.67)
+
+A simulação utiliza o atlas de fogo **Animated Fire**, por **BenHickling**,
+obtido de **OpenGameArt**, com licença **CC0**. O arquivo original está em
+`fire-assets/fire1_64.png` e a origem/licença constam de
+`fire-assets/ORIGEM.txt`:
+https://opengameart.org/content/animated-fire
+
+Outras opções CC0 pesquisadas: [Kenney Particle Pack](https://kenney.nl/assets/particle-pack)
+(80 sprites gratuitos para efeitos). Não foi necessário incluir o pacote
+completo no jogo — o sprite selecionado é pequeno e roda localmente.
+
+Como testar:
+- No **Laboratório**, abra o painel do ecossistema, defina **chuva 0** e
+  clique em **🔥 Acender grama (teste)**; observe as chamas e a escurecimento
+  das próprias hastes 3D. O botão **💧 Apagar fogo** interrompe as chamas,
+  mas deixa o terreno carbonizado.
+- No modo **Jogar**, use a magia **2 — Dragonbreath** em direção à vegetação;
+  ela dispara exatamente a magia original e tenta incendiar o solo.
+- O vento ajuda a propagação para sotavento, a chuva e o solo encharcado
+  impedem novas ignições ou apagam o incêndio, e o gramado recupera o verde
+  gradualmente após a extinção (leva alguns minutos de simulação).
+
+A queimada é uma **simulação simplificada, não um modelo científico de
+incêndio florestal**. Utiliza textura de calor/carvão amostrada no shader
+das gramíneas Quaternius — não remove as milhões de instâncias.
+As chamas, a fumaça e o solo escuro são renderizados com poucas
+`InstancedMesh`, com limite de objetos visíveis para manter o desempenho
+móvel. Os testes `tools/testar-incendio-grama.js` e
+`tools/testar-fogo-webgl.cjs` verificam física, extinção, recuperação,
+licença local e chamas visíveis no WebGL.
 
 ## Executar localmente (mesmo se privado)
 
