@@ -515,35 +515,44 @@ function makeRoad(){
     const alongX=Math.cos(direction),alongZ=Math.sin(direction);
     // Colisão do corpo com as vigas: reservar margem para o raio do boneco.
     // Piso físico de 1.32 u; centro caminhável precisa ficar entre os corrimãos.
-    const halfSpan=span*.5,walkHalfWidth=.35,bodyRadius=.22;
+    const halfSpan=span*.5,walkHalfWidth=.35,bodyRadius=.24;
     const local=(x,z)=>{
      const px=x-mx,pz=z-mz;
-     return {along:px*alongX+pz*alongZ,
-      side:-px*alongZ+pz*alongX};
+     return {along:px*alongX+pz*alongZ,side:-px*alongZ+pz*alongX};
     };
     const surfaceAt=(x,z)=>{
      if(!realm.visible)return null;
      const p=local(x,z);
-     // O piso também ampara os pés próximos à entrada e à borda interna.
-     return Math.abs(p.along)<=halfSpan+.045&&
-      Math.abs(p.side)<=walkHalfWidth?deckY+.0325:null;
+     return Math.abs(p.along)<=halfSpan+.045&&Math.abs(p.side)<=walkHalfWidth?deckY+.0325:null;
+    };
+    // Corrimãos e quatro postes de cabeceira são volumes sólidos.
+    const solids=[
+     {a:0,s:-.57,ha:halfSpan+.08,hs:.10},
+     {a:0,s:.57,ha:halfSpan+.08,hs:.10},
+     ...[-1,1].flatMap(end=>[-1,1].map(side=>({
+      a:end*(halfSpan-.10),s:side*.52,ha:.15,hs:.20
+     })))
+    ];
+    const hits=(p,o)=>{
+     const da=Math.max(Math.abs(p.along-o.a)-o.ha,0);
+     const ds=Math.max(Math.abs(p.side-o.s)-o.hs,0);
+     return da*da+ds*ds<bodyRadius*bodyRadius;
     };
     const blocksSegment=(x0,z0,x1,z1)=>{
      if(!realm.visible)return false;
-     const from=local(x0,z0),to=local(x1,z1);
-     // Impedir que a cápsula atravesse os corrimãos por qualquer lateral,
-     // inclusive em movimentos diagonais, passadas rápidas e nas cabeceiras.
-     const distance=Math.hypot(x1-x0,z1-z0);
-     const steps=Math.max(1,Math.ceil(distance/.045));
+     const distance=Math.hypot(x1-x0,z1-z0),steps=Math.max(1,Math.ceil(distance/.035));
+     // Se o corpo já encostar na madeira, somente bloquear movimentos
+     // que penetrem mais fundo, para não aprisionar o jogador.
+     const initial=local(x0,z0);
      for(let i=1;i<=steps;i++){
       const u=i/steps,p=local(x0+(x1-x0)*u,z0+(z1-z0)*u);
-      if(Math.abs(p.along)>halfSpan+.12)continue;
-      // Não bloquear uma aproximação por fora sem cruzar a ponte.
-      if(Math.abs(from.side)>walkHalfWidth&&
-         Math.abs(to.side)>walkHalfWidth&&
-         Math.sign(from.side)===Math.sign(to.side))continue;
-      if(Math.abs(p.side)>walkHalfWidth&&
-         Math.abs(p.side)<.57+bodyRadius)return true;
+      for(const solid of solids){
+       if(!hits(p,solid))continue;
+       if(!hits(initial,solid))return true;
+       const d0=Math.hypot(Math.max(Math.abs(initial.along-solid.a)-solid.ha,0),Math.max(Math.abs(initial.side-solid.s)-solid.hs,0));
+       const d1=Math.hypot(Math.max(Math.abs(p.along-solid.a)-solid.ha,0),Math.max(Math.abs(p.side-solid.s)-solid.hs,0));
+       if(d1<d0-.0001)return true;
+      }
      }
      return false;
     };
