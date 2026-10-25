@@ -1,0 +1,6 @@
+Animated Fire — BenHickling, OpenGameArt (2018)
+https://opengameart.org/content/animated-fire
+Imagem original: fire1_64.png
+Licenca CC0 (dominio publico), conforme pagina do autor.
+Atlas de 10 colunas por 6 linhas, 60 quadros.
+Para animacao dos incendios da grama V12.67.
