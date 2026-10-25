@@ -3636,57 +3636,37 @@ function chooseGameAnimation(name){
 }
 // V12.64 — efeitos discretos de magia dark fantasy: Arcano, Brasa e Gelo.
 // Tudo visual; nenhuma alteração em chuva, vento, solo ou circulação de água.
+// V12.65 — conjurações procedurais derivadas da estética do catálogo
+// Arcane Volley / Dragonbreath / Glacier. Cada magia agora tem silhueta
+// própria, glifos de conjuração, rastros e impacto (não são esferas).
 const mageSpells=[
- {name:'Projétil Arcano',color:'#adb6c8',speed:10,range:14},
- {name:'Brasa Contida',color:'#bb7953',speed:7.8,range:11},
- {name:'Estilhaço de Gelo',color:'#83acb8',speed:9,range:13}
+ {name:'Rajada Arcana',color:'#b3c6e8'},
+ {name:'Sopro de Brasas',color:'#d78d54'},
+ {name:'Lâminas Glaciais',color:'#b5dce6'}
 ];
-const mageSpellGeometry=new T.IcosahedronGeometry(.16,1);
-const mageHaloGeometry=new T.SphereGeometry(.275,10,8);
-const mageImpactGeometry=new T.RingGeometry(.16,.22,22);
-const mageProjectiles=[],mageImpacts=[];
+const mageVfx=window.arcanoSpellEffectsV1265?.(T,scene,{
+ terrainAt:terrainContact,
+ collides:(x,z)=>rockAt(x,z)||treesNearGame(x,z),
+ bounds:{x:W*.49,z:L*.49}
+});
+if(!mageVfx)console.error('[Arcano V12.65] Efeitos magias/vfx-jogo-v1265.js indisponíveis');
+function mageSpellOrigin(){
+ const angle=game.heading;
+ return game.position.clone().add(new T.Vector3(
+  Math.sin(angle)*.42,1.28,Math.cos(angle)*.42));
+}
+function mageSpellDirection(){
+ return new T.Vector3(Math.sin(game.heading),.025,Math.cos(game.heading)).normalize();
+}
 function setMageSpellStatus(slot){
  const label=$('gameSpellStatus');
  if(label)label.textContent='✦ '+mageSpells[slot]?.name;
 }
 function spawnMageProjectile(slot){
- if(!game.root)return;
- const data=mageSpells[slot]||mageSpells[0],heading=game.heading;
- const dir=new T.Vector3(Math.sin(heading),.035,Math.cos(heading)).normalize();
- if(mageProjectiles.length>=8)removeMageProjectile(mageProjectiles.shift());
- const group=new T.Group();
- const core=new T.Mesh(mageSpellGeometry,new T.MeshBasicMaterial({
-  color:data.color,transparent:true,opacity:.96,depthWrite:false
- }));
- core.scale.setScalar(slot===1?1.12:slot===2?.86:1);
- const aura=new T.Mesh(mageHaloGeometry,new T.MeshBasicMaterial({
-  color:data.color,transparent:true,opacity:.16,depthWrite:false,
-  blending:T.AdditiveBlending
- }));
- group.add(core,aura);
- group.position.copy(game.position).add(new T.Vector3(dir.x*.36,1.24,dir.z*.36));
- scene.add(group);
- mageProjectiles.push({group,core,aura,dir,slot,data,age:0,distance:0});
-}
-function removeMageProjectile(p){
- if(!p)return;
- scene.remove(p.group);
- for(const child of p.group.children)child.material?.dispose?.();
-}
-function spawnMageImpact(x,y,z,slot){
- if(mageImpacts.length>=8){
-  const oldest=mageImpacts.shift();
-  scene.remove(oldest.mesh);oldest.mesh.material.dispose();
- }
- const material=new T.MeshBasicMaterial({
-  color:mageSpells[slot].color,transparent:true,opacity:.62,
-  depthWrite:false,side:T.DoubleSide
- });
- const ring=new T.Mesh(mageImpactGeometry,material);
- ring.rotation.x=-Math.PI/2;
- ring.position.set(x,y+.035,z);
- scene.add(ring);
- mageImpacts.push({mesh:ring,age:0,life:.52});
+ if(!mageVfx)return;
+ // O disparo parte dos braços do personagem na direção do rosto,
+ // não do chão nem do ponto de origem da cena.
+ mageVfx.launch(slot,mageSpellOrigin(),mageSpellDirection());
 }
 function updateMageMagic(dt){
  if(!game.active)return;
@@ -3698,32 +3678,7 @@ function updateMageMagic(dt){
    game.spellPending=null;
   }
  }
- for(let i=mageProjectiles.length-1;i>=0;i--){
-  const p=mageProjectiles[i];
-  const move=Math.min(dt,.065)*p.data.speed;
-  p.age+=dt;p.distance+=move;
-  p.group.position.addScaledVector(p.dir,move);
-  p.group.position.y+=Math.sin(p.age*5.5)*dt*.11;
-  p.core.rotation.y+=dt*3.4;p.core.rotation.x+=dt*1.5;
-  p.aura.scale.setScalar(1+.17*Math.sin(p.age*11));
-  const x=p.group.position.x,z=p.group.position.z;
-  const obstacle=p.distance>1.3&&(rockAt(x,z)||treesNearGame(x,z));
-  const end=p.distance>=p.data.range||p.age>2.2||obstacle||
-   Math.abs(x)>=W*.49||Math.abs(z)>=L*.49;
-  if(end){
-   spawnMageImpact(x,Math.max(terrainContact(x,z),p.group.position.y-.35),z,p.slot);
-   removeMageProjectile(p);mageProjectiles.splice(i,1);
-  }
- }
- for(let i=mageImpacts.length-1;i>=0;i--){
-  const p=mageImpacts[i];p.age+=dt;
-  const progress=Math.min(1,p.age/p.life);
-  p.mesh.scale.setScalar(.55+progress*5);
-  p.mesh.material.opacity=.62*(1-progress);
-  if(progress>=1){
-   scene.remove(p.mesh);p.mesh.material.dispose();mageImpacts.splice(i,1);
-  }
- }
+ mageVfx?.update(dt,camera);
 }
 function clearMageMagic(){
  if(game.castAction&&game.isMage){
@@ -3731,24 +3686,22 @@ function clearMageMagic(){
   game.actions.idle?.reset().play();
  }
  game.spellPending=null;game.castCooldown=0;game.castAction=null;
- for(const p of mageProjectiles)removeMageProjectile(p);
- mageProjectiles.length=0;
- for(const p of mageImpacts){scene.remove(p.mesh);p.mesh.material.dispose();}
- mageImpacts.length=0;
+ mageVfx?.clear();
 }
 function castMageSpell(slot){
- if(!game.active||!game.root||game.castCooldown>0)return false;
+ if(!game.active||!game.root||game.castCooldown>0||!mageVfx)return false;
  if(!Number.isInteger(slot)||slot<0||slot>=mageSpells.length)return false;
- game.castCooldown=.80;game.spellPending={slot,delay:.19};
+ game.castCooldown=.82;game.spellPending={slot,delay:.20};
  if(game.isMage&&game.mixer){
   const action=game.actions['cast'+(slot+1)]||game.actions.cast1;
   if(action){
    const old=game.castAction||game.actions.idle;
    action.reset().setEffectiveTimeScale(1).play();
-   if(old&&old!==action)action.crossFadeFrom(old,.13,false);
+   if(old&&old!==action)action.crossFadeFrom(old,.14,false);
    game.castAction=action;
   }
  }
+ mageVfx.begin(slot,mageSpellOrigin(),mageSpellDirection());
  setMageSpellStatus(slot);
  return true;
 }
