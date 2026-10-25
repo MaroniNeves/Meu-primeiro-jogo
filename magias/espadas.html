@@ -599,7 +599,7 @@ initFireballReplacement();
 
 /* Orbes FBX v2: substituição limpa, sem previews nem cache dos modelos antigos. */
 const orbFiles={orbe_verde:'orbe_verde_v2.fbx',orbe_laranja:'orbe_laranja_v2.fbx',orbe_azul:'orbe_azul_v2.fbx'};
-const ORB_ASSET_VERSION='20261025-fbx-verified';
+const ORB_ASSET_VERSION='20261025-stable-animation';
 const orbLibrary=new Map(),orbLoading=new Map(),orbMissing=new Set();
 async function orbDbRead(id){
  try{const db=await fireballDb();const file=await new Promise((yes,no)=>{const r=db.transaction('models','readonly').objectStore('models').get('orbe_novo_'+id);r.onsuccess=()=>yes(r.result);r.onerror=()=>no(r.error)});db.close();return file||null;}catch{return null;}
@@ -632,15 +632,34 @@ async function loadOrbModel(id,file=null){
    offset.position.sub(center);
    scaled.scale.setScalar(1.5/Math.max(size.x,size.y,size.z,.001));
    root.position.set(0,1.85,0);
-   const mixer=fbx.animations.length?new THREE.AnimationMixer(fbx):null;
-   if(mixer)for(const clip of fbx.animations)mixer.clipAction(clip).reset().play();
+   // Não misturar vários clipes sobre os mesmos nós: isso causa disputa de
+   // escala/opacidade e pode fazer o orbe piscar ou desaparecer a cada frame.
+   const sourceClips=fbx.animations||[];
+   const primaryClip=sourceClips.length
+     ?sourceClips.reduce((best,clip)=>clip.tracks.length>best.tracks.length?clip:best)
+     :null;
+   const filteredClip=primaryClip?primaryClip.clone():null;
+   if(filteredClip){
+     filteredClip.tracks=filteredClip.tracks.filter(track=>{
+       const n=track.name.toLowerCase();
+       if(/\\.(visible|opacity)$/.test(n))return false;
+       if(/\\.scale$/.test(n)){
+         const values=track.values;
+         for(let i=0;i<values.length;i+=3)
+           if(Math.min(Math.abs(values[i]),Math.abs(values[i+1]),Math.abs(values[i+2]))<.025)return false;
+       }
+       return true;
+     });
+   }
+   const mixer=filteredClip?.tracks.length?new THREE.AnimationMixer(fbx):null;
+   if(mixer)mixer.clipAction(filteredClip).reset().setLoop(THREE.LoopRepeat,Infinity).play();
    const previous=orbLibrary.get(id);
    if(previous){scene.remove(previous.root);}
    scene.add(root);
    orbLibrary.set(id,{root,mixer});
    if(file)await orbDbSave(id,file);
    displaySelectedOrb();
-   status.textContent='✓ '+id.replace('_',' ')+' — modelo FBX original ('+fbx.animations.length+' animações)';
+   status.textContent='✓ '+id.replace('_',' ')+' — FBX carregado; animação principal ativa sem clipes conflitantes.';
   }catch(err){
    if(!file){const saved=await orbDbRead(id);if(saved){await orbDbSave(id,saved);status.textContent='Falha na rede; use Carregar os 3 FBX originais se necessário.';}else orbMissing.add(id);}
    status.textContent='FBX não publicado: assets/vfx/'+orbFiles[id]+'. Importe o arquivo original no campo acima.';
