@@ -22,7 +22,7 @@ function sceneThree(){
 }
 function cast(){
  const app=window.arcanoLab?.getApp?.();
- const T=window.THREE;
+ const T=window.arcanoEffectsThree;
  if(!app?.scene||!app?.character?.position||!T?.Group){message('Aguardando cena principal e Three.js…');return;}
  const scene=app.scene, group=new T.Group(),p=app.character.position;
  const direction=new T.Vector3().subVectors(p,app.camera?.position||new T.Vector3(p.x,p.y,p.z+5));direction.y=0;
@@ -79,7 +79,7 @@ function update(delta){
    if(style==='orb')m.rotation.y=t*.8;
    if(style==='shield')m.rotation.y=t*.45;
    if(style==='crystal')m.rotation.y=t*.30+j*.14;
-   m.material.opacity*=Math.min(1,fade+.06);
+   m.material.opacity=clamp((m.material.userData.baseOpacity??=m.material.opacity)*fade,0,1);
   }
   if(t>=item.ttl){item.group.traverse(o=>{if(o.isMesh){o.geometry?.dispose();o.material?.dispose();}});item.group.parent?.remove(item.group);active.splice(i,1);}
  }
