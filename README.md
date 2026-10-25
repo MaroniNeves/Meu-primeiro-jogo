@@ -26,32 +26,28 @@ No laboratório, toque em **☷ Mostrar ajustes** se o painel estiver recolhido.
 
 Arquivos de entrada: `agua.html` e `index.html`, ambos com a versão V12.63.
 
-## Personagem lançador de magias (V12.65)
+## Personagem original e magias VERDADEIRAS do laboratório (V12.66)
 
-No modo **🎮 Jogar**, o projeto usa por padrão o mesmo feiticeiro FBX da biblioteca
-**100 Magias 3D Anime**, carregado de `magias/models/Idle.fbx` com a textura
-`diffuse.png` e os movimentos `cast1.fbx`, `cast2.fbx` e `cast3.fbx`.
+O modo **🎮 Jogar** voltou a utilizar o **Xbot original**, com animações
+Idle, Walk e Run do GLB de Three.js. O feiticeiro FBX da galeria não
+substitui mais o personagem jogável.
 
-As antigas esferas simples foram substituídas por efeitos 3D procedurais no
-arquivo `magias/vfx-jogo-v1265.js`, adaptados para o motor do jogo e
-inspirados nas linguagens visuais Arcane Volley, Dragonbreath e Glacier
-do catálogo, sem copiar o motor independente de VFX:
+Os três botões de conjuração importam as **classes autênticas de efeitos da
+biblioteca de 100 Magias**, sem inventar novos projéteis, texturas ou formatos:
 
-- **1 / ✦ Rajada Arcana:** três lâminas energéticas entrelaçadas, glifos de conjuração, partículas, rastros e impacto em anéis.
-- **2 / ✹ Sopro de Brasas:** cinco pontas de chamas e brasas dispersas, rastro incandescente e explosão breve no destino.
-- **3 / ❄ Lâminas Glaciais:** sete cristais em leque, partículas de gelo, rastros frios e impacto de fragmentos.
+- **1 — Arcane Volley**: `magias/assets/ArcaneVolleyAbility-F0sG67Uf.js`
+- **2 — Dragonbreath**: `magias/assets/DragonbreathAbility-x2rdc5jW.js`
+- **3 — Glacier**: `magias/assets/GlacierAbility-CelHSKik.js`
 
-No computador, pressione **1, 2 ou 3**; no celular, utilize os três botões
-do modo Jogar. Cada conjuração reproduz a animação original correspondente.
-Efeitos visuais sem dano, inimigos ou modificações na física ecológica.
-As magias usam geometria compartilhada, instâncias e duração limitada
-para conter os draw calls. Os controles da câmera, do zoom, da ponte, da
-grama e da água foram preservados. Se o arquivo FBX falhar, o
-manequim Xbot anterior continua sendo usado como reserva.
+O adaptador `magias/originais-no-jogo.js` preserva os shaders, geometrias,
+lógicas e partículas da galeria. Há ajustes estritamente necessários de
+compatibilidade entre a versão de Three.js da galeria e a do jogo e
+limites de partículas para dispositivos móveis. Bibliotecas já estão
+armazenadas neste mesmo repositório.
 
-Os testes `tools/testar-feiticeiro-browser.cjs` e
-`tools/testar-magia-webgl.cjs` verificam modelo, animações, formas,
-trajetórias, impactos e renderização real no Chrome.
+**Importante:** esses efeitos originais usam um motor complexo e podem
+consumir mais GPU, principalmente em celulares. Por enquanto os feitiços
+não causam dano nem alteram os sistemas físicos da floresta e água.
 
 **Licenças:** os arquivos FBX e texturas vieram da biblioteca histórica e
 podem conter licenças independentes; confira os termos de origem antes de
