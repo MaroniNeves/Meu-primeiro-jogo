@@ -10,6 +10,22 @@ import {GlacierAbility} from './assets/GlacierAbility-CelHSKik.js';
 const TYPES=[ArcaneVolleyAbility,DragonbreathAbility,GlacierAbility];
 export function createOriginalMagicBridge(THREE,scene,options={}){
  const limit=options.mobile?180:440;
+ // O laboratório renderiza os feitiços sobre um prepass de profundidade
+ // próprio. A floresta não fornece esse sampler: uma textura de "profundidade
+ // distante" mantém os pixels dos shaders originais visíveis no modo Jogar.
+ // É apenas um recurso de compatibilidade, sem alterar o código dos VFX.
+ const depthFar=new THREE.DataTexture(new Uint8Array([255,255,255,255]),
+  1,1,THREE.RGBAFormat);
+ depthFar.needsUpdate=true;
+ if(originalUniforms.uSceneDepth)originalUniforms.uSceneDepth.value=depthFar;
+ if(originalUniforms.uResolution){
+  const dpr=typeof window==='undefined'?1:window.devicePixelRatio||1;
+  originalUniforms.uResolution.value.set(
+   (typeof window==='undefined'?360:window.innerWidth)*dpr,
+   (typeof window==='undefined'?225:window.innerHeight)*dpr);
+ }
+ if(originalUniforms.uCameraNear)originalUniforms.uCameraNear.value=.1;
+ if(originalUniforms.uCameraFar)originalUniforms.uCameraFar.value=260;
  const system=new ParticleEngine(scene);
  // Usa o ParticleSystem ORIGINAL, mas limita apenas a CAPACIDADE no celular
  // para não degradar a floresta, água e vegetação.
