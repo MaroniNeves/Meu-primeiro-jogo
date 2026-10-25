@@ -600,6 +600,20 @@ initFireballReplacement();
 /* Orbes independentes: FBX original, animações e cache nesta sessão. */
 const orbFiles={orbe_verde:'orbe_verde.fbx',orbe_laranja:'orbe_laranja.fbx',orbe_azul:'orbe_azul.fbx'};
 const orbLibrary=new Map(),orbLoading=new Map(),orbMissing=new Set();
+async function saveOrbModel(id,file){
+ try{
+  const db=await fireballDb();
+  await new Promise((resolve,reject)=>{const tx=db.transaction('models','readwrite');tx.objectStore('models').put(file,'orb_'+id);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});
+  db.close();
+ }catch(e){console.warn('Não foi possível salvar o orbe no navegador',e);}
+}
+async function restoreOrbModel(id){
+ try{
+  const db=await fireballDb();
+  const blob=await new Promise((resolve,reject)=>{const req=db.transaction('models','readonly').objectStore('models').get('orb_'+id);req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});
+  db.close();return blob||null;
+ }catch{return null;}
+}
 function displaySelectedOrb(){
  const id=presets[selected]?.id;
  for(const [key,entry] of orbLibrary)entry.root.visible=id===key;
@@ -611,9 +625,11 @@ async function loadOrbModel(id,file=null){
  const status=document.getElementById('orbFbxStatus');
  status.textContent='Carregando '+id.replace('_',' ')+'…';
  const task=(async()=>{
+  if(!file)file=await restoreOrbModel(id);
   let url=file?URL.createObjectURL(file):'../assets/vfx/'+orbFiles[id];
   try{
    const fbx=await new FBXLoader().loadAsync(url);
+   // Preserva materiais/texturas, hierarquia, malhas e clipes do FBX sem recolorir.
    const box=new THREE.Box3().setFromObject(fbx);
    if(box.isEmpty())throw new Error('FBX sem malhas visíveis');
    const size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());
@@ -625,6 +641,7 @@ async function loadOrbModel(id,file=null){
    if(mixer)for(const clip of fbx.animations)mixer.clipAction(clip).play();
    const old=orbLibrary.get(id);if(old)scene.remove(old.root);
    orbLibrary.set(id,{root:holder,mixer});
+   if(file)await saveOrbModel(id,file);
    displaySelectedOrb();
    status.textContent='✓ '+id.replace('_',' ')+' carregado — '+(fbx.animations?.length||0)+' animações.';
   }catch(err){
@@ -639,7 +656,7 @@ async function loadOrbModel(id,file=null){
 document.getElementById('orbFbx').addEventListener('change',e=>{
  const id=presets[selected]?.id;
  const file=e.target.files?.[0];
- if(file&&orbFiles[id])loadOrbModel(id,file);
+ if(file&&orbFiles[id]){orbMissing.delete(id);loadOrbModel(id,file);}
  else document.getElementById('orbFbxStatus').textContent='Selecione primeiro um dos três orbes no catálogo.';
 });
 
