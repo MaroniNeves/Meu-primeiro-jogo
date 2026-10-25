@@ -5,6 +5,8 @@ const assert=require('node:assert/strict');
 const root=path.resolve(__dirname,'..'),js=fs.readFileSync(path.join(root,'agua-v1226.js'),'utf8');
 const start=js.indexOf("const MAGE_MODEL='./magias/models/Idle.fbx';");
 const end=js.indexOf('async function loadGameCharacter(){',start);
+const effectsStart=js.indexOf('const mageSpells=['),effectsEnd=js.indexOf('function gameInput(){',effectsStart);
+assert.ok(effectsStart>0&&effectsEnd>effectsStart,'Efeitos e disparo de magias devem existir');
 assert.ok(start>0&&end>start,'Função de carregamento do mago deve existir');
 for(const name of ['Idle.fbx','cast1.fbx','cast2.fbx','cast3.fbx','diffuse.png']){
  const p=path.join(root,'magias/models',name);
@@ -14,9 +16,11 @@ for(const name of ['Idle.fbx','cast1.fbx','cast2.fbx','cast3.fbx','diffuse.png']
 const entry=path.join(root,'mage-integration-test.html');
 const script=[
  'import * as T from "three";',
- 'const game={root:new T.Group(),character:null,mixer:null,actions:{},castAction:null,hasModel:false,isMage:false};',
+ 'const game={root:new T.Group(),character:null,mixer:null,actions:{},castAction:null,hasModel:false,isMage:false,active:true,position:new T.Vector3(),heading:0,castCooldown:0,spellPending:null};',
  'const gameStatus=()=>{};',
  js.slice(start,end),
+ 'const scene=new T.Scene(),W=128,L=100,rockAt=()=>false,treesNearGame=()=>false,terrainContact=()=>0,$=()=>null;',
+ js.slice(effectsStart,effectsEnd),
  '(async()=>{try{',
  'await loadLocalMage();',
  'const keys=["idle","cast1","cast2","cast3"];',
@@ -29,7 +33,15 @@ const script=[
  'game.actions.cast1.reset().play();game.mixer.update(.25);',
  'game.actions.cast2.reset().play();game.mixer.update(.25);',
  'game.actions.cast3.reset().play();game.mixer.update(.25);',
- 'document.querySelector("#result").textContent=JSON.stringify({ok:true,height,meshes:meshes.length,clips:keys});',
+ 'for(let spell=0;spell<3;spell++){',
+ 'if(!castMageSpell(spell))throw Error("Botão de magia não conjurou: "+spell);',
+ 'updateMageMagic(.25);',
+ 'if(mageProjectiles.length!==1)throw Error("Sem projétil: "+spell);',
+ 'updateMageMagic(2.3);',
+ 'if(mageProjectiles.length!==0||mageImpacts.length!==1)throw Error("Impacto não apareceu: "+spell);',
+ 'clearMageMagic();',
+ '}',
+ 'document.querySelector("#result").textContent=JSON.stringify({ok:true,height,meshes:meshes.length,clips:keys,spells:3});',
  '}catch(error){document.querySelector("#result").textContent="ERROR: "+(error.stack||error.message)}})();'
 ].join('\n');
 const html='<!doctype html><html><head><meta charset="utf-8"><script type="importmap">'+
