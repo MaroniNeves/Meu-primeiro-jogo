@@ -111,18 +111,25 @@ body.play-active #gameHUD #gameRun{min-width:85px;height:70px;background:#4d4937
 body.play-active #gameFPS{font:700 12px system-ui;color:#bcecc6;white-space:nowrap}
 body.play-active .game-top{flex-wrap:wrap}
 
-/* Entrada de três modos; não altera o renderizador ou os controles de cada modo. */
-#arcanoModeMenu{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:20px;background:#081116dd;backdrop-filter:blur(9px)}
-#arcanoModeMenu[hidden]{display:none}
-.arcano-mode-card{width:min(420px,100%);padding:23px;background:#11202beF;border:1px solid #6f827d;border-radius:19px;box-shadow:0 18px 60px #000a;text-align:center}
-.arcano-mode-card h2{font:500 27px Georgia,serif;color:#ebd6ad;margin:3px 0 8px}
-.arcano-mode-card p{font:13px/1.5 system-ui;color:#bfd0c9;margin:0 0 17px}
-.arcano-mode-options{display:grid;gap:9px}
-.arcano-mode-options a,.arcano-mode-options button{display:block;width:100%;border:1px solid #7b9489;border-radius:12px;padding:14px;background:#213b3e;color:#eef6ef;text-decoration:none;font:700 15px system-ui;cursor:pointer}
-.arcano-mode-options button{background:#a68e68;color:#151b1a;border-color:#d7c3a2}
-.arcano-mode-card small{display:block;color:#a9bbb3;font:11px/1.5 system-ui;margin-top:14px}
-#arcanoOpenModes{position:fixed;z-index:33;top:calc(10px + env(safe-area-inset-top));left:12px;border:1px solid #829b8e;border-radius:10px;padding:10px 12px;background:#233c38;color:#f1f5eb;font:700 12px system-ui;cursor:pointer}
+/* Portal dark fantasy — menu de entrada isolado das cenas. */
+#arcanoModeMenu{position:fixed;inset:0;z-index:60;display:grid;place-items:center;overflow:auto;padding:clamp(14px,4vw,32px);background:radial-gradient(ellipse at 50% 15%,#52635135,transparent 57%),linear-gradient(145deg,#050d13ed,#081215f4);backdrop-filter:blur(13px)}
+#arcanoModeMenu[hidden]{display:none!important}
+.arcano-mode-card{position:relative;isolation:isolate;width:min(730px,100%);padding:clamp(22px,5vw,43px);overflow:hidden;border:1px solid #b4a07868;border-radius:22px;background:linear-gradient(145deg,#182a30f5,#0d191ff7 70%);box-shadow:0 28px 90px #000b,inset 0 1px #d7caa421;color:#e9efe8;text-align:left}
+.arcano-mode-card:before{content:"";position:absolute;z-index:-1;inset:0;background:radial-gradient(ellipse at 0 0,#a58b5230,transparent 50%),radial-gradient(ellipse at 100% 100%,#56837820,transparent 48%);pointer-events:none}
+.arcano-kicker{display:inline-block;margin-bottom:13px;color:#c6ac76;letter-spacing:.21em;font:700 10px system-ui;text-transform:uppercase}
+.arcano-mode-card h2{font:400 clamp(35px,6vw,58px)/1.02 Georgia,serif;color:#f0ddb1;margin:0 0 15px;letter-spacing:.015em}
+.arcano-mode-card p{max-width:530px;font:13px/1.6 system-ui;color:#b7c7c3;margin:0 0 26px}
+.arcano-mode-options{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.arcano-mode-options a,.arcano-mode-options button{appearance:none;display:flex;align-items:center;text-align:left;gap:15px;min-height:104px;width:100%;padding:16px;border:1px solid #77908856;border-radius:14px;background:linear-gradient(155deg,#29403fdd,#182c32e6);color:#f2f1e9;text-decoration:none;font:600 15px system-ui;cursor:pointer;transition:transform .18s,border-color .18s,background .18s,box-shadow .18s}
+.arcano-mode-options a:hover,.arcano-mode-options button:hover,.arcano-mode-options a:focus-visible,.arcano-mode-options button:focus-visible{transform:translateY(-2px);border-color:#c9ac77;box-shadow:0 10px 25px #0005;outline:2px solid #c5ab7855;outline-offset:2px}
+.arcano-mode-options button.arcano-main-play{grid-column:1/-1;background:linear-gradient(120deg,#62583fdc,#303a31);border-color:#b49c6975}
+.arcano-icon{flex:0 0 47px;height:47px;display:grid;place-items:center;border-radius:11px;background:#bca47218;border:1px solid #cfbc8e36;font-size:23px}
+.arcano-mode-text{display:flex;flex-direction:column;gap:5px}.arcano-mode-text strong{font:650 17px system-ui}.arcano-mode-text small{font:12px/1.4 system-ui;color:#b8c9c3}
+.arcano-foot{margin-top:22px;border-top:1px solid #a6b2a422;padding-top:15px;color:#98ada6;font:11px/1.6 system-ui}
+#arcanoOpenModes{position:fixed;z-index:33;top:calc(10px + env(safe-area-inset-top));left:12px;border:1px solid #b3a27b99;border-radius:10px;padding:10px 13px;background:#192b2bee;color:#e3d4b1;font:700 12px system-ui;cursor:pointer;box-shadow:0 4px 20px #0008}
 body.play-active #arcanoOpenModes{display:none}
+@media(max-width:570px){.arcano-mode-card{padding:23px 17px;border-radius:17px}.arcano-mode-options{grid-template-columns:1fr;gap:9px}.arcano-mode-options button.arcano-main-play{grid-column:auto}.arcano-mode-options a,.arcano-mode-options button{min-height:78px;padding:12px 13px}.arcano-icon{flex-basis:44px;height:44px}.arcano-mode-card p{margin-bottom:19px}.arcano-mode-card h2{font-size:38px}}
+@media(prefers-reduced-motion:reduce){.arcano-mode-options a,.arcano-mode-options button{transition:none}}
 </style>  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js","fflate":"https://cdn.jsdelivr.net/npm/fflate@0.8.2/esm/browser.js"}}</script>
   <script defer src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script><script defer src="./agua-v1226.js"></script><script defer src="./arcano-assets-v1232.js"></script><script defer src="./nature-imported-v1239.js"></script><script defer src="./fogo-grama-v1267.js"></script><script defer src="./ecossistema-v1232.js"></script>
 </head>
@@ -363,12 +370,16 @@ body.play-active #arcanoOpenModes{display:none}
 </script>
 
 <div id="arcanoModeMenu" role="dialog" aria-modal="true" aria-label="Escolher ambiente do Ateliê Arcano">
- <div class="arcano-mode-card"><h2>✦ Ateliê Arcano</h2><p>Escolha o ambiente. Cada modo mantém seu cenário e seus controles originais.</p>
+ <div class="arcano-mode-card">
+  <div class="arcano-kicker">✦ Portal de entrada · três caminhos</div>
+  <h2>Ateliê Arcano</h2>
+  <p>Entre no mundo da magia. Explore efeitos tridimensionais, experimente feitiços ou aventure-se pela floresta viva.</p>
   <div class="arcano-mode-options">
-   <a href="./magias/espadas.html">⚔️ Efeitos 3D</a>
-   <a href="./magias/index.html">✨ Magias</a>
-   <button type="button" id="arcanoModePlay">🎮 Jogar</button>
-  </div><small>O modo Jogar usa a floresta e o personagem original, sem alterações.</small>
+   <a href="./magias/espadas.html"><span class="arcano-icon" aria-hidden="true">⚔️</span><span class="arcano-mode-text"><strong>Efeitos 3D</strong><small>Espadas, cortes e experimentos visuais</small></span></a>
+   <a href="./magias/index.html"><span class="arcano-icon" aria-hidden="true">✦</span><span class="arcano-mode-text"><strong>Magias</strong><small>Biblioteca de 100 feitiços originais</small></span></a>
+   <button type="button" class="arcano-main-play" id="arcanoModePlay"><span class="arcano-icon" aria-hidden="true">🎮</span><span class="arcano-mode-text"><strong>Jogar</strong><small>Explore a floresta com seu personagem</small></span></button>
+  </div>
+  <div class="arcano-foot">Cada ambiente mantém seus modelos, cenário e controles originais.</div>
  </div>
 </div>
 <button type="button" id="arcanoOpenModes" aria-controls="arcanoModeMenu" aria-label="Escolher entre Efeitos 3D, Magias e Jogar">☰ Modos</button>
