@@ -33,4 +33,7 @@ jobs:
       - name: Verificar biblioteca restaurada de 100 magias e seus recursos
         run: node tools/testar-magias.js
       - name: Testar classes de magia originais do laboratório no navegador
-        run: node tools/testar-magias-originais-browser.cjs
+        run: |
+          node tools/testar-magias-originais-browser.cjs 0
+          node tools/testar-magias-originais-browser.cjs 1
+          node tools/testar-magias-originais-browser.cjs 2
