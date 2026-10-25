@@ -205,6 +205,9 @@ body.play-active #rainControls[hidden]{display:none!important}
 #arcanoWeatherForecast{padding:12px;margin:12px 0;border:1px solid #ac997363;border-radius:12px;background:#1a3037;color:#e8efe9}
 #arcanoWeatherForecast strong{color:#efdab0;font:600 15px Georgia,serif}
 #arcanoWeatherForecast p{font:12px/1.55 system-ui;color:#c7dad3;margin:8px 0 0}
+
+/* Prioridade de visibilidade do painel — evita conflito com HUD e regras anteriores */
+html body #rainControls[hidden],html body.play-active #rainControls[hidden],html body.ui-hidden #rainControls{display:none!important}
 </style>  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js","fflate":"https://cdn.jsdelivr.net/npm/fflate@0.8.2/esm/browser.js"}}</script>
   <script defer src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script><script defer src="./agua-v1226.js"></script><script defer src="./arcano-assets-v1232.js"></script><script defer src="./nature-imported-v1239.js"></script><script defer src="./fogo-grama-v1267.js"></script><script defer src="./ecossistema-v1232.js"></script>
 </head>
@@ -624,5 +627,50 @@ body.play-active #rainControls[hidden]{display:none!important}
   box.textContent=outlook+' · Indicador de chuva '+risk+'% · Temperatura '+(m.temperature||0).toFixed(1)+' °C · Umidade '+Math.round(humidity*100)+'% · Vento '+(m.wind||0).toFixed(1)+' · Pressão '+pressure.toFixed(0)+' hPa. Estimativa heurística instantânea, não previsão física futura.';
  }
  requestAnimationFrame(render);
+})();
+</script><script>
+/* Controlador único com prioridade de captura: impede múltiplos toggles antigos. */
+(function(){
+ const panel=document.getElementById('rainControls');
+ if(!panel)return;
+ const ids=new Set(['arcanoCloseSettings','gameSettingsOpen','arcanoSettingsToggle','showControls','collapseControls']);
+ const buttons=['gameSettingsOpen','arcanoSettingsToggle','showControls','collapseControls'];
+ const storageKey='arcano.settings.shortcut.v1';
+ let capturing=false;
+ let shortcut='KeyP';
+ try{const saved=localStorage.getItem(storageKey);if(saved&&/^(Key[A-Z]|Digit[0-9]|F(?:[1-9]|1[0-2]))$/.test(saved))shortcut=saved;}catch(e){}
+ function sync(){
+  const visible=!panel.hidden;
+  document.body.classList.toggle('ui-hidden',!visible);
+  for(const id of buttons)document.getElementById(id)?.setAttribute('aria-expanded',String(visible));
+ }
+ function open(value){panel.hidden=!value;sync();}
+ // Começa fechado, inclusive após entrada pelo menu Jogar.
+ open(false);
+ window.addEventListener('click',event=>{
+  const target=event.target.closest?.('button');
+  if(!target)return;
+  if(target.id==='arcanoShortcutCapture'){
+   // A configuração da tecla é gerenciada pelo seletor original.
+   return;
+  }
+  if(!ids.has(target.id))return;
+  event.preventDefault();event.stopImmediatePropagation();
+  open(target.id==='arcanoCloseSettings'||target.id==='collapseControls'?false:panel.hidden);
+ },true);
+ window.addEventListener('keydown',event=>{
+  const edit=event.target?.closest?.('input,textarea,select,[contenteditable="true"]');
+  const button=document.getElementById('arcanoShortcutCapture');
+  // O botão de captura original recebe prioridade para reatribuir o atalho.
+  if(button?.getAttribute('aria-pressed')==='true')return;
+  const menu=document.getElementById('arcanoModeMenu');
+  if(!menu?.hidden||edit||event.altKey||event.ctrlKey||event.metaKey||event.repeat)return;
+  try{shortcut=localStorage.getItem(storageKey)||shortcut;}catch(e){}
+  if(event.code!==shortcut)return;
+  event.preventDefault();event.stopImmediatePropagation();
+  open(panel.hidden);
+ },true);
+ document.getElementById('playEntry')?.addEventListener('click',()=>open(false),true);
+ document.getElementById('gameExit')?.addEventListener('click',()=>open(false),true);
 })();
 </script></body></html>
