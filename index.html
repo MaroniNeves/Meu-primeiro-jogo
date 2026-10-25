@@ -161,6 +161,14 @@ body.play-active #showControls,#showControls{display:none!important}
 .arcano-shortcut-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px;padding:9px 10px;background:#20373b;border:1px solid #5d807657;border-radius:10px;color:#d8e4d8;font:12px system-ui}
 #arcanoShortcutCapture{padding:8px 11px;border:1px solid #bba277;border-radius:8px;background:#32473f;color:#f1dfb6;font:700 12px system-ui;cursor:pointer}
 @media(max-width:620px){#arcanoSettingsToggle{padding:9px 10px;min-height:38px;font-size:11px}body.play-active #arcanoSettingsToggle{top:calc(68px + env(safe-area-inset-top))}}
+
+/* Correção: acesso aos ajustes dentro do HUD real, evitando regras antigas de ocultação. */
+body.play-active #gameHUD .game-top #gameSettingsOpen{display:inline-flex!important;position:relative;z-index:65;pointer-events:auto!important;align-items:center;justify-content:center;min-height:43px;background:#564a34ef;border:1px solid #cbb17c;color:#fff0ce;cursor:pointer;touch-action:manipulation}
+body:not(.play-active) #gameSettingsOpen{display:none}
+body.play-active #rainControls.bottom{z-index:75;pointer-events:auto}
+body.play-active #rainControls.bottom:not(.arcano-closed):not(.force-hide){display:block!important}
+body.play-active.ui-hidden #rainControls.bottom{display:none!important}
+@media(max-width:550px){body.play-active #gameHUD .game-top #gameSettingsOpen{font-size:11px;padding:7px 9px;min-height:39px}}
 </style>  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js","fflate":"https://cdn.jsdelivr.net/npm/fflate@0.8.2/esm/browser.js"}}</script>
   <script defer src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script><script defer src="./agua-v1226.js"></script><script defer src="./arcano-assets-v1232.js"></script><script defer src="./nature-imported-v1239.js"></script><script defer src="./fogo-grama-v1267.js"></script><script defer src="./ecossistema-v1232.js"></script>
 </head>
@@ -174,7 +182,7 @@ body.play-active #showControls,#showControls{display:none!important}
  aria-label="Baixar boneco 3D Xbot com esqueleto e animações parado, andar e correr"
  title="GLB com malha, rig e animações Idle, Walk e Run; compatível com Blender e Three.js">⬇ Boneco 3D + animações</a>
 <div id="gameHUD" aria-label="Controle do personagem" aria-hidden="true">
- <div class="game-top"><button type="button" id="gameExit">← Sair do jogo</button> <a href="./magias/index.html" aria-label="Abrir biblioteca de 100 magias">✨ Magias</a>
+ <div class="game-top"><button type="button" id="gameExit">← Sair do jogo</button> <button type="button" id="gameSettingsOpen" aria-controls="rainControls" aria-expanded="false" title="Abrir clima, tempo e demais ajustes">⚙️ Clima e ajustes</button> <a href="./magias/index.html" aria-label="Abrir biblioteca de 100 magias">✨ Magias</a>
  <a id="gameDownloadHUD"
  href="https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Xbot.glb"
  download="Atelie_Arcano_Xbot_Animado.glb"
@@ -495,5 +503,20 @@ body.play-active #showControls,#showControls{display:none!important}
  close?.addEventListener('click',()=>toggle.setAttribute('aria-expanded','false'));
  document.getElementById('playEntry')?.addEventListener('click',()=>toggle.setAttribute('aria-expanded','false'));
  document.getElementById('gameExit')?.addEventListener('click',()=>toggle.setAttribute('aria-expanded','true'));
+})();
+</script><script>
+(function(){
+ const button=document.getElementById('gameSettingsOpen');
+ const panel=document.getElementById('rainControls');
+ if(!button||!panel)return;
+ button.addEventListener('click',function(e){
+  e.preventDefault();e.stopPropagation();
+  const show=document.body.classList.contains('ui-hidden');
+  document.body.classList.toggle('ui-hidden',!show);
+  button.setAttribute('aria-expanded',String(show));
+  document.getElementById('arcanoSettingsToggle')?.setAttribute('aria-expanded',String(show));
+ });
+ document.getElementById('arcanoCloseSettings')?.addEventListener('click',()=>button.setAttribute('aria-expanded','false'));
+ document.getElementById('arcanoSettingsToggle')?.addEventListener('click',()=>button.setAttribute('aria-expanded',String(!document.body.classList.contains('ui-hidden'))));
 })();
 </script></body></html>
