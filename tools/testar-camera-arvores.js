@@ -5,8 +5,20 @@ const source=fs.readFileSync('agua-v1226.js','utf8');
 const a=source.indexOf('function safeGameCameraDistance(');
 const b=source.indexOf('function applyGameCamera(){',a);
 assert.ok(a>=0&&b>a);
-let forestInstances=[],T={};
-const ctx={forestInstances,Math,T};
+let forestInstances=[],T={},gameTreeGrid=new Map(),gameTreeCount=-1;
+function treesNearGame(){
+ if(gameTreeCount!==forestInstances.length){
+  gameTreeGrid.clear();gameTreeCount=forestInstances.length;
+  for(const a of forestInstances){
+   if(a.type!=='tree'&&a.type!=='pine')continue;
+   const key=Math.floor(a.x/3)+','+Math.floor(a.z/3);
+   if(!gameTreeGrid.has(key))gameTreeGrid.set(key,[]);
+   gameTreeGrid.get(key).push(a);
+  }
+ }
+}
+const ctx={forestInstances,Math,T,gameTreeGrid,treesNearGame};
+Object.defineProperty(ctx,'gameTreeCount',{get:()=>gameTreeCount});
 vm.createContext(ctx);
 vm.runInContext(source.slice(a,b)+';globalThis.f=safeGameCameraDistance;',ctx);
 const f=ctx.f;
