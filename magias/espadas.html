@@ -599,6 +599,7 @@ initFireballReplacement();
 
 /* Orbes FBX v2: substituição limpa, sem previews nem cache dos modelos antigos. */
 const orbFiles={orbe_verde:'orbe_verde_v2.fbx',orbe_laranja:'orbe_laranja_v2.fbx',orbe_azul:'orbe_azul_v2.fbx'};
+const ORB_ASSET_VERSION='20261025-fbx-verified';
 const orbLibrary=new Map(),orbLoading=new Map(),orbMissing=new Set();
 async function orbDbRead(id){
  try{const db=await fireballDb();const file=await new Promise((yes,no)=>{const r=db.transaction('models','readonly').objectStore('models').get('orbe_novo_'+id);r.onsuccess=()=>yes(r.result);r.onerror=()=>no(r.error)});db.close();return file||null;}catch{return null;}
@@ -616,9 +617,9 @@ async function loadOrbModel(id,file=null){
  const status=document.getElementById('orbFbxStatus');
  if(file)orbMissing.delete(id);
  const job=(async()=>{
-  if(!file)file=await orbDbRead(id);
+  // Prioriza o FBX publicado no GitHub. O arquivo local só serve como alternativa em falha de rede.
   status.textContent='Carregando FBX original de '+id.replace('_',' ')+'…';
-  const url=file?URL.createObjectURL(file):'../assets/vfx/'+orbFiles[id];
+  const url=file?URL.createObjectURL(file):'../assets/vfx/'+orbFiles[id]+'?v='+ORB_ASSET_VERSION;
   try{
    const fbx=await new FBXLoader().loadAsync(url);
    const bound=new THREE.Box3().setFromObject(fbx);
@@ -641,7 +642,7 @@ async function loadOrbModel(id,file=null){
    displaySelectedOrb();
    status.textContent='✓ '+id.replace('_',' ')+' — modelo FBX original ('+fbx.animations.length+' animações)';
   }catch(err){
-   if(!file)orbMissing.add(id);
+   if(!file){const saved=await orbDbRead(id);if(saved){await orbDbSave(id,saved);status.textContent='Falha na rede; use Carregar os 3 FBX originais se necessário.';}else orbMissing.add(id);}
    status.textContent='FBX não publicado: assets/vfx/'+orbFiles[id]+'. Importe o arquivo original no campo acima.';
    console.warn('Erro ao abrir orbe FBX',id,err);
   }finally{if(file)URL.revokeObjectURL(url);}
