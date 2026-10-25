@@ -62,10 +62,14 @@ export function createOriginalMagicBridge(THREE,scene,options={}){
  }
  async function prepare(slot){
   slot=Math.max(0,Math.min(2,slot|0));
+  options.onProgress?.('import-'+slot);
   const mod=await import(SOURCES[slot]);
+  options.onProgress?.('module-ready-'+slot);
   const Type=mod[EXPORTS[slot]];
   if(!Type)throw new Error('Efeito original indisponível: '+EXPORTS[slot]);
-  return new Type(ctx);
+  const effect=new Type(ctx);
+  options.onProgress?.('instantiated-'+slot);
+  return effect;
  }
  async function cast(slot,origin,direction,length=12){
   if(loading)return false;
