@@ -599,7 +599,7 @@ initFireballReplacement();
 
 /* Orbes FBX v2: substituição limpa, sem previews nem cache dos modelos antigos. */
 const orbFiles={orbe_verde:'orbe_verde_v2.fbx',orbe_laranja:'orbe_laranja_v2.fbx',orbe_azul:'orbe_azul_v2.fbx'};
-const ORB_ASSET_VERSION='20261025-fixed-orb-scale';
+const ORB_ASSET_VERSION='20261025-rotation-only';
 const orbLibrary=new Map(),orbLoading=new Map(),orbMissing=new Set();
 async function orbDbRead(id){
  try{const db=await fireballDb();const file=await new Promise((yes,no)=>{const r=db.transaction('models','readonly').objectStore('models').get('orbe_novo_'+id);r.onsuccess=()=>yes(r.result);r.onerror=()=>no(r.error)});db.close();return file||null;}catch{return null;}
@@ -632,32 +632,24 @@ async function loadOrbModel(id,file=null){
    offset.position.sub(center);
    scaled.scale.setScalar(1.5/Math.max(size.x,size.y,size.z,.001));
    root.position.set(0,1.85,0);
-   // Não misturar vários clipes sobre os mesmos nós: isso causa disputa de
-   // escala/opacidade e pode fazer o orbe piscar ou desaparecer a cada frame.
+   // Modo estável: apenas rotações de objetos. Posição, morph targets,
+   // escala e curvas de deformação podem gerar pulsação da esfera inteira.
+   // Todas as malhas, materiais e texturas do designer permanecem intactos.
    const sourceClips=fbx.animations||[];
-   const primaryClip=sourceClips.length
-     ?sourceClips.reduce((best,clip)=>clip.tracks.length>best.tracks.length?clip:best)
+   const rotationTracks=sourceClips.flatMap(clip=>clip.tracks.filter(track=>
+     /\\.(quaternion|rotation)$/.test(track.name.toLowerCase())));
+   const rotationClip=rotationTracks.length
+     ?new THREE.AnimationClip('Orbe - rotações estáveis',-1,rotationTracks)
      :null;
-   const filteredClip=primaryClip?primaryClip.clone():null;
-   if(filteredClip){
-     // Remove completamente os canais de escala e visibilidade do FBX.
-     // O filtro anterior só barrava escalas quase nulas, deixando pulsação.
-     filteredClip.tracks=filteredClip.tracks.filter(track=>{
-       const name=track.name.toLowerCase();
-       return !name.endsWith('.scale') &&
-              !name.endsWith('.visible') &&
-              !name.endsWith('.opacity');
-     });
-   }
-   const mixer=filteredClip?.tracks.length?new THREE.AnimationMixer(fbx):null;
-   if(mixer)mixer.clipAction(filteredClip).reset().setLoop(THREE.LoopRepeat,Infinity).play();
+   const mixer=rotationClip?new THREE.AnimationMixer(fbx):null;
+   if(mixer)mixer.clipAction(rotationClip).setLoop(THREE.LoopRepeat,Infinity).play();
    const previous=orbLibrary.get(id);
    if(previous){scene.remove(previous.root);}
    scene.add(root);
    orbLibrary.set(id,{root,mixer});
    if(file)await orbDbSave(id,file);
    displaySelectedOrb();
-   status.textContent='✓ '+id.replace('_',' ')+' — FBX carregado; escala fixa, movimentos internos preservados.';
+   status.textContent='✓ '+id.replace('_',' ')+' — FBX estável, sem animações de expansão ou deformação.';
   }catch(err){
    if(!file){const saved=await orbDbRead(id);if(saved){await orbDbSave(id,saved);status.textContent='Falha na rede; use Carregar os 3 FBX originais se necessário.';}else orbMissing.add(id);}
    status.textContent='FBX não publicado: assets/vfx/'+orbFiles[id]+'. Importe o arquivo original no campo acima.';
@@ -688,7 +680,7 @@ document.getElementById('orbFbx').addEventListener('change',async e=>{
 select(selected);
 const clock=new THREE.Clock();function frame(){requestAnimationFrame(frame);const dt=Math.min(clock.getDelta(),.055);if(!state.paused&&state.started){state.clock+=dt;state.cycle+=dt*state.speed;}const p=presets[selected],dur=p.duration;if(fxGroup)fxGroup.visible=true; if(state.cycle>=dur+.35){if(state.loop)state.cycle=0;else{state.cycle=dur+.35;state.started=false}}const t=Math.min(dur, state.cycle);if(state.started||state.cycle<dur)updates.forEach(fn=>fn(t,dur));if(!state.started&&t>=dur){primaryParticle.material.opacity=minorParticle.material.opacity=0;glow.intensity=0;}else glow.intensity=25*state.power*(.5+smooth(t/.5)*.5)*smooth((dur-t)/.7);
 if(fireballImported){const active=p.id==='fire'||p.id==='fire_hover';fireballImported.visible=active;fireballImported.position.set(0,1.85,0);if(active&&!state.paused&&fireballMixer)fireballMixer.update(dt*state.speed);}
-for(const [id,entry] of orbLibrary){entry.root.visible=p.id===id;if(entry.root.visible&&!state.paused&&entry.mixer)entry.mixer.update(dt*state.speed);}controls.update();renderer.render(scene,camera)}frame();
+for(const [id,entry] of orbLibrary){entry.root.visible=p.id===id;if(entry.root.visible&&!state.paused){if(entry.mixer)entry.mixer.update(dt*state.speed);else entry.root.rotation.y+=dt*.22*state.speed;}}controls.update();renderer.render(scene,camera)}frame();
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
 }catch(err){document.getElementById('loading').style.display='none';document.getElementById('warning').style.display='flex';document.getElementById('errortext').textContent=err?.message||String(err);console.error(err)}
 </script>
