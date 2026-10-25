@@ -198,6 +198,13 @@ body.play-active.ui-hidden #rainControls.bottom{display:none!important}
 #rainControls #arcanoShortcutCapture{background:#33483f;color:#f5dfac;border:1px solid #b7a37a6b}
 #gameSettingsOpen{background:linear-gradient(#bfa374,#917951)!important;color:#182321!important;border-color:#e1c895!important;box-shadow:0 5px 18px #0007}
 @media(max-width:620px){#rainControls.bottom{padding:0 11px 13px}#rainControls .arcano-panel-heading{margin:0 -11px 12px;padding:12px 11px}#rainControls .arcano-panel-heading strong{font-size:18px}#rainControls .sim-row{gap:7px}#rainControls .rain-row{padding:10px}}
+
+/* Correção definitiva da visibilidade: [hidden] vence regras legadas !important. */
+#rainControls[hidden]{display:none!important}
+body.play-active #rainControls[hidden]{display:none!important}
+#arcanoWeatherForecast{padding:12px;margin:12px 0;border:1px solid #ac997363;border-radius:12px;background:#1a3037;color:#e8efe9}
+#arcanoWeatherForecast strong{color:#efdab0;font:600 15px Georgia,serif}
+#arcanoWeatherForecast p{font:12px/1.55 system-ui;color:#c7dad3;margin:8px 0 0}
 </style>  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js","fflate":"https://cdn.jsdelivr.net/npm/fflate@0.8.2/esm/browser.js"}}</script>
   <script defer src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script><script defer src="./agua-v1226.js"></script><script defer src="./arcano-assets-v1232.js"></script><script defer src="./nature-imported-v1239.js"></script><script defer src="./fogo-grama-v1267.js"></script><script defer src="./ecossistema-v1232.js"></script>
 </head>
@@ -239,7 +246,7 @@ body.play-active.ui-hidden #rainControls.bottom{display:none!important}
 <div class="hint" id="hint">Chuva começa no solo seco. Observe a formação das poças. Pode recolher os controles para ver a cena.</div>
 <button type="button" id="arcanoSettingsToggle" aria-controls="rainControls" aria-expanded="false" title="Abrir ou fechar o controle do mundo">⚙️ Ajustes <kbd id="arcanoShortcutHint">P</kbd></button>
 <button type="button" id="showControls" aria-controls="rainControls" aria-expanded="false">☷ Mostrar ajustes</button>
-<footer class="bottom" id="rainControls"><div class="arcano-shortcut-row"><span>⌨️ Atalho da janela</span><button type="button" id="arcanoShortcutCapture" title="Clique e pressione uma tecla">Alterar: P</button></div><div class="arcano-panel-heading" id="arcanoDragHandle" aria-label="Arrastar janela de ajustes"><div><strong>✦ Controle do mundo</strong><small>Tempo · clima · terreno · simulação</small></div><button type="button" id="arcanoCloseSettings" aria-label="Fechar controles">✕</button></div><div class="row"><button class="primary" id="replay">↻ Recomeçar</button><button id="pause">⏸ Pausar</button><button id="cam">◎ Câmera</button><button type="button" id="collapseControls" aria-controls="rainControls">⛶ Ver cena</button></div><div class="rain-row"><label for="intensity">🌧 Intensidade <select id="intensity" aria-label="Nível da chuva"><option value="0">0 · Sem chuva</option><option value="1">1 · Garoa</option><option value="2">2 · Chuva fraca</option><option selected value="3">3 · Chuva moderada</option><option value="4">4 · Chuva forte</option><option value="5">5 · Temporal intenso</option></select></label><output id="intensityName" for="intensity">Chuva moderada</output><button type="button" id="stopRain" aria-pressed="false">☀ Parar chuva</button></div><div id="rainMeter" aria-hidden="true"></div><div id="rainDetail" aria-live="polite"></div>
+<footer class="bottom" id="rainControls"><div class="arcano-shortcut-row"><span>⌨️ Atalho da janela</span><button type="button" id="arcanoShortcutCapture" title="Clique e pressione uma tecla">Alterar: P</button></div><section id="arcanoWeatherForecast" aria-live="off"><strong>☁ Previsão do clima simulado</strong><p id="arcanoWeatherForecastText">Calculando condições do mundo…</p></section><div class="arcano-panel-heading" id="arcanoDragHandle" aria-label="Arrastar janela de ajustes"><div><strong>✦ Controle do mundo</strong><small>Tempo · clima · terreno · simulação</small></div><button type="button" id="arcanoCloseSettings" aria-label="Fechar controles">✕</button></div><div class="row"><button class="primary" id="replay">↻ Recomeçar</button><button id="pause">⏸ Pausar</button><button id="cam">◎ Câmera</button><button type="button" id="collapseControls" aria-controls="rainControls">⛶ Ver cena</button></div><div class="rain-row"><label for="intensity">🌧 Intensidade <select id="intensity" aria-label="Nível da chuva"><option value="0">0 · Sem chuva</option><option value="1">1 · Garoa</option><option value="2">2 · Chuva fraca</option><option selected value="3">3 · Chuva moderada</option><option value="4">4 · Chuva forte</option><option value="5">5 · Temporal intenso</option></select></label><output id="intensityName" for="intensity">Chuva moderada</output><button type="button" id="stopRain" aria-pressed="false">☀ Parar chuva</button></div><div id="rainMeter" aria-hidden="true"></div><div id="rainDetail" aria-live="polite"></div>
 <div class="sim-row" role="group" aria-label="Simulação hidrológica">
   <label for="process">Processo
     <select id="process" aria-label="Processo hidrológico">
@@ -569,5 +576,53 @@ body.play-active.ui-hidden #rainControls.bottom{display:none!important}
  heading('.hydro-metrics','◉ Estado do mundo');
  const summaries={hydroOptions:'⚙️ Câmera, vento, clima, gráficos e solo',modelTesting:'🧪 Bancada de modelos e vegetação',ecoPanel:'🌿 Ecossistema, rio e vida da floresta'};
  for(const [id,title] of Object.entries(summaries)){const summary=document.getElementById(id)?.querySelector(':scope > summary');if(summary)summary.textContent=title;}
+})();
+</script><script>
+(function(){
+ const panel=document.getElementById('rainControls'),hud=document.getElementById('gameSettingsOpen');
+ const floating=document.getElementById('arcanoSettingsToggle');
+ const close=document.getElementById('arcanoCloseSettings');
+ const oldShow=document.getElementById('showControls');
+ if(!panel)return;
+ function setOpen(open){
+  panel.hidden=!open;
+  document.body.classList.toggle('ui-hidden',!open);
+  for(const button of [hud,floating,oldShow])button?.setAttribute('aria-expanded',String(open));
+ }
+ // Estado centralizado: substituir listeners legados do mesmo clique pela captura.
+ for(const button of [hud,floating,oldShow,close,document.getElementById('collapseControls')]){
+  if(!button)continue;
+  button.addEventListener('click',e=>{
+   e.preventDefault();e.stopImmediatePropagation();
+   setOpen(button===close||button.id==='collapseControls'?false:panel.hidden);
+  },true);
+ }
+ document.getElementById('playEntry')?.addEventListener('click',()=>setOpen(false),true);
+ document.getElementById('gameExit')?.addEventListener('click',()=>setOpen(false),true);
+ setOpen(false);
+ // Previsão do mundo simulado; não usa dados meteorológicos externos.
+ const box=document.getElementById('arcanoWeatherForecastText');
+ const api=()=>window.arcanoWaterV1226?.atmosphere?.getMetrics?.()||
+  window.arcanoWater?.atmosphere?.getMetrics?.();
+ let last=0;
+ function render(now){
+  requestAnimationFrame(render);
+  if(now-last<2400)return;last=now;
+  if(!box)return;
+  const m=api();
+  if(!m){
+   const text=document.getElementById('atmosStats')?.textContent||'';
+   box.textContent='Aguardando cálculos atmosféricos do mundo… '+text;
+   return;
+  }
+  const humidity=Math.max(0,Math.min(1,m.humidity||0));
+  const clouds=Math.max(0,Math.min(1,m.clouds||0));
+  const pressure=m.pressure||1013;
+  const rain=m.rain||0;
+  const risk=Math.max(0,Math.min(100,Math.round(100*(.35*humidity+.38*clouds+.27*Math.max(0,Math.min(1,(1018-pressure)/19))))));
+  const outlook=rain>.3?'Chuva em andamento':risk>68?'Tendência de chuva':risk>40?'Possibilidade de pancadas':'Tendência de tempo firme';
+  box.textContent=outlook+' · Indicador de chuva '+risk+'% · Temperatura '+(m.temperature||0).toFixed(1)+' °C · Umidade '+Math.round(humidity*100)+'% · Vento '+(m.wind||0).toFixed(1)+' · Pressão '+pressure.toFixed(0)+' hPa. Estimativa heurística instantânea, não previsão física futura.';
+ }
+ requestAnimationFrame(render);
 })();
 </script></body></html>
