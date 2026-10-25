@@ -599,7 +599,7 @@ initFireballReplacement();
 
 /* Orbes FBX v2: substituição limpa, sem previews nem cache dos modelos antigos. */
 const orbFiles={orbe_verde:'orbe_verde_v2.fbx',orbe_laranja:'orbe_laranja_v2.fbx',orbe_azul:'orbe_azul_v2.fbx'};
-const ORB_ASSET_VERSION='20261025-internal-motion';
+const ORB_ASSET_VERSION='20261025-original-fbx-animation';
 const orbLibrary=new Map(),orbLoading=new Map(),orbMissing=new Set();
 async function orbDbRead(id){
  try{const db=await fireballDb();const file=await new Promise((yes,no)=>{const r=db.transaction('models','readonly').objectStore('models').get('orbe_novo_'+id);r.onsuccess=()=>yes(r.result);r.onerror=()=>no(r.error)});db.close();return file||null;}catch{return null;}
@@ -632,40 +632,19 @@ async function loadOrbModel(id,file=null){
    offset.position.sub(center);
    scaled.scale.setScalar(1.5/Math.max(size.x,size.y,size.z,.001));
    root.position.set(0,1.85,0);
-   // Animação restaurada com movimentos internos limitados para evitar
-   // expansão/contração; não alterar malhas ou materiais originais.
-   const sourceClips=fbx.animations||[];
-   const mainClip=sourceClips.length?sourceClips.reduce((best,c)=>
-     c.tracks.length>best.tracks.length?c:best):null;
-   const activeTracks=[];
-   if(mainClip)for(const original of mainClip.tracks){
-     const n=original.name.toLowerCase();
-     if(n.endsWith('.quaternion')||n.endsWith('.rotation')){
-       activeTracks.push(original.clone());
-     }else if(n.endsWith('.position')){
-       // Conserva a oscilação interna sem permitir grandes deslocamentos.
-       const track=original.clone(),v=track.values;
-       const maxDelta=Math.max(.001,Math.max(size.x,size.y,size.z)*.025);
-       if(v.length>=3)for(let i=3;i+2<v.length;i+=3){
-         const dx=v[i]-v[0],dy=v[i+1]-v[1],dz=v[i+2]-v[2];
-         const distance=Math.hypot(dx,dy,dz),factor=distance>maxDelta?maxDelta/distance:1;
-         v[i]=v[0]+dx*factor;v[i+1]=v[1]+dy*factor;v[i+2]=v[2]+dz*factor;
-       }
-       activeTracks.push(track);
-     }
-     // Bloqueia canais de escala, visibilidade e opacidade causadores da piscada.
-   }
-   const stableClip=activeTracks.length
-     ?new THREE.AnimationClip('Orbe - animação estável',mainClip.duration,activeTracks):null;
-   const mixer=stableClip?new THREE.AnimationMixer(fbx):null;
-   if(mixer)mixer.clipAction(stableClip).reset().setLoop(THREE.LoopRepeat,Infinity).play();
+   // Reproduz integralmente cada clipe original do FBX, sem filtrar
+   // escala, posição, visibilidade, deformação ou qualquer outra propriedade.
+   const originalClips=fbx.animations||[];
+   const mixer=originalClips.length?new THREE.AnimationMixer(fbx):null;
+   if(mixer)for(const clip of originalClips)
+     mixer.clipAction(clip).reset().setLoop(THREE.LoopRepeat,Infinity).play();
    const previous=orbLibrary.get(id);
    if(previous){scene.remove(previous.root);}
    scene.add(root);
    orbLibrary.set(id,{root,mixer});
    if(file)await orbDbSave(id,file);
    displaySelectedOrb();
-   status.textContent='✓ '+id.replace('_',' ')+' — FBX animado com movimentos internos suaves e escala fixa.';
+   status.textContent='✓ '+id.replace('_',' ')+' — FBX com todos os clipes e animações originais ativos.';
   }catch(err){
    if(!file){const saved=await orbDbRead(id);if(saved){await orbDbSave(id,saved);status.textContent='Falha na rede; use Carregar os 3 FBX originais se necessário.';}else orbMissing.add(id);}
    status.textContent='FBX não publicado: assets/vfx/'+orbFiles[id]+'. Importe o arquivo original no campo acima.';
