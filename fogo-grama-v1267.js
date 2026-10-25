@@ -16,6 +16,10 @@ window.createArcanoWildfireV1267=function(T,scene,opts={}){
  const active=new Set(),damaged=new Set();
  let tick=0,clock=0,acc=0,visible=0,extinguished=0,ignitions=0;
  let texture=null,flameMesh=null,smokeMesh=null,burnMesh=null,atlas=null;
+ // Um GLB CC0 de fogo (ex.: Flame Decal do Poly Pizza) pode substituir
+ // alguns sprites, mantendo a queima/chuva/cinzas totalmente independentes.
+ const MODEL_MAX=mobile?12:24;
+ let modelFlames=[],modelSource=null,modelError='',modelReady=false;
  const mobile=!!opts.mobile,MAX=mobile?72:138;
  if(T&&scene){
   texture=new T.DataTexture(pixels,NX,NZ,T.RGBAFormat);
@@ -60,6 +64,67 @@ window.createArcanoWildfireV1267=function(T,scene,opts={}){
   burnMesh.count=0;burnMesh.frustumCulled=false;burnMesh.renderOrder=2;
   scene.add(burnMesh);
  }
+ // O site Poly Pizza fornece GLB ao usuário pelo botão Download.
+ // Não inventamos uma URL de CDN nem incluímos modelo sem verificar licença.
+ // GLBs são usados SOMENTE como visual dos focos já simulados no solo.
+ async function importFireGLB(file){
+  if(!T||!scene)throw new Error('Cena WebGL ainda não inicializada');
+  if(!file||!(/\.glb$/i.test(file.name||'')))throw new Error('Selecione um arquivo .glb');
+  if(file.size<20||file.size>12*1024*1024)throw new Error('GLB precisa ter entre 20 B e 12 MB');
+  const data=await file.arrayBuffer();
+  const head=new DataView(data);
+  if(head.getUint32(0,true)!==0x46546c67||head.getUint32(4,true)!==2)
+   throw new Error('Arquivo não é glTF binário GLB versão 2');
+  const {GLTFLoader}=await import(
+   'https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/loaders/GLTFLoader.js'
+  );
+  const loader=new GLTFLoader();
+  const gltf=await loader.parseAsync(data,'');
+  const source=gltf.scene;
+  if(!source)throw new Error('GLB não contém objeto 3D');
+  let meshCount=0,triangles=0;
+  source.traverse(obj=>{
+   if(!obj.isMesh)return;
+   meshCount++;
+   const geom=obj.geometry;
+   if(geom?.index)triangles+=geom.index.count/3;
+   else if(geom?.attributes?.position)triangles+=geom.attributes.position.count/3;
+  });
+  if(!meshCount||triangles>25000)throw new Error('Modelo vazio ou detalhado demais para fogo no celular');
+  const box=new T.Box3().setFromObject(source);
+  const height=box.max.y-box.min.y;
+  if(!Number.isFinite(height)||height<.001)throw new Error('Modelo de fogo sem altura válida');
+  // Células de grama têm largura aproximada de 1 metro.
+  const scale=Math.min(3.5,1.18/height);
+  const center=box.getCenter(new T.Vector3());
+  const normalized=new T.Group();
+  normalized.add(source);
+  source.position.set(-center.x,-box.min.y,-center.z);
+  normalized.scale.setScalar(scale);
+  // Compartilhar texturas e geometrias entre clones; sem criar centenas de GLBs.
+  const clones=[];
+  try{
+   for(let i=0;i<MODEL_MAX;i++){
+    const model=normalized.clone(true);
+    model.visible=false;model.name='Fogo Poly Pizza CC0 '+i;
+    model.traverse(o=>{if(o.isMesh){o.frustumCulled=false;o.castShadow=false;}});
+    scene.add(model);clones.push(model);
+   }
+  }catch(err){
+   for(const obj of clones)scene.remove(obj);
+   throw err;
+  }
+  for(const old of modelFlames)scene.remove(old);
+  modelFlames=clones;modelSource=source;modelReady=true;modelError='';
+  return {objects:modelFlames.length,meshes:meshCount,triangles:Math.round(triangles)};
+ }
+ function clearImportedFire(){
+  for(const obj of modelFlames)scene?.remove(obj);
+  modelFlames=[];modelSource=null;modelReady=false;modelError='';
+ }
+ function getImportedFire(){return {
+  ready:modelReady,count:modelFlames.length,error:modelError
+ };}
  const grid=(x,z)=>{
   const ix=Math.floor((x/WIDTH+.5)*NX),iz=Math.floor((z/LENGTH+.5)*NZ);
   return ix<0||ix>=NX||iz<0||iz>=NZ?-1:iz*NX+ix;
@@ -196,7 +261,7 @@ window.createArcanoWildfireV1267=function(T,scene,opts={}){
   const col=frame%10,row=5-Math.floor(frame/10);
   if(atlas){atlas.offset.set(col*.1,row/6);}
   const heading=wind(),hasCamera=Boolean(camera);
-  let num=0;
+  let num=0,spriteCount=0,modelCount=0;
   for(const k of active){
    if(num>=MAX)break;
    const pos=locate(k),power=flames[k];
@@ -207,7 +272,14 @@ window.createArcanoWildfireV1267=function(T,scene,opts={}){
    else dummy.rotation.set(0,0,0);
    const size=(.58+power*.8)*(.86+.14*Math.sin(clock*3.6+k));
    dummy.scale.set(size,size,1);dummy.updateMatrix();
-   flameMesh.setMatrixAt(num,dummy.matrix);
+   if(modelReady&&modelCount<modelFlames.length){
+    const model=modelFlames[modelCount++];
+    model.visible=true;
+    model.position.set(pos.x,y+.014,pos.z);
+    model.rotation.set(0,Math.sin(clock*1.3+k)*.11,0);
+    // Altura um pouco maior em chamas fortes, mas sem esmagar a grama.
+    model.scale.setScalar((.58+power*.52)*(1+.025*Math.sin(clock*5+k)));
+   }else flameMesh.setMatrixAt(spriteCount++,dummy.matrix);
    if(smokeMesh){
     dummy.position.set(pos.x+heading.x*.13,y+1.10+Math.sin(clock*1.5+k)*.16,pos.z+heading.z*.13);
     dummy.scale.set(size*1.08,size*.92,1);dummy.updateMatrix();
@@ -215,7 +287,8 @@ window.createArcanoWildfireV1267=function(T,scene,opts={}){
    }
    num++;
   }
-  flameMesh.count=num;flameMesh.instanceMatrix.needsUpdate=true;
+  for(let i=modelCount;i<modelFlames.length;i++)modelFlames[i].visible=false;
+  flameMesh.count=spriteCount;flameMesh.instanceMatrix.needsUpdate=true;
   if(smokeMesh){smokeMesh.count=num;smokeMesh.instanceMatrix.needsUpdate=true;}
   // Marcas de fuligem no chão: plano escuro independente da grama original.
   let marked=0;
@@ -248,6 +321,7 @@ window.createArcanoWildfireV1267=function(T,scene,opts={}){
  function sample(x,z){const k=grid(x,z);return k<0?{burn:0,fire:0}:
   {burn:charred[k],fire:flames[k]};}
  return {ignite,igniteCone,quench,update,status,sample,
+  importFireGLB,clearImportedFire,getImportedFire,
   texture,mask: pixels,dimensions:[NX,NZ],active,damaged};
 };
 })();
