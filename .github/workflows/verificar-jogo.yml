@@ -28,6 +28,8 @@ jobs:
         run: node tools/testar-incendio-grama.js
       - name: Confirmar chama CC0 em WebGL com Chrome
         run: node tools/testar-fogo-webgl.cjs
+      - name: Conferir suporte a modelo GLB de fogo do Poly Pizza
+        run: node tools/testar-modelo-poly-pizza.cjs
       - name: Validar deslocamento real da grama em WebGL
         run: node tools/testar-grama-webgl.cjs
       - name: Testar camera e obstrucao por arvores
