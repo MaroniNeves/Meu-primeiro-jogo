@@ -39,6 +39,8 @@ export function createOriginalMagicBridge(THREE,scene,options={}){
    if(geom){
     const attrs=[...Object.values(geom.attributes||{})];
     if(geom.index)attrs.push(geom.index);
+    if(child.instanceMatrix)attrs.push(child.instanceMatrix);
+    if(child.instanceColor)attrs.push(child.instanceColor);
     if(geom.morphAttributes)for(const list of Object.values(geom.morphAttributes))
      attrs.push(...list);
     for(const attr of attrs){
@@ -88,6 +90,7 @@ export function createOriginalMagicBridge(THREE,scene,options={}){
   if(!active)return;
   active.update(dt);
   visibleInForest(active.group);
+  for(const p of system.systems.values())visibleInForest(p.object3D);
   system.flush();
   if(active.isFinished){
    active.destroy();active.dispose();
