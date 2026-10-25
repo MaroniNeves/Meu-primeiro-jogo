@@ -30,3 +30,5 @@ jobs:
         run: node tools/testar-camera-arvores.js
       - name: Testar zoom estável, pinça, botões e roda do mouse
         run: node tools/testar-zoom-camera.js
+      - name: Verificar biblioteca restaurada de 100 magias e seus recursos
+        run: node tools/testar-magias.js
