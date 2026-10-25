@@ -44,8 +44,43 @@ function cast(){
    movers.push({m,j,style:'sword'});
   }
  }else if(type==='shield'){
-  const dome=add(new T.SphereGeometry(1.9,32,20,0,Math.PI*2,0,Math.PI/2),material(color,.20));
-  ring(1.90,color);movers.push({m:dome,style:'shield'});
+  // Escudo arcano: círculo ritual vertical, projetado diante do conjurador.
+  // Anéis, geometria sagrada e glifos são malhas reais no mesmo scene.
+  ttl=4.7;
+  const sigil=new T.Group();group.add(sigil);
+  sigil.position.set(0,1.65,0);
+  const ink=id==='shield_void'?0xb69be2:0xaacba5;
+  function sigilLine(points,tint=ink,width=.018,opacity=.78){
+   const curve=new T.CatmullRomCurve3(points.map(p=>new T.Vector3(p[0],p[1],0)),true);
+   const m=new T.Mesh(new T.TubeGeometry(curve,points.length*3,width,5,true),material(tint,opacity));
+   sigil.add(m);return m;
+  }
+  function polygon(n,r,offset=0,tint=ink,thickness=.017){
+   const points=Array.from({length:n},(_,k)=>{
+    const a=offset+k*Math.PI*2/n;return [Math.cos(a)*r,Math.sin(a)*r];
+   });return sigilLine(points,tint,thickness);
+  }
+  for(const [radius,width,opacity] of [[1.55,.028,.88],[1.37,.012,.67],[.96,.020,.82],[.72,.011,.62]]){
+   const m=new T.Mesh(new T.TorusGeometry(radius,width,5,120),material(ink,opacity));
+   sigil.add(m);
+  }
+  polygon(6,1.17,Math.PI/6);polygon(6,1.17,0,ink,.010);
+  polygon(3,.79,Math.PI/2);polygon(3,.79,-Math.PI/2,ink,.010);
+  // Doze runas esculpidas em pequenos traços em vez de caracteres de fonte.
+  for(let j=0;j<12;j++){
+   const a=j*Math.PI/6,r=1.46;
+   const glyph=new T.Group();glyph.position.set(Math.cos(a)*r,Math.sin(a)*r,0);glyph.rotation.z=a-Math.PI/2;sigil.add(glyph);
+   const strokes=[ [[-.055,-.07],[0,.07],[.055,-.07]],
+    [[-.05,0],[.05,0]], [[0,-.07],[0,.07]] ];
+   const selectedStrokes=[strokes[j%3],strokes[(j+1)%3]];
+   for(const path of selectedStrokes){
+    const geo=new T.BufferGeometry().setFromPoints(path.map(p=>new T.Vector3(p[0],p[1],0)));
+    glyph.add(new T.Line(geo,new T.LineBasicMaterial({color:ink,transparent:true,opacity:.75,depthWrite:false})));
+   }
+  }
+  const center=add(new T.OctahedronGeometry(.15),material(ink,.68),0,1.65,.015);
+  sigil.scale.setScalar(.001);
+  movers.push({m:sigil,style:'magicCircle'},{m:center,style:'magicCore'});
  }else if(type==='bolt'){
   const pts=[];for(let j=0;j<15;j++)pts.push(new T.Vector3((j%2?-.20:.23)*Math.sin(j*7),3.4-j*.22,0));
   const line=add(new T.TubeGeometry(new T.CatmullRomCurve3(pts),40,.046,5,false),material(color,.94));
@@ -77,7 +112,8 @@ function update(delta){
    if(style==='ring')m.scale.setScalar(1+t*.6);
    if(style==='bolt')m.rotation.y=Math.sin(t*27)*.07;
    if(style==='orb')m.rotation.y=t*.8;
-   if(style==='shield')m.rotation.y=t*.45;
+   if(style==='magicCircle'){const appearing=clamp(t/.65,0,1);const ease=1-Math.pow(1-appearing,3);m.scale.setScalar(Math.max(.001,ease));m.rotation.z=Math.sin(t*.8)*.035;}
+   if(style==='magicCore')m.rotation.y=t*.7;
    if(style==='crystal')m.rotation.y=t*.30+j*.14;
    m.material.opacity=clamp((m.material.userData.baseOpacity??=m.material.opacity)*fade,0,1);
   }
