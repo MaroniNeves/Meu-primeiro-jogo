@@ -26,7 +26,7 @@
 <section id="panel" aria-label="Controles dos efeitos"><div class="topline"><div class="kicker">Biblioteca de magias</div><div id="family">Natureza · Defesa</div></div><div id="filters"><button class="filter-btn" data-filter="sword" aria-pressed="true">⚔️ Espadas</button><button class="filter-btn" data-filter="magic" aria-pressed="false">✦ Outras magias</button><button class="filter-btn" data-filter="all" aria-pressed="false">Tudo</button></div><div id="presets"></div><p id="desc"></p>
 <div id="actionrow"><button class="action main" id="replay">✦ Lançar magia</button><button class="action" id="loop" aria-pressed="true">↻ Repetir: ligado</button><button class="action" id="pause">Ⅱ Pausar</button></div>
 <div class="settings"><div class="field"><label for="onlineAssets">Modelos 3D prontos (GLB)</label><input id="onlineAssets" type="checkbox" checked aria-label="Carregar modelos 3D online"></div><div id="assetStatus" class="asset-status">Modelos externos opcionais • CC0 • requer internet</div><div class="field"><label for="origin">Origem do efeito</label><select id="origin"><option value="auto">Automática conforme magia</option><option value="sword">Espada</option><option value="dagger">Adaga</option><option value="axe">Machado</option><option value="staff">Cajado</option><option value="arrow">Flecha</option><option value="ground">Chão</option><option value="air">Ar</option></select></div>
-<div class="field"><label for="particles">Densidade de partículas</label><input id="particles" type="range" min="20" max="150" value="100" step="5"></div><div class="field"><label for="power">Intensidade</label><input id="power" type="range" min="40" max="160" value="100" step="5"></div><div class="field" id="shieldGlowField" hidden><label for="shieldGlow">Brilho ao atingir o escudo: <output id="shieldGlowValue">100%</output></label><input id="shieldGlow" type="range" min="0" max="400" value="100" step="10" aria-label="Intensidade do brilho localizado do escudo"></div><div class="field"><label for="fireballFbx">🔥 Fireball VFX (FBX enviado)</label><input id="fireballFbx" type="file" accept=".fbx" aria-label="Carregar modelo FBX de bola de fogo"><small id="fireballFbxStatus">🔥 Bola de Fogo: carregue o FBX animado para substituir a antiga esfera com cones. O modelo fica salvo neste navegador.</small></div><div class="field"><label for="orbFbx">🔮 Importar orbe FBX</label><input id="orbFbx" type="file" accept=".fbx"><small id="orbFbxStatus">Selecione Orbe verde, laranja ou azul. Se o arquivo estiver em assets/vfx/, ele carrega automaticamente.</small></div><div class="field"><label for="speed">Velocidade</label><input id="speed" type="range" min="50" max="160" value="100" step="5"></div></div><details class="assets-info"><summary>Modelos GLB e licenças</summary><p>Malhas CC0 de 3DAssets.dev. Algumas são estáticas; os movimentos e partículas são acrescentados pelo Three.js.</p><a href="https://3dassets.dev/assets/sunfall-rift-moba-crescent-slash-5489a2d2" target="_blank" rel="noopener noreferrer">Corte 3D</a> · <a href="https://3dassets.dev/assets/sunfall-rift-moba-ember-projectile-49569ecb" target="_blank" rel="noopener noreferrer">Fogo 3D</a> · <a href="https://3dassets.dev/assets/vfx-mesh-library-lightning-strike-f525cfcd" target="_blank" rel="noopener noreferrer">Relâmpago 3D</a> · <a href="https://3dassets.dev/assets/vfx-mesh-library-rain-splash-ring-370934d8" target="_blank" rel="noopener noreferrer">Respingo 3D</a> · <a href="https://3dassets.dev/assets/izakaya-alley-and-ramen-shop-puddle-plate-467c25c5" target="_blank" rel="noopener noreferrer">Poça 3D</a></details></section>
+<div class="field"><label for="particles">Densidade de partículas</label><input id="particles" type="range" min="20" max="150" value="100" step="5"></div><div class="field"><label for="power">Intensidade</label><input id="power" type="range" min="40" max="160" value="100" step="5"></div><div class="field" id="shieldGlowField" hidden><label for="shieldGlow">Brilho ao atingir o escudo: <output id="shieldGlowValue">100%</output></label><input id="shieldGlow" type="range" min="0" max="400" value="100" step="10" aria-label="Intensidade do brilho localizado do escudo"></div><div class="field"><label for="fireballFbx">🔥 Fireball VFX (FBX enviado)</label><input id="fireballFbx" type="file" accept=".fbx" aria-label="Carregar modelo FBX de bola de fogo"><small id="fireballFbxStatus">🔥 Bola de Fogo: carregue o FBX animado para substituir a antiga esfera com cones. O modelo fica salvo neste navegador.</small></div><div class="field"><label for="orbFbx">🔮 Importar orbe FBX</label><input id="orbFbx" type="file" accept=".fbx"><small id="orbFbxStatus">Novos orbes FBX v2: sem esferas substitutas e sem cache de modelos anteriores.</small></div><div class="field"><label for="speed">Velocidade</label><input id="speed" type="range" min="50" max="160" value="100" step="5"></div></div><details class="assets-info"><summary>Modelos GLB e licenças</summary><p>Malhas CC0 de 3DAssets.dev. Algumas são estáticas; os movimentos e partículas são acrescentados pelo Three.js.</p><a href="https://3dassets.dev/assets/sunfall-rift-moba-crescent-slash-5489a2d2" target="_blank" rel="noopener noreferrer">Corte 3D</a> · <a href="https://3dassets.dev/assets/sunfall-rift-moba-ember-projectile-49569ecb" target="_blank" rel="noopener noreferrer">Fogo 3D</a> · <a href="https://3dassets.dev/assets/vfx-mesh-library-lightning-strike-f525cfcd" target="_blank" rel="noopener noreferrer">Relâmpago 3D</a> · <a href="https://3dassets.dev/assets/vfx-mesh-library-rain-splash-ring-370934d8" target="_blank" rel="noopener noreferrer">Respingo 3D</a> · <a href="https://3dassets.dev/assets/izakaya-alley-and-ramen-shop-puddle-plate-467c25c5" target="_blank" rel="noopener noreferrer">Poça 3D</a></details></section>
 <div id="badge"><b>Arraste</b> para girar · <b>Role</b> para aproximar<br><span id="state">Manifestação ativa</span></div>
 <div id="loading" role="status" aria-live="polite" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:15;background:radial-gradient(circle at 50% 44%,#112b3c,#06111b 62%);color:#dceff0;font-family:system-ui;text-align:center;padding:24px"><div><div style="font-size:46px;filter:drop-shadow(0 0 17px #6affc3)">✧</div><h2 style="font-size:22px;margin:14px 0 6px">Preparando laboratório 3D…</h2><p style="font-size:13px;color:#9cb9bb">Carregando Three.js e criando partículas mágicas.</p><p id="loadHelp" style="max-width:360px;font-size:12px;color:#7e9da4;line-height:1.65">Aguarde alguns segundos.</p></div></div>
 <div id="warning"><div><h2>Não foi possível iniciar a magia 3D</h2>O arquivo precisa de um navegador moderno, WebGL e conexão com a internet para carregar Three.js.<p id="errortext"></p></div></div>
@@ -597,67 +597,54 @@ async function initFireballReplacement(){
 }
 initFireballReplacement();
 
-/* Orbes independentes: FBX original, animações e cache nesta sessão. */
-const orbFiles={orbe_verde:'orbe_verde.fbx',orbe_laranja:'orbe_laranja.fbx',orbe_azul:'orbe_azul.fbx'};
+/* Orbes FBX v2: substituição limpa, sem previews nem cache dos modelos antigos. */
+const orbFiles={orbe_verde:'orbe_verde_v2.fbx',orbe_laranja:'orbe_laranja_v2.fbx',orbe_azul:'orbe_azul_v2.fbx'};
 const orbLibrary=new Map(),orbLoading=new Map(),orbMissing=new Set();
-async function saveOrbModel(id,file){
- try{
-  const db=await fireballDb();
-  await new Promise((resolve,reject)=>{const tx=db.transaction('models','readwrite');tx.objectStore('models').put(file,'orb_'+id);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});
-  db.close();
- }catch(e){console.warn('Não foi possível salvar o orbe no navegador',e);}
-}
-async function restoreOrbModel(id){
- try{
-  const db=await fireballDb();
-  const blob=await new Promise((resolve,reject)=>{const req=db.transaction('models','readonly').objectStore('models').get('orb_'+id);req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});
-  db.close();return blob||null;
- }catch{return null;}
-}
 function displaySelectedOrb(){
  const id=presets[selected]?.id;
- for(const [key,entry] of orbLibrary)entry.root.visible=id===key;
+ for(const [key,entry] of orbLibrary)entry.root.visible=key===id;
  if(orbFiles[id]&&!orbLibrary.has(id)&&!orbLoading.has(id)&&!orbMissing.has(id))loadOrbModel(id);
 }
 async function loadOrbModel(id,file=null){
  if(!orbFiles[id]||orbLoading.has(id))return;
- if(file)orbMissing.delete(id);
  const status=document.getElementById('orbFbxStatus');
- status.textContent='Carregando '+id.replace('_',' ')+'…';
- const task=(async()=>{
-  if(!file)file=await restoreOrbModel(id);
-  let url=file?URL.createObjectURL(file):'../assets/vfx/'+orbFiles[id];
+ if(file)orbMissing.delete(id);
+ const job=(async()=>{
+  status.textContent='Carregando FBX original de '+id.replace('_',' ')+'…';
+  const url=file?URL.createObjectURL(file):'../assets/vfx/'+orbFiles[id];
   try{
    const fbx=await new FBXLoader().loadAsync(url);
-   // Preserva materiais/texturas, hierarquia, malhas e clipes do FBX sem recolorir.
-   const box=new THREE.Box3().setFromObject(fbx);
-   if(box.isEmpty())throw new Error('FBX sem malhas visíveis');
-   const size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());
-   const holder=new THREE.Group(),scale=new THREE.Group();
-   scale.add(fbx);holder.add(scale);scene.add(holder);
-   fbx.position.sub(center);scale.scale.setScalar(1.5/Math.max(size.x,size.y,size.z,.001));
-   holder.position.set(0,1.85,0);
-   const mixer=fbx.animations?.length?new THREE.AnimationMixer(fbx):null;
-   if(mixer)for(const clip of fbx.animations)mixer.clipAction(clip).play();
-   const old=orbLibrary.get(id);if(old)scene.remove(old.root);
-   orbLibrary.set(id,{root:holder,mixer});
-   if(file)await saveOrbModel(id,file);
+   const bound=new THREE.Box3().setFromObject(fbx);
+   if(bound.isEmpty())throw Error('Arquivo FBX sem malhas renderizáveis');
+   const size=bound.getSize(new THREE.Vector3());
+   const center=bound.getCenter(new THREE.Vector3());
+   const root=new THREE.Group(),scaled=new THREE.Group(),offset=new THREE.Group();
+   offset.add(fbx);scaled.add(offset);root.add(scaled);
+   // Mantém todos os materiais, texturas, malhas, luzes e animações do designer.
+   offset.position.sub(center);
+   scaled.scale.setScalar(1.5/Math.max(size.x,size.y,size.z,.001));
+   root.position.set(0,1.85,0);
+   const mixer=fbx.animations.length?new THREE.AnimationMixer(fbx):null;
+   if(mixer)for(const clip of fbx.animations)mixer.clipAction(clip).reset().play();
+   const previous=orbLibrary.get(id);
+   if(previous){scene.remove(previous.root);}
+   scene.add(root);
+   orbLibrary.set(id,{root,mixer});
    displaySelectedOrb();
-   status.textContent='✓ '+id.replace('_',' ')+' carregado — '+(fbx.animations?.length||0)+' animações.';
+   status.textContent='✓ '+id.replace('_',' ')+' — modelo FBX original ('+fbx.animations.length+' animações)';
   }catch(err){
    if(!file)orbMissing.add(id);
-   status.textContent='FBX original ausente: publique assets/vfx/'+orbFiles[id]+' para exibir o orbe animado.';
-   console.warn('Orbe FBX não carregado:',err);
+   status.textContent='FBX não publicado: assets/vfx/'+orbFiles[id]+'. Importe o arquivo original no campo acima.';
+   console.warn('Erro ao abrir orbe FBX',id,err);
   }finally{if(file)URL.revokeObjectURL(url);}
  })();
- orbLoading.set(id,task);
- try{await task;}finally{orbLoading.delete(id);}
+ orbLoading.set(id,job);
+ try{await job;}finally{orbLoading.delete(id);}
 }
 document.getElementById('orbFbx').addEventListener('change',e=>{
- const id=presets[selected]?.id;
- const file=e.target.files?.[0];
- if(file&&orbFiles[id]){orbMissing.delete(id);loadOrbModel(id,file);}
- else document.getElementById('orbFbxStatus').textContent='Selecione primeiro um dos três orbes no catálogo.';
+ const id=presets[selected]?.id,file=e.target.files?.[0];
+ if(file&&orbFiles[id])loadOrbModel(id,file);
+ else document.getElementById('orbFbxStatus').textContent='Escolha um orbe no catálogo e selecione o FBX correspondente.';
 });
 
 select(selected);
