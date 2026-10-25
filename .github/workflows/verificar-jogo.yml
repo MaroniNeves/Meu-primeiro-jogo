@@ -34,3 +34,5 @@ jobs:
         run: node tools/testar-magias.js
       - name: Carregar feiticeiro e animações FBX em Chrome real
         run: node tools/testar-feiticeiro-browser.cjs
+      - name: Renderizar e comparar as três magias em WebGL
+        run: node tools/testar-magia-webgl.cjs
