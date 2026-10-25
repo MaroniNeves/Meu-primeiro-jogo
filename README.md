@@ -54,13 +54,37 @@ efeito original da magia nem alterar a hidrologia do jogo.
 podem conter licenças independentes; confira os termos de origem antes de
 distribuir comercialmente.
 
-## Fogo e queimadas ecológicas na grama 3D (V12.67)
+## Fogo e queimadas ecológicas na grama 3D (V12.68)
 
 A simulação utiliza o atlas de fogo **Animated Fire**, por **BenHickling**,
 obtido de **OpenGameArt**, com licença **CC0**. O arquivo original está em
 `fire-assets/fire1_64.png` e a origem/licença constam de
 `fire-assets/ORIGEM.txt`:
 https://opengameart.org/content/animated-fire
+
+### Visual 3D opcional do Poly Pizza
+
+O laboratório agora aceita um **GLB de fogo** sem substituir a física da
+queimada. Opção recomendada: [Flame Decal — Quaternius, Poly Pizza](https://poly.pizza/m/8DEKYKfH2h),
+marcado como **Public Domain (CC0)** na página oficial.
+
+1. Na página do Poly Pizza, baixe o arquivo **GLTF/GLB**.
+2. Abra **Laboratório → Ecossistema**, procure **Modelo de chama personalizado (.glb)**
+   e selecione o arquivo baixado.
+3. Clique em **🔥 Acender grama (teste)**. Até 12 focos de fogo no celular
+   (24 no computador) usam o GLB importado; os demais mantêm a chama animada
+   existente para proteger o FPS.
+4. Clique em **↩ Fogo padrão** para voltar às chamas animadas.
+
+O modelo é lido **localmente pelo navegador**, não enviado à internet nem
+salvo automaticamente no repositório. Ainda **não há um arquivo GLB do Poly Pizza
+incluído nos arquivos publicados**, porque o download direto do catálogo requer
+uma URL autorizada e o material precisa ser baixado pela página oficial.
+A alternativa OpenGameArt continua funcionando mesmo sem o GLB.
+
+**Não use o modelo estático para simular crescimento ou propagação.** Ele troca
+somente a aparência das chamas: chuva, umidade, vento, carvão, cinzas e
+recuperação da grama continuam sob controle de `fogo-grama-v1267.js`.
 
 Outras opções CC0 pesquisadas: [Kenney Particle Pack](https://kenney.nl/assets/particle-pack)
 (80 sprites gratuitos para efeitos). Não foi necessário incluir o pacote
