@@ -3550,34 +3550,48 @@ function chooseGameAnimation(name){
 // V12.65 — conjurações procedurais derivadas da estética do catálogo
 // Arcane Volley / Dragonbreath / Glacier. Cada magia agora tem silhueta
 // própria, glifos de conjuração, rastros e impacto (não são esferas).
+// V12.66 — CAST REAL: conecta classes originais do laboratório V8.
 const mageSpells=[
- {name:'Rajada Arcana',color:'#b3c6e8'},
- {name:'Sopro de Brasas',color:'#d78d54'},
- {name:'Lâminas Glaciais',color:'#b5dce6'}
+ {name:'Arcane Volley',source:'ArcaneVolleyAbility'},
+ {name:'Dragonbreath',source:'DragonbreathAbility'},
+ {name:'Glacier',source:'GlacierAbility'}
 ];
-const mageVfx=window.arcanoSpellEffectsV1265?.(T,scene,{
- terrainAt:terrainContact,
- collides:(x,z)=>rockAt(x,z)||treesNearGame(x,z),
- bounds:{x:W*.49,z:L*.49}
-});
-if(!mageVfx)console.error('[Arcano V12.65] Efeitos magias/vfx-jogo-v1265.js indisponíveis');
+let mageVfx=null,mageOriginalLoading=null;
+function loadOriginalSpells(){
+ if(mageVfx)return Promise.resolve(mageVfx);
+ if(mageOriginalLoading)return mageOriginalLoading;
+ mageOriginalLoading=import('./magias/originais-no-jogo.js')
+  .then(mod=>{
+   mageVfx=mod.createOriginalMagicBridge(T,scene,{mobile});
+   gameStatus('Xbot pronto · magias originais do laboratório 1/2/3');
+   return mageVfx;
+  }).catch(error=>{
+   console.error('[Arcano V12.66] Falha ao importar a biblioteca original:',error);
+   if(game.active)gameStatus('Falha ao carregar magias originais; confira conexão e arquivos');
+   mageOriginalLoading=null;
+   return null;
+  });
+ return mageOriginalLoading;
+}
 function mageSpellOrigin(){
- const angle=game.heading;
- return game.position.clone().add(new T.Vector3(
-  Math.sin(angle)*.42,1.28,Math.cos(angle)*.42));
+ return game.position.clone();
 }
 function mageSpellDirection(){
- return new T.Vector3(Math.sin(game.heading),.025,Math.cos(game.heading)).normalize();
+ return new T.Vector3(Math.sin(game.heading),0,Math.cos(game.heading)).normalize();
 }
 function setMageSpellStatus(slot){
  const label=$('gameSpellStatus');
- if(label)label.textContent='✦ '+mageSpells[slot]?.name;
+ if(label)label.textContent='✦ '+mageSpells[slot]?.name+' • original';
 }
 function spawnMageProjectile(slot){
  if(!mageVfx)return;
- // O disparo parte dos braços do personagem na direção do rosto,
- // não do chão nem do ponto de origem da cena.
- mageVfx.launch(slot,mageSpellOrigin(),mageSpellDirection());
+ const origin=mageSpellOrigin(),direction=mageSpellDirection();
+ const len=[12,9.5,10][slot];
+ mageVfx.cast(slot,origin,direction,len).catch(error=>{
+  console.error('[Arcano V12.66] Não foi possível lançar magia do laboratório:',error);
+  gameStatus('Efeito original indisponível: '+mageSpells[slot]?.name);
+  game.castCooldown=0;
+ });
 }
 function updateMageMagic(dt){
  if(!game.active)return;
@@ -3589,30 +3603,24 @@ function updateMageMagic(dt){
    game.spellPending=null;
   }
  }
- mageVfx?.update(dt,camera);
+ mageVfx?.update(dt);
 }
 function clearMageMagic(){
- if(game.castAction&&game.isMage){
-  game.castAction.stop();
-  game.actions.idle?.reset().play();
- }
  game.spellPending=null;game.castCooldown=0;game.castAction=null;
  mageVfx?.clear();
 }
 function castMageSpell(slot){
- if(!game.active||!game.root||game.castCooldown>0||!mageVfx)return false;
+ if(!game.active||!game.root||game.castCooldown>0)return false;
  if(!Number.isInteger(slot)||slot<0||slot>=mageSpells.length)return false;
- game.castCooldown=.82;game.spellPending={slot,delay:.20};
- if(game.isMage&&game.mixer){
-  const action=game.actions['cast'+(slot+1)]||game.actions.cast1;
-  if(action){
-   const old=game.castAction||game.actions.idle;
-   action.reset().setEffectiveTimeScale(1).play();
-   if(old&&old!==action)action.crossFadeFrom(old,.14,false);
-   game.castAction=action;
-  }
+ if(!mageVfx){
+  gameStatus('Abrindo os efeitos originais do laboratório…');
+  loadOriginalSpells().then(v=>{
+   if(v&&game.active)castMageSpell(slot);
+  });
+  return true;
  }
- mageVfx.begin(slot,mageSpellOrigin(),mageSpellDirection());
+ game.castCooldown=1.25;
+ game.spellPending={slot,delay:.12};
  setMageSpellStatus(slot);
  return true;
 }
@@ -3929,6 +3937,7 @@ function updateGameCameraOcclusion(focus,eye){
 async function setPlayActive(active){
  if(game.active===active)return;
  game.active=active;
+ if(active)loadOriginalSpells();
  if(!active){clearGameCameraOcclusion();clearMageMagic();}
  document.body.classList.toggle('play-active',active);
  if($('gameHUD'))$('gameHUD').setAttribute('aria-hidden',String(!active));
