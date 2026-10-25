@@ -23,7 +23,7 @@ const geometry={
  computeBoundingBox(){}
 };
 const context={
- window:{},
+ window:{createArcanoWildfireV1267:()=>({texture:{id:'burn-map'}})},
  T:{Vector2,Vector4},
  material:()=>({}),meshLibrary:{grassShort1:geometry},
  api:{
@@ -44,7 +44,8 @@ const {grassVisual,grassAnimatedMaterial,animateGrassVisuals}=context.result;
 const mat=grassAnimatedMaterial('grassShort1','grassShort');
 const shader={
  uniforms:{},
- vertexShader:'void main(){\n#include <begin_vertex>\n#include <project_vertex>\n}'
+ vertexShader:'void main(){\n#include <begin_vertex>\n#include <project_vertex>\n}',
+ fragmentShader:'void main(){\n#include <color_fragment>\n}'
 };
 mat.onBeforeCompile(shader);
 for(const fragment of [
@@ -53,12 +54,15 @@ for(const fragment of [
  'arcMove=uArcWindDir*(uArcWindStrength*arcGust)',
  'vec2 away=normalize(d+across*.075)',
  'arcMove+=away*(.83*uArcPlayer.w*pressure)',
- 'transformed.y-=arcCompression*arcBlade',
+ 'transformed.y-=(arcCompression+vArcBurn*.74)*arcBlade',
  'arcMove+=normalize(d+vec2(.015,.019))',
  'instanceMatrix[0].xz','instanceMatrix[2].xz',
  '#include <begin_vertex>','#include <project_vertex>'
 ])assert.ok(shader.vertexShader.includes(fragment),'Shader sem '+fragment);
 assert.equal(shader.uniforms.uArcGrassBase.value,0);
+assert.ok(shader.vertexShader.includes('texture2D(uArcBurnMap'));
+assert.ok(shader.fragmentShader.includes('diffuseColor.rgb=mix'));
+assert.equal(shader.uniforms.uArcBurnMap.value.id,'burn-map');
 assert.equal(shader.uniforms.uArcGrassInvHeight.value,1);
 assert.equal(shader.uniforms.uArcPlayer,grassVisual.uniforms.uArcPlayer);
 assert.equal(shader.uniforms.uArcWindTime,grassVisual.uniforms.uArcWindTime);
