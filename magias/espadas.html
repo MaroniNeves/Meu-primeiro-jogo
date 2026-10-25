@@ -600,27 +600,10 @@ initFireballReplacement();
 /* Orbes independentes: FBX original, animações e cache nesta sessão. */
 const orbFiles={orbe_verde:'orbe_verde.fbx',orbe_laranja:'orbe_laranja.fbx',orbe_azul:'orbe_azul.fbx'};
 const orbLibrary=new Map(),orbLoading=new Map(),orbMissing=new Set();
-const orbColors={orbe_verde:0x42f57a,orbe_laranja:0xff7c22,orbe_azul:0x39a8ff};
-const orbFallbacks=new Map();
-function showOrbPreview(id){
- if(orbFallbacks.has(id))return;
- const root=new THREE.Group();
- const color=orbColors[id];
- const core=new THREE.Mesh(new THREE.SphereGeometry(.62,48,32),
-   new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:1.1,roughness:.38}));
- const halo=new THREE.Mesh(new THREE.SphereGeometry(.78,40,24),
-   new THREE.MeshBasicMaterial({color,transparent:true,opacity:.12,side:THREE.BackSide,depthWrite:false}));
- root.add(core,halo);root.position.set(0,1.85,0);scene.add(root);
- orbFallbacks.set(id,root);
-}
 function displaySelectedOrb(){
  const id=presets[selected]?.id;
  for(const [key,entry] of orbLibrary)entry.root.visible=id===key;
- for(const [key,root] of orbFallbacks)root.visible=id===key&&!orbLibrary.has(key);
- if(orbFiles[id]&&!orbLibrary.has(id)){
-  showOrbPreview(id);
-  if(!orbLoading.has(id)&&!orbMissing.has(id))loadOrbModel(id);
- }
+ if(orbFiles[id]&&!orbLibrary.has(id)&&!orbLoading.has(id)&&!orbMissing.has(id))loadOrbModel(id);
 }
 async function loadOrbModel(id,file=null){
  if(!orbFiles[id]||orbLoading.has(id))return;
@@ -642,12 +625,11 @@ async function loadOrbModel(id,file=null){
    if(mixer)for(const clip of fbx.animations)mixer.clipAction(clip).play();
    const old=orbLibrary.get(id);if(old)scene.remove(old.root);
    orbLibrary.set(id,{root:holder,mixer});
-   const placeholder=orbFallbacks.get(id);if(placeholder)placeholder.visible=false;
    displaySelectedOrb();
    status.textContent='✓ '+id.replace('_',' ')+' carregado — '+(fbx.animations?.length||0)+' animações.';
   }catch(err){
    if(!file)orbMissing.add(id);
-   status.textContent='Prévia 3D visível. Para usar o FBX original, importe '+orbFiles[id]+' ou publique-o em assets/vfx/.';
+   status.textContent='FBX original ausente: publique assets/vfx/'+orbFiles[id]+' para exibir o orbe animado.';
    console.warn('Orbe FBX não carregado:',err);
   }finally{if(file)URL.revokeObjectURL(url);}
  })();
