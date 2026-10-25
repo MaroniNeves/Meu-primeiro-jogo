@@ -3665,11 +3665,21 @@ function safeGameCameraDistance(focus,desired){
  if(full<.001)return 0;
  const inv=1/full,dx=vx*inv,dy=vy*inv,dz=vz*inv;
  let distance=full;
- // A janela espacial curta evita interseccionar centenas de modelos.
- // São volumes de copa aproximados por dois elipsoides; o personagem
- // fica fora da copa, e a câmera recua quando uma árvore obstrui a visão.
- for(const a of forestInstances){
-  if((a.type!=='tree'&&a.type!=='pine')||!a.obj.visible)continue;
+ // Consultar só os blocos entre jogador e câmera, usando o mesmo
+ // índice espacial das colisões. Margem de 3.7 inclui copas (raio <=2.45)
+ // e a tolerância longitudinal; não reduz distância ou visibilidade.
+ if(gameTreeCount!==forestInstances.length)treesNearGame(focus.x,focus.z);
+ const pad=3.7,block=3;
+ const fromX=Math.floor((Math.min(focus.x,desired.x)-pad)/block);
+ const toX=Math.floor((Math.max(focus.x,desired.x)+pad)/block);
+ const fromZ=Math.floor((Math.min(focus.z,desired.z)-pad)/block);
+ const toZ=Math.floor((Math.max(focus.z,desired.z)+pad)/block);
+ for(let cellX=fromX;cellX<=toX;cellX++)
+ for(let cellZ=fromZ;cellZ<=toZ;cellZ++){
+ const nearby=gameTreeGrid.get(cellX+','+cellZ);
+ if(!nearby)continue;
+ for(const a of nearby){
+  if(!a.obj.visible)continue;
   const along=(a.x-focus.x)*dx+(a.z-focus.z)*dz;
   if(along<-.9||along>full+1.2)continue;
   const crownTop=a.dropY||a.y+4.0;
@@ -3690,6 +3700,7 @@ function safeGameCameraDistance(focus,desired){
    // do personagem. A superfície está depois do foco nesse caso.
    if(entry>.22&&entry<distance)distance=Math.max(.68,entry-.32);
   }
+ }
  }
  return distance;
 }
