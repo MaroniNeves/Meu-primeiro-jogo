@@ -357,11 +357,12 @@ function effectBuild(){const p=presets[selected],C=p.hex,Hi=p.accent,style=p.sty
   const turners=[];for(let i=0;i<4;i++){const tor=torus([2.1,1.72,1.24,.78][i],.025,i===2?Hi:C,.72,V(0,[.75,1.30,1.92,2.42][i],0));tor.rotation.x=Math.PI/2+.08*(i%2?1:-1);turners.push(tor)}
   const gems=[];for(let i=0;i<30;i++){const a=i/30*TAU;const gem=crystal(.09+(i%3)*.04,C,V(2.77*Math.cos(a),.23,2.77*Math.sin(a)));gem.scale.y=1.6;gems.push(gem)}
   const hexes=[]; if(style==='hex'){for(let i=0;i<18;i++){const ang=i/18*TAU;const pl=mesh(new THREE.CircleGeometry(.28,6),basic(Hi,.0),V(Math.cos(ang)*2.1,1.4+Math.sin(i)*.55,Math.sin(ang)*2.1));pl.lookAt(V(0,1.4,0));hexes.push(pl)}}
-  // Selo protetor frontal: círculo mágico visível, não apenas a cúpula.
-  // Geometria no plano XY, ancorada diante do centro da proteção.
+  // Selo de invocação no chão: o círculo desperta sob o escudo e o ergue.
+  // Geometria XY girada para o plano horizontal XZ, ligeiramente acima do solo.
   const seal=new THREE.Group();
   seal.name='Círculo mágico do escudo';
-  seal.position.set(0,1.65,1.58);
+  seal.position.set(0,.065,0);
+  seal.rotation.x=-Math.PI/2;
   fxGroup.add(seal);
   const sealTone=style==='void'?0xbca2d4:style==='hex'?0xa4d7bd:0xc1cca3;
   const sealMaterials=[];
@@ -392,10 +393,10 @@ function effectBuild(){const p=presets[selected],C=p.hex,Hi=p.accent,style=p.sty
   updates.push((t,d)=>{
    const appear=smooth(t/.7),fade=smooth((d-t)/.62);
    seal.scale.setScalar(Math.max(.001,appear));
-   seal.rotation.z=Math.sin(t*.55)*.028;
+   seal.rotation.z=t*.11;
    sealMaterials.forEach(({mat,opacity})=>mat.opacity=opacity*appear*fade);
   });
-  updates.push((t,d)=>{const a=smooth(t/.9),f=smooth((d-t)/.65);dome.scale.setScalar(.08+.92*a);shmat.uniforms.time.value=t;shmat.uniforms.alpha.value=f*a*state.power;base.scale.setScalar(.4+.6*a);turners.forEach((o,i)=>{o.scale.setScalar(.15+.85*a);o.rotation.z=t*(i%2?-.5:.4);o.position.y=[.75,1.3,1.92,2.42][i]*a});gems.forEach((g,i)=>{g.scale.setScalar((.2+.8*a)*(1+.05*Math.sin(t*2+i)));g.position.y=.17+Math.sin(t*2+i)*.06});hexes.forEach((h,i)=>{h.material.opacity=.3*a*f;h.scale.setScalar(.55+.2*Math.sin(t*2+i));h.lookAt(camera.position)});if(style==='void'){dome.material.uniforms.color.value.setRGB(.55,.34,.95);turners.forEach((o,i)=>{o.material.opacity=.4*a*f;o.rotation.y=t*(i+1)*.35;});}});
+  updates.push((t,d)=>{const rise=smooth((t-.38)/.95),f=smooth((d-t)/.65);dome.scale.setScalar(.05+.95*rise);shmat.uniforms.time.value=t;shmat.uniforms.alpha.value=f*rise*state.power;base.scale.setScalar(.4+.6*a);turners.forEach((o,i)=>{o.scale.setScalar(.15+.85*rise);o.rotation.z=t*(i%2?-.5:.4);o.position.y=[.75,1.3,1.92,2.42][i]*rise});gems.forEach((g,i)=>{g.scale.setScalar((.2+.8*a)*(1+.05*Math.sin(t*2+i)));g.position.y=.17+Math.sin(t*2+i)*.06});hexes.forEach((h,i)=>{h.material.opacity=.3*rise*f;h.scale.setScalar(.55+.2*Math.sin(t*2+i));h.lookAt(camera.position)});if(style==='void'){dome.material.uniforms.color.value.setRGB(.55,.34,.95);turners.forEach((o,i)=>{o.material.opacity=.4*rise*f;o.rotation.y=t*(i+1)*.35;});}});
  }
  if(ty==='projectile' || ty==='arrow'){
   const ball=sphere(ty==='arrow'?.18:.32,C,.8,V(-1.8,1.55,0));const halo=sprite(Hi,ty==='arrow'?1.5:2.6,.9,V(-1.8,1.55,0));const tracer=[];for(let i=0;i<9;i++)tracer.push(sprite(i%2?C:Hi,.44,.58,V(-1.8,1.5,0)));
