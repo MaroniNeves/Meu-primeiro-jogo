@@ -31,7 +31,18 @@ export function createOriginalMagicBridge(THREE,scene,options={}){
  let active=null,loading=null,clock=0;
  function visibleInForest(object){
   if(!object)return;
-  object.traverse?.(child=>child.layers?.enable?.(0));
+  object.traverse?.(child=>{
+   child.layers?.enable?.(0);
+   // O laboratório usa uma revisão diferente de THREE. Sua classe Material
+   // não possui onBuild(), exigido pelo renderer da floresta (r152).
+   const materials=Array.isArray(child.material)?child.material:
+    (child.material?[child.material]:[]);
+   for(const mat of materials){
+    if(typeof mat.onBuild!=='function')mat.onBuild=()=>{};
+    if(typeof mat.onBeforeCompile!=='function')mat.onBeforeCompile=()=>{};
+    if(typeof mat.customProgramCacheKey!=='function')mat.customProgramCacheKey=()=>mat.onBeforeCompile.toString();
+   }
+  });
   object.layers?.enable?.(0);
  }
  async function prepare(slot){
@@ -56,6 +67,7 @@ export function createOriginalMagicBridge(THREE,scene,options={}){
   visibleInForest(next.group);
   next.spawn(origin,direction,length);
   visibleInForest(next.group);
+  for(const systemGroup of system.systems.values())visibleInForest(systemGroup.object3D);
   return true;
  }
  function update(dt){
