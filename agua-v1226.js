@@ -4005,10 +4005,18 @@ if($('gameJoystick')){
   nub.style.transform='translate('+Math.round(game.input.x*limit)+'px,'+
    Math.round(game.input.y*limit)+'px)';
  };
- pad.addEventListener('pointerdown',ev=>{if(!game.active)return;game.touch=true;pad.setPointerCapture(ev.pointerId);touchMove(ev);});
- pad.addEventListener('pointermove',ev=>{if(game.touch)touchMove(ev);});
- const end=()=>{game.touch=false;game.input.x=game.input.y=0;nub.style.transform='translate(0,0)';};
+ let activePointer=null;
+ pad.addEventListener('pointerdown',ev=>{
+  if(!game.active||activePointer!==null)return;
+  activePointer=ev.pointerId;game.touch=true;pad.setPointerCapture(ev.pointerId);touchMove(ev);ev.preventDefault();
+ });
+ pad.addEventListener('pointermove',ev=>{if(game.touch&&activePointer===ev.pointerId){touchMove(ev);ev.preventDefault();}});
+ const end=ev=>{
+  if(activePointer!==ev.pointerId)return;
+  activePointer=null;game.touch=false;game.input.x=game.input.y=0;nub.style.transform='translate(0,0)';
+ };
  pad.addEventListener('pointerup',end);pad.addEventListener('pointercancel',end);
+ pad.addEventListener('lostpointercapture',end);
 }
 for(let spell=0;spell<3;spell++){
  const button=$('gameSpell'+(spell+1));
