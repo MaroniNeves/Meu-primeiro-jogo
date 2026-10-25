@@ -169,6 +169,35 @@ body.play-active #rainControls.bottom{z-index:75;pointer-events:auto}
 body.play-active #rainControls.bottom:not(.arcano-closed):not(.force-hide){display:block!important}
 body.play-active.ui-hidden #rainControls.bottom{display:none!important}
 @media(max-width:550px){body.play-active #gameHUD .game-top #gameSettingsOpen{font-size:11px;padding:7px 9px;min-height:39px}}
+
+/* Console de Mundo V12.71 — aparência e hierarquia sem alterar IDs nem simulação */
+#rainControls.bottom{color:#e4eee8;border:1px solid #b9a2786b;border-radius:19px;background:linear-gradient(162deg,#172c31fc 0%,#0d1d24fc 100%);box-shadow:0 24px 65px #000b,inset 0 1px 0 #f4e0ae17;padding:0 16px 18px;scrollbar-color:#98876b #15282e}
+#rainControls .arcano-panel-heading{margin:0 -16px 14px;padding:16px;background:linear-gradient(150deg,#263b3b,#172b30);border-bottom:1px solid #c5ad7a38;border-radius:18px 18px 0 0}
+#rainControls .arcano-panel-heading strong{font:500 20px Georgia,serif;color:#eedab0;letter-spacing:.02em}
+#rainControls .arcano-panel-heading small{font:11px/1.5 system-ui;color:#aac4bb}
+#rainControls .arcano-shortcut-row{margin:0 0 13px;padding:11px 12px;background:#20373a;border:1px solid #81958a38;border-radius:12px}
+#rainControls .row{gap:7px!important;margin:8px 0 14px;flex-wrap:wrap!important}
+#rainControls .row button{border:1px solid #80958a6e;border-radius:10px;background:linear-gradient(#30464d,#21363d);color:#ebf1eb;min-height:40px;font-weight:650}
+#rainControls .row button.primary{background:linear-gradient(#c6ac7a,#aa8c59);border-color:#dbc696;color:#172322}
+#rainControls .row button:hover,#rainControls select:focus-visible,#arcanoShortcutCapture:hover{border-color:#d5b980;outline-color:#d5b980}
+#rainControls .arcano-section-name{display:flex;align-items:center;gap:8px;margin:16px 0 9px;padding:0 2px 8px;border-bottom:1px solid #bbab8040;font:600 15px Georgia,serif;color:#e9d1a0}
+#rainControls .rain-row,#rainControls .sim-row{margin:0 0 10px;padding:13px;border:1px solid #88a09635;background:#1f343b9c;border-radius:13px}
+#rainControls label{color:#d1e3dc;font-size:12px}
+#rainControls select,#rainControls input[type=number]{background:#152b34;color:#edf4ed;border:1px solid #809b9461;border-radius:9px;min-height:39px;padding:8px 9px}
+#rainControls input[type=range]{accent-color:#c3aa75}
+#rainControls .sim-row{grid-template-columns:1fr 1fr;gap:11px}
+#rainControls .sim-row label:first-child{grid-column:1/-1}
+#rainControls #rainMeter{height:7px;border-radius:9px;margin:9px 0;background:linear-gradient(to right,#93bec5 var(--rain-fill,60%),#30454d var(--rain-fill,60%))}
+#rainControls details.hydro-options,#rainControls details#modelTesting,#rainControls details#ecoPanel{border:1px solid #849c8b48!important;border-radius:13px!important;background:#182d33c9!important;margin:11px 0!important;padding:0 11px 9px!important}
+#rainControls details>summary{color:#e4d1ab!important;font-weight:650!important;cursor:pointer;padding:13px 3px!important;line-height:1.5}
+#rainControls details[open]>summary{border-bottom:1px solid #8a9b8350;margin-bottom:10px}
+#rainControls .wind-editor,#rainControls .hydro-metrics{border:1px solid #75938c40!important;border-radius:11px!important;background:#152b32b8!important}
+#rainControls .hydro-metrics{gap:7px;padding:10px!important}
+#rainControls .hydro-metrics>div:not(.day-timeline){padding:7px 9px;border-radius:8px;background:#ffffff07;border:1px solid #ffffff0b}
+#rainControls #arcanoCloseSettings{border:1px solid #bbab8270;background:#31413e;color:#f6e3b7;border-radius:10px;cursor:pointer}
+#rainControls #arcanoShortcutCapture{background:#33483f;color:#f5dfac;border:1px solid #b7a37a6b}
+#gameSettingsOpen{background:linear-gradient(#bfa374,#917951)!important;color:#182321!important;border-color:#e1c895!important;box-shadow:0 5px 18px #0007}
+@media(max-width:620px){#rainControls.bottom{padding:0 11px 13px}#rainControls .arcano-panel-heading{margin:0 -11px 12px;padding:12px 11px}#rainControls .arcano-panel-heading strong{font-size:18px}#rainControls .sim-row{gap:7px}#rainControls .rain-row{padding:10px}}
 </style>  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js","fflate":"https://cdn.jsdelivr.net/npm/fflate@0.8.2/esm/browser.js"}}</script>
   <script defer src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script><script defer src="./agua-v1226.js"></script><script defer src="./arcano-assets-v1232.js"></script><script defer src="./nature-imported-v1239.js"></script><script defer src="./fogo-grama-v1267.js"></script><script defer src="./ecossistema-v1232.js"></script>
 </head>
@@ -518,5 +547,27 @@ body.play-active.ui-hidden #rainControls.bottom{display:none!important}
  });
  document.getElementById('arcanoCloseSettings')?.addEventListener('click',()=>button.setAttribute('aria-expanded','false'));
  document.getElementById('arcanoSettingsToggle')?.addEventListener('click',()=>button.setAttribute('aria-expanded',String(!document.body.classList.contains('ui-hidden'))));
+})();
+</script><script>
+(function(){
+ const panel=document.getElementById('rainControls');
+ if(!panel||panel.dataset.arranged==='yes')return;
+ panel.dataset.arranged='yes';
+ const header=panel.querySelector('#arcanoDragHandle');
+ if(header&&panel.firstElementChild!==header)panel.prepend(header);
+ function heading(before,title){
+  const el=typeof before==='string'?panel.querySelector(before):before;
+  if(!el||el.parentElement!==panel)return;
+  const label=document.createElement('div');label.className='arcano-section-name';label.textContent=title;panel.insertBefore(label,el);
+ }
+ heading(panel.querySelector('.row'),'◈ Comandos rápidos');
+ heading(panel.querySelector('.rain-row'),'☁ Clima e chuva');
+ heading(panel.querySelector('.sim-row'),'◷ Tempo e simulação');
+ heading('#hydroOptions','⚙ Mundo e ambiente');
+ heading('#modelTesting','🌿 Modelos e vegetação');
+ heading('#ecoPanel','🌱 Ecossistema');
+ heading('.hydro-metrics','◉ Estado do mundo');
+ const summaries={hydroOptions:'⚙️ Câmera, vento, clima, gráficos e solo',modelTesting:'🧪 Bancada de modelos e vegetação',ecoPanel:'🌿 Ecossistema, rio e vida da floresta'};
+ for(const [id,title] of Object.entries(summaries)){const summary=document.getElementById(id)?.querySelector(':scope > summary');if(summary)summary.textContent=title;}
 })();
 </script></body></html>
