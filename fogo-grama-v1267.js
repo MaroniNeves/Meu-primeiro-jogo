@@ -115,12 +115,25 @@ window.createArcanoWildfireV1267=function(T,scene,opts={}){
    for(const obj of clones)scene.remove(obj);
    throw err;
   }
-  for(const old of modelFlames)scene.remove(old);
+  clearImportedFire();
   modelFlames=clones;modelSource=source;modelReady=true;modelError='';
   return {objects:modelFlames.length,meshes:meshCount,triangles:Math.round(triangles)};
  }
  function clearImportedFire(){
   for(const obj of modelFlames)scene?.remove(obj);
+  // Clones compartilham os buffers GLB: descarte apenas UMA vez depois
+  // de retirar todas as instâncias, sem liberar a grama ou os sprites CC0.
+  if(modelSource)modelSource.traverse(o=>{
+   if(!o.isMesh)return;
+   o.geometry?.dispose?.();
+   const mats=Array.isArray(o.material)?o.material:[o.material];
+   for(const mat of mats){
+    if(!mat)continue;
+    for(const key of ['map','normalMap','alphaMap','emissiveMap','roughnessMap'])
+     mat[key]?.dispose?.();
+    mat.dispose?.();
+   }
+  });
   modelFlames=[];modelSource=null;modelReady=false;modelError='';
  }
  function getImportedFire(){return {
