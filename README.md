@@ -8,6 +8,18 @@ personagem animado, ciclo de clima, física da água e ecossistema.
 - **[🧪 Abrir o Laboratório Arcano (V12.63)](https://raw.githack.com/MaroniNeves/Meu-Primeiro-jogo/main/agua.html)** — simulação completa com os controles de chuva, água, vento, floresta, solo e ecossistema.
 - **[🎮 Abrir o Meu Primeiro Jogo](https://raw.githack.com/MaroniNeves/Meu-Primeiro-jogo/main/index.html)** — mesma cena, com o botão **Jogar** para controlar o personagem.
 
+### Bibliotecas de magias restauradas
+
+O antigo catálogo de magias voltou a fazer parte deste repositório, agora na pasta `magias/`, com modelos, texturas e bibliotecas próprias:
+
+- **[✨ 100 Magias 3D Anime](https://raw.githack.com/MaroniNeves/Meu-Primeiro-jogo/main/magias/index.html)** — coleção completa de magias e efeitos por escola.
+- **[⚔️ Cortes de Espada e Magias 3D](https://raw.githack.com/MaroniNeves/Meu-Primeiro-jogo/main/magias/espadas.html)** — demonstração de espada e outras magias.
+- **[🌀 Rollshade](https://raw.githack.com/MaroniNeves/Meu-Primeiro-jogo/main/magias/rollshade.html)** — efeitos Rollshade.
+- **[⚡ Raios](https://raw.githack.com/MaroniNeves/Meu-Primeiro-jogo/main/magias/lightning.html)** — efeitos elétricos.
+- **[📦 Catálogo de pacotes](https://raw.githack.com/MaroniNeves/Meu-Primeiro-jogo/main/magias/catalogo.html)** — referências de bibliotecas.
+
+Na barra superior do laboratório, use **✨ 100 Magias** ou **⚔️ Efeitos 3D** para abrir as páginas recuperadas; dentro das magias há um link de volta ao laboratório.
+
 No laboratório, toque em **☷ Mostrar ajustes** se o painel estiver recolhido. Se estiver no modo Jogar, use **← Sair do jogo** para retornar aos controles do laboratório.
 
 **Este repositório já está público.** Os dois links executam arquivos de sua própria raiz (não dependem do antigo repositório `projeto`). O serviço GitHack precisa estar acessível no navegador e os recursos externos de Three.js precisam carregar normalmente.
