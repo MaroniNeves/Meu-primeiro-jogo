@@ -96,9 +96,45 @@ window.arcanoLab={ABILITIES,getSelected:()=>chosen,cast:doCast,select:choose,cle
 </script>
 <nav aria-label="Bibliotecas de magias e floresta" style="position:fixed;z-index:9999;left:8px;bottom:8px;display:flex;flex-wrap:wrap;gap:5px;max-width:min(98vw,650px);font:600 12px system-ui">
 <a href="../agua.html" style="background:#172b30e8;color:#e8f7e9;border:1px solid #749d90;padding:9px;border-radius:9px">🌳 Laboratório</a>
-<a href="./espadas.html" style="background:#172b30e8;color:#e8f7e9;border:1px solid #749d90;padding:9px;border-radius:9px">⚔️ Espadas e magias</a>
+
 <a href="./rollshade.html" style="background:#172b30e8;color:#e8f7e9;border:1px solid #749d90;padding:9px;border-radius:9px">Rollshade</a>
 <a href="./lightning.html" style="background:#172b30e8;color:#e8f7e9;border:1px solid #749d90;padding:9px;border-radius:9px">⚡ Raios</a>
 <a href="./catalogo.html" style="background:#172b30e8;color:#e8f7e9;border:1px solid #749d90;padding:9px;border-radius:9px">Packs</a>
-</nav></body>
+</nav><!-- Uma biblioteca, duas áreas: as cenas 3D originais permanecem intactas. -->
+<style>
+.arcano-unified-tabs{position:fixed;z-index:10001;left:50%;top:calc(8px + env(safe-area-inset-top));transform:translateX(-50%);display:flex;gap:4px;padding:4px;border-radius:12px;background:#10202ff2;border:1px solid #6f8a8a;box-shadow:0 4px 18px #0008;font:700 12px system-ui}
+.arcano-unified-tabs button{border:0;border-radius:8px;padding:10px 12px;color:#e0edf0;background:#294052;white-space:nowrap;cursor:pointer}
+.arcano-unified-tabs button[aria-selected=true]{background:#bdaf8b;color:#122027}
+#arcanoEffectsFrame{display:none;position:fixed;inset:0;width:100vw;height:100dvh;border:0;background:#06111b;z-index:8000}
+body.arcano-effects-active #arcanoEffectsFrame{display:block}
+body.arcano-effects-active .ar-control,body.arcano-effects-active .ar-info,body.arcano-effects-active .ar-status,body.arcano-effects-active nav[aria-label="Bibliotecas de magias e floresta"]{display:none!important}
+@media(max-width:740px){.arcano-unified-tabs{top:calc(7px + env(safe-area-inset-top));left:8px;transform:none}.arcano-unified-tabs button{padding:9px 10px;font-size:11px}}
+</style>
+<div class="arcano-unified-tabs" role="tablist" aria-label="Áreas da biblioteca de magias">
+ <button type="button" role="tab" id="arcanoSpellsTab" aria-selected="true" aria-controls="viewport">✨ 100 Magias</button>
+ <button type="button" role="tab" id="arcanoEffectsTab" aria-selected="false" aria-controls="arcanoEffectsFrame">⚔️ Efeitos 3D</button>
+</div>
+<iframe id="arcanoEffectsFrame" title="Efeitos 3D, espadas e magias" loading="lazy" allow="fullscreen"></iframe>
+<script>
+(()=>{
+ const spells=document.getElementById('arcanoSpellsTab');
+ const effects=document.getElementById('arcanoEffectsTab');
+ const frame=document.getElementById('arcanoEffectsFrame');
+ function openEffects(active){
+  document.body.classList.toggle('arcano-effects-active',active);
+  spells.setAttribute('aria-selected',String(!active));
+  effects.setAttribute('aria-selected',String(active));
+  if(active&&!frame.getAttribute('src'))frame.src='./espadas.html';
+  if(active&&window.arcanoLab?.getApp()?.paused===false){
+   // A biblioteca principal continua disponível ao retornar.
+   window.arcanoLab.getApp().paused=true;
+  } else if(!active&&window.arcanoLab?.getApp()?.paused===true){
+   window.arcanoLab.getApp().paused=false;
+  }
+ }
+ spells.addEventListener('click',()=>openEffects(false));
+ effects.addEventListener('click',()=>openEffects(true));
+})();
+</script>
+</body>
 </html>
