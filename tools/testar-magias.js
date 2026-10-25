@@ -38,4 +38,15 @@ for(const html of [main,lab]){
  assert.ok(html.includes('href="./magias/espadas.html"'),'Link de efeitos ausente');
 }
 assert.ok(fs.readFileSync(path.join(root,'magias/index.html'),'utf8').includes('href="../agua.html"'),'A biblioteca precisa voltar ao laboratório');
-console.log('OK: cinco bibliotecas, recursos locais, modelos 3D, menus no jogo e volta ao laboratório.');
+const script=fs.readFileSync(path.join(root,'agua-v1226.js'),'utf8');
+const bridge=fs.readFileSync(path.join(root,'magias/originais-no-jogo.js'),'utf8');
+assert.match(script,/const GAME_CHARACTER_GLB_URL=/,'Xbot original precisa estar na cena');
+assert.doesNotMatch(script,/function loadLocalMage\(/,'Feiticeiro substituto não pode carregar');
+assert.match(script,/loadOriginalSpells\(\)/,'Magias reais precisam ser carregadas no modo Jogar');
+assert.match(script,/mageVfx\.cast\(slot,origin,direction,len\)/,'Magia deve usar classe real do catálogo');
+for(const name of ['ArcaneVolleyAbility','DragonbreathAbility','GlacierAbility'])
+ assert.ok(bridge.includes('import {'+name+'}'),'Classe real não importada: '+name);
+assert.ok(!main.includes('vfx-jogo-v1265.js'),'HTML não pode carregar shaders improvisados');
+assert.ok(!exists('magias/vfx-jogo-v1265.js'),'Remover magias improvisadas do repositório');
+assert.ok(main.includes('id="gameDownloadHUD"')&&main.includes('Xbot.glb'),'Download do Xbot restaurado');
+console.log('OK: cinco bibliotecas, magias originais ligadas, efeitos improvisados ausentes e Xbot restaurado.');
