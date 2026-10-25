@@ -434,19 +434,7 @@ html body #rainControls[hidden],html body.play-active #rainControls[hidden],html
   <div id="lakeStats">Poças e lagoa aparecendo sobre o relevo…</div>
 </div><div id="info">Arraste para girar • pinça para zoom • toque no terreno para criar água</div></footer>
 <div id="diag" role="alert"></div>
-<script>
-(function(){
- const hide=document.getElementById('collapseControls'),show=document.getElementById('showControls');
- function setHidden(hidden){
-   document.body.classList.toggle('ui-hidden',hidden);
-   show.setAttribute('aria-expanded',String(!hidden));
-   hide.setAttribute('aria-expanded',String(!hidden));
- }
- hide.addEventListener('click',()=>setHidden(true));
- show.addEventListener('click',()=>setHidden(false));
- window.addEventListener('keydown',e=>{if(e.key==='Escape'&&!document.body.classList.contains('play-active'))setHidden(true);});
-})();
-</script>
+
 
 <div id="arcanoModeMenu" role="dialog" aria-modal="true" aria-label="Escolher ambiente do Ateliê Arcano">
  <div class="arcano-mode-card">
@@ -475,91 +463,6 @@ html body #rainControls[hidden],html body.play-active #rainControls[hidden],html
 </script>
 <script>
 (function(){
- const panel=document.getElementById('rainControls'),handle=document.getElementById('arcanoDragHandle');
- const close=document.getElementById('arcanoCloseSettings'),open=document.getElementById('showControls');
- if(!panel||!handle||!close||!open)return;
- function toggle(hidden){
-  document.body.classList.toggle('ui-hidden',hidden);
-  open.setAttribute('aria-expanded',String(!hidden));
-  document.getElementById('collapseControls')?.setAttribute('aria-expanded',String(!hidden));
- }
- close.addEventListener('click',()=>toggle(true));
- open.addEventListener('click',()=>toggle(false));
- let grab=null;
- handle.addEventListener('pointerdown',e=>{
-  if(e.target.closest('button')||e.button!==0)return;
-  const r=panel.getBoundingClientRect();grab={x:e.clientX,y:e.clientY,left:r.left,top:r.top};
-  handle.setPointerCapture(e.pointerId);e.preventDefault();
- });
- handle.addEventListener('pointermove',e=>{
-  if(!grab)return;
-  const x=Math.max(6,Math.min(innerWidth-panel.offsetWidth-6,grab.left+e.clientX-grab.x));
-  const y=Math.max(6,Math.min(innerHeight-60,grab.top+e.clientY-grab.y));
-  panel.style.left=x+'px';panel.style.right='auto';panel.style.top=y+'px';
- });
- const end=()=>{grab=null};
- handle.addEventListener('pointerup',end);handle.addEventListener('pointercancel',end);
- // O modo Jogar mantém a janela recolhida até o jogador solicitar.
- document.getElementById('playEntry')?.addEventListener('click',()=>toggle(true));
- document.getElementById('gameExit')?.addEventListener('click',()=>toggle(false));
-})();
-</script><script>
-(function(){
- const panel=document.getElementById('rainControls'),toggle=document.getElementById('arcanoSettingsToggle');
- const capture=document.getElementById('arcanoShortcutCapture'),hint=document.getElementById('arcanoShortcutHint');
- const close=document.getElementById('arcanoCloseSettings');
- if(!panel||!toggle||!capture||!hint)return;
- const storageKey='arcano.settings.shortcut.v1';
- const forbidden=new Set(['Escape','Tab','Enter','Space','Backspace','Delete','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyW','KeyA','KeyS','KeyD','KeyR','Digit1','Digit2','Digit3']);
- const readable=code=>code.startsWith('Key')?code.slice(3):code.startsWith('Digit')?code.slice(5):code.startsWith('F')?code:code;
- let hotkey='KeyP',capturing=false;
- try{const saved=localStorage.getItem(storageKey);if(saved&&/^(Key[A-Z]|Digit[0-9]|F(?:[1-9]|1[0-2]))$/.test(saved)&&!forbidden.has(saved))hotkey=saved;}catch(e){}
- function label(){hint.textContent=readable(hotkey);capture.textContent='Alterar: '+readable(hotkey);capture.setAttribute('aria-label','Definir tecla de atalho. Atual: '+readable(hotkey));}
- function setOpen(visible){const p=document.getElementById('rainControls');if(p)p.hidden=!visible;document.body.classList.toggle('ui-hidden',!visible);for(const id of ['arcanoSettingsToggle','gameSettingsOpen','showControls','collapseControls'])document.getElementById(id)?.setAttribute('aria-expanded',String(visible));}
- function isOpen(){return !document.body.classList.contains('ui-hidden');}
- label();
- toggle.addEventListener('click',()=>setOpen(!isOpen()));
- // Botão existente pode continuar fechando a janela.
- capture.addEventListener('click',()=>{capturing=true;capture.textContent='Pressione uma tecla…';capture.setAttribute('aria-pressed','true');capture.focus();});
- document.addEventListener('keydown',e=>{
-  if(capturing){
-   e.preventDefault();e.stopImmediatePropagation();
-   if(e.code==='Escape'){capturing=false;capture.setAttribute('aria-pressed','false');label();return;}
-   if(e.repeat||e.ctrlKey||e.altKey||e.metaKey)return;
-   if(!/^(Key[A-Z]|Digit[0-9]|F(?:[1-9]|1[0-2]))$/.test(e.code)||forbidden.has(e.code)){
-    capture.textContent='Tecla reservada. Escolha outra';return;
-   }
-   hotkey=e.code;try{localStorage.setItem(storageKey,hotkey);}catch(err){}
-   capturing=false;capture.setAttribute('aria-pressed','false');label();return;
-  }
-  const t=e.target;
-  if(e.code!==hotkey||e.repeat||e.altKey||e.ctrlKey||e.metaKey||t?.matches?.('input,textarea,select,[contenteditable]'))return;
-  if(!document.getElementById('arcanoModeMenu')?.hidden)return;
-  e.preventDefault();e.stopImmediatePropagation();setOpen(!isOpen());
- },true);
- document.addEventListener('pointerdown',e=>{if(capturing&&!capture.contains(e.target)){capturing=false;capture.setAttribute('aria-pressed','false');label();}},true);
- // Fechar o painel com X mantém o estado do novo botão sincronizado.
- close?.addEventListener('click',()=>toggle.setAttribute('aria-expanded','false'));
- document.getElementById('playEntry')?.addEventListener('click',()=>toggle.setAttribute('aria-expanded','false'));
- document.getElementById('gameExit')?.addEventListener('click',()=>toggle.setAttribute('aria-expanded','true'));
-})();
-</script><script>
-(function(){
- const button=document.getElementById('gameSettingsOpen');
- const panel=document.getElementById('rainControls');
- if(!button||!panel)return;
- button.addEventListener('click',function(e){
-  e.preventDefault();e.stopPropagation();
-  const show=document.body.classList.contains('ui-hidden');
-  document.body.classList.toggle('ui-hidden',!show);
-  button.setAttribute('aria-expanded',String(show));
-  document.getElementById('arcanoSettingsToggle')?.setAttribute('aria-expanded',String(show));
- });
- document.getElementById('arcanoCloseSettings')?.addEventListener('click',()=>button.setAttribute('aria-expanded','false'));
- document.getElementById('arcanoSettingsToggle')?.addEventListener('click',()=>button.setAttribute('aria-expanded',String(!document.body.classList.contains('ui-hidden'))));
-})();
-</script><script>
-(function(){
  const panel=document.getElementById('rainControls');
  if(!panel||panel.dataset.arranged==='yes')return;
  panel.dataset.arranged='yes';
@@ -581,96 +484,100 @@ html body #rainControls[hidden],html body.play-active #rainControls[hidden],html
  for(const [id,title] of Object.entries(summaries)){const summary=document.getElementById(id)?.querySelector(':scope > summary');if(summary)summary.textContent=title;}
 })();
 </script><script>
+/* V12.72 — painel único: apenas este bloco controla abrir/fechar e atalho. */
 (function(){
- const panel=document.getElementById('rainControls'),hud=document.getElementById('gameSettingsOpen');
- const floating=document.getElementById('arcanoSettingsToggle');
- const close=document.getElementById('arcanoCloseSettings');
- const oldShow=document.getElementById('showControls');
+ const panel=document.getElementById('rainControls');
+ const header=document.getElementById('arcanoDragHandle');
+ const shortcutButton=document.getElementById('arcanoShortcutCapture');
  if(!panel)return;
- function setOpen(open){
-  panel.hidden=!open;
-  document.body.classList.toggle('ui-hidden',!open);
-  for(const button of [hud,floating,oldShow])button?.setAttribute('aria-expanded',String(open));
+ const toggleIds=['gameSettingsOpen','arcanoSettingsToggle','showControls'];
+ const closeIds=['arcanoCloseSettings','collapseControls'];
+ const keyName='arcano.settings.shortcut.v1';
+ const valid=/^(Key[A-Z]|Digit[0-9]|F(?:[1-9]|1[0-2]))$/;
+ const reserved=new Set(['KeyW','KeyA','KeyS','KeyD','KeyR','Digit1','Digit2','Digit3']);
+ let shortcut='KeyP',capturing=false;
+ try{const saved=localStorage.getItem(keyName);if(valid.test(saved)&&!reserved.has(saved))shortcut=saved;}catch(e){}
+ const label=code=>code.startsWith('Key')?code.slice(3):code.startsWith('Digit')?code.slice(5):code;
+ function show(value){
+  panel.hidden=!value;
+  panel.style.setProperty('display',value?'block':'none','important');
+  document.body.classList.toggle('ui-hidden',!value);
+  for(const id of [...toggleIds,...closeIds])document.getElementById(id)?.setAttribute('aria-expanded',String(value));
  }
- // Estado centralizado: substituir listeners legados do mesmo clique pela captura.
- for(const button of [hud,floating,oldShow,close,document.getElementById('collapseControls')]){
-  if(!button)continue;
-  button.addEventListener('click',e=>{
-   e.preventDefault();e.stopImmediatePropagation();
-   setOpen(button===close||button.id==='collapseControls'?false:panel.hidden);
-  },true);
+ function updateLabel(){
+  document.getElementById('arcanoShortcutHint')?.replaceChildren(document.createTextNode(label(shortcut)));
+  if(shortcutButton){shortcutButton.textContent='Alterar: '+label(shortcut);shortcutButton.setAttribute('aria-pressed','false');}
  }
- document.getElementById('playEntry')?.addEventListener('click',()=>setOpen(false),true);
- document.getElementById('gameExit')?.addEventListener('click',()=>setOpen(false),true);
- setOpen(false);
- // Previsão do mundo simulado; não usa dados meteorológicos externos.
- const box=document.getElementById('arcanoWeatherForecastText');
- const api=()=>window.arcanoWaterV1226?.atmosphere?.getMetrics?.()||
-  window.arcanoWater?.atmosphere?.getMetrics?.();
- let last=0;
- function render(now){
-  requestAnimationFrame(render);
-  if(now-last<2400)return;last=now;
-  if(!box)return;
-  const m=api();
-  if(!m){
-   const text=document.getElementById('atmosStats')?.textContent||'';
-   box.textContent='Aguardando cálculos atmosféricos do mundo… '+text;
+ window.arcanoPanel={open:()=>show(true),close:()=>show(false),toggle:()=>show(panel.hidden)};
+ updateLabel();
+ show(false);
+ // O evento é tratado na captura, antes dos scripts legados e do jogo.
+ window.addEventListener('click',event=>{
+  const button=event.target.closest?.('button');
+  if(!button)return;
+  if(button===shortcutButton){
+   event.preventDefault();event.stopImmediatePropagation();
+   capturing=true;shortcutButton.textContent='Pressione a nova tecla…';
+   shortcutButton.setAttribute('aria-pressed','true');
    return;
   }
+  if(!toggleIds.includes(button.id)&&!closeIds.includes(button.id))return;
+  event.preventDefault();event.stopImmediatePropagation();
+  show(closeIds.includes(button.id)?false:panel.hidden);
+ },true);
+ window.addEventListener('keydown',event=>{
+  if(capturing){
+   event.preventDefault();event.stopImmediatePropagation();
+   if(event.code==='Escape'){capturing=false;updateLabel();return;}
+   if(!valid.test(event.code)||reserved.has(event.code)||event.repeat||event.ctrlKey||event.altKey||event.metaKey){
+    shortcutButton.textContent='Tecla reservada — escolha outra';return;
+   }
+   shortcut=event.code;capturing=false;
+   try{localStorage.setItem(keyName,shortcut);}catch(e){}
+   updateLabel();return;
+  }
+  if(event.code!==shortcut||event.repeat||event.ctrlKey||event.altKey||event.metaKey)return;
+  if(event.target.closest?.('input,select,textarea,[contenteditable="true"]'))return;
+  if(!document.getElementById('arcanoModeMenu')?.hidden)return;
+  event.preventDefault();event.stopImmediatePropagation();show(panel.hidden);
+ },true);
+ window.addEventListener('pointerdown',event=>{
+  if(capturing&&event.target!==shortcutButton){capturing=false;updateLabel();}
+ },true);
+ document.getElementById('playEntry')?.addEventListener('click',()=>show(false),true);
+ document.getElementById('gameExit')?.addEventListener('click',()=>show(false),true);
+ // A alça continua arrastável; botões não iniciam o arraste.
+ let drag=null;
+ header?.addEventListener('pointerdown',e=>{
+  if(e.button!==0||e.target.closest('button'))return;
+  const r=panel.getBoundingClientRect();
+  drag={x:e.clientX,y:e.clientY,left:r.left,top:r.top};
+  header.setPointerCapture(e.pointerId);e.preventDefault();
+ });
+ header?.addEventListener('pointermove',e=>{
+  if(!drag)return;
+  const x=Math.max(5,Math.min(innerWidth-panel.offsetWidth-5,drag.left+e.clientX-drag.x));
+  const y=Math.max(5,Math.min(innerHeight-60,drag.top+e.clientY-drag.y));
+  panel.style.left=x+'px';panel.style.right='auto';panel.style.top=y+'px';
+ });
+ header?.addEventListener('pointerup',()=>drag=null);
+ header?.addEventListener('pointercancel',()=>drag=null);
+ // Indicador do clima do próprio mundo, derivado das métricas atuais.
+ const forecast=document.getElementById('arcanoWeatherForecastText');
+ let last=0;
+ function updateForecast(now){
+  requestAnimationFrame(updateForecast);
+  if(now-last<2500)return;last=now;
+  if(!forecast)return;
+  const m=window.arcanoWaterV1226?.atmosphere?.getMetrics?.();
+  if(!m){forecast.textContent='Aguardando cálculos da atmosfera simulada…';return;}
   const humidity=Math.max(0,Math.min(1,m.humidity||0));
   const clouds=Math.max(0,Math.min(1,m.clouds||0));
   const pressure=m.pressure||1013;
-  const rain=m.rain||0;
-  const risk=Math.max(0,Math.min(100,Math.round(100*(.35*humidity+.38*clouds+.27*Math.max(0,Math.min(1,(1018-pressure)/19))))));
-  const outlook=rain>.3?'Chuva em andamento':risk>68?'Tendência de chuva':risk>40?'Possibilidade de pancadas':'Tendência de tempo firme';
-  box.textContent=outlook+' · Indicador de chuva '+risk+'% · Temperatura '+(m.temperature||0).toFixed(1)+' °C · Umidade '+Math.round(humidity*100)+'% · Vento '+(m.wind||0).toFixed(1)+' · Pressão '+pressure.toFixed(0)+' hPa. Estimativa heurística instantânea, não previsão física futura.';
+  const chance=Math.round(100*Math.max(0,Math.min(1,.35*humidity+.38*clouds+.27*Math.max(0,Math.min(1,(1018-pressure)/19)))));
+  const word=m.rain>.3?'Chovendo agora':chance>68?'Tendência de chuva':chance>40?'Possibilidade de pancadas':'Tempo firme';
+  forecast.textContent=word+' · Indicador '+chance+'% · '+m.temperature.toFixed(1)+' °C · Umidade '+Math.round(humidity*100)+'% · Vento '+m.wind.toFixed(1)+' · Pressão '+pressure.toFixed(0)+' hPa. Tendência heurística, não previsão futura validada.';
  }
- requestAnimationFrame(render);
-})();
-</script><script>
-/* Controlador único com prioridade de captura: impede múltiplos toggles antigos. */
-(function(){
- const panel=document.getElementById('rainControls');
- if(!panel)return;
- const ids=new Set(['arcanoCloseSettings','gameSettingsOpen','arcanoSettingsToggle','showControls','collapseControls']);
- const buttons=['gameSettingsOpen','arcanoSettingsToggle','showControls','collapseControls'];
- const storageKey='arcano.settings.shortcut.v1';
- let capturing=false;
- let shortcut='KeyP';
- try{const saved=localStorage.getItem(storageKey);if(saved&&/^(Key[A-Z]|Digit[0-9]|F(?:[1-9]|1[0-2]))$/.test(saved))shortcut=saved;}catch(e){}
- function sync(){
-  const visible=!panel.hidden;
-  document.body.classList.toggle('ui-hidden',!visible);
-  for(const id of buttons)document.getElementById(id)?.setAttribute('aria-expanded',String(visible));
- }
- function open(value){panel.hidden=!value;sync();}
- // Começa fechado, inclusive após entrada pelo menu Jogar.
- open(false);
- window.addEventListener('click',event=>{
-  const target=event.target.closest?.('button');
-  if(!target)return;
-  if(target.id==='arcanoShortcutCapture'){
-   // A configuração da tecla é gerenciada pelo seletor original.
-   return;
-  }
-  if(!ids.has(target.id))return;
-  event.preventDefault();event.stopImmediatePropagation();
-  open(target.id==='arcanoCloseSettings'||target.id==='collapseControls'?false:panel.hidden);
- },true);
- window.addEventListener('keydown',event=>{
-  const edit=event.target?.closest?.('input,textarea,select,[contenteditable="true"]');
-  const button=document.getElementById('arcanoShortcutCapture');
-  // O botão de captura original recebe prioridade para reatribuir o atalho.
-  if(button?.getAttribute('aria-pressed')==='true')return;
-  const menu=document.getElementById('arcanoModeMenu');
-  if(!menu?.hidden||edit||event.altKey||event.ctrlKey||event.metaKey||event.repeat)return;
-  try{shortcut=localStorage.getItem(storageKey)||shortcut;}catch(e){}
-  if(event.code!==shortcut)return;
-  event.preventDefault();event.stopImmediatePropagation();
-  open(panel.hidden);
- },true);
- document.getElementById('playEntry')?.addEventListener('click',()=>open(false),true);
- document.getElementById('gameExit')?.addEventListener('click',()=>open(false),true);
+ requestAnimationFrame(updateForecast);
 })();
 </script></body></html>
