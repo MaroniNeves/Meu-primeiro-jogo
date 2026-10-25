@@ -166,7 +166,7 @@ window.arcanoSpellEffectsV1265=function(T,scene,options={}){
    const bx=Math.sin(a+t*.24)*r,bz=Math.cos(a+t*.24)*r;
    const back=(i%9)*(.04+(p.slot===1?.033:.021));
    const side=new T.Vector3(-p.dir.z,0,p.dir.x);
-   dummy.position.copy(p.group.position).addScaledVector(p.dir,-back);
+   dummy.position.set(0,0,0).addScaledVector(p.dir,-back);
    dummy.position.addScaledVector(side,bx);
    dummy.position.y+=bz;
    if(p.slot===1)dummy.position.y+=i%3*.055;
