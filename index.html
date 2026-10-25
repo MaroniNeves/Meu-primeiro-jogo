@@ -525,18 +525,27 @@ body.play-active #arcanoFreshToggle{top:calc(68px + env(safe-area-inset-top))}
  close.addEventListener('click',()=>setOpen(false));
  document.getElementById('collapseControls')?.addEventListener('click',()=>setOpen(false));
  capture?.addEventListener('click',()=>{recording=true;capture.textContent='Pressione uma tecla…';capture.setAttribute('aria-pressed','true');});
- window.addEventListener('keydown',e=>{
+ const handledKeys=new WeakSet();
+ function onPanelKey(e){
+  if(handledKeys.has(e))return;
+  // Some game controls consume keyboard events before they reach window.
+  // Catch in the capture phase and keep only one toggle per physical press.
   if(recording){
    e.preventDefault();e.stopImmediatePropagation();
    if(e.code==='Escape'){recording=false;refresh();return;}
    if(e.repeat||e.ctrlKey||e.altKey||e.metaKey||!valid.test(e.code)||reserved.has(e.code)){capture.textContent='Tecla indisponível, escolha outra';return;}
    hotkey=e.code;recording=false;try{localStorage.setItem(store,hotkey);}catch(err){}refresh();return;
   }
-  if(e.code!==hotkey||e.repeat||e.ctrlKey||e.altKey||e.metaKey)return;
+  const pressed=e.code||('Key'+String(e.key||'').toUpperCase());
+  if(pressed!==hotkey||e.repeat||e.ctrlKey||e.altKey||e.metaKey)return;
   if(e.target?.closest?.('input,textarea,select,[contenteditable]'))return;
-  if(!document.getElementById('arcanoModeMenu')?.hidden)return;
+  const menu=document.getElementById('arcanoModeMenu');
+  if(menu&&!menu.hidden&&!document.body.classList.contains('play-active'))return;
+  handledKeys.add(e);
   e.preventDefault();e.stopImmediatePropagation();setOpen(panel.hidden);
- },true);
+ }
+ window.addEventListener('keydown',onPanelKey,true);
+ document.addEventListener('keydown',onPanelKey,true);
  document.getElementById('playEntry')?.addEventListener('click',()=>setOpen(false));
  document.getElementById('gameExit')?.addEventListener('click',()=>setOpen(false));
  window.arcanoPanel={open:()=>setOpen(true),close:()=>setOpen(false),toggle:()=>setOpen(panel.hidden)};
