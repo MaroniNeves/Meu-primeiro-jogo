@@ -208,6 +208,19 @@ body.play-active #rainControls[hidden]{display:none!important}
 
 /* Prioridade de visibilidade do painel — evita conflito com HUD e regras anteriores */
 html body #rainControls[hidden],html body.play-active #rainControls[hidden],html body.ui-hidden #rainControls{display:none!important}
+
+/* PAINEL RECRIADO V12.73 — regras finais sem dependência das classes antigas */
+#rainControls.arcano-new-panel{position:fixed!important;z-index:90!important;inset:auto 14px 14px auto!important;top:72px!important;right:14px!important;left:auto!important;bottom:auto!important;width:min(420px,calc(100vw - 28px))!important;max-height:min(77dvh,710px)!important;overflow-y:auto!important;display:block!important;padding:0 14px 14px!important;border:1px solid #b5a17899!important;border-radius:16px!important;background:linear-gradient(160deg,#20353bf9,#101e27fd)!important;box-shadow:0 20px 65px #000a!important;pointer-events:auto!important}
+#rainControls.arcano-new-panel[hidden]{display:none!important}
+body.play-active #rainControls.arcano-new-panel[hidden],body.ui-hidden #rainControls.arcano-new-panel[hidden]{display:none!important}
+body.play-active #rainControls.arcano-new-panel:not([hidden]){display:block!important}
+#rainControls .arcano-panel-heading{cursor:default!important;touch-action:auto!important}
+#arcanoSettingsToggle,#showControls{display:none!important}
+body.play-active #gameHUD #gameSettingsOpen{display:inline-flex!important;pointer-events:auto!important}
+#arcanoFreshToggle{position:fixed;z-index:91;left:12px;top:calc(12px + env(safe-area-inset-top));padding:11px 14px;border:1px solid #d6bd83;border-radius:10px;background:#243a3c;color:#ffedc5;font:700 12px system-ui;cursor:pointer}
+body.play-active #arcanoFreshToggle{top:calc(68px + env(safe-area-inset-top))}
+#rainControls .arcano-panel-heading{position:sticky!important;top:0!important;z-index:5;background:#20353bf9!important}
+@media(max-width:600px){#rainControls.arcano-new-panel{top:115px!important;right:8px!important;width:calc(100vw - 16px)!important;max-height:63dvh!important}#arcanoFreshToggle{padding:9px 11px;font-size:11px}}
 </style>  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js","fflate":"https://cdn.jsdelivr.net/npm/fflate@0.8.2/esm/browser.js"}}</script>
   <script defer src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script><script defer src="./agua-v1226.js"></script><script defer src="./arcano-assets-v1232.js"></script><script defer src="./nature-imported-v1239.js"></script><script defer src="./fogo-grama-v1267.js"></script><script defer src="./ecossistema-v1232.js"></script>
 </head>
@@ -248,8 +261,8 @@ html body #rainControls[hidden],html body.play-active #rainControls[hidden],html
 </div>
 <div class="hint" id="hint">Chuva começa no solo seco. Observe a formação das poças. Pode recolher os controles para ver a cena.</div>
 <button type="button" id="arcanoSettingsToggle" aria-controls="rainControls" aria-expanded="false" title="Abrir ou fechar o controle do mundo">⚙️ Ajustes <kbd id="arcanoShortcutHint">P</kbd></button>
-<button type="button" id="showControls" aria-controls="rainControls" aria-expanded="false">☷ Mostrar ajustes</button>
-<footer class="bottom" id="rainControls"><div class="arcano-shortcut-row"><span>⌨️ Atalho da janela</span><button type="button" id="arcanoShortcutCapture" title="Clique e pressione uma tecla">Alterar: P</button></div><section id="arcanoWeatherForecast" aria-live="off"><strong>☁ Previsão do clima simulado</strong><p id="arcanoWeatherForecastText">Calculando condições do mundo…</p></section><div class="arcano-panel-heading" id="arcanoDragHandle" aria-label="Arrastar janela de ajustes"><div><strong>✦ Controle do mundo</strong><small>Tempo · clima · terreno · simulação</small></div><button type="button" id="arcanoCloseSettings" aria-label="Fechar controles">✕</button></div><div class="row"><button class="primary" id="replay">↻ Recomeçar</button><button id="pause">⏸ Pausar</button><button id="cam">◎ Câmera</button><button type="button" id="collapseControls" aria-controls="rainControls">⛶ Ver cena</button></div><div class="rain-row"><label for="intensity">🌧 Intensidade <select id="intensity" aria-label="Nível da chuva"><option value="0">0 · Sem chuva</option><option value="1">1 · Garoa</option><option value="2">2 · Chuva fraca</option><option selected value="3">3 · Chuva moderada</option><option value="4">4 · Chuva forte</option><option value="5">5 · Temporal intenso</option></select></label><output id="intensityName" for="intensity">Chuva moderada</output><button type="button" id="stopRain" aria-pressed="false">☀ Parar chuva</button></div><div id="rainMeter" aria-hidden="true"></div><div id="rainDetail" aria-live="polite"></div>
+<button type="button" id="arcanoFreshToggle" aria-controls="rainControls" aria-expanded="false">⚙️ Ajustes (P)</button><button type="button" id="showControls" aria-controls="rainControls" aria-expanded="false">☷ Mostrar ajustes</button>
+<aside class="bottom arcano-new-panel" id="rainControls" hidden><div class="arcano-shortcut-row"><span>⌨️ Atalho da janela</span><button type="button" id="arcanoShortcutCapture" title="Clique e pressione uma tecla">Alterar: P</button></div><section id="arcanoWeatherForecast" aria-live="off"><strong>☁ Previsão do clima simulado</strong><p id="arcanoWeatherForecastText">Calculando condições do mundo…</p></section><div class="arcano-panel-heading" id="arcanoDragHandle" aria-label="Arrastar janela de ajustes"><div><strong>✦ Controle do mundo</strong><small>Tempo · clima · terreno · simulação</small></div><button type="button" id="arcanoCloseSettings" aria-label="Fechar controles">✕</button></div><div class="row"><button class="primary" id="replay">↻ Recomeçar</button><button id="pause">⏸ Pausar</button><button id="cam">◎ Câmera</button><button type="button" id="collapseControls" aria-controls="rainControls">⛶ Ver cena</button></div><div class="rain-row"><label for="intensity">🌧 Intensidade <select id="intensity" aria-label="Nível da chuva"><option value="0">0 · Sem chuva</option><option value="1">1 · Garoa</option><option value="2">2 · Chuva fraca</option><option selected value="3">3 · Chuva moderada</option><option value="4">4 · Chuva forte</option><option value="5">5 · Temporal intenso</option></select></label><output id="intensityName" for="intensity">Chuva moderada</output><button type="button" id="stopRain" aria-pressed="false">☀ Parar chuva</button></div><div id="rainMeter" aria-hidden="true"></div><div id="rainDetail" aria-live="polite"></div>
 <div class="sim-row" role="group" aria-label="Simulação hidrológica">
   <label for="process">Processo
     <select id="process" aria-label="Processo hidrológico">
@@ -432,7 +445,7 @@ html body #rainControls[hidden],html body.play-active #rainControls[hidden],html
    <div id="climateStats">Clima: carregando sol e nuvens 3D…</div>
   <div id="mudStats">Sedimentos em suspensão: 0%</div>
   <div id="lakeStats">Poças e lagoa aparecendo sobre o relevo…</div>
-</div><div id="info">Arraste para girar • pinça para zoom • toque no terreno para criar água</div></footer>
+</div><div id="info">Arraste para girar • pinça para zoom • toque no terreno para criar água</div></aside>
 <div id="diag" role="alert"></div>
 
 
@@ -484,100 +497,53 @@ html body #rainControls[hidden],html body.play-active #rainControls[hidden],html
  for(const [id,title] of Object.entries(summaries)){const summary=document.getElementById(id)?.querySelector(':scope > summary');if(summary)summary.textContent=title;}
 })();
 </script><script>
-/* V12.72 — painel único: apenas este bloco controla abrir/fechar e atalho. */
+/* Único controlador do novo painel. Não usa .ui-hidden para decidir visibilidade. */
 (function(){
  const panel=document.getElementById('rainControls');
- const header=document.getElementById('arcanoDragHandle');
- const shortcutButton=document.getElementById('arcanoShortcutCapture');
- if(!panel)return;
- const toggleIds=['gameSettingsOpen','arcanoSettingsToggle','showControls'];
- const closeIds=['arcanoCloseSettings','collapseControls'];
- const keyName='arcano.settings.shortcut.v1';
- const valid=/^(Key[A-Z]|Digit[0-9]|F(?:[1-9]|1[0-2]))$/;
+ const trigger=document.getElementById('arcanoFreshToggle');
+ const gameTrigger=document.getElementById('gameSettingsOpen');
+ const close=document.getElementById('arcanoCloseSettings');
+ const capture=document.getElementById('arcanoShortcutCapture');
+ const hint=document.getElementById('arcanoShortcutHint');
+ if(!panel||!trigger||!close)return;
+ const store='arcano.settings.shortcut.v1',valid=/^(Key[A-Z]|Digit[0-9]|F(?:[1-9]|1[0-2]))$/;
  const reserved=new Set(['KeyW','KeyA','KeyS','KeyD','KeyR','Digit1','Digit2','Digit3']);
- let shortcut='KeyP',capturing=false;
- try{const saved=localStorage.getItem(keyName);if(valid.test(saved)&&!reserved.has(saved))shortcut=saved;}catch(e){}
- const label=code=>code.startsWith('Key')?code.slice(3):code.startsWith('Digit')?code.slice(5):code;
- function show(value){
-  panel.hidden=!value;
-  panel.style.setProperty('display',value?'block':'none','important');
-  document.body.classList.toggle('ui-hidden',!value);
-  for(const id of [...toggleIds,...closeIds])document.getElementById(id)?.setAttribute('aria-expanded',String(value));
+ let hotkey='KeyP',recording=false;
+ try{const saved=localStorage.getItem(store);if(valid.test(saved)&&!reserved.has(saved))hotkey=saved;}catch(e){}
+ const name=v=>v.replace(/^Key/,'').replace(/^Digit/,'');
+ function refresh(){if(hint)hint.textContent=name(hotkey);if(capture){capture.textContent='Alterar: '+name(hotkey);capture.setAttribute('aria-pressed','false');}}
+ function setOpen(open){
+  panel.hidden=!open;
+  trigger.setAttribute('aria-expanded',String(open));
+  gameTrigger?.setAttribute('aria-expanded',String(open));
  }
- function updateLabel(){
-  document.getElementById('arcanoShortcutHint')?.replaceChildren(document.createTextNode(label(shortcut)));
-  if(shortcutButton){shortcutButton.textContent='Alterar: '+label(shortcut);shortcutButton.setAttribute('aria-pressed','false');}
- }
- window.arcanoPanel={open:()=>show(true),close:()=>show(false),toggle:()=>show(panel.hidden)};
- updateLabel();
- show(false);
- // O evento é tratado na captura, antes dos scripts legados e do jogo.
- window.addEventListener('click',event=>{
-  const button=event.target.closest?.('button');
-  if(!button)return;
-  if(button===shortcutButton){
-   event.preventDefault();event.stopImmediatePropagation();
-   capturing=true;shortcutButton.textContent='Pressione a nova tecla…';
-   shortcutButton.setAttribute('aria-pressed','true');
-   return;
+ refresh();setOpen(false);
+ trigger.addEventListener('click',()=>setOpen(panel.hidden));
+ gameTrigger?.addEventListener('click',()=>setOpen(panel.hidden));
+ close.addEventListener('click',()=>setOpen(false));
+ document.getElementById('collapseControls')?.addEventListener('click',()=>setOpen(false));
+ capture?.addEventListener('click',()=>{recording=true;capture.textContent='Pressione uma tecla…';capture.setAttribute('aria-pressed','true');});
+ window.addEventListener('keydown',e=>{
+  if(recording){
+   e.preventDefault();e.stopImmediatePropagation();
+   if(e.code==='Escape'){recording=false;refresh();return;}
+   if(e.repeat||e.ctrlKey||e.altKey||e.metaKey||!valid.test(e.code)||reserved.has(e.code)){capture.textContent='Tecla indisponível, escolha outra';return;}
+   hotkey=e.code;recording=false;try{localStorage.setItem(store,hotkey);}catch(err){}refresh();return;
   }
-  if(!toggleIds.includes(button.id)&&!closeIds.includes(button.id))return;
-  event.preventDefault();event.stopImmediatePropagation();
-  show(closeIds.includes(button.id)?false:panel.hidden);
- },true);
- window.addEventListener('keydown',event=>{
-  if(capturing){
-   event.preventDefault();event.stopImmediatePropagation();
-   if(event.code==='Escape'){capturing=false;updateLabel();return;}
-   if(!valid.test(event.code)||reserved.has(event.code)||event.repeat||event.ctrlKey||event.altKey||event.metaKey){
-    shortcutButton.textContent='Tecla reservada — escolha outra';return;
-   }
-   shortcut=event.code;capturing=false;
-   try{localStorage.setItem(keyName,shortcut);}catch(e){}
-   updateLabel();return;
-  }
-  if(event.code!==shortcut||event.repeat||event.ctrlKey||event.altKey||event.metaKey)return;
-  if(event.target.closest?.('input,select,textarea,[contenteditable="true"]'))return;
+  if(e.code!==hotkey||e.repeat||e.ctrlKey||e.altKey||e.metaKey)return;
+  if(e.target?.closest?.('input,textarea,select,[contenteditable]'))return;
   if(!document.getElementById('arcanoModeMenu')?.hidden)return;
-  event.preventDefault();event.stopImmediatePropagation();show(panel.hidden);
+  e.preventDefault();e.stopImmediatePropagation();setOpen(panel.hidden);
  },true);
- window.addEventListener('pointerdown',event=>{
-  if(capturing&&event.target!==shortcutButton){capturing=false;updateLabel();}
- },true);
- document.getElementById('playEntry')?.addEventListener('click',()=>show(false),true);
- document.getElementById('gameExit')?.addEventListener('click',()=>show(false),true);
- // A alça continua arrastável; botões não iniciam o arraste.
- let drag=null;
- header?.addEventListener('pointerdown',e=>{
-  if(e.button!==0||e.target.closest('button'))return;
-  const r=panel.getBoundingClientRect();
-  drag={x:e.clientX,y:e.clientY,left:r.left,top:r.top};
-  header.setPointerCapture(e.pointerId);e.preventDefault();
- });
- header?.addEventListener('pointermove',e=>{
-  if(!drag)return;
-  const x=Math.max(5,Math.min(innerWidth-panel.offsetWidth-5,drag.left+e.clientX-drag.x));
-  const y=Math.max(5,Math.min(innerHeight-60,drag.top+e.clientY-drag.y));
-  panel.style.left=x+'px';panel.style.right='auto';panel.style.top=y+'px';
- });
- header?.addEventListener('pointerup',()=>drag=null);
- header?.addEventListener('pointercancel',()=>drag=null);
- // Indicador do clima do próprio mundo, derivado das métricas atuais.
- const forecast=document.getElementById('arcanoWeatherForecastText');
+ document.getElementById('playEntry')?.addEventListener('click',()=>setOpen(false));
+ document.getElementById('gameExit')?.addEventListener('click',()=>setOpen(false));
+ window.arcanoPanel={open:()=>setOpen(true),close:()=>setOpen(false),toggle:()=>setOpen(panel.hidden)};
+ const output=document.getElementById('arcanoWeatherForecastText');
  let last=0;
- function updateForecast(now){
-  requestAnimationFrame(updateForecast);
-  if(now-last<2500)return;last=now;
-  if(!forecast)return;
-  const m=window.arcanoWaterV1226?.atmosphere?.getMetrics?.();
-  if(!m){forecast.textContent='Aguardando cálculos da atmosfera simulada…';return;}
-  const humidity=Math.max(0,Math.min(1,m.humidity||0));
-  const clouds=Math.max(0,Math.min(1,m.clouds||0));
-  const pressure=m.pressure||1013;
-  const chance=Math.round(100*Math.max(0,Math.min(1,.35*humidity+.38*clouds+.27*Math.max(0,Math.min(1,(1018-pressure)/19)))));
-  const word=m.rain>.3?'Chovendo agora':chance>68?'Tendência de chuva':chance>40?'Possibilidade de pancadas':'Tempo firme';
-  forecast.textContent=word+' · Indicador '+chance+'% · '+m.temperature.toFixed(1)+' °C · Umidade '+Math.round(humidity*100)+'% · Vento '+m.wind.toFixed(1)+' · Pressão '+pressure.toFixed(0)+' hPa. Tendência heurística, não previsão futura validada.';
- }
- requestAnimationFrame(updateForecast);
+ function weather(t){requestAnimationFrame(weather);if(t-last<3000)return;last=t;if(!output)return;
+ const m=window.arcanoWaterV1226?.atmosphere?.getMetrics?.();if(!m){output.textContent='Aguardando cálculos atmosféricos…';return;}
+ const chance=Math.round(100*Math.max(0,Math.min(1,.35*m.humidity+.38*m.clouds+.27*Math.max(0,Math.min(1,(1018-m.pressure)/19)))));
+ output.textContent=(m.rain>.3?'Chovendo':chance>68?'Tendência de chuva':chance>40?'Pancadas possíveis':'Tempo firme')+' · Indicador '+chance+'% · '+m.temperature.toFixed(1)+' °C · Umidade '+Math.round(m.humidity*100)+'% · Vento '+m.wind.toFixed(1)+'. Estimativa do clima simulado.';
+ }requestAnimationFrame(weather);
 })();
 </script></body></html>
