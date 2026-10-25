@@ -513,7 +513,9 @@ function makeRoad(){
     // Coordenadas locais da ponte: X = comprimento, Z = largura.
     // O centro do boneco não pode atravessar os corrimãos laterais.
     const alongX=Math.cos(direction),alongZ=Math.sin(direction);
-    const halfSpan=span*.5,walkHalfWidth=.33,railRadius=.215;
+    // Colisão do corpo com as vigas: reservar margem para o raio do boneco.
+    // Piso físico de 1.32 u; centro caminhável precisa ficar entre os corrimãos.
+    const halfSpan=span*.5,walkHalfWidth=.35,bodyRadius=.22;
     const local=(x,z)=>{
      const px=x-mx,pz=z-mz;
      return {along:px*alongX+pz*alongZ,
@@ -522,20 +524,26 @@ function makeRoad(){
     const surfaceAt=(x,z)=>{
      if(!realm.visible)return null;
      const p=local(x,z);
-     return Math.abs(p.along)<=halfSpan-.006&&
+     // O piso também ampara os pés próximos à entrada e à borda interna.
+     return Math.abs(p.along)<=halfSpan+.045&&
       Math.abs(p.side)<=walkHalfWidth?deckY+.0325:null;
     };
     const blocksSegment=(x0,z0,x1,z1)=>{
      if(!realm.visible)return false;
-     // Amostragem em passos pequenos impede cruzar o corrimão em corrida.
+     const from=local(x0,z0),to=local(x1,z1);
+     // Impedir que a cápsula atravesse os corrimãos por qualquer lateral,
+     // inclusive em movimentos diagonais, passadas rápidas e nas cabeceiras.
      const distance=Math.hypot(x1-x0,z1-z0);
-     const steps=Math.max(1,Math.ceil(distance/.055));
+     const steps=Math.max(1,Math.ceil(distance/.045));
      for(let i=1;i<=steps;i++){
       const u=i/steps,p=local(x0+(x1-x0)*u,z0+(z1-z0)*u);
-      if(Math.abs(p.along)>halfSpan+.035)continue;
-      // Postes e corrimãos ocupam ±0.57 no Z local. Somar o raio
-      // do boneco permite bloquear colisão sem tocar no piso da ponte.
-      if(Math.abs(Math.abs(p.side)-.57)<railRadius)return true;
+      if(Math.abs(p.along)>halfSpan+.12)continue;
+      // Não bloquear uma aproximação por fora sem cruzar a ponte.
+      if(Math.abs(from.side)>walkHalfWidth&&
+         Math.abs(to.side)>walkHalfWidth&&
+         Math.sign(from.side)===Math.sign(to.side))continue;
+      if(Math.abs(p.side)>walkHalfWidth&&
+         Math.abs(p.side)<.57+bodyRadius)return true;
      }
      return false;
     };
