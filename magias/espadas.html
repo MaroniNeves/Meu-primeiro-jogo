@@ -26,7 +26,7 @@
 <section id="panel" aria-label="Controles dos efeitos"><div class="topline"><div class="kicker">Biblioteca de magias</div><div id="family">Natureza · Defesa</div></div><div id="filters"><button class="filter-btn" data-filter="sword" aria-pressed="true">⚔️ Espadas</button><button class="filter-btn" data-filter="magic" aria-pressed="false">✦ Outras magias</button><button class="filter-btn" data-filter="all" aria-pressed="false">Tudo</button></div><div id="presets"></div><p id="desc"></p>
 <div id="actionrow"><button class="action main" id="replay">✦ Lançar magia</button><button class="action" id="loop" aria-pressed="true">↻ Repetir: ligado</button><button class="action" id="pause">Ⅱ Pausar</button></div>
 <div class="settings"><div class="field"><label for="onlineAssets">Modelos 3D prontos (GLB)</label><input id="onlineAssets" type="checkbox" checked aria-label="Carregar modelos 3D online"></div><div id="assetStatus" class="asset-status">Modelos externos opcionais • CC0 • requer internet</div><div class="field"><label for="origin">Origem do efeito</label><select id="origin"><option value="auto">Automática conforme magia</option><option value="sword">Espada</option><option value="dagger">Adaga</option><option value="axe">Machado</option><option value="staff">Cajado</option><option value="arrow">Flecha</option><option value="ground">Chão</option><option value="air">Ar</option></select></div>
-<div class="field"><label for="particles">Densidade de partículas</label><input id="particles" type="range" min="20" max="150" value="100" step="5"></div><div class="field"><label for="power">Intensidade</label><input id="power" type="range" min="40" max="160" value="100" step="5"></div><div class="field" id="shieldGlowField" hidden><label for="shieldGlow">Brilho ao atingir o escudo: <output id="shieldGlowValue">100%</output></label><input id="shieldGlow" type="range" min="0" max="400" value="100" step="10" aria-label="Intensidade do brilho localizado do escudo"></div><div class="field"><label for="speed">Velocidade</label><input id="speed" type="range" min="50" max="160" value="100" step="5"></div></div><details class="assets-info"><summary>Modelos GLB e licenças</summary><p>Malhas CC0 de 3DAssets.dev. Algumas são estáticas; os movimentos e partículas são acrescentados pelo Three.js.</p><a href="https://3dassets.dev/assets/sunfall-rift-moba-crescent-slash-5489a2d2" target="_blank" rel="noopener noreferrer">Corte 3D</a> · <a href="https://3dassets.dev/assets/sunfall-rift-moba-ember-projectile-49569ecb" target="_blank" rel="noopener noreferrer">Fogo 3D</a> · <a href="https://3dassets.dev/assets/vfx-mesh-library-lightning-strike-f525cfcd" target="_blank" rel="noopener noreferrer">Relâmpago 3D</a> · <a href="https://3dassets.dev/assets/vfx-mesh-library-rain-splash-ring-370934d8" target="_blank" rel="noopener noreferrer">Respingo 3D</a> · <a href="https://3dassets.dev/assets/izakaya-alley-and-ramen-shop-puddle-plate-467c25c5" target="_blank" rel="noopener noreferrer">Poça 3D</a></details></section>
+<div class="field"><label for="particles">Densidade de partículas</label><input id="particles" type="range" min="20" max="150" value="100" step="5"></div><div class="field"><label for="power">Intensidade</label><input id="power" type="range" min="40" max="160" value="100" step="5"></div><div class="field" id="shieldGlowField" hidden><label for="shieldGlow">Brilho ao atingir o escudo: <output id="shieldGlowValue">100%</output></label><input id="shieldGlow" type="range" min="0" max="400" value="100" step="10" aria-label="Intensidade do brilho localizado do escudo"></div><div class="field"><label for="fireballFbx">🔥 Fireball VFX (FBX enviado)</label><input id="fireballFbx" type="file" accept=".fbx" aria-label="Carregar modelo FBX de bola de fogo"><small id="fireballFbxStatus">Selecione o FBX para animar as duas partes; o núcleo permanece fixo.</small></div><div class="field"><label for="speed">Velocidade</label><input id="speed" type="range" min="50" max="160" value="100" step="5"></div></div><details class="assets-info"><summary>Modelos GLB e licenças</summary><p>Malhas CC0 de 3DAssets.dev. Algumas são estáticas; os movimentos e partículas são acrescentados pelo Three.js.</p><a href="https://3dassets.dev/assets/sunfall-rift-moba-crescent-slash-5489a2d2" target="_blank" rel="noopener noreferrer">Corte 3D</a> · <a href="https://3dassets.dev/assets/sunfall-rift-moba-ember-projectile-49569ecb" target="_blank" rel="noopener noreferrer">Fogo 3D</a> · <a href="https://3dassets.dev/assets/vfx-mesh-library-lightning-strike-f525cfcd" target="_blank" rel="noopener noreferrer">Relâmpago 3D</a> · <a href="https://3dassets.dev/assets/vfx-mesh-library-rain-splash-ring-370934d8" target="_blank" rel="noopener noreferrer">Respingo 3D</a> · <a href="https://3dassets.dev/assets/izakaya-alley-and-ramen-shop-puddle-plate-467c25c5" target="_blank" rel="noopener noreferrer">Poça 3D</a></details></section>
 <div id="badge"><b>Arraste</b> para girar · <b>Role</b> para aproximar<br><span id="state">Manifestação ativa</span></div>
 <div id="loading" role="status" aria-live="polite" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:15;background:radial-gradient(circle at 50% 44%,#112b3c,#06111b 62%);color:#dceff0;font-family:system-ui;text-align:center;padding:24px"><div><div style="font-size:46px;filter:drop-shadow(0 0 17px #6affc3)">✧</div><h2 style="font-size:22px;margin:14px 0 6px">Preparando laboratório 3D…</h2><p style="font-size:13px;color:#9cb9bb">Carregando Three.js e criando partículas mágicas.</p><p id="loadHelp" style="max-width:360px;font-size:12px;color:#7e9da4;line-height:1.65">Aguarde alguns segundos.</p></div></div>
 <div id="warning"><div><h2>Não foi possível iniciar a magia 3D</h2>O arquivo precisa de um navegador moderno, WebGL e conexão com a internet para carregar Three.js.<p id="errortext"></p></div></div>
@@ -44,6 +44,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 try {
 const scene=new THREE.Scene(); scene.background=new THREE.Color('#06121e'); scene.fog=new THREE.FogExp2('#06121e',.034);
 const camera=new THREE.PerspectiveCamera(47,innerWidth/innerHeight,.05,90); camera.position.set(7.7,5.1,8.5);
@@ -524,8 +525,72 @@ document.getElementById('loop').onclick=e=>{state.loop=!state.loop;e.currentTarg
 document.getElementById('pause').onclick=e=>{state.paused=!state.paused;e.currentTarget.textContent=state.paused?'▶ Continuar':'Ⅱ Pausar'};
 document.getElementById('onlineAssets').onchange=e=>{useExternalModels=e.target.checked;effectBuild();state.cycle=0;state.started=true};
 document.getElementById('origin').onchange=()=>{effectBuild();state.cycle=0;state.started=true};document.getElementById('particles').oninput=e=>{state.density=Number(e.target.value)/100};document.getElementById('power').oninput=e=>{state.power=Number(e.target.value)/100};document.getElementById('shieldGlow').oninput=e=>{document.getElementById('shieldGlowValue').textContent=e.target.value+'%';};document.getElementById('speed').oninput=e=>{state.speed=Number(e.target.value)/100};
+
+/* Fireball FBX: separar ilhas conectadas e orbitar casca sem alterar os vértices. */
+let fireballImported=null, fireballFrameTime=0;
+function splitFireballGeometry(mesh){
+ const geo=mesh.geometry, pos=geo.getAttribute('position');if(!pos||pos.count<9)return [mesh];
+ const indices=geo.index?.array || Array.from({length:pos.count},(_,i)=>i);
+ const total=Math.floor(indices.length/3),parent=Array.from({length:total},(_,i)=>i),seen=new Map();
+ const find=i=>{while(parent[i]!==i){parent[i]=parent[parent[i]];i=parent[i];}return i;};
+ const join=(a,b)=>{a=find(a);b=find(b);if(a!==b)parent[b]=a;};
+ for(let t=0;t<total;t++)for(let j=0;j<3;j++){
+  const k=indices[t*3+j],code=[pos.getX(k),pos.getY(k),pos.getZ(k)].map(v=>Math.round(v*10000)).join('/');
+  const other=seen.get(code);if(other===undefined)seen.set(code,t);else join(t,other);
+ }
+ const groups=new Map();for(let t=0;t<total;t++){const id=find(t);if(!groups.has(id))groups.set(id,[]);groups.get(id).push(t);}
+ const ordered=[...groups.values()].sort((a,b)=>b.length-a.length);
+ return ordered.map((faces,j)=>{
+  const childGeo=new THREE.BufferGeometry();
+  for(const [name,attr] of Object.entries(geo.attributes)){
+   const values=new attr.array.constructor(faces.length*3*attr.itemSize);
+   let cursor=0;
+   for(const face of faces)for(let v=0;v<3;v++){const idx=indices[face*3+v];for(let c=0;c<attr.itemSize;c++)values[cursor++]=attr.array[idx*attr.itemSize+c];}
+   childGeo.setAttribute(name,new THREE.BufferAttribute(values,attr.itemSize,attr.normalized));
+  }
+  childGeo.computeBoundingBox();childGeo.computeBoundingSphere();
+  const material=Array.isArray(mesh.material)?mesh.material[0]:mesh.material;
+  const obj=new THREE.Mesh(childGeo,material?.clone()||new THREE.MeshStandardMaterial({color:0xec6a24}));
+  obj.name='fireball_part_'+j;return obj;
+ });
+}
+function loadFireballFbx(file){
+ const status=document.getElementById('fireballFbxStatus');
+ const url=URL.createObjectURL(file);
+ new FBXLoader().load(url,fbx=>{
+  URL.revokeObjectURL(url);
+  if(fireballImported){scene.remove(fireballImported);fireballImported.traverse(o=>{if(o.isMesh)o.geometry.dispose();});}
+  const all=[];fbx.traverse(o=>{if(o.isMesh)all.push(...splitFireballGeometry(o));});
+  all.sort((a,b)=>b.geometry.getAttribute('position').count-a.geometry.getAttribute('position').count);
+  if(all.length<2){status.textContent='Não foi possível separar duas partes do modelo.';return;}
+  const core=all[0],shell=all[1];
+  // Identifica a ilha mais esférica entre as duas principais.
+  const compact=o=>{const size=new THREE.Vector3();o.geometry.boundingBox.getSize(size);return Math.max(size.x,size.y,size.z)/Math.max(.001,Math.min(size.x,size.y,size.z));};
+  const sphere=compact(core)<=compact(shell)?core:shell;
+  const orbit= sphere===core?shell:core;
+  const group=new THREE.Group(), pivot=new THREE.Group(),outer=new THREE.Group();
+  const center=sphere.geometry.boundingBox.getCenter(new THREE.Vector3());
+  for(const o of all){o.position.sub(center);o.material.side=THREE.DoubleSide; if(o.material.color)o.material.color.setHex(0xf0772f);
+   if('emissive' in o.material){o.material.emissive=new THREE.Color(0xd64214);o.material.emissiveIntensity=.75;}
+   o.material.transparent=true;o.material.opacity=.96;
+  }
+  // Para orbitar, converter a posição original de cada peça para um centro próprio.
+  const orbitCenter=orbit.geometry.boundingBox.getCenter(new THREE.Vector3()).sub(center);
+  orbit.position.sub(orbitCenter);pivot.position.copy(orbitCenter);
+  group.add(sphere);pivot.add(orbit);outer.add(pivot);group.add(outer);
+  for(const o of all)if(o!==sphere&&o!==orbit)group.add(o);
+  const box=new THREE.Box3().setFromObject(group),size=box.getSize(new THREE.Vector3());
+  group.scale.setScalar(2.5/Math.max(size.x,size.y,size.z,.001));
+  group.position.set(0,1.5,0);
+  scene.add(group);fireballImported=group;group.userData={pivot,orbit,core:sphere,orbitCenter,phase:0};
+  status.textContent='FBX carregado: '+all.length+' partes detectadas. Casca em órbita do núcleo.';
+ },undefined,e=>{URL.revokeObjectURL(url);status.textContent='Erro ao carregar FBX: '+e.message;});
+}
+document.getElementById('fireballFbx').addEventListener('change',e=>{const f=e.target.files?.[0];if(f)loadFireballFbx(f);});
+
 select(selected);
 const clock=new THREE.Clock();function frame(){requestAnimationFrame(frame);const dt=Math.min(clock.getDelta(),.055);if(!state.paused&&state.started){state.clock+=dt;state.cycle+=dt*state.speed;}const p=presets[selected],dur=p.duration; if(state.cycle>=dur+.35){if(state.loop)state.cycle=0;else{state.cycle=dur+.35;state.started=false}}const t=Math.min(dur, state.cycle);if(state.started||state.cycle<dur)updates.forEach(fn=>fn(t,dur));if(!state.started&&t>=dur){primaryParticle.material.opacity=minorParticle.material.opacity=0;glow.intensity=0;}else glow.intensity=25*state.power*(.5+smooth(t/.5)*.5)*smooth((dur-t)/.7);
+if(fireballImported&&!state.paused){const f=fireballImported.userData;f.phase+=dt*state.speed;f.pivot.rotation.y=f.phase*2.2;f.pivot.rotation.z=Math.sin(f.phase*.85)*.26;f.orbit.rotation.y=f.phase*3.2;f.core.rotation.y=-f.phase*.45;}
 controls.update();renderer.render(scene,camera)}frame();
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
 }catch(err){document.getElementById('loading').style.display='none';document.getElementById('warning').style.display='flex';document.getElementById('errortext').textContent=err?.message||String(err);console.error(err)}
