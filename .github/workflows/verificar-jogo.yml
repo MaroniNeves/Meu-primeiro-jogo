@@ -24,6 +24,8 @@ jobs:
         run: node tools/inspecionar-grama.js
       - name: Testar animação da grama, vento e afastamento dos passos
         run: node tools/testar-grama-vento.js
+      - name: Verificar queimadas, fogo CC0, chuva e regeneração da grama
+        run: node tools/testar-incendio-grama.js
       - name: Validar deslocamento real da grama em WebGL
         run: node tools/testar-grama-webgl.cjs
       - name: Testar camera e obstrucao por arvores
