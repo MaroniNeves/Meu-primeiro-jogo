@@ -2,7 +2,7 @@
  * NÃO reinterpreta os efeitos com formas novas: instancia exatamente as
  * classes de shaders do catálogo V8, com seus próprios sistemas de partículas.
  */
-import {R as originalUniforms} from './assets/settings-DdywqLlV.js';
+import {G as originalUniforms} from './assets/settings-DdywqLlV.js';
 import {t as ParticleEngine} from './assets/ParticleEngine-DLxipNH0.js';
 import {ArcaneVolleyAbility} from './assets/ArcaneVolleyAbility-F0sG67Uf.js';
 import {DragonbreathAbility} from './assets/DragonbreathAbility-x2rdc5jW.js';
