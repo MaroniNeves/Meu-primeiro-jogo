@@ -33,6 +33,19 @@ export function createOriginalMagicBridge(THREE,scene,options={}){
   if(!object)return;
   object.traverse?.(child=>{
    child.layers?.enable?.(0);
+   // O catálogo usa BufferAttribute moderno (updateRanges), enquanto
+   // o renderer da floresta r152 ainda consulta updateRange.count.
+   const geom=child.geometry;
+   if(geom){
+    const attrs=[...Object.values(geom.attributes||{})];
+    if(geom.index)attrs.push(geom.index);
+    if(geom.morphAttributes)for(const list of Object.values(geom.morphAttributes))
+     attrs.push(...list);
+    for(const attr of attrs){
+     if(!attr||!attr.array)continue;
+     if(!attr.updateRange)attr.updateRange={offset:0,count:-1};
+    }
+   }
    // O laboratório usa uma revisão diferente de THREE. Sua classe Material
    // não possui onBuild(), exigido pelo renderer da floresta (r152).
    const materials=Array.isArray(child.material)?child.material:
