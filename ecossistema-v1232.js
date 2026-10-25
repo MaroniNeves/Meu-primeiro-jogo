@@ -159,6 +159,22 @@ window.arcanoGrassMotionState=()=>({
  playerX:grassVisual.uniforms.uArcPlayer.value.x,
  playerZ:grassVisual.uniforms.uArcPlayer.value.y
 });
+// V12.67: mapa dinâmico de queimadas na GPU; os milhões de tufos originais
+// continuam nas mesmas InstancedMesh. Somente a textura RG registra cinzas
+// e chamas por célula (nenhuma reconstrução de grama).
+const wildfire=window.createArcanoWildfireV1267?.(T,api.scene,{
+ width:W,length:L,mobile:mobileDevice,
+ terrainAt:(x,z)=>height(x,z),
+ coverAt:(x,z)=>cover[idx(x,z)]*(1-roadMask[idx(x,z)]*.78),
+ waterAt:(x,z)=>api.depth[idx(x,z)]>.045||riverMask[idx(x,z)]>.79,
+ moistureAt:(x,z)=>clamp(
+  api.soilMoisture[idx(x,z)]/Math.max(.001,api.soilCapacity[idx(x,z)]),0,1),
+ getRainLevel:()=>api.getRainLevel?.()??0,
+ windAt:()=>({heading:api.getGrassWindHeading?.()||0,
+  strength:(api.getGrassWindPower?.()||70)/100})
+});
+window.arcanoWildfire=wildfire||null;
+if(wildfire)grassVisual.uniforms.uArcBurnMap={value:wildfire.texture};
 function grassAnimatedMaterial(name,kind){
  const mat=material(kind),geo=meshLibrary[name];
  geo.computeBoundingBox();
@@ -177,12 +193,18 @@ uniform vec4 uArcTrail0;
 uniform vec4 uArcTrail1;
 uniform float uArcGrassBase;
 uniform float uArcGrassInvHeight;
+uniform sampler2D uArcBurnMap;
+varying float vArcBurn;
 `+shader.vertexShader;
   const marker='#include <begin_vertex>';
   if(!shader.vertexShader.includes(marker))throw new Error('Shader padrão da grama incompatível');
   shader.vertexShader=shader.vertexShader.replace(marker,`
 #include <begin_vertex>
+vArcBurn=0.0;
 #ifdef USE_INSTANCING
+ vec2 arcBurnUV=instanceMatrix[3].xz/vec2(128.0,100.0)+vec2(.5);
+ vec4 arcBurnData=texture2D(uArcBurnMap,clamp(arcBurnUV,vec2(.001),vec2(.999)));
+ vArcBurn=arcBurnData.r;
  float arcBlade=clamp((transformed.y-uArcGrassBase)*uArcGrassInvHeight,0.0,1.0);
  if(arcBlade>0.001){
   // Base fixa, caules dobram progressivamente com a altura; nenhuma
@@ -232,15 +254,22 @@ uniform float uArcGrassInvHeight;
    max(dot(arcAxisX,arcAxisX),.0001)*arcBlade;
   transformed.z+=dot(arcMove,arcAxisZ)/
    max(dot(arcAxisZ,arcAxisZ),.0001)*arcBlade;
-  // Tufos cedem para o lado e também abaixam levemente ao redor
-  // das canelas. Só os vértices superiores sofrem deformação.
-  transformed.y-=arcCompression*arcBlade/
+  // Tufos cedem para o lado, abaixam ao redor das canelas e
+  // carbonizam conforme a textura regional de queimadas.
+  transformed.y-=(arcCompression+vArcBurn*.74)*arcBlade/
    max(length(instanceMatrix[1].xyz),.01);
  }
 #endif
 `);
+  // Colorir a PRÓPRIA grama (não apenas o solo): cinza carvão persiste
+  // mesmo após apagar o fogo; novas folhas brotam lentamente.
+  shader.fragmentShader='varying float vArcBurn;\n'+shader.fragmentShader;
+  const c='#include <color_fragment>';
+  if(!shader.fragmentShader.includes(c))throw new Error('Shader de cor incompatível');
+  shader.fragmentShader=shader.fragmentShader.replace(c,
+   c+'\n diffuseColor.rgb=mix(diffuseColor.rgb, vec3(.105,.087,.068), clamp(vArcBurn*.94,0.,1.));');
  };
- mat.customProgramCacheKey=()=> 'arcano-grass-realtime-physical-contact-v1261-'+name;
+ mat.customProgramCacheKey=()=> 'arcano-grass-fire-cc0-burn-v1267-'+name;
  return mat;
 }
 function animateGrassVisuals(dt){
@@ -1809,6 +1838,7 @@ function update(dt){
  if(!ready)return;
  dt=Math.min(dt,.09);time+=dt;ecologicalAccumulator+=ecologicalDayRate(dt);
  animateGrassVisuals(dt);
+ wildfire?.update(dt,api.getMainCamera?.());
  animateLeafFall(dt);animateFruits(dt);
  grassAccumulator+=dt;uiAccumulator+=dt;
  // Recarrega o rio somente pela fonte a montante, sem água infinita em toda a cena.
@@ -2093,6 +2123,9 @@ async function setup(){
   registerAnimalFootfall,movementCost,largeAnimals,
   trample,addCarcass,update,status,api,ready:()=>ready,setMagnification:n=>previewMagnification=n,
   getColony:id=>colonies.find(c=>c.id===id),getWorms:()=>worms,inspectColony:updateColonyInspector,
+  getWildfire:()=>wildfire,
+  igniteGrass:(x,z,radius=1.35)=>wildfire?.ignite(x,z,radius)||false,
+  extinguishFire:()=>wildfire?.quench(),
   getGrassMotionState:()=>({chunks:grassChunkMeshes.size,tufts:grassDrawn,
    wind:grassVisual.uniforms.uArcWindStrength.value,
    time:grassVisual.uniforms.uArcWindTime.value,
