@@ -3853,6 +3853,8 @@ async function setPlayActive(active){
  game.keys.clear();game.input.x=0;game.input.y=0;game.input.run=false;game.orbitPointer=null;
  game.waterStride=0;game.wasInWater=false;game.grassSpeed=0;game.grassOnGround=true;
  gameCameraActualDistance=0;
+ gamePointerLocations.clear();gamePinchDistance=0;
+ setGameZoom(game.camDistance);
  if(active){
   if(!game.root){
    game.root=new T.Group();game.root.name='Personagem jogável';
@@ -3976,14 +3978,37 @@ function paintWalkingStep(e){
  }
  return true;
 }
-// Área livre da cena: arrastar o dedo gira a câmera do modo Jogar.
+// V12.63: distância solicitada não depende de árvores ou obstáculos.
+// Funciona por rolagem do mouse, pinça com dois dedos e botões +/-.
+function setGameZoom(distance){
+ game.camDistance=clamp(distance,2.3,10);
+ const display=$('gameZoomLevel');
+ if(display)display.textContent=game.camDistance.toFixed(1)+' m';
+}
+if($('gameZoomIn'))$('gameZoomIn').addEventListener('click',()=>setGameZoom(game.camDistance-.7));
+if($('gameZoomOut'))$('gameZoomOut').addEventListener('click',()=>setGameZoom(game.camDistance+.7));
+const gamePointerLocations=new Map();
+let gamePinchDistance=0;
+function releaseGamePointer(id){
+ gamePointerLocations.delete(id);gamePinchDistance=0;
+ if(gamePointerLocations.size===1){
+  const [other,point]=gamePointerLocations.entries().next().value;
+  game.orbitPointer=other;game.orbitX=point.x;game.orbitY=point.y;
+ }else game.orbitPointer=null;
+}
+// Área livre da cena: um dedo gira a câmera; dois dedos fazem zoom.
 // Joystick e botão Correr têm eventos próprios sobrepostos ao canvas.
 stage.addEventListener('pointerdown',e=>{
  if(game.active){
-  if(game.orbitPointer===null){
+  gamePointerLocations.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  try{stage.setPointerCapture(e.pointerId);}catch(_){}
+  if(gamePointerLocations.size===1){
    game.orbitPointer=e.pointerId;
    game.orbitX=e.clientX;game.orbitY=e.clientY;
-   try{stage.setPointerCapture(e.pointerId);}catch(_){}
+  }else{
+   game.orbitPointer=null;
+   const points=[...gamePointerLocations.values()];
+   gamePinchDistance=Math.hypot(points[0].x-points[1].x,points[0].y-points[1].y);
   }
   return;
  }
@@ -3995,6 +4020,17 @@ stage.addEventListener('pointerdown',e=>{
 });
 stage.addEventListener('pointermove',e=>{
  if(game.active){
+  const point=gamePointerLocations.get(e.pointerId);
+  if(!point)return;
+  point.x=e.clientX;point.y=e.clientY;
+  if(gamePointerLocations.size>=2){
+   const points=[...gamePointerLocations.values()];
+   const dist=Math.hypot(points[0].x-points[1].x,points[0].y-points[1].y);
+   if(gamePinchDistance>8&&dist>8)
+    setGameZoom(game.camDistance*gamePinchDistance/dist);
+   gamePinchDistance=dist;
+   return;
+  }
   if(e.pointerId!==game.orbitPointer)return;
   const dx=e.clientX-game.orbitX,dy=e.clientY-game.orbitY;
   game.camHeading-=dx*.006;
@@ -4011,19 +4047,19 @@ stage.addEventListener('pointermove',e=>{
  prevX=e.clientX;prevY=e.clientY;
 });
 stage.addEventListener('pointerup',e=>{
- if(game.active){
-  if(e.pointerId===game.orbitPointer)game.orbitPointer=null;
-  return;
- }
+ if(game.active){releaseGamePointer(e.pointerId);return;}
  pressedPointers.delete(e.pointerId);
  if(drag&&!moved)tapAdd(e);
  drag=false;
 });
-stage.addEventListener('pointercancel',e=>{if(e.pointerId===game.orbitPointer)game.orbitPointer=null;pressedPointers.delete(e.pointerId);drag=false;});
+stage.addEventListener('pointercancel',e=>{
+ if(game.active){releaseGamePointer(e.pointerId);return;}
+ pressedPointers.delete(e.pointerId);drag=false;
+});
 stage.addEventListener('wheel',e=>{
  if(game.active){
   e.preventDefault();
-  game.camDistance=clamp(game.camDistance+Math.sign(e.deltaY)*.40,2.7,9);
+  setGameZoom(game.camDistance+Math.sign(e.deltaY)*.40);
   return;
  }
  e.preventDefault();
