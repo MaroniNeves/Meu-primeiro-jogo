@@ -62,6 +62,7 @@ const presets=[
 {id:'shield_void',title:'Escudo abissal',icon:'🛡️',family:'Trevas · Escudo',hex:0x9d74ff,accent:0xffa8ff,type:'shield',style:'void',origin:'ground',duration:5.0,desc:'Escudo escuro com anéis roxos, distorção e estilhaços de sombra.'},
 {id:'bolt',title:'Relâmpago',icon:'⚡',family:'Raios · Cajado',hex:0x47a8ff,accent:0xe0faff,type:'bolt',style:'chain',origin:'staff',duration:3.8,desc:'Relâmpago quebrado com ramos, faíscas e impacto elétrico.'},
 {id:'bolt_storm',title:'Tempestade elétrica',icon:'🌩️',family:'Raios · Céu',hex:0x69b7ff,accent:0xffffff,type:'bolt',style:'storm',origin:'air',duration:4.3,desc:'Múltiplos raios caem em zigue-zague com impacto no chão.'},
+{id:'fire_hover',title:'Orbe de fogo flutuante',icon:'🔥',family:'Fogo · Habilidade nova',hex:0xff7422,accent:0xffcc7a,type:'projectile',style:'firehover',origin:'air',duration:60,desc:'Bola de Fogo FBX suspensa no ar, reproduzindo suas animações, sem disparo ou rastro.'},
 {id:'fire',title:'Bola de fogo',icon:'🔥',family:'Fogo · Projétil',hex:0xff6536,accent:0xffea79,type:'projectile',style:'flame',origin:'staff',duration:3.8,desc:'Projétil de fogo com língua de chamas e dissipação ao colidir.'},
 {id:'fire_pillar',title:'Coluna de fogo',icon:'🔥',family:'Fogo · Área',hex:0xff5c2d,accent:0xfff3a0,type:'pillar',style:'firepillar',origin:'ground',duration:4.3,desc:'Fenda ardente que ergue uma coluna de chamas em forma orgânica.'},
 {id:'black_fire',title:'Fogo negro',icon:'🖤',family:'Trevas · Fogo',hex:0x5e2b94,accent:0xff5b6c,type:'projectile',style:'blackflame',origin:'staff',duration:4.0,desc:'Chama negra com núcleo carmesim e fumaça sombria.'},
@@ -344,7 +345,7 @@ function makeSwordVFX(p,C,Hi){
 
 let shieldImpactCleanup=null;
 function effectBuild(){if(shieldImpactCleanup){shieldImpactCleanup();shieldImpactCleanup=null;}const p=presets[selected],C=p.hex,Hi=p.accent,style=p.style||'';disposeGroup(fxGroup);fxGroup=new THREE.Group();scene.add(fxGroup);updates=[];fxMaterials=[];hits=[];swordEmitters=[];
- if(p.id==='fire')return; // Nova etapa: somente o modelo FBX, sem efeitos legados.
+ if(p.id==='fire'||p.id==='fire_hover')return; // Apenas FBX, sem geometria ou partículas adicionais.
  const ty=p.type; if(ty==='sword')makeSwordVFX(p,C,Hi); const core=sprite(C,3,.27,V(0,1.35,0));const low=sprite(C,3.7,.2,V(0,.06,0));updates.push((t,d)=>{const fade=smooth(t/.24)*smooth((d-t)/.8);core.material.opacity=(.16+.10*Math.sin(t*4))*fade;low.material.opacity=.17*fade;core.scale.setScalar(2.4+Math.sin(t*2)*.1)});
  const groundRing=ring(1.6,.024,.015,C,.38);const outerRing=ring(2.55,.015,.018,Hi,.22);
  if(ty==='sword'){core.visible=false;low.visible=false;groundRing.visible=false;outerRing.visible=false;}
@@ -520,7 +521,7 @@ function effectBuild(){if(shieldImpactCleanup){shieldImpactCleanup();shieldImpac
  glow.color.setHex(C);
  attachExternalModel(p,fxGroup);
 }
-function select(i){selected=i;const p=presets[i];if(fireballImported)fireballImported.visible=p.id==='fire';document.getElementById('shieldGlowField').hidden=p.type!=='shield';renderPresets();document.getElementById('family').textContent=p.family;document.getElementById('desc').textContent=p.desc;document.getElementById('state').textContent=p.family+' · partículas 3D';effectBuild();state.cycle=0;state.started=true}
+function select(i){selected=i;const p=presets[i];if(fireballImported)fireballImported.visible=(p.id==='fire'||p.id==='fire_hover');document.getElementById('shieldGlowField').hidden=p.type!=='shield';renderPresets();document.getElementById('family').textContent=p.family;document.getElementById('desc').textContent=p.desc;document.getElementById('state').textContent=p.family+' · partículas 3D';effectBuild();state.cycle=0;state.started=true}
 document.getElementById('replay').onclick=()=>{state.cycle=0;state.started=true;if(state.paused){state.paused=false;document.getElementById('pause').textContent='Ⅱ Pausar'}};
 document.getElementById('loop').onclick=e=>{state.loop=!state.loop;e.currentTarget.textContent=state.loop?'↻ Repetir: ligado':'↻ Repetir: desligado';e.currentTarget.setAttribute('aria-pressed',String(state.loop))};
 document.getElementById('pause').onclick=e=>{state.paused=!state.paused;e.currentTarget.textContent=state.paused?'▶ Continuar':'Ⅱ Pausar'};
@@ -572,13 +573,13 @@ async function loadFireballFbx(source,{persist=false}={}){
   visual.scale.setScalar(1.3/Math.max(size.x,size.y,size.z,.001));
   if(fireballImported)scene.remove(fireballImported);
   fireballImported=group;
-  fireballImported.visible=presets[selected].id==='fire';
+  fireballImported.visible=['fire','fire_hover'].includes(presets[selected].id);
   scene.add(group);
   fireballMixer=fbx.animations?.length?new THREE.AnimationMixer(fbx):null;
   if(fireballMixer)for(const clip of fbx.animations)fireballMixer.clipAction(clip).reset().play();
   if(persist&&typeof source!=='string')await saveFireballLocal(source);
   status.textContent='✓ Novo FBX carregado sem efeitos adicionais; '+(fbx.animations?.length||0)+' animação(ões).';
-  const index=presets.findIndex(p=>p.id==='fire');
+  const index=presets.findIndex(p=>p.id==='fire_hover');
   if(index!==-1){currentFilter='magic';select(index);}
  }catch(err){status.textContent='Falha ao carregar o FBX: '+err.message+' — mantendo o efeito anterior até carregar um modelo válido.';console.warn(err);}
 }
@@ -595,7 +596,7 @@ initFireballReplacement();
 
 select(selected);
 const clock=new THREE.Clock();function frame(){requestAnimationFrame(frame);const dt=Math.min(clock.getDelta(),.055);if(!state.paused&&state.started){state.clock+=dt;state.cycle+=dt*state.speed;}const p=presets[selected],dur=p.duration;if(fxGroup)fxGroup.visible=true; if(state.cycle>=dur+.35){if(state.loop)state.cycle=0;else{state.cycle=dur+.35;state.started=false}}const t=Math.min(dur, state.cycle);if(state.started||state.cycle<dur)updates.forEach(fn=>fn(t,dur));if(!state.started&&t>=dur){primaryParticle.material.opacity=minorParticle.material.opacity=0;glow.intensity=0;}else glow.intensity=25*state.power*(.5+smooth(t/.5)*.5)*smooth((dur-t)/.7);
-if(fireballImported){const active=p.id==='fire';fireballImported.visible=active;fireballImported.position.set(0,1.55,0);if(active&&!state.paused&&fireballMixer)fireballMixer.update(dt*state.speed);}
+if(fireballImported){const active=p.id==='fire'||p.id==='fire_hover';fireballImported.visible=active;fireballImported.position.set(0,1.85,0);if(active&&!state.paused&&fireballMixer)fireballMixer.update(dt*state.speed);}
 controls.update();renderer.render(scene,camera)}frame();
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
 }catch(err){document.getElementById('loading').style.display='none';document.getElementById('warning').style.display='flex';document.getElementById('errortext').textContent=err?.message||String(err);console.error(err)}
