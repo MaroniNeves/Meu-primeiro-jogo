@@ -2116,6 +2116,31 @@ async function setup(){
   wildfire?.quench();recordEcoEvent('💧 Chamas apagadas; carvão permanece até a regeneração.');
   status();
  };
+ // V12.68: carregar manualmente o GLB CC0 baixado no Poly Pizza.
+ // Os arquivos de modelos não passam pela rede nem substituem texturas
+ // da grama: apenas 12–24 instâncias visuais dos focos usam o GLB.
+ const fireModelInput=$('fireGLBModel');
+ if(fireModelInput)fireModelInput.addEventListener('change',async()=>{
+  const file=fireModelInput.files?.[0],out=$('fireGLBStatus');
+  if(!file||!wildfire)return;
+  if(out)out.textContent='Importando modelo 3D de fogo...';
+  try{
+   const meta=await wildfire.importFireGLB(file);
+   if(out)out.textContent='Fogo GLB ativo · '+meta.objects+
+    ' focos simultâneos · '+meta.triangles+' triângulos por modelo';
+   recordEcoEvent('🔥 Modelo de fogo GLB integrado aos focos de incêndio.');
+  }catch(error){
+   if(out)out.textContent='Falha no GLB: '+error.message+
+    ' · a chama animada padrão continua funcionando';
+   console.warn('[Arcano] Fogo GLB:',error);
+  }finally{fireModelInput.value='';}
+ });
+ const fireModelReset=$('fireGLBReset');
+ if(fireModelReset)fireModelReset.onclick=()=>{
+  wildfire?.clearImportedFire();
+  const out=$('fireGLBStatus');
+  if(out)out.textContent='Chama animada padrão restaurada';
+ };
  const dryTest=$('ecoDryTest');if(dryTest)dryTest.onclick=()=>{
   api.setRainLevel(0);
   recordEcoEvent('Teste de secagem iniciado: chuva parada; a poça infiltra e evapora.');
