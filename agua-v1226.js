@@ -3428,7 +3428,8 @@ const game={
  heading:Math.PI,position:new T.Vector3(),camHeading:Math.PI,camPitch:.35,camDistance:4.8,orbitPointer:null,orbitX:0,orbitY:0,
  input:{x:0,y:0,run:false},keys:new Set(),touch:false,
  elapsed:0,steps:0,loading:false,hasModel:false,openedFullscreen:false,fpsElapsed:0,fpsFrames:0,
- waterStride:0,wasInWater:false,footSide:1,grassSpeed:0,grassOnGround:true
+ waterStride:0,wasInWater:false,footSide:1,grassSpeed:0,grassOnGround:true,
+ isMage:false,castAction:null,castCooldown:0,spellPending:null,mageBaseY:0
 };
 function gameStatus(message){
  if($('gameStatus'))$('gameStatus').textContent=message;
@@ -3497,10 +3498,99 @@ function gameFallback(){
  g.userData.limbs={leftArm,rightArm,leftLeg,rightLeg};
  return g;
 }
+// V12.64 — O mesmo feiticeiro FBX da biblioteca '100 Magias 3D Anime'.
+// Arquivos originais copiados para ESTE repositório: nada é buscado em 'projeto'.
+const MAGE_MODEL='./magias/models/Idle.fbx';
+const MAGE_TEXTURE='./magias/models/diffuse.png';
+const MAGE_CASTS=['cast1','cast2','cast3'];
+async function loadLocalMage(){
+ const {FBXLoader}=await import('https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/loaders/FBXLoader.js');
+ const loader=new FBXLoader(),textureLoader=new T.TextureLoader();
+ const [model,texture,...casts]=await Promise.all([
+  loader.loadAsync(MAGE_MODEL),textureLoader.loadAsync(MAGE_TEXTURE),
+  ...MAGE_CASTS.map(name=>loader.loadAsync('./magias/models/'+name+'.fbx'))
+ ]);
+ texture.colorSpace=T.SRGBColorSpace;
+ model.scale.setScalar(.01);
+ model.updateMatrixWorld(true);
+ let box=new T.Box3().setFromObject(model),height=box.getSize(new T.Vector3()).y;
+ if(!Number.isFinite(height)||height<.001)throw new Error('Feiticeiro FBX sem altura válida');
+ model.scale.setScalar(.01*1.73/height);
+ model.updateMatrixWorld(true);
+ box=new T.Box3().setFromObject(model);
+ const center=box.getCenter(new T.Vector3());
+ model.position.x-=center.x;model.position.z-=center.z;model.position.y-=box.min.y;
+ const names=new Set(),bones={};
+ model.traverse(o=>{
+  names.add(o.name);
+  if(o.isBone){
+   const key=o.name.split(':').pop().replace(/^mixamorig/i,'');
+   bones[key]=o;
+  }
+  if(!o.isMesh&&!o.isSkinnedMesh)return;
+  const mats=Array.isArray(o.material)?o.material:[o.material];
+  const fixed=mats.map(mat=>{
+   const standard=new T.MeshStandardMaterial({
+    name:'Feiticeiro • '+(mat?.name||'material'),
+    map:mat?.map||texture,color:0xffffff,roughness:.87,metalness:0,
+    skinning:true,side:T.FrontSide
+   });
+   return standard;
+  });
+  o.material=Array.isArray(o.material)?fixed:fixed[0];
+  o.castShadow=false;o.receiveShadow=false;o.frustumCulled=false;
+ });
+ // Mesma orientação usada no visualizador original V8: a direção dos
+ // dedos do pé aponta para a frente real da malha, não a frente do FBX.
+ if(bones.LeftFoot&&bones.LeftToeBase){
+  model.updateMatrixWorld(true);
+  const foot=bones.LeftFoot.getWorldPosition(new T.Vector3());
+  const toe=bones.LeftToeBase.getWorldPosition(new T.Vector3());
+  const axis=toe.sub(foot);axis.y=0;
+  if(axis.lengthSq()>1e-6)model.rotation.y=-Math.atan2(axis.x,axis.z);
+ }
+ const mixer=new T.AnimationMixer(model),actions={};
+ const idle=model.animations?.[0];
+ if(idle){actions.idle=mixer.clipAction(idle);actions.idle.play();}
+ let valid=0;
+ casts.forEach((fbx,i)=>{
+  const clip=fbx.animations?.[0]?.clone();
+  if(!clip)return;
+  clip.tracks=clip.tracks.filter(track=>names.has(track.name.split('.')[0]));
+  if(!clip.tracks.length)return;
+  clip.name='cast'+(i+1);
+  const action=mixer.clipAction(clip);
+  action.setLoop(T.LoopOnce,1);action.clampWhenFinished=true;
+  actions[clip.name]=action;valid++;
+ });
+ if(valid<1)throw new Error('Animações de conjuração incompatíveis com o esqueleto');
+ const old=game.character;
+ game.root.add(model);if(old)game.root.remove(old);
+ game.character=model;game.mixer=mixer;game.actions=actions;
+ game.isMage=true;game.animation='idle';game.castAction=null;
+ game.mageBaseY=model.position.y;game.hasModel=true;
+ mixer.addEventListener('finished',event=>{
+  if(event.action!==game.castAction)return;
+  const previous=game.castAction;
+  game.castAction=null;
+  if(actions.idle){
+   actions.idle.reset().play();
+   if(previous!==actions.idle)actions.idle.crossFadeFrom(previous,.19,false);
+  }
+ });
+ gameStatus('Feiticeiro animado · magias 1, 2 e 3');
+ return true;
+}
 async function loadGameCharacter(){
  if(game.loading||game.hasModel)return;
  game.loading=true;
- gameStatus('Carregando personagem 3D…');
+ gameStatus('Carregando feiticeiro da biblioteca de magias…');
+ try{
+  await loadLocalMage();
+  return;
+ }catch(mageError){
+  console.warn('[Arcano] Feiticeiro FBX indisponível; carregando Xbot de reserva:',mageError);
+ }
  try{
   const {GLTFLoader}=await import('https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/loaders/GLTFLoader.js');
   const gltf=await new GLTFLoader().loadAsync(GAME_CHARACTER_GLB_URL);
@@ -3524,7 +3614,7 @@ async function loadGameCharacter(){
    if(/run/.test(label))game.actions.run=game.mixer.clipAction(clip);
    if(/idle/.test(label))game.actions.idle=game.mixer.clipAction(clip);
   }
-  game.animation='';game.hasModel=true;
+  game.animation='';game.hasModel=true;game.isMage=false;
   chooseGameAnimation('idle');
   gameStatus('Personagem carregado · WASD ou direcional');
  }catch(error){
@@ -3533,7 +3623,11 @@ async function loadGameCharacter(){
  }finally{game.loading=false;}
 }
 function chooseGameAnimation(name){
- if(!game.mixer||game.animation===name)return;
+ if(!game.mixer||game.castAction)return;
+ // Este feiticeiro possui idle + três casts; não substituir casts por
+ // ciclos walk/run do manequim antigo (que não existem neste FBX).
+ if(game.isMage)return;
+ if(game.animation===name)return;
  const next=game.actions[name]||game.actions.walk||game.actions.idle;
  if(!next)return;
  const prev=game.actions[game.animation];
@@ -3645,6 +3739,11 @@ function updateGame(dt){
  const anim=length>.1?(control.run?'run':'walk'):'idle';
  chooseGameAnimation(anim);
  if(game.mixer)game.mixer.update(Math.min(dt,.065));
+ if(game.isMage&&game.character){
+  // Caminhada suave sem distorcer os ossos usados pelas animações cast.
+  const stride=length>.08?Math.sin(game.elapsed*(control.run?10:7))*.017:0;
+  game.character.position.y=game.mageBaseY+stride;
+ }
  else if(game.character?.userData.limbs){
   const parts=game.character.userData.limbs,t=performance.now()*.008;
   const gait=length?Math.sin(t*(control.run?2.2:1.4))*.48*length:0;
