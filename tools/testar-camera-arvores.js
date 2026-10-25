@@ -35,7 +35,8 @@ assert.ok(Math.abs(f(focus,dest)-full)<1e-8,'Árvore fora da linha de visão nã
 forestInstances[0].x=0;forestInstances[0].z=2;
 assert.ok(Math.abs(f(focus,dest)-full)<1e-8,'Árvore atrás do boneco não bloqueia');
 assert.match(source,/gameCameraActualDistance=0/);
-assert.match(source,/safeGameCameraDistance\(gameCameraFocus,gameCameraGoal\)/);
+assert.doesNotMatch(source.slice(source.indexOf('function applyGameCamera(){'),source.indexOf('// V12.62: se a copa')),/const safe=safeGameCameraDistance/, 'Árvores não podem forçar zoom automático');
+assert.match(source,/updateGameCameraOcclusion\(gameCameraFocus,camera\.position\)/);
 assert.match(source,/camera\.lookAt\(gameCameraFocus\)/);
 console.log('OK câmera: visão livre, árvore obstrutiva, visibilidade, fora do caminho e retorno.');
 // V12.62: obstáculos entre o jogador e a CÂMERA REAL fazem somente
