@@ -37,3 +37,5 @@ jobs:
           node tools/testar-magias-originais-browser.cjs 0
           node tools/testar-magias-originais-browser.cjs 1
           node tools/testar-magias-originais-browser.cjs 2
+      - name: Conferir pixels visíveis e shaders reais das três magias
+        run: node tools/testar-magias-visuais-originais.cjs
