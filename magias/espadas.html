@@ -344,6 +344,20 @@ function makeSwordVFX(p,C,Hi){
 
 let shieldImpactCleanup=null;
 function effectBuild(){if(shieldImpactCleanup){shieldImpactCleanup();shieldImpactCleanup=null;}const p=presets[selected],C=p.hex,Hi=p.accent,style=p.style||'';disposeGroup(fxGroup);fxGroup=new THREE.Group();scene.add(fxGroup);updates=[];fxMaterials=[];hits=[];swordEmitters=[];
+ if(p.id==='fire'){
+ const trail=[];
+ for(let i=0;i<15;i++)trail.push(sprite(i%3===0?0xffd279:0xff6327,.35,.76,V(-1.8,1.55,0)));
+ updates.push((t,d)=>{
+ const u=clamp(t/Math.max(.01,d*.36));
+ const fade=Math.min(1,Math.max(0,(d-t)/.48));
+ trail.forEach((o,i)=>{
+ const behind=Math.max(0,u-(i+1)*.033);
+ o.position.set(-1.8+3.65*behind,1.55,0);
+ o.scale.setScalar(.12+.36*(1-i/trail.length));
+ o.material.opacity=fade*(.18+.62*(1-i/trail.length))*(u>0?1:0);
+ });});
+ return;
+ }
  const ty=p.type; if(ty==='sword')makeSwordVFX(p,C,Hi); const core=sprite(C,3,.27,V(0,1.35,0));const low=sprite(C,3.7,.2,V(0,.06,0));updates.push((t,d)=>{const fade=smooth(t/.24)*smooth((d-t)/.8);core.material.opacity=(.16+.10*Math.sin(t*4))*fade;low.material.opacity=.17*fade;core.scale.setScalar(2.4+Math.sin(t*2)*.1)});
  const groundRing=ring(1.6,.024,.015,C,.38);const outerRing=ring(2.55,.015,.018,Hi,.22);
  if(ty==='sword'){core.visible=false;low.visible=false;groundRing.visible=false;outerRing.visible=false;}
@@ -593,7 +607,12 @@ async function initFireballReplacement(){
  if(stored)return loadFireballFbx(stored);
  document.getElementById('fireballFbxStatus').textContent='Escolha o FBX animado aqui para substituir a Bola de Fogo; a seleção será lembrada.';
 }
-initFireballReplacement();
+(function installCleanFireball(){
+ const core=new THREE.Mesh(new THREE.SphereGeometry(.62,64,48),new THREE.MeshStandardMaterial({color:0xff731d,emissive:0xff5b0e,emissiveIntensity:1.7,roughness:.45}));
+ const root=new THREE.Group();root.add(core);scene.add(root);
+ fireballImported=root;root.visible=false;
+ document.getElementById('fireballFbxStatus').textContent='Esfera limpa e rastro reto ativos.';
+})();
 
 select(selected);
 const clock=new THREE.Clock();function frame(){requestAnimationFrame(frame);const dt=Math.min(clock.getDelta(),.055);if(!state.paused&&state.started){state.clock+=dt;state.cycle+=dt*state.speed;}const p=presets[selected],dur=p.duration;if(fxGroup)fxGroup.visible=true; if(state.cycle>=dur+.35){if(state.loop)state.cycle=0;else{state.cycle=dur+.35;state.started=false}}const t=Math.min(dur, state.cycle);if(state.started||state.cycle<dur)updates.forEach(fn=>fn(t,dur));if(!state.started&&t>=dur){primaryParticle.material.opacity=minorParticle.material.opacity=0;glow.intensity=0;}else glow.intensity=25*state.power*(.5+smooth(t/.5)*.5)*smooth((dur-t)/.7);
