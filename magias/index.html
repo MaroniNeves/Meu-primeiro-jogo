@@ -100,40 +100,46 @@ window.arcanoLab={ABILITIES,getSelected:()=>chosen,cast:doCast,select:choose,cle
 <a href="./rollshade.html" style="background:#172b30e8;color:#e8f7e9;border:1px solid #749d90;padding:9px;border-radius:9px">Rollshade</a>
 <a href="./lightning.html" style="background:#172b30e8;color:#e8f7e9;border:1px solid #749d90;padding:9px;border-radius:9px">⚡ Raios</a>
 <a href="./catalogo.html" style="background:#172b30e8;color:#e8f7e9;border:1px solid #749d90;padding:9px;border-radius:9px">Packs</a>
-</nav><!-- Uma biblioteca, duas áreas: as cenas 3D originais permanecem intactas. -->
+</nav><!-- Biblioteca unificada: TODOS os efeitos desenhados sobre o mesmo app.scene. -->
 <style>
 .arcano-unified-tabs{position:fixed;z-index:10001;left:50%;top:calc(8px + env(safe-area-inset-top));transform:translateX(-50%);display:flex;gap:4px;padding:4px;border-radius:12px;background:#10202ff2;border:1px solid #6f8a8a;box-shadow:0 4px 18px #0008;font:700 12px system-ui}
 .arcano-unified-tabs button{border:0;border-radius:8px;padding:10px 12px;color:#e0edf0;background:#294052;white-space:nowrap;cursor:pointer}
 .arcano-unified-tabs button[aria-selected=true]{background:#bdaf8b;color:#122027}
-#arcanoEffectsFrame{display:none;position:fixed;inset:0;width:100vw;height:100dvh;border:0;background:#06111b;z-index:8000}
-body.arcano-effects-active #arcanoEffectsFrame{display:block}
-body.arcano-effects-active .ar-control,body.arcano-effects-active .ar-info,body.arcano-effects-active .ar-status,body.arcano-effects-active nav[aria-label="Bibliotecas de magias e floresta"]{display:none!important}
-@media(max-width:740px){.arcano-unified-tabs{top:calc(7px + env(safe-area-inset-top));left:8px;transform:none}.arcano-unified-tabs button{padding:9px 10px;font-size:11px}}
+#arcanoIntegratedPanel{display:none;position:fixed;z-index:10000;top:62px;right:9px;width:min(325px,calc(100vw - 18px));max-height:calc(100dvh - 145px);overflow:auto;padding:15px;background:#101c29ed;border:1px solid #657985;border-radius:14px;box-shadow:0 9px 30px #000b;color:#f2f5eb;font:12px system-ui}
+body.arcano-effects-active #arcanoIntegratedPanel{display:block}
+body.arcano-effects-active .ar-panel,body.arcano-effects-active .ar-bottom{display:none!important}
+#arcanoIntegratedList{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:10px 0}
+.arcano-effect-choice,#arcanoIntegratedCast{min-height:39px;border:1px solid #506b75;background:#203849;color:#f1f5ed;border-radius:9px;font:600 11px system-ui;padding:8px 5px;cursor:pointer}
+.arcano-effect-choice.selected,#arcanoIntegratedCast{background:#b8a177;color:#18232b;border-color:#f5d5a8}
+#arcanoIntegratedStatus{color:#b7d6d8;font-size:11px;display:block;padding:8px 0}
+@media(max-width:740px){.arcano-unified-tabs{top:calc(7px + env(safe-area-inset-top));left:8px;transform:none}.arcano-unified-tabs button{padding:9px 10px;font-size:11px}#arcanoIntegratedPanel{top:58px;max-height:48dvh}}
 </style>
-<div class="arcano-unified-tabs" role="tablist" aria-label="Áreas da biblioteca de magias">
+<div class="arcano-unified-tabs" role="tablist" aria-label="Tipos de magia 3D">
  <button type="button" role="tab" id="arcanoSpellsTab" aria-selected="true" aria-controls="viewport">✨ 100 Magias</button>
- <button type="button" role="tab" id="arcanoEffectsTab" aria-selected="false" aria-controls="arcanoEffectsFrame">⚔️ Efeitos 3D</button>
+ <button type="button" role="tab" id="arcanoEffectsTab" aria-selected="false" aria-controls="arcanoIntegratedPanel">⚔️ Efeitos 3D</button>
 </div>
-<iframe id="arcanoEffectsFrame" title="Efeitos 3D, espadas e magias" loading="lazy" allow="fullscreen"></iframe>
+<aside id="arcanoIntegratedPanel" aria-label="Efeitos 3D na mesma cena das magias">
+ <strong>⚔️ Efeitos 3D · mesmo cenário</strong>
+ <p>Selecione um efeito e lance-o junto ao personagem, sem mudar de câmera ou ambiente.</p>
+ <div id="arcanoIntegratedList"></div>
+ <button type="button" id="arcanoIntegratedCast">✦ Executar efeito na cena</button>
+ <output id="arcanoIntegratedStatus" aria-live="polite">Selecione um efeito para lançar</output>
+</aside>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js';
+window.arcanoEffectsThree=THREE;
+</script>
+<script defer src="./efeitos-integrados.js"></script>
 <script>
 (()=>{
- const spells=document.getElementById('arcanoSpellsTab');
- const effects=document.getElementById('arcanoEffectsTab');
- const frame=document.getElementById('arcanoEffectsFrame');
- function openEffects(active){
+ const spells=document.getElementById('arcanoSpellsTab'),effects=document.getElementById('arcanoEffectsTab');
+ function show(active){
   document.body.classList.toggle('arcano-effects-active',active);
   spells.setAttribute('aria-selected',String(!active));
   effects.setAttribute('aria-selected',String(active));
-  if(active&&!frame.getAttribute('src'))frame.src='./espadas.html';
-  if(active&&window.arcanoLab?.getApp()?.paused===false){
-   // A biblioteca principal continua disponível ao retornar.
-   window.arcanoLab.getApp().paused=true;
-  } else if(!active&&window.arcanoLab?.getApp()?.paused===true){
-   window.arcanoLab.getApp().paused=false;
-  }
  }
- spells.addEventListener('click',()=>openEffects(false));
- effects.addEventListener('click',()=>openEffects(true));
+ spells.addEventListener('click',()=>show(false));
+ effects.addEventListener('click',()=>show(true));
 })();
 </script>
 </body>
