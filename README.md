@@ -26,6 +26,27 @@ No laboratório, toque em **☷ Mostrar ajustes** se o painel estiver recolhido.
 
 Arquivos de entrada: `agua.html` e `index.html`, ambos com a versão V12.63.
 
+## Personagem lançador de magias (V12.64)
+
+No modo **🎮 Jogar**, o projeto usa por padrão o mesmo feiticeiro FBX da biblioteca
+**100 Magias 3D Anime**, carregado de `magias/models/Idle.fbx` com a textura
+`diffuse.png` e os movimentos `cast1.fbx`, `cast2.fbx` e `cast3.fbx`.
+
+- **1 / ✦ Arcano:** projétil mágico.
+- **2 / ✹ Brasa:** orbe de brasa.
+- **3 / ❄ Gelo:** estilhaço de gelo.
+
+No computador, pressione **1, 2 ou 3**; no celular, utilize os três botões
+do modo Jogar. Cada conjuração reproduz a animação original correspondente,
+com projétil e efeito de impacto puramente visuais (ainda sem dano, inimigos
+ou alterações na física ecológica). Os controles da câmera, do zoom, da
+ponte, da grama e da água são mantidos. Se o arquivo FBX falhar, o
+manequim Xbot anterior continua sendo usado como reserva.
+
+**Licenças:** os arquivos FBX e texturas vieram da biblioteca histórica e
+podem conter licenças independentes; confira os termos de origem antes de
+distribuir comercialmente.
+
 ## Executar localmente (mesmo se privado)
 
 Baixe/clone o repositório e, na pasta raiz, execute:
