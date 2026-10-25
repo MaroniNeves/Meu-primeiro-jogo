@@ -19,6 +19,7 @@ window.arcanoSpellEffectsV1265=function(T,scene,options={}){
   shard=new T.ConeGeometry(1,1,5),
   embers=new T.TetrahedronGeometry(1,0),
   ringGeom=new T.RingGeometry(.76,1,48),
+  arcRingGeom=new T.TorusGeometry(.30,.028,4,32),
   runeGeom=new T.BufferGeometry();
  const runes=[],radii=1.0;
  const segs=[];
@@ -78,11 +79,21 @@ window.arcanoSpellEffectsV1265=function(T,scene,options={}){
   const group=p.group,pal=palettes[0],bolts=[];
   for(let n=0;n<3;n++){
    const blade=item(group,octa,solidMat(n===0?pal.core:pal.light,n===0?.94:.83));
-   blade.scale.set(.075,n===0?.42:.34,.075);
+   blade.scale.set(.105,n===0?.54:.44,.105);
    blade.quaternion.setFromUnitVectors(Y,p.dir);
    bolts.push(blade);
   }
   p.blades=bolts;
+  // Dois aros rotativos dão à Rajada Arcana uma silhueta entrelaçada
+  // legível mesmo no zoom padrão, sem virar uma bola luminosa.
+  p.orbitRings=[];
+  for(let i=0;i<2;i++){
+   const ring=item(group,arcRingGeom,solidMat(
+    i===0?pal.core:pal.light,i===0?.66:.40,true));
+   ring.quaternion.setFromUnitVectors(new T.Vector3(0,0,1),p.dir);
+   ring.position.addScaledVector(p.dir,i===0?-.12:-.39);
+   p.orbitRings.push(ring);
+  }
   p.sparks=instance(group,embers,solidMat(pal.core,.75,true),25);
   p.trails=[];
   for(let n=0;n<3;n++){
@@ -95,7 +106,7 @@ window.arcanoSpellEffectsV1265=function(T,scene,options={}){
   p.flames=[];
   for(let i=0;i<5;i++){
    const mesh=item(g,shard,solidMat(i%2?pal.light:pal.core,.81-i*.075,true));
-   mesh.scale.set(.125+i*.024,.48+i*.10,.14+i*.022);
+   mesh.scale.set(.15+i*.037,.64+i*.14,.165+i*.029);
    mesh.quaternion.setFromUnitVectors(Y,p.dir);
    p.flames.push(mesh);
   }
@@ -111,7 +122,7 @@ window.arcanoSpellEffectsV1265=function(T,scene,options={}){
   p.crystals=[];
   for(let i=0;i<7;i++){
    const blade=item(g,octa,solidMat(i%3?pal.light:pal.core,i%2?.84:.98));
-   blade.scale.set(.075,.40+(i%3)*.12,.095);
+   blade.scale.set(.105,.52+(i%3)*.13,.12);
    blade.quaternion.setFromUnitVectors(Y,p.dir);
    p.crystals.push(blade);
   }
@@ -182,11 +193,12 @@ window.arcanoSpellEffectsV1265=function(T,scene,options={}){
    const lateral=V.set(-p.dir.z,0,p.dir.x);
    p.blades.forEach((blade,i)=>{
     const angle=t*10+i*Math.PI*2/3;
-    const r=i===0?.075:.19;
+    const r=i===0?.11:.245;
     blade.position.copy(lateral).multiplyScalar(Math.cos(angle)*r);
     blade.position.y=Math.sin(angle)*r;
     blade.rotation.y+=dt*6;
    });
+   p.orbitRings.forEach((r,i)=>r.rotateZ(dt*(i===0?6.2:-4.8)));
   }else if(p.slot===1){
    p.flames.forEach((mesh,i)=>{
     const t2=t*9+i*1.43;
@@ -200,7 +212,7 @@ window.arcanoSpellEffectsV1265=function(T,scene,options={}){
    const side=V.set(-p.dir.z,0,p.dir.x);
    p.crystals.forEach((mesh,i)=>{
     const r=i-3;
-    mesh.position.copy(side).multiplyScalar(r*.087);
+    mesh.position.copy(side).multiplyScalar(r*.12);
     mesh.position.y=Math.sin(t*6+i)*.065+Math.abs(r)*-.04;
     mesh.position.addScaledVector(p.dir,-Math.abs(r)*.12);
     mesh.rotation.z+=dt*(i%2?3:-2.2);
