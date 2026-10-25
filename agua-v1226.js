@@ -3704,35 +3704,32 @@ function safeGameCameraDistance(focus,desired){
  }
  return distance;
 }
+// V12.63 — distância de zoom ESCOLHIDA PELO JOGADOR fica estável.
+// Obstruções por árvores usam a transparência temporária abaixo, não
+// aproximações automáticas. A câmera ainda acompanha suavemente o boneco.
+const gameCameraOffset=new T.Vector3();
 function applyGameCamera(){
  const goal=game.position;
  const reach=Math.cos(game.camPitch)*game.camDistance;
  const bx=-Math.sin(game.camHeading)*reach,bz=-Math.cos(game.camHeading)*reach;
  gameCameraFocus.set(goal.x,goal.y+1.22,goal.z);
+ const cameraGround=terrainContact(goal.x+bx,goal.z+bz)+.45;
  gameCameraGoal.set(goal.x+bx,
-  Math.max(terrainContact(goal.x+bx,goal.z+bz)+.65,
-   goal.y+1.15+Math.sin(game.camPitch)*game.camDistance),
+  Math.max(cameraGround,gameCameraFocus.y+Math.sin(game.camPitch)*game.camDistance),
   goal.z+bz);
- const safe=safeGameCameraDistance(gameCameraFocus,gameCameraGoal);
- const full=gameCameraGoal.distanceTo(gameCameraFocus);
- // Aproxima imediatamente se bloqueada; retorna suavemente ao afastar.
- const next=gameCameraActualDistance>0?
-  (safe<gameCameraActualDistance?safe:
-   gameCameraActualDistance+(safe-gameCameraActualDistance)*.095):safe;
- gameCameraActualDistance=next;
- if(full>.001)gameCameraGoal.sub(gameCameraFocus).multiplyScalar(next/full).add(gameCameraFocus);
- camera.position.lerp(gameCameraGoal,safe<full?.62:.23);
- // V12.62: um lerp lento pode manter a câmera ATRÁS da árvore por
- // vários quadros, mesmo se o destino já estava seguro.
- const actualDistance=camera.position.distanceTo(gameCameraFocus);
- if(actualDistance>.9){
-  const safeNow=safeGameCameraDistance(gameCameraFocus,camera.position);
-  if(safeNow<actualDistance-.10){
-   camera.position.sub(gameCameraFocus)
-    .multiplyScalar(Math.max(.68,safeNow)/actualDistance)
-    .add(gameCameraFocus);
-  }
- }
+ // O braço da câmera é suavizado na rotação, mas não pode ficar
+ // encurtando/alongando quando uma copa entra ou sai do caminho.
+ camera.position.lerp(gameCameraGoal,.28);
+ gameCameraOffset.subVectors(camera.position,gameCameraFocus);
+ const actual=gameCameraOffset.length();
+ const desired=gameCameraGoal.distanceTo(gameCameraFocus);
+ if(actual>.0001)camera.position.copy(gameCameraFocus)
+  .addScaledVector(gameCameraOffset,desired/actual);
+ else camera.position.copy(gameCameraGoal);
+ // Não atravessar o terreno quando o jogador olhar rente ao chão.
+ camera.position.y=Math.max(camera.position.y,
+  terrainContact(camera.position.x,camera.position.z)+.40);
+ gameCameraActualDistance=game.camDistance;
  camera.lookAt(gameCameraFocus);
  updateGameCameraOcclusion(gameCameraFocus,camera.position);
 }
