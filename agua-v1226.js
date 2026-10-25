@@ -3722,11 +3722,135 @@ function applyGameCamera(){
  gameCameraActualDistance=next;
  if(full>.001)gameCameraGoal.sub(gameCameraFocus).multiplyScalar(next/full).add(gameCameraFocus);
  camera.position.lerp(gameCameraGoal,safe<full?.62:.23);
+ // V12.62: um lerp lento pode manter a câmera ATRÁS da árvore por
+ // vários quadros, mesmo se o destino já estava seguro.
+ const actualDistance=camera.position.distanceTo(gameCameraFocus);
+ if(actualDistance>.9){
+  const safeNow=safeGameCameraDistance(gameCameraFocus,camera.position);
+  if(safeNow<actualDistance-.10){
+   camera.position.sub(gameCameraFocus)
+    .multiplyScalar(Math.max(.68,safeNow)/actualDistance)
+    .add(gameCameraFocus);
+  }
+ }
  camera.lookAt(gameCameraFocus);
+ updateGameCameraOcclusion(gameCameraFocus,camera.position);
+}
+// V12.62: se a copa invade a linha de visão, os MATERIAIS APENAS DAQUELA
+// árvore recebem transparência temporária. Todos os demais mantêm os mapas
+// de casca, folhas, sombras e vento; tudo é restaurado ao sair do modo Jogar.
+const gameCameraFades=new Map();
+let gameCameraFadeClock=0;
+function cameraTreeCrossesView(a,focus,eye){
+ if(!a.obj.visible)return false;
+ const vx=eye.x-focus.x,vy=eye.y-focus.y,vz=eye.z-focus.z;
+ const len2=vx*vx+vy*vy+vz*vz;
+ if(len2<.16)return false;
+ const crownTop=a.dropY||a.y+4;
+ const treeHeight=Math.max(2,crownTop-a.y);
+ const crownY=a.y+treeHeight*.67;
+ const radius=Math.min(4.3,Math.max(.85,(a.crownWidth||2.2)*.54));
+ // Copas e tronco com elipsoides, reduzindo falsos positivos fora da tela.
+ for(const [cy,r,ry] of [[a.y+treeHeight*.34,.40,treeHeight*.42],
+                         [crownY,radius,treeHeight*.52]]){
+  const invR=1/r,invY=1/Math.max(ry,.1);
+  const ox=(focus.x-a.x)*invR,oy=(focus.y-cy)*invY,oz=(focus.z-a.z)*invR;
+  const dx=vx*invR,dy=vy*invY,dz=vz*invR;
+  const A=dx*dx+dy*dy+dz*dz;
+  const B=2*(ox*dx+oy*dy+oz*dz);
+  const C=ox*ox+oy*oy+oz*oz-1;
+  const disc=B*B-4*A*C;
+  if(disc<0)continue;
+  const entry=(-B-Math.sqrt(disc))/(2*A);
+  const exit=(-B+Math.sqrt(disc))/(2*A);
+  // O volume bloqueia um trecho visível do jogador até a câmera.
+  if(exit>.018&&entry<.985)return true;
+ }
+ return false;
+}
+function setGameCameraTreeFade(a,fade){
+ let state=gameCameraFades.get(a);
+ if(!state&&fade>=.999)return;
+ if(!state){
+  const meshes=[];
+  a.obj.traverse(o=>{
+   if(!o.isMesh||!o.material)return;
+   const sources=Array.isArray(o.material)?o.material:[o.material];
+   const clones=sources.map(mat=>{
+    if(!mat)return mat;
+    const copy=mat.clone();
+    copy.transparent=true;
+    copy.depthWrite=false;
+    // Mantém os PNG/FBX/GLTF e o movimento do vento, mas deixa a copa
+    // translúcida em vez de ocultar totalmente o ambiente.
+    copy.alphaTest=Math.min(mat.alphaTest||0,.008);
+    copy.opacity=1;
+    copy.needsUpdate=true;
+    return copy;
+   });
+   const original=o.material;
+   o.material=Array.isArray(original)?clones:clones[0];
+   meshes.push({mesh:o,original,clones});
+  });
+  state={meshes,visibility:1};
+  gameCameraFades.set(a,state);
+ }
+ state.visibility=fade;
+ for(const part of state.meshes)for(const mat of part.clones)
+  if(mat&&'opacity'in mat)mat.opacity=fade;
+}
+function restoreGameCameraTreeFade(a){
+ const state=gameCameraFades.get(a);
+ if(!state)return;
+ for(const part of state.meshes){
+  part.mesh.material=part.original;
+  for(let i=0;i<part.clones.length;i++){
+   const mat=part.clones[i],old=Array.isArray(part.original)?
+    part.original[i]:part.original;
+   if(mat&&mat!==old)mat.dispose();
+  }
+ }
+ gameCameraFades.delete(a);
+}
+function clearGameCameraOcclusion(){
+ for(const a of [...gameCameraFades.keys()])restoreGameCameraTreeFade(a);
+ gameCameraFadeClock=0;
+}
+function updateGameCameraOcclusion(focus,eye){
+ if(!game.active)return;
+ if(gameTreeCount!==forestInstances.length)treesNearGame(focus.x,focus.z);
+ const pad=5,block=3;
+ const loX=Math.floor((Math.min(focus.x,eye.x)-pad)/block);
+ const hiX=Math.floor((Math.max(focus.x,eye.x)+pad)/block);
+ const loZ=Math.floor((Math.min(focus.z,eye.z)-pad)/block);
+ const hiZ=Math.floor((Math.max(focus.z,eye.z)+pad)/block);
+ const blocked=new Set();
+ for(let ix=loX;ix<=hiX;ix++)
+ for(let iz=loZ;iz<=hiZ;iz++){
+  const cell=gameTreeGrid.get(ix+','+iz);
+  if(!cell)continue;
+  for(const a of cell)
+   if(cameraTreeCrossesView(a,focus,eye))blocked.add(a);
+ }
+ const now=performance.now();
+ const dt=gameCameraFadeClock?Math.min(.08,Math.max(0,(now-gameCameraFadeClock)*.001)):.016;
+ gameCameraFadeClock=now;
+ for(const a of blocked){
+  const state=gameCameraFades.get(a);
+  const next=Math.max(.18,(state?.visibility??1)-dt*6);
+  setGameCameraTreeFade(a,next);
+ }
+ for(const [a,state] of gameCameraFades){
+  if(blocked.has(a))continue;
+  const next=Math.min(1,state.visibility+dt*2.8);
+  if(next>=.999)restoreGameCameraTreeFade(a);
+  else setGameCameraTreeFade(a,next);
+ }
 }
 async function setPlayActive(active){
  if(game.active===active)return;
  game.active=active;
+ if(!active)clearGameCameraOcclusion();
  document.body.classList.toggle('play-active',active);
  if($('gameHUD'))$('gameHUD').setAttribute('aria-hidden',String(!active));
  game.keys.clear();game.input.x=0;game.input.y=0;game.input.run=false;game.orbitPointer=null;
