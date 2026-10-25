@@ -227,6 +227,20 @@ body.play-active #arcanoFreshToggle{top:calc(68px + env(safe-area-inset-top))}
 
 /* Remoção permanente da UI: o formulário existe só como estado interno da simulação. */
 #rainControls,#rainControls[hidden],body.play-active #rainControls,body:not(.play-active) #rainControls{display:none!important;visibility:hidden!important;pointer-events:none!important}
+
+/* V12.74 — console compacto novo, independente da UI antiga removida. */
+#arcanoQuickToggle{position:fixed;z-index:85;top:calc(9px + env(safe-area-inset-top));left:11px;padding:10px 13px;border:1px solid #cfb684;border-radius:10px;background:#243838;color:#f4deb2;font:700 12px system-ui;cursor:pointer}
+body.play-active #arcanoQuickToggle{top:calc(65px + env(safe-area-inset-top))}
+#arcanoQuickPanel{position:fixed;z-index:86;top:calc(58px + env(safe-area-inset-top));left:11px;width:min(350px,calc(100vw - 22px));max-height:72dvh;overflow:auto;border:1px solid #bca77d;border-radius:15px;background:#172a31f8;color:#edf1e9;padding:14px;box-shadow:0 15px 40px #000b;font:12px system-ui}
+#arcanoQuickPanel[hidden]{display:none!important}
+body.play-active #arcanoQuickPanel{top:calc(114px + env(safe-area-inset-top))}
+#arcanoQuickPanel header{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px}
+#arcanoQuickPanel header strong{color:#e8d4a8;font:600 20px Georgia,serif}
+#arcanoQuickPanel button,#arcanoQuickPanel select{border:1px solid #829888;border-radius:8px;background:#263e42;color:#edf2e9;padding:9px;min-height:38px;cursor:pointer}
+#arcanoQuickPanel label{display:grid;gap:6px;margin:12px 0;color:#d4e3d9}
+#arcanoQuickPanel select{width:100%}
+#arcanoQuickPanel .arcano-quick-row{display:flex;align-items:center;justify-content:space-between;gap:7px}
+#arcanoQuickPanel #arcanoQuickForecast{line-height:1.5;color:#c4d7ce;margin:12px 0;padding:10px;border:1px solid #61776c;border-radius:9px}
 </style>  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js","fflate":"https://cdn.jsdelivr.net/npm/fflate@0.8.2/esm/browser.js"}}</script>
   <script defer src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script><script defer src="./agua-v1226.js"></script><script defer src="./arcano-assets-v1232.js"></script><script defer src="./nature-imported-v1239.js"></script><script defer src="./fogo-grama-v1267.js"></script><script defer src="./ecossistema-v1232.js"></script>
 </head>
@@ -455,7 +469,14 @@ body.play-active #arcanoFreshToggle{top:calc(68px + env(safe-area-inset-top))}
 <div id="diag" role="alert"></div>
 
 
-<div id="arcanoModeMenu" role="dialog" aria-modal="true" aria-label="Escolher ambiente do Ateliê Arcano">
+<button type="button" id="arcanoQuickToggle" aria-controls="arcanoQuickPanel" aria-expanded="false">⚙ Ajustes (P)</button>
+<section id="arcanoQuickPanel" hidden aria-label="Ajustes rápidos do mundo">
+ <header><strong>✦ Ajustes do mundo</strong><button type="button" id="arcanoQuickClose" aria-label="Fechar ajustes">✕</button></header>
+ <label>🌧 Chuva <select id="arcanoQuickRain"><option value="0">Sem chuva</option><option value="1">Garoa</option><option value="2">Chuva fraca</option><option value="3">Moderada</option><option value="4">Forte</option><option value="5">Temporal</option></select></label>
+ <label>◷ Velocidade do tempo <select id="arcanoQuickTime"><option value="1">1×</option><option value="4">4×</option><option value="16">16×</option><option value="64">64×</option></select></label>
+ <div id="arcanoQuickForecast" aria-live="off">Clima simulado: aguardando dados…</div>
+ <div class="arcano-quick-row"><span>Tecla de acesso: <b id="arcanoQuickKeyLabel">P</b></span><button type="button" id="arcanoQuickRebind">Trocar tecla</button></div>
+</section><div id="arcanoModeMenu" role="dialog" aria-modal="true" aria-label="Escolher ambiente do Ateliê Arcano">
  <div class="arcano-mode-card">
   <div class="arcano-kicker">✦ Portal de entrada · três caminhos</div>
   <h2>Ateliê Arcano</h2>
@@ -480,4 +501,37 @@ body.play-active #arcanoFreshToggle{top:calc(68px + env(safe-area-inset-top))}
  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!menu.hidden)hide();});
 })();
 </script>
-</body></html>
+<script>
+(function(){
+ const panel=document.getElementById('arcanoQuickPanel'),toggle=document.getElementById('arcanoQuickToggle');
+ const close=document.getElementById('arcanoQuickClose'),rebind=document.getElementById('arcanoQuickRebind');
+ const storage='arcano.settings.shortcut.v1';let key='KeyP',recording=false;
+ const valid=/^(Key[A-Z]|Digit[0-9]|F(?:[1-9]|1[0-2]))$/;
+ const reserved=new Set(['KeyW','KeyA','KeyS','KeyD','KeyR','Digit1','Digit2','Digit3']);
+ try{const saved=localStorage.getItem(storage);if(valid.test(saved)&&!reserved.has(saved))key=saved;}catch(e){}
+ const keyLabel=code=>code.replace(/^Key/,'').replace(/^Digit/,'');
+ function syncKey(){document.getElementById('arcanoQuickKeyLabel').textContent=keyLabel(key);toggle.textContent='⚙ Ajustes ('+keyLabel(key)+')';rebind.textContent='Trocar tecla';}
+ function show(open){panel.hidden=!open;toggle.setAttribute('aria-expanded',String(open));}
+ toggle.addEventListener('click',()=>show(panel.hidden));close.addEventListener('click',()=>show(false));
+ rebind.addEventListener('click',()=>{recording=true;rebind.textContent='Pressione uma tecla…';});
+ window.addEventListener('keydown',e=>{
+  if(recording){e.preventDefault();e.stopImmediatePropagation();if(e.code==='Escape'){recording=false;syncKey();return;}
+   if(!valid.test(e.code)||reserved.has(e.code)||e.ctrlKey||e.altKey||e.metaKey)return;
+   key=e.code;recording=false;try{localStorage.setItem(storage,key);}catch(err){}syncKey();return;}
+  if(e.code!==key||e.repeat||e.ctrlKey||e.altKey||e.metaKey||e.target?.closest?.('input,textarea,select,[contenteditable]'))return;
+  if(!document.getElementById('arcanoModeMenu')?.hidden)return;
+  e.preventDefault();e.stopImmediatePropagation();show(panel.hidden);
+ },true);
+ function bind(id,source){const ui=document.getElementById(id),original=document.getElementById(source);if(!ui||!original)return;
+  ui.value=original.value;ui.addEventListener('change',()=>{original.value=ui.value;original.dispatchEvent(new Event('change',{bubbles:true}));});
+ }
+ bind('arcanoQuickRain','intensity');bind('arcanoQuickTime','timelapse');
+ const rain=document.getElementById('arcanoQuickRain'),time=document.getElementById('arcanoQuickTime');
+ function refresh(){if(panel.hidden)return;
+  for(const [ui,id] of [[rain,'intensity'],[time,'timelapse']]){const src=document.getElementById(id);if(src&&ui.value!==src.value)ui.value=src.value;}
+  const m=window.arcanoWaterV1226?.atmosphere?.getMetrics?.();
+  if(m)document.getElementById('arcanoQuickForecast').textContent='Clima simulado: '+m.temperature.toFixed(1)+' °C · umidade '+Math.round(m.humidity*100)+'% · vento '+m.wind.toFixed(1)+' · nuvens '+Math.round(m.clouds*100)+'%.';
+ }
+ setInterval(refresh,3000);syncKey();show(false);
+})();
+</script></body></html>
