@@ -575,25 +575,45 @@ async function loadFireballFbx(source,{persist=false}={}){
     URL.revokeObjectURL(url);resolve(model);
    },undefined,e=>{URL.revokeObjectURL(url);reject(e);});}
   });
-  // Os cones e o pino estão incorporados na geometria original do FBX.
-  // Renderizar somente o núcleo esférico limpo evita qualquer malha interna.
-  const core=new THREE.Mesh(
-    new THREE.SphereGeometry(.62,64,48),
-    new THREE.MeshStandardMaterial({
-      color:0xff731d,emissive:0xff5b0e,emissiveIntensity:1.7,
-      roughness:.45,metalness:0,side:THREE.FrontSide
-    })
-  );
-  core.name='fireball_clean_core';
-  core.castShadow=false;core.receiveShadow=false;
-  const group=new THREE.Group();group.add(core);
+  // Preserva a malha e os clips FBX, mas esconde o pino e as peças internas.
+  fbx.updateMatrixWorld(true);
+  const candidates=[];
+  fbx.traverse(node=>{
+    if(!node.isMesh)return;
+    const box=new THREE.Box3().setFromObject(node);
+    const size=box.getSize(new THREE.Vector3());
+    const dims=[size.x,size.y,size.z].sort((a,b)=>a-b);
+    const roundness=dims[0]/Math.max(dims[2],.00001);
+    const volume=size.x*size.y*size.z;
+    candidates.push({node,roundness,volume});
+  });
+  if(!candidates.length)throw new Error('FBX sem malhas');
+  candidates.sort((a,b)=>(b.roundness*b.volume)-(a.roundness*a.volume));
+  const keep=candidates[0].node;
+  for(const item of candidates)item.node.visible=item.node===keep;
+  keep.traverse(o=>{if(!o.isMesh)return;
+    const mat=new THREE.MeshStandardMaterial({
+      color:0xff7422,emissive:0xff5510,emissiveIntensity:1.45,
+      roughness:.43,metalness:0,side:THREE.DoubleSide
+    });
+    o.material=mat;o.castShadow=false;o.receiveShadow=false;
+  });
+  const bounds=new THREE.Box3().setFromObject(keep);
+  const center=bounds.getCenter(new THREE.Vector3());
+  const size=bounds.getSize(new THREE.Vector3());
+  const visual=new THREE.Group();
+  const positioner=new THREE.Group();positioner.add(fbx);visual.add(positioner);
+  positioner.position.sub(center);
+  visual.scale.setScalar(1.24/Math.max(size.x,size.y,size.z,.001));
+  const group=new THREE.Group();group.add(visual);
   if(fireballImported)scene.remove(fireballImported);
   fireballImported=group;
   fireballImported.visible=presets[selected].id==='fire';
   scene.add(group);
-  fireballMixer=null; // a animação do FBX criava oscilação e movia o pino
+  fireballMixer=fbx.animations?.length?new THREE.AnimationMixer(fbx):null;
+  if(fireballMixer)for(const clip of fbx.animations)fireballMixer.clipAction(clip).play();
   if(persist&&typeof source!=='string')await saveFireballLocal(source);
-  status.textContent='✓ Bola de Fogo limpa, sem pino ou cones; rastro preservado.';
+  status.textContent='✓ FBX animado ativo; peças internas ocultas, rastro e trajetória reta mantidos.';
   const index=presets.findIndex(p=>p.id==='fire');
   if(index!==-1){currentFilter='magic';select(index);}
  }catch(err){status.textContent='Falha ao carregar o FBX: '+err.message+' — mantendo o efeito anterior até carregar um modelo válido.';console.warn(err);}
@@ -613,10 +633,11 @@ async function initFireballReplacement(){
  fireballImported=root;root.visible=false;
  document.getElementById('fireballFbxStatus').textContent='Esfera limpa e rastro reto ativos.';
 })();
+initFireballReplacement();
 
 select(selected);
 const clock=new THREE.Clock();function frame(){requestAnimationFrame(frame);const dt=Math.min(clock.getDelta(),.055);if(!state.paused&&state.started){state.clock+=dt;state.cycle+=dt*state.speed;}const p=presets[selected],dur=p.duration;if(fxGroup)fxGroup.visible=true; if(state.cycle>=dur+.35){if(state.loop)state.cycle=0;else{state.cycle=dur+.35;state.started=false}}const t=Math.min(dur, state.cycle);if(state.started||state.cycle<dur)updates.forEach(fn=>fn(t,dur));if(!state.started&&t>=dur){primaryParticle.material.opacity=minorParticle.material.opacity=0;glow.intensity=0;}else glow.intensity=25*state.power*(.5+smooth(t/.5)*.5)*smooth((dur-t)/.7);
-if(fireballImported){const active=presets[selected].id==='fire';fireballImported.visible=active;if(active){const u=clamp(t/Math.max(.01,dur*.36));fireballImported.position.set(-1.8+3.65*u,1.55,0);}}
+if(fireballImported){const active=presets[selected].id==='fire';fireballImported.visible=active;if(active){const u=clamp(t/Math.max(.01,dur*.36));fireballImported.position.set(-1.8+3.65*u,1.55,0);if(!state.paused&&state.started&&fireballMixer)fireballMixer.update(dt*state.speed*1.75);}}
 controls.update();renderer.render(scene,camera)}frame();
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
 }catch(err){document.getElementById('loading').style.display='none';document.getElementById('warning').style.display='flex';document.getElementById('errortext').textContent=err?.message||String(err);console.error(err)}
