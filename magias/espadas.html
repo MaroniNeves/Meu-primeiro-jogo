@@ -344,20 +344,7 @@ function makeSwordVFX(p,C,Hi){
 
 let shieldImpactCleanup=null;
 function effectBuild(){if(shieldImpactCleanup){shieldImpactCleanup();shieldImpactCleanup=null;}const p=presets[selected],C=p.hex,Hi=p.accent,style=p.style||'';disposeGroup(fxGroup);fxGroup=new THREE.Group();scene.add(fxGroup);updates=[];fxMaterials=[];hits=[];swordEmitters=[];
- if(p.id==='fire'){
- const trail=[];
- for(let i=0;i<15;i++)trail.push(sprite(i%3===0?0xffd279:0xff6327,.35,.76,V(-1.8,1.55,0)));
- updates.push((t,d)=>{
- const u=clamp(t/Math.max(.01,d*.36));
- const fade=Math.min(1,Math.max(0,(d-t)/.48));
- trail.forEach((o,i)=>{
- const behind=Math.max(0,u-(i+1)*.033);
- o.position.set(-1.8+3.65*behind,1.55,0);
- o.scale.setScalar(.12+.36*(1-i/trail.length));
- o.material.opacity=fade*(.18+.62*(1-i/trail.length))*(u>0?1:0);
- });});
- return;
- }
+ if(p.id==='fire')return; // Nova etapa: somente o modelo FBX, sem efeitos legados.
  const ty=p.type; if(ty==='sword')makeSwordVFX(p,C,Hi); const core=sprite(C,3,.27,V(0,1.35,0));const low=sprite(C,3.7,.2,V(0,.06,0));updates.push((t,d)=>{const fade=smooth(t/.24)*smooth((d-t)/.8);core.material.opacity=(.16+.10*Math.sin(t*4))*fade;low.material.opacity=.17*fade;core.scale.setScalar(2.4+Math.sin(t*2)*.1)});
  const groundRing=ring(1.6,.024,.015,C,.38);const outerRing=ring(2.55,.015,.018,Hi,.22);
  if(ty==='sword'){core.visible=false;low.visible=false;groundRing.visible=false;outerRing.visible=false;}
@@ -575,45 +562,22 @@ async function loadFireballFbx(source,{persist=false}={}){
     URL.revokeObjectURL(url);resolve(model);
    },undefined,e=>{URL.revokeObjectURL(url);reject(e);});}
   });
-  // Preserva a malha e os clips FBX, mas esconde o pino e as peças internas.
-  fbx.updateMatrixWorld(true);
-  const candidates=[];
-  fbx.traverse(node=>{
-    if(!node.isMesh)return;
-    const box=new THREE.Box3().setFromObject(node);
-    const size=box.getSize(new THREE.Vector3());
-    const dims=[size.x,size.y,size.z].sort((a,b)=>a-b);
-    const roundness=dims[0]/Math.max(dims[2],.00001);
-    const volume=size.x*size.y*size.z;
-    candidates.push({node,roundness,volume});
-  });
-  if(!candidates.length)throw new Error('FBX sem malhas');
-  candidates.sort((a,b)=>(b.roundness*b.volume)-(a.roundness*a.volume));
-  const keep=candidates[0].node;
-  for(const item of candidates)item.node.visible=item.node===keep;
-  keep.traverse(o=>{if(!o.isMesh)return;
-    const mat=new THREE.MeshStandardMaterial({
-      color:0xff7422,emissive:0xff5510,emissiveIntensity:1.45,
-      roughness:.43,metalness:0,side:THREE.DoubleSide
-    });
-    o.material=mat;o.castShadow=false;o.receiveShadow=false;
-  });
-  const bounds=new THREE.Box3().setFromObject(keep);
-  const center=bounds.getCenter(new THREE.Vector3());
-  const size=bounds.getSize(new THREE.Vector3());
-  const visual=new THREE.Group();
-  const positioner=new THREE.Group();positioner.add(fbx);visual.add(positioner);
-  positioner.position.sub(center);
-  visual.scale.setScalar(1.24/Math.max(size.x,size.y,size.z,.001));
-  const group=new THREE.Group();group.add(visual);
+  // Carrega o FBX integralmente: malhas, materiais, hierarquia e clipes originais.
+  const box=new THREE.Box3().setFromObject(fbx);
+  if(box.isEmpty())throw new Error('O FBX não contém geometria visível');
+  const center=box.getCenter(new THREE.Vector3()),size=box.getSize(new THREE.Vector3());
+  const group=new THREE.Group(),visual=new THREE.Group();
+  visual.add(fbx);group.add(visual);
+  fbx.position.sub(center);
+  visual.scale.setScalar(1.3/Math.max(size.x,size.y,size.z,.001));
   if(fireballImported)scene.remove(fireballImported);
   fireballImported=group;
   fireballImported.visible=presets[selected].id==='fire';
   scene.add(group);
   fireballMixer=fbx.animations?.length?new THREE.AnimationMixer(fbx):null;
-  if(fireballMixer)for(const clip of fbx.animations)fireballMixer.clipAction(clip).play();
+  if(fireballMixer)for(const clip of fbx.animations)fireballMixer.clipAction(clip).reset().play();
   if(persist&&typeof source!=='string')await saveFireballLocal(source);
-  status.textContent='✓ FBX animado ativo; peças internas ocultas, rastro e trajetória reta mantidos.';
+  status.textContent='✓ Novo FBX carregado sem efeitos adicionais; '+(fbx.animations?.length||0)+' animação(ões).';
   const index=presets.findIndex(p=>p.id==='fire');
   if(index!==-1){currentFilter='magic';select(index);}
  }catch(err){status.textContent='Falha ao carregar o FBX: '+err.message+' — mantendo o efeito anterior até carregar um modelo válido.';console.warn(err);}
@@ -627,17 +591,11 @@ async function initFireballReplacement(){
  if(stored)return loadFireballFbx(stored);
  document.getElementById('fireballFbxStatus').textContent='Escolha o FBX animado aqui para substituir a Bola de Fogo; a seleção será lembrada.';
 }
-(function installCleanFireball(){
- const core=new THREE.Mesh(new THREE.SphereGeometry(.62,64,48),new THREE.MeshStandardMaterial({color:0xff731d,emissive:0xff5b0e,emissiveIntensity:1.7,roughness:.45}));
- const root=new THREE.Group();root.add(core);scene.add(root);
- fireballImported=root;root.visible=false;
- document.getElementById('fireballFbxStatus').textContent='Esfera limpa e rastro reto ativos.';
-})();
 initFireballReplacement();
 
 select(selected);
 const clock=new THREE.Clock();function frame(){requestAnimationFrame(frame);const dt=Math.min(clock.getDelta(),.055);if(!state.paused&&state.started){state.clock+=dt;state.cycle+=dt*state.speed;}const p=presets[selected],dur=p.duration;if(fxGroup)fxGroup.visible=true; if(state.cycle>=dur+.35){if(state.loop)state.cycle=0;else{state.cycle=dur+.35;state.started=false}}const t=Math.min(dur, state.cycle);if(state.started||state.cycle<dur)updates.forEach(fn=>fn(t,dur));if(!state.started&&t>=dur){primaryParticle.material.opacity=minorParticle.material.opacity=0;glow.intensity=0;}else glow.intensity=25*state.power*(.5+smooth(t/.5)*.5)*smooth((dur-t)/.7);
-if(fireballImported){const active=presets[selected].id==='fire';fireballImported.visible=active;if(active){const u=clamp(t/Math.max(.01,dur*.36));fireballImported.position.set(-1.8+3.65*u,1.55,0);if(!state.paused&&state.started&&fireballMixer)fireballMixer.update(dt*state.speed*1.75);}}
+if(fireballImported){const active=p.id==='fire';fireballImported.visible=active;fireballImported.position.set(0,1.55,0);if(active&&!state.paused&&fireballMixer)fireballMixer.update(dt*state.speed);}
 controls.update();renderer.render(scene,camera)}frame();
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
 }catch(err){document.getElementById('loading').style.display='none';document.getElementById('warning').style.display='flex';document.getElementById('errortext').textContent=err?.message||String(err);console.error(err)}
