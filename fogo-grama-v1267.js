@@ -168,11 +168,15 @@ window.createArcanoWildfireV1267=function(T,scene,opts={}){
   const {x,z}=locate(k),wet=moisture(x,z),rain=rainfall();
   if(wet>.91||rain>=5)return false;
   if(active.size>=MAX*2&&!active.has(k))return false;
+  // Cinzas recentes não viram combustível novo instantaneamente.
+  // Só a regeneração natural em simulate() repõe o material consumido.
+  const burnedBefore=damaged.has(k);
+  if(burnedBefore&&fuel[k]<.18)return false;
   const dryness=clamp(1-wet*.74-rain*.13,.08,1);
   const value=clamp(strength*dryness,.12,1);
   if(flames[k]<value){
    flames[k]=value;active.add(k);damaged.add(k);
-   fuel[k]=Math.max(fuel[k],clamp(vegetation(x,z),.32,1));
+   if(!burnedBefore)fuel[k]=clamp(vegetation(x,z),.32,1);
    age[k]=0;ignitions++;return true;
   }
   return false;
