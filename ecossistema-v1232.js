@@ -515,7 +515,9 @@ function makeRoad(){
     const alongX=Math.cos(direction),alongZ=Math.sin(direction);
     // Colisão do corpo com as vigas: reservar margem para o raio do boneco.
     // Piso físico de 1.32 u; centro caminhável precisa ficar entre os corrimãos.
-    const halfSpan=span*.5,walkHalfWidth=.35,bodyRadius=.24;
+    // Reversão da barreira excessiva: manter o piso e testar somente
+    // a travessia real da linha dos corrimãos dentro do comprimento da ponte.
+    const halfSpan=span*.5,walkHalfWidth=.33;
     const local=(x,z)=>{
      const px=x-mx,pz=z-mz;
      return {along:px*alongX+pz*alongZ,side:-px*alongZ+pz*alongX};
@@ -525,34 +527,18 @@ function makeRoad(){
      const p=local(x,z);
      return Math.abs(p.along)<=halfSpan+.045&&Math.abs(p.side)<=walkHalfWidth?deckY+.0325:null;
     };
-    // Corrimãos e quatro postes de cabeceira são volumes sólidos.
-    const solids=[
-     {a:0,s:-.57,ha:halfSpan+.08,hs:.10},
-     {a:0,s:.57,ha:halfSpan+.08,hs:.10},
-     ...[-1,1].flatMap(end=>[-1,1].map(side=>({
-      a:end*(halfSpan-.10),s:side*.52,ha:.15,hs:.20
-     })))
-    ];
-    const hits=(p,o)=>{
-     const da=Math.max(Math.abs(p.along-o.a)-o.ha,0);
-     const ds=Math.max(Math.abs(p.side-o.s)-o.hs,0);
-     return da*da+ds*ds<bodyRadius*bodyRadius;
-    };
     const blocksSegment=(x0,z0,x1,z1)=>{
      if(!realm.visible)return false;
-     const distance=Math.hypot(x1-x0,z1-z0),steps=Math.max(1,Math.ceil(distance/.035));
-     // Se o corpo já encostar na madeira, somente bloquear movimentos
-     // que penetrem mais fundo, para não aprisionar o jogador.
-     const initial=local(x0,z0);
-     for(let i=1;i<=steps;i++){
-      const u=i/steps,p=local(x0+(x1-x0)*u,z0+(z1-z0)*u);
-      for(const solid of solids){
-       if(!hits(p,solid))continue;
-       if(!hits(initial,solid))return true;
-       const d0=Math.hypot(Math.max(Math.abs(initial.along-solid.a)-solid.ha,0),Math.max(Math.abs(initial.side-solid.s)-solid.hs,0));
-       const d1=Math.hypot(Math.max(Math.abs(p.along-solid.a)-solid.ha,0),Math.max(Math.abs(p.side-solid.s)-solid.hs,0));
-       if(d1<d0-.0001)return true;
-      }
+     const p0=local(x0,z0),p1=local(x1,z1);
+     // Uma colisão só existe quando se cruza um corrimão, não ao se
+     // aproximar da cabeceira ou caminhar paralelo pelo lado de fora.
+     for(const side of [-.57,.57]){
+      const d=p1.side-p0.side;
+      if(Math.abs(d)<1e-8)continue;
+      const t=(side-p0.side)/d;
+      if(t<0||t>1)continue;
+      const along=p0.along+(p1.along-p0.along)*t;
+      if(Math.abs(along)<=halfSpan+.025)return true;
      }
      return false;
     };
