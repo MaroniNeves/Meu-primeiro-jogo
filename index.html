@@ -152,6 +152,15 @@ body.play-active:not(.ui-hidden) #showControls{display:none!important}
 body.play-active #rainControls{pointer-events:auto}
 body.play-active #rainControls #collapseControls{display:none}
 @media(max-width:620px){#rainControls.bottom{top:calc(110px + env(safe-area-inset-top));right:8px;left:auto;width:min(360px,calc(100vw - 16px));max-height:57dvh;padding:0 11px 11px}#rainControls .arcano-panel-heading{margin:0 -11px 10px;padding:10px 11px}body.play-active #rainControls.bottom{top:calc(115px + env(safe-area-inset-top));max-height:52dvh}}
+
+/* Acesso permanente ao console e personalização do atalho. */
+#arcanoSettingsToggle{position:fixed;z-index:56;right:12px;top:calc(12px + env(safe-area-inset-top));display:flex;align-items:center;gap:8px;padding:10px 13px;min-height:42px;border:1px solid #c7ac7d;border-radius:12px;color:#f1ddb6;background:#182d30f2;box-shadow:0 7px 22px #0009;font:700 12px system-ui;cursor:pointer;pointer-events:auto}
+#arcanoSettingsToggle kbd{border:1px solid #7e927d;padding:3px 6px;border-radius:5px;background:#102022;font:700 11px system-ui}
+body.play-active #arcanoSettingsToggle{top:calc(65px + env(safe-area-inset-top));right:12px}
+body.play-active #showControls,#showControls{display:none!important}
+.arcano-shortcut-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px;padding:9px 10px;background:#20373b;border:1px solid #5d807657;border-radius:10px;color:#d8e4d8;font:12px system-ui}
+#arcanoShortcutCapture{padding:8px 11px;border:1px solid #bba277;border-radius:8px;background:#32473f;color:#f1dfb6;font:700 12px system-ui;cursor:pointer}
+@media(max-width:620px){#arcanoSettingsToggle{padding:9px 10px;min-height:38px;font-size:11px}body.play-active #arcanoSettingsToggle{top:calc(68px + env(safe-area-inset-top))}}
 </style>  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js","fflate":"https://cdn.jsdelivr.net/npm/fflate@0.8.2/esm/browser.js"}}</script>
   <script defer src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script><script defer src="./agua-v1226.js"></script><script defer src="./arcano-assets-v1232.js"></script><script defer src="./nature-imported-v1239.js"></script><script defer src="./fogo-grama-v1267.js"></script><script defer src="./ecossistema-v1232.js"></script>
 </head>
@@ -191,8 +200,9 @@ body.play-active #rainControls #collapseControls{display:none}
  </div>
 </div>
 <div class="hint" id="hint">Chuva começa no solo seco. Observe a formação das poças. Pode recolher os controles para ver a cena.</div>
+<button type="button" id="arcanoSettingsToggle" aria-controls="rainControls" aria-expanded="false" title="Abrir ou fechar o controle do mundo">⚙️ Ajustes <kbd id="arcanoShortcutHint">P</kbd></button>
 <button type="button" id="showControls" aria-controls="rainControls" aria-expanded="false">☷ Mostrar ajustes</button>
-<footer class="bottom" id="rainControls"><div class="arcano-panel-heading" id="arcanoDragHandle" aria-label="Arrastar janela de ajustes"><div><strong>✦ Controle do mundo</strong><small>Tempo · clima · terreno · simulação</small></div><button type="button" id="arcanoCloseSettings" aria-label="Fechar controles">✕</button></div><div class="row"><button class="primary" id="replay">↻ Recomeçar</button><button id="pause">⏸ Pausar</button><button id="cam">◎ Câmera</button><button type="button" id="collapseControls" aria-controls="rainControls">⛶ Ver cena</button></div><div class="rain-row"><label for="intensity">🌧 Intensidade <select id="intensity" aria-label="Nível da chuva"><option value="0">0 · Sem chuva</option><option value="1">1 · Garoa</option><option value="2">2 · Chuva fraca</option><option selected value="3">3 · Chuva moderada</option><option value="4">4 · Chuva forte</option><option value="5">5 · Temporal intenso</option></select></label><output id="intensityName" for="intensity">Chuva moderada</output><button type="button" id="stopRain" aria-pressed="false">☀ Parar chuva</button></div><div id="rainMeter" aria-hidden="true"></div><div id="rainDetail" aria-live="polite"></div>
+<footer class="bottom" id="rainControls"><div class="arcano-shortcut-row"><span>⌨️ Atalho da janela</span><button type="button" id="arcanoShortcutCapture" title="Clique e pressione uma tecla">Alterar: P</button></div><div class="arcano-panel-heading" id="arcanoDragHandle" aria-label="Arrastar janela de ajustes"><div><strong>✦ Controle do mundo</strong><small>Tempo · clima · terreno · simulação</small></div><button type="button" id="arcanoCloseSettings" aria-label="Fechar controles">✕</button></div><div class="row"><button class="primary" id="replay">↻ Recomeçar</button><button id="pause">⏸ Pausar</button><button id="cam">◎ Câmera</button><button type="button" id="collapseControls" aria-controls="rainControls">⛶ Ver cena</button></div><div class="rain-row"><label for="intensity">🌧 Intensidade <select id="intensity" aria-label="Nível da chuva"><option value="0">0 · Sem chuva</option><option value="1">1 · Garoa</option><option value="2">2 · Chuva fraca</option><option selected value="3">3 · Chuva moderada</option><option value="4">4 · Chuva forte</option><option value="5">5 · Temporal intenso</option></select></label><output id="intensityName" for="intensity">Chuva moderada</output><button type="button" id="stopRain" aria-pressed="false">☀ Parar chuva</button></div><div id="rainMeter" aria-hidden="true"></div><div id="rainDetail" aria-live="polite"></div>
 <div class="sim-row" role="group" aria-label="Simulação hidrológica">
   <label for="process">Processo
     <select id="process" aria-label="Processo hidrológico">
@@ -445,5 +455,45 @@ body.play-active #rainControls #collapseControls{display:none}
  // O modo Jogar mantém a janela recolhida até o jogador solicitar.
  document.getElementById('playEntry')?.addEventListener('click',()=>toggle(true));
  document.getElementById('gameExit')?.addEventListener('click',()=>toggle(false));
+})();
+</script><script>
+(function(){
+ const panel=document.getElementById('rainControls'),toggle=document.getElementById('arcanoSettingsToggle');
+ const capture=document.getElementById('arcanoShortcutCapture'),hint=document.getElementById('arcanoShortcutHint');
+ const close=document.getElementById('arcanoCloseSettings');
+ if(!panel||!toggle||!capture||!hint)return;
+ const storageKey='arcano.settings.shortcut.v1';
+ const forbidden=new Set(['Escape','Tab','Enter','Space','Backspace','Delete','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyW','KeyA','KeyS','KeyD','KeyR','Digit1','Digit2','Digit3']);
+ const readable=code=>code.startsWith('Key')?code.slice(3):code.startsWith('Digit')?code.slice(5):code.startsWith('F')?code:code;
+ let hotkey='KeyP',capturing=false;
+ try{const saved=localStorage.getItem(storageKey);if(saved&&/^(Key[A-Z]|Digit[0-9]|F(?:[1-9]|1[0-2]))$/.test(saved)&&!forbidden.has(saved))hotkey=saved;}catch(e){}
+ function label(){hint.textContent=readable(hotkey);capture.textContent='Alterar: '+readable(hotkey);capture.setAttribute('aria-label','Definir tecla de atalho. Atual: '+readable(hotkey));}
+ function setOpen(visible){document.body.classList.toggle('ui-hidden',!visible);toggle.setAttribute('aria-expanded',String(visible));document.getElementById('showControls')?.setAttribute('aria-expanded',String(visible));document.getElementById('collapseControls')?.setAttribute('aria-expanded',String(visible));}
+ function isOpen(){return !document.body.classList.contains('ui-hidden');}
+ label();
+ toggle.addEventListener('click',()=>setOpen(!isOpen()));
+ // Botão existente pode continuar fechando a janela.
+ capture.addEventListener('click',()=>{capturing=true;capture.textContent='Pressione uma tecla…';capture.setAttribute('aria-pressed','true');capture.focus();});
+ document.addEventListener('keydown',e=>{
+  if(capturing){
+   e.preventDefault();e.stopImmediatePropagation();
+   if(e.code==='Escape'){capturing=false;capture.setAttribute('aria-pressed','false');label();return;}
+   if(e.repeat||e.ctrlKey||e.altKey||e.metaKey)return;
+   if(!/^(Key[A-Z]|Digit[0-9]|F(?:[1-9]|1[0-2]))$/.test(e.code)||forbidden.has(e.code)){
+    capture.textContent='Tecla reservada. Escolha outra';return;
+   }
+   hotkey=e.code;try{localStorage.setItem(storageKey,hotkey);}catch(err){}
+   capturing=false;capture.setAttribute('aria-pressed','false');label();return;
+  }
+  const t=e.target;
+  if(e.code!==hotkey||e.repeat||e.altKey||e.ctrlKey||e.metaKey||t?.matches?.('input,textarea,select,[contenteditable]'))return;
+  if(!document.getElementById('arcanoModeMenu')?.hidden)return;
+  e.preventDefault();e.stopImmediatePropagation();setOpen(!isOpen());
+ },true);
+ document.addEventListener('pointerdown',e=>{if(capturing&&!capture.contains(e.target)){capturing=false;capture.setAttribute('aria-pressed','false');label();}},true);
+ // Fechar o painel com X mantém o estado do novo botão sincronizado.
+ close?.addEventListener('click',()=>toggle.setAttribute('aria-expanded','false'));
+ document.getElementById('playEntry')?.addEventListener('click',()=>toggle.setAttribute('aria-expanded','false'));
+ document.getElementById('gameExit')?.addEventListener('click',()=>toggle.setAttribute('aria-expanded','true'));
 })();
 </script></body></html>
