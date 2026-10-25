@@ -3,19 +3,16 @@
 Laboratório/jogo 3D independente com floresta, grama Quaternius,
 personagem animado, ciclo de clima, física da água e ecossistema.
 
-## Jogar no navegador
+## Abrir o laboratório ou jogar no navegador
 
-**[▶ Abrir Meu Primeiro Jogo](https://raw.githack.com/MaroniNeves/Meu-Primeiro-jogo/main/index.html)**
+- **[🧪 Abrir o Laboratório Arcano (V12.63)](https://raw.githack.com/MaroniNeves/Meu-Primeiro-jogo/main/agua.html)** — simulação completa com os controles de chuva, água, vento, floresta, solo e ecossistema.
+- **[🎮 Abrir o Meu Primeiro Jogo](https://raw.githack.com/MaroniNeves/Meu-Primeiro-jogo/main/index.html)** — mesma cena, com o botão **Jogar** para controlar o personagem.
 
-**Importante:** o link acima funciona quando este repositório está **público**.
-O serviço GitHack não consegue ler arquivos de repositórios privados.
-Para liberar o acesso: **Settings → General → Danger Zone →
-Change repository visibility → Public**.
-Essa operação torna públicos o código, modelos e texturas deste repositório.
+No laboratório, toque em **☷ Mostrar ajustes** se o painel estiver recolhido. Se estiver no modo Jogar, use **← Sair do jogo** para retornar aos controles do laboratório.
 
-O arquivo inicial para hospedagem é `index.html`. O laboratório também
-pode ser acessado por `agua.html`; ambos referenciam os modelos e scripts
-copiados para esta mesma raiz, sem depender da pasta do repositório antigo.
+**Este repositório já está público.** Os dois links executam arquivos de sua própria raiz (não dependem do antigo repositório `projeto`). O serviço GitHack precisa estar acessível no navegador e os recursos externos de Three.js precisam carregar normalmente.
+
+Arquivos de entrada: `agua.html` e `index.html`, ambos com a versão V12.63.
 
 ## Executar localmente (mesmo se privado)
 
