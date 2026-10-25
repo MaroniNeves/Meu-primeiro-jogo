@@ -3587,7 +3587,12 @@ function spawnMageProjectile(slot){
  if(!mageVfx)return;
  const origin=mageSpellOrigin(),direction=mageSpellDirection();
  const len=[12,9.5,10][slot];
- mageVfx.cast(slot,origin,direction,len).catch(error=>{
+ mageVfx.cast(slot,origin,direction,len).then(success=>{
+  // Dragonbreath é o efeito ORIGINAL do laboratório. O fogo ecológico
+  // é a consequência no solo, sem alterar a aparência dessa magia.
+  if(success&&slot===1&&window.arcanoWildfire)
+   window.arcanoWildfire.igniteCone(origin,direction,6.4);
+ }).catch(error=>{
   console.error('[Arcano V12.66] Não foi possível lançar magia do laboratório:',error);
   gameStatus('Efeito original indisponível: '+mageSpells[slot]?.name);
   game.castCooldown=0;
@@ -4403,6 +4408,6 @@ function loop(now){
 
 window.addEventListener('resize',resize);
 window.addEventListener('error',e=>{if((e.filename||'').includes('agua-v1226'))fail(e.error||e.message);});
-window.arcanoWaterV1226={scene,renderer,getGrassPlayer:()=>game.active?game:null,setGraphicsQuality,getGraphicsQuality:()=>graphicsQuality,getViewDistance:()=>viewDistance,getViewFov:()=>viewFov,setViewSettings,biomeField,QUALITY_PRESETS,snapForestToGround,setForestCollection,leafWindUniforms,leafWindMaterials,getFog:()=>({strength:fogStrength,target:fogTarget,rainMemory:fogRainMemory,age:fogRainAge,dewGap:fogDewGap,wind:atmWindMean,reason:fogCause}),forestGroup,forestModels,forestInstances,setFloraVisible,seed,setMode,add,setSoilType,addSoilOrganic,addSoilNutrients,terrain:land,water,stones,grass,sprouts:sproutGroup,soilProfiles:SOIL_PROFILES,soilKeyIndex,soilOrganic,soilLitter,soilN,soilP,soilK,soilCa,soilPH,soilSalinity,soilBiota,soilPlant,soilHealth,soilLimiting,soilCapacity,permeability,ecologyStep,soilMoisture,deepWater,canopy,depth,soil,turbidity,stats,impactHeightAt,rockHeightAt,rockSolids,setRainLevel,getRainLevel:()=>level,applyClimate,skyDome,atmosphere:{temp:atmTemp,humidity:atmHumidity,pressure:atmPressure,cloud:atmCloud,rain:atmRain,rainField,getDayClock:()=>dayClock,getGrassWindHeading:()=>atmWindHeading,getGrassWindPower:()=>windUserPower,getGrassStorm:()=>stormActive()||climate==='storm',getMetrics:()=>({temperature:atmTempMean,humidity:atmHumMean,pressure:atmPressureMean,wind:atmWindMean,clouds:atmCloudMean,rain:atmRainMean,daySeconds:dayClock})},reflectionCamera,reflectionCamera2,getMode:()=>mode,getWetArea:()=>wetted,getImpacts:()=>totalImpacts};
+window.arcanoWaterV1226={scene,renderer,getMainCamera:()=>camera,getGrassPlayer:()=>game.active?game:null,setGraphicsQuality,getGraphicsQuality:()=>graphicsQuality,getViewDistance:()=>viewDistance,getViewFov:()=>viewFov,setViewSettings,biomeField,QUALITY_PRESETS,snapForestToGround,setForestCollection,leafWindUniforms,leafWindMaterials,getFog:()=>({strength:fogStrength,target:fogTarget,rainMemory:fogRainMemory,age:fogRainAge,dewGap:fogDewGap,wind:atmWindMean,reason:fogCause}),forestGroup,forestModels,forestInstances,setFloraVisible,seed,setMode,add,setSoilType,addSoilOrganic,addSoilNutrients,terrain:land,water,stones,grass,sprouts:sproutGroup,soilProfiles:SOIL_PROFILES,soilKeyIndex,soilOrganic,soilLitter,soilN,soilP,soilK,soilCa,soilPH,soilSalinity,soilBiota,soilPlant,soilHealth,soilLimiting,soilCapacity,permeability,ecologyStep,soilMoisture,deepWater,canopy,depth,soil,turbidity,stats,impactHeightAt,rockHeightAt,rockSolids,setRainLevel,getRainLevel:()=>level,applyClimate,skyDome,atmosphere:{temp:atmTemp,humidity:atmHumidity,pressure:atmPressure,cloud:atmCloud,rain:atmRain,rainField,getDayClock:()=>dayClock,getGrassWindHeading:()=>atmWindHeading,getGrassWindPower:()=>windUserPower,getGrassStorm:()=>stormActive()||climate==='storm',getMetrics:()=>({temperature:atmTempMean,humidity:atmHumMean,pressure:atmPressureMean,wind:atmWindMean,clouds:atmCloudMean,rain:atmRainMean,daySeconds:dayClock})},reflectionCamera,reflectionCamera2,getMode:()=>mode,getWetArea:()=>wetted,getImpacts:()=>totalImpacts};
 try{resize();setMode('puddle');setGraphicsQuality(graphicsQuality);setViewSettings(viewFov,viewDistance);requestAnimationFrame(loop);}catch(e){fail(e);}
 })();
