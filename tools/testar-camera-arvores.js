@@ -5,7 +5,7 @@ const source=fs.readFileSync('agua-v1226.js','utf8');
 const a=source.indexOf('function safeGameCameraDistance(');
 const b=source.indexOf('function applyGameCamera(){',a);
 assert.ok(a>=0&&b>a);
-let forestInstances=[],T={},gameTreeGrid=new Map(),gameTreeCount=-1;
+let forestInstances=[],T={Vector3:class {}},gameTreeGrid=new Map(),gameTreeCount=-1;
 function treesNearGame(){
  if(gameTreeCount!==forestInstances.length){
   gameTreeGrid.clear();gameTreeCount=forestInstances.length;
