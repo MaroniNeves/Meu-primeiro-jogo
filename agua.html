@@ -110,6 +110,19 @@ body.play-active #gameHUD #gameRun{min-width:85px;height:70px;background:#4d4937
  .game-legend{display:none}.game-bottom{left:12px;right:12px}}
 body.play-active #gameFPS{font:700 12px system-ui;color:#bcecc6;white-space:nowrap}
 body.play-active .game-top{flex-wrap:wrap}
+
+/* Entrada de três modos; não altera o renderizador ou os controles de cada modo. */
+#arcanoModeMenu{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:20px;background:#081116dd;backdrop-filter:blur(9px)}
+#arcanoModeMenu[hidden]{display:none}
+.arcano-mode-card{width:min(420px,100%);padding:23px;background:#11202beF;border:1px solid #6f827d;border-radius:19px;box-shadow:0 18px 60px #000a;text-align:center}
+.arcano-mode-card h2{font:500 27px Georgia,serif;color:#ebd6ad;margin:3px 0 8px}
+.arcano-mode-card p{font:13px/1.5 system-ui;color:#bfd0c9;margin:0 0 17px}
+.arcano-mode-options{display:grid;gap:9px}
+.arcano-mode-options a,.arcano-mode-options button{display:block;width:100%;border:1px solid #7b9489;border-radius:12px;padding:14px;background:#213b3e;color:#eef6ef;text-decoration:none;font:700 15px system-ui;cursor:pointer}
+.arcano-mode-options button{background:#a68e68;color:#151b1a;border-color:#d7c3a2}
+.arcano-mode-card small{display:block;color:#a9bbb3;font:11px/1.5 system-ui;margin-top:14px}
+#arcanoOpenModes{position:fixed;z-index:33;top:calc(10px + env(safe-area-inset-top));left:12px;border:1px solid #829b8e;border-radius:10px;padding:10px 12px;background:#233c38;color:#f1f5eb;font:700 12px system-ui;cursor:pointer}
+body.play-active #arcanoOpenModes{display:none}
 </style>  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js","fflate":"https://cdn.jsdelivr.net/npm/fflate@0.8.2/esm/browser.js"}}</script>
   <script defer src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script><script defer src="./agua-v1226.js"></script><script defer src="./arcano-assets-v1232.js"></script><script defer src="./nature-imported-v1239.js"></script><script defer src="./fogo-grama-v1267.js"></script><script defer src="./ecossistema-v1232.js"></script>
 </head>
@@ -346,6 +359,28 @@ body.play-active .game-top{flex-wrap:wrap}
  hide.addEventListener('click',()=>setHidden(true));
  show.addEventListener('click',()=>setHidden(false));
  window.addEventListener('keydown',e=>{if(e.key==='Escape'&&!document.body.classList.contains('play-active'))setHidden(true);});
+})();
+</script>
+
+<div id="arcanoModeMenu" role="dialog" aria-modal="true" aria-label="Escolher ambiente do Ateliê Arcano">
+ <div class="arcano-mode-card"><h2>✦ Ateliê Arcano</h2><p>Escolha o ambiente. Cada modo mantém seu cenário e seus controles originais.</p>
+  <div class="arcano-mode-options">
+   <a href="./magias/espadas.html">⚔️ Efeitos 3D</a>
+   <a href="./magias/index.html">✨ Magias</a>
+   <button type="button" id="arcanoModePlay">🎮 Jogar</button>
+  </div><small>O modo Jogar usa a floresta e o personagem original, sem alterações.</small>
+ </div>
+</div>
+<button type="button" id="arcanoOpenModes" aria-controls="arcanoModeMenu" aria-label="Escolher entre Efeitos 3D, Magias e Jogar">☰ Modos</button>
+<script>
+(function(){
+ const menu=document.getElementById('arcanoModeMenu');
+ const open=document.getElementById('arcanoOpenModes');
+ const play=document.getElementById('arcanoModePlay');
+ const hide=()=>{menu.hidden=true;document.body.classList.remove('arcano-menu-open');};
+ open.addEventListener('click',()=>{menu.hidden=false;});
+ play.addEventListener('click',()=>{hide();document.getElementById('playEntry')?.click();});
+ document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!menu.hidden)hide();});
 })();
 </script>
 </body></html>
