@@ -1,0 +1,38 @@
+name: Importar sprite CC0 de fogo
+on:
+  push:
+    paths:
+      - '.github/workflows/importar-fogo-cc0.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  sprite-fogo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Copiar imagem de fogo CC0 do OpenGameArt
+        run: |
+          set -eu
+          mkdir -p fire-assets
+          curl --fail --location --retry 3 --max-time 35 \
+            'https://opengameart.org/sites/default/files/fire1_64.png' \
+            --output fire-assets/fire1_64.png
+          file fire-assets/fire1_64.png
+          test "$(wc -c < fire-assets/fire1_64.png)" -gt 10000
+          cat > fire-assets/ORIGEM.txt <<'EOF'
+          Animated Fire — BenHickling, OpenGameArt (2018)
+          https://opengameart.org/content/animated-fire
+          Imagem original: fire1_64.png
+          Licenca CC0 (dominio publico), conforme pagina do autor.
+          Atlas de 10 colunas por 6 linhas, 60 quadros.
+          Para animacao dos incendios da grama V12.67.
+          EOF
+          rm .github/workflows/importar-fogo-cc0.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m "Importa sprite animado de fogo CC0 do OpenGameArt para incendios do gramado"
+          git push origin HEAD:main
