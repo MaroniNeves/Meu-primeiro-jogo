@@ -1892,6 +1892,12 @@ function update(dt){
  if(uiAccumulator>1.4){uiAccumulator=0;hideDetachedAntModels();status();}
 }
 function status(){
+ if(wildfire){
+  const f=wildfire.status(),element=$('fireStatus');
+  if(element)element.textContent='🔥 Fogo: '+f.burning+' células queimando · '
+   +f.scorched+' marcadas/recuperando · chuva '+(api.getRainLevel?.()||0)
+   +'/5 · vento controla a propagação. Braços e pontas da grama carbonizam.';
+ }
  const workers=colonies.reduce((a,b)=>a+b.workers,0),eggs=colonies.reduce((a,b)=>a+b.brood.filter(g=>g.stage==='egg').reduce((sum,c)=>sum+c.count,0),0);
  const larva=colonies.reduce((a,b)=>a+b.brood.reduce((sum,c)=>sum+(c.stage==='larva'?c.count:0),0),0);
  const adults=worms.reduce((a,b)=>a+b.adults,0),cocoons=worms.reduce((a,b)=>a+b.cocoons.reduce((sum,c)=>sum+c.count,0),0);
@@ -2089,6 +2095,25 @@ async function setup(){
  const advance=$('ecoAdvance');if(advance)advance.onclick=()=>{
   for(let d=0;d<30;d++)lifeDay(1);
   if(nestCutGroup.visible)drawNestCutaway();
+  status();
+ };
+ const igniteButton=$('fireIgnite');
+ if(igniteButton)igniteButton.onclick=()=>{
+  if(!wildfire)return;
+  // O teste usa uma clareira com grama real em vez da estrada/água.
+  const p=api.getGrassPlayer?.()?.position;
+  const center=p?{x:p.x,z:p.z}:{x:7,z:6};
+  let ignited=false;
+  for(const [x,z] of [[0,1.8],[2,2],[3,-2],[-2,3],[4,4],[6,0],[-4,-3]]){
+   ignited=wildfire.ignite(center.x+x,center.z+z,1.6,.94)||ignited;
+  }
+  if(!ignited)recordEcoEvent('Fogo impedido por água, vegetação ausente ou solo muito úmido.');
+  else recordEcoEvent('🔥 Queimada iniciada: grama aquece, escurece e reage ao vento e à chuva.');
+  status();
+ };
+ const extinguishButton=$('fireExtinguish');
+ if(extinguishButton)extinguishButton.onclick=()=>{
+  wildfire?.quench();recordEcoEvent('💧 Chamas apagadas; carvão permanece até a regeneração.');
   status();
  };
  const dryTest=$('ecoDryTest');if(dryTest)dryTest.onclick=()=>{
