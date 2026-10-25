@@ -130,6 +130,28 @@ body.play-active .game-top{flex-wrap:wrap}
 body.play-active #arcanoOpenModes{display:none}
 @media(max-width:570px){.arcano-mode-card{padding:23px 17px;border-radius:17px}.arcano-mode-options{grid-template-columns:1fr;gap:9px}.arcano-mode-options button.arcano-main-play{grid-column:auto}.arcano-mode-options a,.arcano-mode-options button{min-height:78px;padding:12px 13px}.arcano-icon{flex-basis:44px;height:44px}.arcano-mode-card p{margin-bottom:19px}.arcano-mode-card h2{font-size:38px}}
 @media(prefers-reduced-motion:reduce){.arcano-mode-options a,.arcano-mode-options button{transition:none}}
+
+/* V12.70: console flutuante para ajustes de mundo também durante o jogo */
+#rainControls.bottom{position:fixed;left:auto;right:clamp(10px,2vw,26px);top:clamp(72px,12vh,120px);bottom:auto;margin:0;width:min(410px,calc(100vw - 20px));max-width:none;max-height:min(72dvh,680px);z-index:52;border:1px solid #9d927080;border-radius:17px;background:linear-gradient(160deg,#172a30f7,#0c181ff7);box-shadow:0 18px 48px #000a,inset 0 1px #e2c9911e;padding:0 14px 14px;overflow-y:auto;overscroll-behavior:contain;scrollbar-color:#8d9274 #16252b}
+#rainControls .arcano-panel-heading{position:sticky;top:0;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 -14px 12px;padding:13px 14px;background:#182c32f9;border-bottom:1px solid #8f98733e;cursor:grab;touch-action:none;user-select:none}
+#rainControls .arcano-panel-heading:active{cursor:grabbing}
+.arcano-panel-heading strong{color:#e9d5a9;font:600 17px Georgia,serif}
+.arcano-panel-heading small{display:block;font:11px system-ui;color:#b4c9c2;margin-top:3px}
+#arcanoCloseSettings{min-width:38px;height:38px;border:1px solid #9b9e8177;border-radius:9px;background:#263d3f;color:#f1e9d5;font-size:19px;cursor:pointer}
+#rainControls .row{flex-wrap:wrap!important}
+#rainControls .row button{flex:1 1 92px;min-width:0}
+#rainControls select,#rainControls input[type=number]{border:1px solid #83988866;border-radius:9px;background:#22383e;color:#f1f3e9}
+#rainControls summary{color:#e3d0aa}
+#showControls{display:block;position:fixed;z-index:51;right:14px;top:calc(12px + env(safe-area-inset-top));bottom:auto;padding:11px 14px;border:1px solid #c0aa78a8;border-radius:11px;background:#1f3738f4;color:#f1e0b6;box-shadow:0 7px 25px #0008;font-weight:700;cursor:pointer}
+body:not(.ui-hidden) #showControls{display:none}
+body.ui-hidden #rainControls{display:none!important}
+body.play-active #rainControls.bottom:not(.arcano-closed){display:block!important}
+body.play-active.ui-hidden #rainControls.bottom{display:none!important}
+body.play-active #showControls{display:block!important;top:calc(67px + env(safe-area-inset-top));right:12px;bottom:auto;z-index:53;pointer-events:auto}
+body.play-active:not(.ui-hidden) #showControls{display:none!important}
+body.play-active #rainControls{pointer-events:auto}
+body.play-active #rainControls #collapseControls{display:none}
+@media(max-width:620px){#rainControls.bottom{top:calc(110px + env(safe-area-inset-top));right:8px;left:auto;width:min(360px,calc(100vw - 16px));max-height:57dvh;padding:0 11px 11px}#rainControls .arcano-panel-heading{margin:0 -11px 10px;padding:10px 11px}body.play-active #rainControls.bottom{top:calc(115px + env(safe-area-inset-top));max-height:52dvh}}
 </style>  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js","fflate":"https://cdn.jsdelivr.net/npm/fflate@0.8.2/esm/browser.js"}}</script>
   <script defer src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script><script defer src="./agua-v1226.js"></script><script defer src="./arcano-assets-v1232.js"></script><script defer src="./nature-imported-v1239.js"></script><script defer src="./fogo-grama-v1267.js"></script><script defer src="./ecossistema-v1232.js"></script>
 </head>
@@ -170,7 +192,7 @@ body.play-active #arcanoOpenModes{display:none}
 </div>
 <div class="hint" id="hint">Chuva começa no solo seco. Observe a formação das poças. Pode recolher os controles para ver a cena.</div>
 <button type="button" id="showControls" aria-controls="rainControls" aria-expanded="false">☷ Mostrar ajustes</button>
-<footer class="bottom" id="rainControls"><div class="row"><button class="primary" id="replay">↻ Recomeçar</button><button id="pause">⏸ Pausar</button><button id="cam">◎ Câmera</button><button type="button" id="collapseControls" aria-controls="rainControls">⛶ Ver cena</button></div><div class="rain-row"><label for="intensity">🌧 Intensidade <select id="intensity" aria-label="Nível da chuva"><option value="0">0 · Sem chuva</option><option value="1">1 · Garoa</option><option value="2">2 · Chuva fraca</option><option selected value="3">3 · Chuva moderada</option><option value="4">4 · Chuva forte</option><option value="5">5 · Temporal intenso</option></select></label><output id="intensityName" for="intensity">Chuva moderada</output><button type="button" id="stopRain" aria-pressed="false">☀ Parar chuva</button></div><div id="rainMeter" aria-hidden="true"></div><div id="rainDetail" aria-live="polite"></div>
+<footer class="bottom" id="rainControls"><div class="arcano-panel-heading" id="arcanoDragHandle" aria-label="Arrastar janela de ajustes"><div><strong>✦ Controle do mundo</strong><small>Tempo · clima · terreno · simulação</small></div><button type="button" id="arcanoCloseSettings" aria-label="Fechar controles">✕</button></div><div class="row"><button class="primary" id="replay">↻ Recomeçar</button><button id="pause">⏸ Pausar</button><button id="cam">◎ Câmera</button><button type="button" id="collapseControls" aria-controls="rainControls">⛶ Ver cena</button></div><div class="rain-row"><label for="intensity">🌧 Intensidade <select id="intensity" aria-label="Nível da chuva"><option value="0">0 · Sem chuva</option><option value="1">1 · Garoa</option><option value="2">2 · Chuva fraca</option><option selected value="3">3 · Chuva moderada</option><option value="4">4 · Chuva forte</option><option value="5">5 · Temporal intenso</option></select></label><output id="intensityName" for="intensity">Chuva moderada</output><button type="button" id="stopRain" aria-pressed="false">☀ Parar chuva</button></div><div id="rainMeter" aria-hidden="true"></div><div id="rainDetail" aria-live="polite"></div>
 <div class="sim-row" role="group" aria-label="Simulação hidrológica">
   <label for="process">Processo
     <select id="process" aria-label="Processo hidrológico">
@@ -394,4 +416,34 @@ body.play-active #arcanoOpenModes{display:none}
  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!menu.hidden)hide();});
 })();
 </script>
-</body></html>
+<script>
+(function(){
+ const panel=document.getElementById('rainControls'),handle=document.getElementById('arcanoDragHandle');
+ const close=document.getElementById('arcanoCloseSettings'),open=document.getElementById('showControls');
+ if(!panel||!handle||!close||!open)return;
+ function toggle(hidden){
+  document.body.classList.toggle('ui-hidden',hidden);
+  open.setAttribute('aria-expanded',String(!hidden));
+  document.getElementById('collapseControls')?.setAttribute('aria-expanded',String(!hidden));
+ }
+ close.addEventListener('click',()=>toggle(true));
+ open.addEventListener('click',()=>toggle(false));
+ let grab=null;
+ handle.addEventListener('pointerdown',e=>{
+  if(e.target.closest('button')||e.button!==0)return;
+  const r=panel.getBoundingClientRect();grab={x:e.clientX,y:e.clientY,left:r.left,top:r.top};
+  handle.setPointerCapture(e.pointerId);e.preventDefault();
+ });
+ handle.addEventListener('pointermove',e=>{
+  if(!grab)return;
+  const x=Math.max(6,Math.min(innerWidth-panel.offsetWidth-6,grab.left+e.clientX-grab.x));
+  const y=Math.max(6,Math.min(innerHeight-60,grab.top+e.clientY-grab.y));
+  panel.style.left=x+'px';panel.style.right='auto';panel.style.top=y+'px';
+ });
+ const end=()=>{grab=null};
+ handle.addEventListener('pointerup',end);handle.addEventListener('pointercancel',end);
+ // O modo Jogar mantém a janela recolhida até o jogador solicitar.
+ document.getElementById('playEntry')?.addEventListener('click',()=>toggle(true));
+ document.getElementById('gameExit')?.addEventListener('click',()=>toggle(false));
+})();
+</script></body></html>
