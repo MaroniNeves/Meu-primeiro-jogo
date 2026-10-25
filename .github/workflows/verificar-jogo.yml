@@ -36,3 +36,5 @@ jobs:
         run: node tools/testar-feiticeiro-browser.cjs
       - name: Renderizar e comparar as três magias em WebGL
         run: node tools/testar-magia-webgl.cjs
+      - name: Testar classes de magia originais do laboratório no navegador
+        run: node tools/testar-magias-originais-browser.cjs
