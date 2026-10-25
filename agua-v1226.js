@@ -3654,19 +3654,64 @@ function updateGame(dt){
   parts.rightArm.rotation.x=gait*.65;
  }
 }
+// V12.61: colisão da câmera com troncos e copas, sem esconder árvores
+// nem trocar os materiais por transparência. A distância escolhida é preservada.
 const gameCameraGoal=new T.Vector3();
+const gameCameraFocus=new T.Vector3();
+let gameCameraActualDistance=0;
+function safeGameCameraDistance(focus,desired){
+ const vx=desired.x-focus.x,vy=desired.y-focus.y,vz=desired.z-focus.z;
+ const full=Math.hypot(vx,vy,vz);
+ if(full<.001)return 0;
+ const inv=1/full,dx=vx*inv,dy=vy*inv,dz=vz*inv;
+ let distance=full;
+ // A janela espacial curta evita interseccionar centenas de modelos.
+ // São volumes de copa aproximados por dois elipsoides; o personagem
+ // fica fora da copa, e a câmera recua quando uma árvore obstrui a visão.
+ for(const a of forestInstances){
+  if((a.type!=='tree'&&a.type!=='pine')||!a.obj.visible)continue;
+  const along=(a.x-focus.x)*dx+(a.z-focus.z)*dz;
+  if(along<-.9||along>full+1.2)continue;
+  const crownTop=a.dropY||a.y+4.0;
+  const treeHeight=Math.max(2.0,crownTop-a.y);
+  const crownY=a.y+treeHeight*.67;
+  const radius=Math.min(2.45,Math.max(.76,(a.crownWidth||2.2)*.48));
+  // Tronco estreito, copa maior; ambos são volumes sólidos para a câmera.
+  for(const part of [[a.y+treeHeight*.34,.34,treeHeight*.42],
+                     [crownY,radius,treeHeight*.52]]){
+   const cy=part[0],r=part[1],ry=part[2];
+   const ox=(focus.x-a.x)/r,oy=(focus.y-cy)/ry,oz=(focus.z-a.z)/r;
+   const ux=dx/r,uy=dy/ry,uz=dz/r;
+   const A=ux*ux+uy*uy+uz*uz,B=2*(ox*ux+oy*uy+oz*uz);
+   const C=ox*ox+oy*oy+oz*oz-1,disc=B*B-4*A*C;
+   if(disc<0)continue;
+   const entry=(-B-Math.sqrt(disc))/(2*A);
+   // Se o foco estiver dentro da copa, não forçar câmera em cima
+   // do personagem. A superfície está depois do foco nesse caso.
+   if(entry>.22&&entry<distance)distance=Math.max(.68,entry-.32);
+  }
+ }
+ return distance;
+}
 function applyGameCamera(){
  const goal=game.position;
- // Órbita livre: o ângulo persiste após soltar o dedo, sem forçar a
- // câmera automaticamente de volta para trás do personagem.
  const reach=Math.cos(game.camPitch)*game.camDistance;
  const bx=-Math.sin(game.camHeading)*reach,bz=-Math.cos(game.camHeading)*reach;
+ gameCameraFocus.set(goal.x,goal.y+1.22,goal.z);
  gameCameraGoal.set(goal.x+bx,
   Math.max(terrainContact(goal.x+bx,goal.z+bz)+.65,
    goal.y+1.15+Math.sin(game.camPitch)*game.camDistance),
   goal.z+bz);
- camera.position.lerp(gameCameraGoal,.22);
- camera.lookAt(goal.x,goal.y+1.22,goal.z);
+ const safe=safeGameCameraDistance(gameCameraFocus,gameCameraGoal);
+ const full=gameCameraGoal.distanceTo(gameCameraFocus);
+ // Aproxima imediatamente se bloqueada; retorna suavemente ao afastar.
+ const next=gameCameraActualDistance>0?
+  (safe<gameCameraActualDistance?safe:
+   gameCameraActualDistance+(safe-gameCameraActualDistance)*.095):safe;
+ gameCameraActualDistance=next;
+ if(full>.001)gameCameraGoal.sub(gameCameraFocus).multiplyScalar(next/full).add(gameCameraFocus);
+ camera.position.lerp(gameCameraGoal,safe<full?.62:.23);
+ camera.lookAt(gameCameraFocus);
 }
 async function setPlayActive(active){
  if(game.active===active)return;
@@ -3675,6 +3720,7 @@ async function setPlayActive(active){
  if($('gameHUD'))$('gameHUD').setAttribute('aria-hidden',String(!active));
  game.keys.clear();game.input.x=0;game.input.y=0;game.input.run=false;game.orbitPointer=null;
  game.waterStride=0;game.wasInWater=false;game.grassSpeed=0;game.grassOnGround=true;
+ gameCameraActualDistance=0;
  if(active){
   if(!game.root){
    game.root=new T.Group();game.root.name='Personagem jogável';
