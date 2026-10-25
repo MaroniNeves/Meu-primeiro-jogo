@@ -28,3 +28,5 @@ jobs:
         run: node tools/testar-grama-webgl.cjs
       - name: Testar camera e obstrucao por arvores
         run: node tools/testar-camera-arvores.js
+      - name: Testar zoom estável, pinça, botões e roda do mouse
+        run: node tools/testar-zoom-camera.js
