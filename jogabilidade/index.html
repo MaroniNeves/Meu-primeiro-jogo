@@ -84,6 +84,45 @@ function islandScene(s){
  else if(s.type==='Água'){circle(xx,yy,17,'#376e75');circle(xx,yy,7,'#739f8d')}
  else {poly([[xx,yy-20],[xx+12,yy-2],[xx+5,yy+15],[xx-8,yy+15],[xx-13,yy-4]],'#ae9bdb')}
  }
+ // Pontos de interesse específicos de cada bioma — geometria simples.
+ if(s.type==='Gelo'){
+  // Lago congelado, agulhas glaciais e nevasca.
+  ctx.save();ctx.globalAlpha=.62;circle(x-115,y-116,74,'#dff6ff');circle(x-115,y-116,56,'#8bbfcf');ctx.restore();
+  for(let j=0;j<8;j++){let px=x+Math.cos(j*TAU/8)*225,py=y+Math.sin(j*TAU/8)*225;
+   poly([[px-15,py+18],[px,py-43],[px+20,py+18]],'#e1f2f8');}
+ }else if(s.type==='Fogo'){
+  // Vulcão ao norte, cratera pulsante e rios de magma.
+  poly([[x-118,y-128],[x-42,y-288],[x+50,y-128]],'#332f35');
+  poly([[x-66,y-206],[x-42,y-288],[x-11,y-206]],'#765047');
+  circle(x-40,y-218,22+3*Math.sin(elapsed*2),'#d96732');
+  ctx.strokeStyle='#d66e35';ctx.lineWidth=15;ctx.beginPath();ctx.moveTo(x-42,y-205);ctx.bezierCurveTo(x-89,y-165,x-57,y-122,x-94,y-86);ctx.stroke();
+ }else if(s.type==='Vento'){
+  // Dunas em camadas e três moinhos do deserto.
+  for(let j=0;j<4;j++){let px=x-190+j*75,py=y-135+(j%2)*38;ctx.strokeStyle='#e0ca99';ctx.lineWidth=8;ctx.beginPath();ctx.arc(px,py,48,Math.PI*1.08,Math.PI*1.86);ctx.stroke();}
+  for(let j=0;j<3;j++){let px=x-205+j*160,py=y-40;rect(px-6,py,12,45,'#89785c');
+   for(let k=0;k<3;k++){const a=elapsed*.8+k*TAU/3;poly([[px,py],[px+Math.cos(a)*33,py+Math.sin(a)*33],[px+Math.cos(a+.27)*20,py+Math.sin(a+.27)*20]],'#c6bca2');}}
+ }else if(s.type==='Água'){
+  // Lagoas, palafitas e troncos no pântano.
+  for(let j=0;j<5;j++){let px=x-212+(j%3)*180,py=y-180+Math.floor(j/3)*88;circle(px,py,43,'#345f68');circle(px+12,py+7,16,'#527f78');
+   for(let k=0;k<3;k++){rect(px-25+k*22,py-35,4,24,'#435944');circle(px-23+k*22,py-37,6,'#799269');}}
+  ctx.strokeStyle='#a99c7e';ctx.lineWidth=11;ctx.beginPath();ctx.moveTo(x-150,y+105);ctx.lineTo(x-80,y+105);ctx.stroke();
+ }else if(s.type==='Terra'){
+  // Bosque denso e ruínas antigas.
+  for(let j=0;j<15;j++){let a=j*TAU/15,px=x+Math.cos(a)*220,py=y+Math.sin(a)*220;
+   rect(px-5,py-3,10,25,'#53483b');circle(px,py-14,24,'#314c37');circle(px-9,py-20,14,'#587951');}
+  rect(x-195,y-140,60,12,'#798777');rect(x-195,y-174,12,46,'#798777');rect(x-148,y-174,12,46,'#798777');
+ }else if(s.type==='Elétrica'){
+  // Cristais elétricos e trilhas condutoras.
+  for(let j=0;j<11;j++){let a=j*TAU/11,px=x+Math.cos(a)*220,py=y+Math.sin(a)*220;
+   poly([[px-18,py+21],[px-8,py-26],[px+6,py-45],[px+20,py+20]],'#b8a7da');
+   poly([[px+6,py-45],[px+20,py+20],[px+1,py+8]],'#6b7fae');}
+  ctx.strokeStyle='#a6abd9';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(x-195,y-85);ctx.lineTo(x-144,y-120);ctx.lineTo(x-85,y-91);ctx.stroke();
+ }else if(s.type==='Luz'){
+  // Anéis da capital, jardins e torres de observação.
+  ctx.strokeStyle='#d6cfab';ctx.lineWidth=10;ctx.beginPath();ctx.arc(x,y,182,.08,Math.PI-.08);ctx.stroke();
+  for(let j=0;j<8;j++){const a=j*TAU/8,px=x+Math.cos(a)*300,py=y+Math.sin(a)*300;
+   rect(px-15,py-18,30,45,'#9c9c8b');rect(px-21,py-25,42,10,'#d2c49b');}
+ }
  // casas e estruturas da cidade em cubos
  for(const h of s.homes){const xx=h.x,yy=h.y;if(dist(xx,yy,x,y)>r-52)continue;rect(xx+3,yy+7,h.w,h.h,'#0004');rect(xx,yy,h.w,h.h,s.type==='Fogo'?'#5d5049':'#b9b2a0');rect(xx,yy-5,h.w,8,'#596473');rect(xx+11,yy+14,9,12,'#384953')}
  // prédio principal, torre quadrada e orbe circular
