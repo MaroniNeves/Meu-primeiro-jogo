@@ -291,7 +291,7 @@ function drawAnimeProps(s){
  animeSprite('architecture_02_03',s.port.x,s.port.y+42,112,92);
  for(let j=0;j<9;j++){
   let a=j*TAU/9,rr=s.r*.78,xx=s.x+Math.cos(a)*rr,yy=s.y+Math.sin(a)*rr;
-  animeSprite((s.type==='Gelo'?'nature_02_0':s.type==='Fogo'?'nature_03_0':s.type==='Elétrica'?'nature_03_0':'nature_01_0')+(Math.floor(elapsed*2+j)%4),xx+Math.sin(elapsed*1.2+j)*2,yy+8,55,70);
+  animeSprite((s.type==='Gelo'?'crystal_pulse':s.type==='Fogo'?'fireball':s.type==='Elétrica'?'crystal_pulse':s.type==='Água'?'water':s.type==='Vento'?'grass':'large_tree')+'_'+String(Math.floor(elapsed*3+j)%(s.type==='Gelo'||s.type==='Fogo'||s.type==='Elétrica'||s.type==='Água'?6:4)).padStart(2,'0'),xx+Math.sin(elapsed*1.2+j)*2,yy+8,55,70);
  }
 }
 function playerDraw(){if(drawAnimeHero(player.x,player.y))return;circle(player.x+3,player.y+23,19,'#0007');rect(player.x-11,player.y+5,22,25,'#253a4d');poly([[player.x-13,player.y+13],[player.x,player.y-1],[player.x+13,player.y+13]],'#3e5665');circle(player.x,player.y-3,11,'#d6c6b1');circle(player.x+12,player.y-10,8,'#a8d0bd');circle(player.x+10,player.y-13,3,'#e6ffda')}
@@ -324,7 +324,7 @@ function paintDungeon(){
  circle(0,-905,64,'#171324');circle(0,-905,36,s.orb);
  ctx.strokeStyle='#ae8ac1';ctx.lineWidth=5;ctx.beginPath();ctx.arc(0,-905,52,0,TAU);ctx.stroke();
  const boss=dungeon.boss;
- if(boss.awake&&boss.hp>0){animeSprite('guardian_down_idle_'+String(Math.floor(elapsed*3)%4).padStart(2,'0'),boss.x,boss.y+54,135,135);circle(boss.x,boss.y,36,'#513448');circle(boss.x-12,boss.y-8,6,'#f49ca3');circle(boss.x+12,boss.y-8,6,'#f49ca3');rect(boss.x-38,boss.y+45,76*boss.hp/5,7,'#d98186');}
+ if(boss.awake&&boss.hp>0){if(!animeSprite('guardian_down_idle_'+String(Math.floor(elapsed*3)%4).padStart(2,'0'),boss.x,boss.y+54,135,135)){circle(boss.x,boss.y,36,'#513448');circle(boss.x-12,boss.y-8,6,'#f49ca3');circle(boss.x+12,boss.y-8,6,'#f49ca3');}rect(boss.x-38,boss.y+45,76*boss.hp/5,7,'#d98186');}
  poly([[-38,242],[-38,213],[0,193],[38,213],[38,242]],'#997e62');
  if(!drawAnimeHero(dungeon.x,dungeon.y)){circle(dungeon.x,dungeon.y+12,16,'#0009');circle(dungeon.x,dungeon.y,12,'#e0cdb4');rect(dungeon.x-8,dungeon.y+7,16,18,'#355567');}
  ctx.restore();
