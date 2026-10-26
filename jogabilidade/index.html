@@ -14,18 +14,30 @@ header strong{font-family:Georgia,serif;color:#e5c98b;font-size:17px}header smal
 #stick{width:54px;height:54px;border-radius:50%;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:radial-gradient(circle at 35% 30%,#a9d9d1,#426778);border:2px solid #c1d7d3;box-shadow:0 4px 14px #0008;pointer-events:none}
 #joyLabel{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);font-size:9px;letter-spacing:.14em;color:#b2c9c4;pointer-events:none}#joystick:active{border-color:#cce3c9} .action{pointer-events:auto;align-self:end;background:#655236;border-color:#b9a174;padding:15px;font-size:15px;touch-action:none}
 @media(max-width:660px){#nav{top:auto;bottom:155px;max-height:28vh;width:155px}#info{top:98px;max-width:58vw}header small{display:none}header strong{font-size:14px}header a{padding:7px;font-size:11px}#prompt{bottom:115px;font-size:11px}#joystick{width:142px;height:142px;bottom:env(safe-area-inset-bottom,0px)}}
+
+/* HUD compacto e navegação mobile sem sobreposições */
+header{left:10px;right:10px;top:calc(8px + env(safe-area-inset-top));flex-wrap:nowrap;overflow-x:auto;padding-bottom:3px;scrollbar-width:none}header::-webkit-scrollbar{display:none}header .pill{flex:0 0 auto}header a{white-space:nowrap;flex:0 0 auto}
+#info{top:76px;left:10px;width:min(345px,calc(100vw - 20px));max-width:unset;padding:11px 13px}#info #objective{font-size:11px;color:#bbcccb}#info #notice{font-size:11px}#info #stats{font-size:11px;color:#e5c98b}
+#nav{position:fixed;left:50%;right:auto;top:50%;bottom:auto;transform:translate(-50%,-50%);width:min(390px,calc(100vw - 24px));max-height:min(72dvh,650px);z-index:30;display:none;padding:16px;background:#0c1a2bf5;border-color:#bca77a}
+#nav.open{display:block}#nav h2{font-size:16px;margin:0 0 10px}#nav button{font-size:13px;padding:12px;margin:5px 0}#nav button.active{opacity:.55}
+#mapToggle{position:fixed;right:12px;top:76px;z-index:10;background:#1e3445;border-color:#bca77a;padding:11px}
+#closeMap{float:right;background:#344556;font-size:12px;padding:6px 10px}
+#mapHelp{font-size:11px;color:#c4cdc9;margin:8px 0 12px}
+#prompt{bottom:170px;max-width:min(440px,94vw)}
+#controls{bottom:calc(12px + env(safe-area-inset-bottom));align-items:flex-end}
+@media(max-width:660px){header{gap:5px}header strong{font-size:12px}header a{font-size:11px}#info{top:70px;max-width:calc(100vw - 92px);font-size:11px}#info #objective{display:none}#mapToggle{top:71px;right:10px}#nav{top:46%;bottom:auto;max-height:68dvh;width:calc(100vw - 26px)}#prompt{bottom:calc(165px + env(safe-area-inset-bottom));font-size:10px;padding:8px 10px}#joystick{width:132px;height:132px;bottom:0}.action{padding:14px 12px}}
 </style></head><body>
 <canvas id="game" aria-label="Mapa jogável de sete ilhas flutuantes"></canvas>
 <header><div class="pill"><strong>Ateliê Arcano · Teste 2D</strong><small>Prólogo — Os Sete Refúgios</small></div><a href="../index.html">Jogo</a><a href="../magias/espadas.html">Efeitos 3D</a><a href="../magias/index.html">Magias</a></header>
 <section class="panel" id="info"><b id="area">Ilha Central · Luz</b><div id="objective">Explore a cidade e investigue as fendas.</div><div id="notice">No celular, arraste o botão redondo para andar · E para interagir</div><div id="stats">Fendas fechadas: 0/6</div></section>
-<section class="panel" id="nav"><h2>Mapa do arquipélago</h2><div id="destinations"></div></section>
+<button id="mapToggle" type="button">🗺️ Ilhas</button><section class="panel" id="nav" role="dialog" aria-label="Destinos do barco voador"><button id="closeMap" type="button">Fechar ✕</button><h2>Barco Voador · Destinos</h2><p id="mapHelp">Vá ao porto e interaja para escolher sua próxima ilha.</p><div id="destinations"></div></section>
 <div id="prompt">Aproxime-se do porto ou de uma fenda para interagir.</div>
 <div id="controls"><div id="joystick" role="slider" aria-label="Controle deslizante de movimento, arraste para andar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="stick"></div><span id="joyLabel">DESLIZE</span></div><button class="action" id="interact">E · Interagir</button></div>
 <script>
 (()=>{
 'use strict';
 const C=document.getElementById('game');let ctx=C.getContext('2d');const info=document.getElementById('area'),objective=document.getElementById('objective'),notice=document.getElementById('notice'),stats=document.getElementById('stats'),prompt=document.getElementById('prompt'),destinations=document.getElementById('destinations');
-const TAU=Math.PI*2;
+const TAU=Math.PI*2;const navPanel=document.getElementById('nav'),mapToggle=document.getElementById('mapToggle');function setMap(open){navPanel.classList.toggle('open',open);mapToggle.setAttribute('aria-expanded',String(open));}mapToggle.addEventListener('click',()=>setMap(!navPanel.classList.contains('open')));document.getElementById('closeMap').addEventListener('click',()=>setMap(false));
 const islands=[
 {id:'luz',name:'Ilha Central',type:'Luz',color:'#aabda8',edge:'#657c66',orb:'#ffdf97',r:470,city:'Aurora',houses:26,detail:'Capital dos sete refúgios; o maior núcleo de energia.',fissure:false},
 {id:'gelo',name:'Ilha Glacial',type:'Gelo',color:'#a8ccd4',edge:'#648d9e',orb:'#b6edff',r:310,city:'Brumal',houses:13,detail:'Neve, gelo e lagos congelados.',fissure:true},
@@ -42,13 +54,13 @@ let W=innerWidth,H=innerHeight,DPR=1;
 function resize(){DPR=Math.min(devicePixelRatio||1,1.5);W=innerWidth;H=innerHeight;C.width=Math.round(W*DPR);C.height=Math.round(H*DPR);ctx.setTransform(DPR,0,0,DPR,0,0)}addEventListener('resize',resize);resize();
 function rand(x){let z=Math.sin(x*127.1+78.23)*43758.545;return z-Math.floor(z)}
 function updateHud(){const s=islands[player.island];info.textContent=s.name+' · '+s.type+' · Cidade de '+s.city;objective.textContent=s.detail;stats.textContent='Fendas fechadas: '+islands.filter(i=>i.fissure&&i.closed).length+'/6';[...destinations.children].forEach((b,i)=>b.classList.toggle('active',i===player.island))}
-const btns=islands.map((s,i)=>{const b=document.createElement('button');b.textContent=(i===0?'✦ ':'◈ ')+s.name+' · '+s.type;b.addEventListener('click',()=>{if(travel)return;if(i===player.island){notice.textContent='Você já está nesta ilha.';return}if(!boatDock){notice.textContent='Vá até o porto e use E para embarcar.';return}sail(i)});destinations.appendChild(b);return b});
+const btns=islands.map((s,i)=>{const b=document.createElement('button');b.textContent=(i===0?'✦ ':'◈ ')+s.name+' · '+s.type;b.addEventListener('click',()=>{if(travel>0)return;if(i===player.island){notice.textContent='Você já está nesta ilha.';return}if(!boatDock){notice.textContent='Vá até o porto e use E para embarcar.';setMap(false);return}sail(i)});destinations.appendChild(b);return b});
 function dist(x,y,a,b){return Math.hypot(x-a,y-b)}
-function sail(i){if(travel||i===player.island)return;from=player.island;to=i;travel=.8;boatDock=false;notice.textContent='Viajando de barco voador até '+islands[i].name+'…'}
+function sail(i){if(travel>0||i===player.island)return;from=player.island;to=i;travel=.8;boatDock=false;setMap(false);notice.textContent='Viajando de barco voador até '+islands[i].name+'…'}
 function interact(){
- if(travel)return;
+ if(travel>0)return;
  const s=islands[player.island];
- if(dist(player.x,player.y,s.port.x,s.port.y)<115){boatDock=true;notice.textContent='Barco voador preparado. Escolha uma ilha no mapa à direita.';return}
+ if(dist(player.x,player.y,s.port.x,s.port.y)<115){boatDock=true;notice.textContent='Barco voador pronto. Escolha o destino.';setMap(true);return}
  if(s.fissure&&!s.closed&&dist(player.x,player.y,s.fiss.x,s.fiss.y)<105){s.closed=true;notice.textContent='Fenda selada! Os Obsérs recuperaram fragmentos de informação.';updateHud();return}
  if(dist(player.x,player.y,s.x,s.y)<115){notice.textContent='Orbe gigante de '+s.type+': sustenta a ilha e alimenta sua cidade.';return}
  notice.textContent='Aproxime-se do porto, da orbe gigante ou de uma fenda.'}
@@ -204,10 +216,10 @@ function draw(dt){
  // rochas suspensas além das margens
  for(let i=0;i<16;i++){const angle=i*TAU/16,rr=island.r+65+rand(i+player.island*13)*95;poly([[island.x+Math.cos(angle)*rr-16,island.y+Math.sin(angle)*rr],[island.x+Math.cos(angle)*rr+15,island.y+Math.sin(angle)*rr-6],[island.x+Math.cos(angle)*rr+8,island.y+Math.sin(angle)*rr+23]],'#394f59')}
  playerDraw();ctx.restore();
- if(travel){rect(0,0,W,H,'#07121be0');ctx.textAlign='center';ctx.font='24px Georgia,serif';ctx.fillStyle='#e1c99c';ctx.fillText('✧ Barco Voador ✧',W/2,H/2-12);ctx.font='14px system-ui';ctx.fillText('Atravessando o céu rumo a '+islands[to].name,W/2,H/2+23)}
+ if(travel>0){rect(0,0,W,H,'#07121be0');ctx.textAlign='center';ctx.font='24px Georgia,serif';ctx.fillStyle='#e1c99c';ctx.fillText('✧ Barco Voador ✧',W/2,H/2-12);ctx.font='14px system-ui';ctx.fillText('Atravessando o céu rumo a '+islands[to].name,W/2,H/2+23)}
 }
 function frame(now){const dt=Math.min((now-last)/1000,.05);last=now;elapsed+=dt;
- if(travel){travel-=dt;if(travel<=0){player.island=to;const s=islands[to];player.x=s.port.x-64;player.y=s.port.y+66;notice.textContent='Chegou a '+s.name+'. Procure a cidade e a fenda.';updateHud();}}
+ if(travel>0){travel-=dt;if(travel<=0){travel=0;player.island=to;const s=islands[to];player.x=s.port.x-64;player.y=s.port.y+66;setMap(false);notice.textContent='Chegou a '+s.name+'. Procure a cidade e a fenda.';updateHud();}}
  else{
  let dx=Number(keys.has('arrowright')||keys.has('d'))-Number(keys.has('arrowleft')||keys.has('a'))+joystick.x;
  let dy=Number(keys.has('arrowdown')||keys.has('s'))-Number(keys.has('arrowup')||keys.has('w'))+joystick.y;
