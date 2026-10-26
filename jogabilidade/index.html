@@ -10,15 +10,17 @@ header strong{font-family:Georgia,serif;color:#e5c98b;font-size:17px}header smal
 #nav{position:fixed;right:10px;top:91px;z-index:4;max-height:60vh;overflow:auto;width:min(215px,38vw)}#nav h2{font-size:12px;margin:0 0 8px;color:#e5c98b}#nav button{display:block;width:100%;margin:4px 0;text-align:left;font-size:11px;padding:7px}#nav button.active{border-color:#e5c98b;background:#465045}
 #prompt{position:fixed;bottom:86px;left:50%;transform:translateX(-50%);width:max-content;max-width:90vw;z-index:5;pointer-events:none;background:#0b1c2dea;border:1px solid #d4b57a88;border-radius:11px;padding:10px 16px;text-align:center;font-size:12px}
 #controls{position:fixed;bottom:12px;left:12px;right:12px;display:flex;justify-content:space-between;z-index:6;pointer-events:none}
-#pad{display:grid;grid-template-columns:repeat(3,45px);grid-template-rows:repeat(2,45px);gap:4px}#pad button{padding:0;font-size:19px;pointer-events:auto;touch-action:none;user-select:none}#pad .up{grid-column:2}.action{pointer-events:auto;align-self:end;background:#655236;border-color:#b9a174;padding:15px;font-size:15px;touch-action:none}
-@media(max-width:660px){#nav{top:auto;bottom:155px;max-height:28vh;width:155px}#info{top:98px;max-width:58vw}header small{display:none}header strong{font-size:14px}header a{padding:7px;font-size:11px}#prompt{bottom:115px;font-size:11px}#pad{grid-template-columns:repeat(3,43px);grid-template-rows:repeat(2,43px)}}
+#joystick{width:128px;height:128px;border-radius:50%;border:2px solid #a7bac177;background:radial-gradient(circle,#26475caa,#102233e8);position:relative;pointer-events:auto;touch-action:none;user-select:none;box-shadow:inset 0 0 24px #0009,0 5px 24px #0008}
+#stick{width:54px;height:54px;border-radius:50%;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:radial-gradient(circle at 35% 30%,#a9d9d1,#426778);border:2px solid #c1d7d3;box-shadow:0 4px 14px #0008;pointer-events:none}
+.action{pointer-events:auto;align-self:end;background:#655236;border-color:#b9a174;padding:15px;font-size:15px;touch-action:none}
+@media(max-width:660px){#nav{top:auto;bottom:155px;max-height:28vh;width:155px}#info{top:98px;max-width:58vw}header small{display:none}header strong{font-size:14px}header a{padding:7px;font-size:11px}#prompt{bottom:115px;font-size:11px}#joystick{width:118px;height:118px}}
 </style></head><body>
 <canvas id="game" aria-label="Mapa jogável de sete ilhas flutuantes"></canvas>
 <header><div class="pill"><strong>Ateliê Arcano · Teste 2D</strong><small>Prólogo — Os Sete Refúgios</small></div><a href="../index.html">Jogo</a><a href="../magias/espadas.html">Efeitos 3D</a><a href="../magias/index.html">Magias</a></header>
-<section class="panel" id="info"><b id="area">Ilha Central · Luz</b><div id="objective">Explore a cidade e investigue as fendas.</div><div id="notice">WASD / setas para andar · E para interagir</div><div id="stats">Fendas fechadas: 0/6</div></section>
+<section class="panel" id="info"><b id="area">Ilha Central · Luz</b><div id="objective">Explore a cidade e investigue as fendas.</div><div id="notice">Joystick deslizante ou WASD · E para interagir</div><div id="stats">Fendas fechadas: 0/6</div></section>
 <section class="panel" id="nav"><h2>Mapa do arquipélago</h2><div id="destinations"></div></section>
 <div id="prompt">Aproxime-se do porto ou de uma fenda para interagir.</div>
-<div id="controls"><div id="pad"><button class="up" data-dir="up">▲</button><button data-dir="left">◀</button><button data-dir="down">▼</button><button data-dir="right">▶</button></div><button class="action" id="interact">E · Interagir</button></div>
+<div id="controls"><div id="joystick" aria-label="Joystick deslizante de movimento"><div id="stick"></div></div><button class="action" id="interact">E · Interagir</button></div>
 <script>
 (()=>{
 'use strict';
@@ -35,7 +37,7 @@ const islands=[
 ];
 const positions=[[0,0],[0,-1200],[1060,-620],[1060,620],[0,1200],[-1060,620],[-1060,-620]];
 islands.forEach((s,i)=>{s.x=positions[i][0];s.y=positions[i][1];s.closed=false;s.port={x:s.x+s.r*.63,y:s.y};s.fiss={x:s.x-s.r*.62,y:s.y+s.r*.16};s.homes=Array.from({length:s.houses},(_,j)=>{const row=Math.floor(j/6),col=j%6;return {x:s.x+(col-2.5)*55+(row%2)*13,y:s.y+85+row*51,w:32,h:26}})});
-const player={island:0,x:40,y:210,speed:215},keys=new Set(),touch=new Set();let last=performance.now(),elapsed=0,travel=0,from=0,to=0,boatDock=false;
+const player={island:0,x:40,y:210,speed:215},keys=new Set();let last=performance.now(),elapsed=0,travel=0,from=0,to=0,boatDock=false;
 let W=innerWidth,H=innerHeight,DPR=1;
 function resize(){DPR=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;C.width=Math.round(W*DPR);C.height=Math.round(H*DPR);ctx.setTransform(DPR,0,0,DPR,0,0)}addEventListener('resize',resize);resize();
 function rand(x){let z=Math.sin(x*127.1+78.23)*43758.545;return z-Math.floor(z)}
@@ -53,7 +55,18 @@ function interact(){
 document.getElementById('interact').addEventListener('click',interact);
 addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','e','E'].includes(e.key))e.preventDefault();keys.add(e.key.toLowerCase());if(e.key.toLowerCase()==='e'&&!e.repeat)interact()});
 addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
-document.querySelectorAll('[data-dir]').forEach(b=>{const d=b.dataset.dir;const up=()=>touch.delete(d);b.addEventListener('pointerdown',e=>{e.preventDefault();b.setPointerCapture(e.pointerId);touch.add(d)});b.addEventListener('pointerup',up);b.addEventListener('pointercancel',up);b.addEventListener('lostpointercapture',up)});
+const joy=document.getElementById('joystick'),stick=document.getElementById('stick'),joystick={x:0,y:0,pointer:null};
+function setJoy(e){
+ const r=joy.getBoundingClientRect(),radius=r.width*.36;
+ let x=e.clientX-(r.left+r.width/2),y=e.clientY-(r.top+r.height/2);
+ const length=Math.hypot(x,y);if(length>radius){x=x/length*radius;y=y/length*radius;}
+ joystick.x=x/radius;joystick.y=y/radius;
+ stick.style.transform='translate(calc(-50% + '+x+'px),calc(-50% + '+y+'px))';
+}
+function resetJoy(){joystick.x=joystick.y=0;joystick.pointer=null;stick.style.transform='translate(-50%,-50%)';}
+joy.addEventListener('pointerdown',e=>{e.preventDefault();joystick.pointer=e.pointerId;joy.setPointerCapture(e.pointerId);setJoy(e)});
+joy.addEventListener('pointermove',e=>{if(joystick.pointer===e.pointerId){e.preventDefault();setJoy(e)}});
+for(const event of ['pointerup','pointercancel','lostpointercapture'])joy.addEventListener(event,e=>{if(joystick.pointer===e.pointerId)resetJoy()});
 function circle(x,y,r,color){ctx.beginPath();ctx.arc(x,y,r,0,TAU);ctx.fillStyle=color;ctx.fill()}
 function rect(x,y,w,h,color){ctx.fillStyle=color;ctx.fillRect(x,y,w,h)}
 function poly(points,color){ctx.beginPath();points.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();ctx.fillStyle=color;ctx.fill()}
@@ -98,9 +111,9 @@ function draw(dt){
 function frame(now){const dt=Math.min((now-last)/1000,.05);last=now;elapsed+=dt;
  if(travel){travel-=dt;if(travel<=0){player.island=to;const s=islands[to];player.x=s.port.x-64;player.y=s.port.y+66;notice.textContent='Chegou a '+s.name+'. Procure a cidade e a fenda.';updateHud();}}
  else{
- let dx=Number(keys.has('arrowright')||keys.has('d')||touch.has('right'))-Number(keys.has('arrowleft')||keys.has('a')||touch.has('left'));
- let dy=Number(keys.has('arrowdown')||keys.has('s')||touch.has('down'))-Number(keys.has('arrowup')||keys.has('w')||touch.has('up'));
- const len=Math.hypot(dx,dy)||1;dx/=len;dy/=len;
+ let dx=Number(keys.has('arrowright')||keys.has('d'))-Number(keys.has('arrowleft')||keys.has('a'))+joystick.x;
+ let dy=Number(keys.has('arrowdown')||keys.has('s'))-Number(keys.has('arrowup')||keys.has('w'))+joystick.y;
+ const len=Math.max(1,Math.hypot(dx,dy));dx/=len;dy/=len;
  const s=islands[player.island],nx=player.x+dx*player.speed*dt,ny=player.y+dy*player.speed*dt;
  if(dist(nx,ny,s.x,s.y)<s.r-23){player.x=nx;player.y=ny;}
  if((dx||dy)&&boatDock){boatDock=false;notice.textContent='Aproxime-se do porto para escolher uma viagem.'}
