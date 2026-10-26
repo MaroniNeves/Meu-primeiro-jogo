@@ -24,7 +24,7 @@ header strong{font-family:Georgia,serif;color:#e5c98b;font-size:17px}header smal
 <script>
 (()=>{
 'use strict';
-const C=document.getElementById('game'),ctx=C.getContext('2d'),info=document.getElementById('area'),objective=document.getElementById('objective'),notice=document.getElementById('notice'),stats=document.getElementById('stats'),prompt=document.getElementById('prompt'),destinations=document.getElementById('destinations');
+const C=document.getElementById('game');let ctx=C.getContext('2d');const info=document.getElementById('area'),objective=document.getElementById('objective'),notice=document.getElementById('notice'),stats=document.getElementById('stats'),prompt=document.getElementById('prompt'),destinations=document.getElementById('destinations');
 const TAU=Math.PI*2;
 const islands=[
 {id:'luz',name:'Ilha Central',type:'Luz',color:'#aabda8',edge:'#657c66',orb:'#ffdf97',r:470,city:'Aurora',houses:26,detail:'Capital dos sete refúgios; o maior núcleo de energia.',fissure:false},
@@ -39,7 +39,7 @@ const positions=[[0,0],[0,-1200],[1060,-620],[1060,620],[0,1200],[-1060,620],[-1
 islands.forEach((s,i)=>{s.x=positions[i][0];s.y=positions[i][1];s.closed=false;s.port={x:s.x+s.r*.63,y:s.y};s.fiss={x:s.x-s.r*.62,y:s.y+s.r*.16};s.homes=Array.from({length:s.houses},(_,j)=>{const row=Math.floor(j/6),col=j%6;return {x:s.x+(col-2.5)*55+(row%2)*13,y:s.y+85+row*51,w:32,h:26}})});
 const player={island:0,x:40,y:210,speed:215},keys=new Set();let last=performance.now(),elapsed=0,travel=0,from=0,to=0,boatDock=false;
 let W=innerWidth,H=innerHeight,DPR=1;
-function resize(){DPR=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;C.width=Math.round(W*DPR);C.height=Math.round(H*DPR);ctx.setTransform(DPR,0,0,DPR,0,0)}addEventListener('resize',resize);resize();
+function resize(){DPR=Math.min(devicePixelRatio||1,1.5);W=innerWidth;H=innerHeight;C.width=Math.round(W*DPR);C.height=Math.round(H*DPR);ctx.setTransform(DPR,0,0,DPR,0,0)}addEventListener('resize',resize);resize();
 function rand(x){let z=Math.sin(x*127.1+78.23)*43758.545;return z-Math.floor(z)}
 function updateHud(){const s=islands[player.island];info.textContent=s.name+' · '+s.type+' · Cidade de '+s.city;objective.textContent=s.detail;stats.textContent='Fendas fechadas: '+islands.filter(i=>i.fissure&&i.closed).length+'/6';[...destinations.children].forEach((b,i)=>b.classList.toggle('active',i===player.island))}
 const btns=islands.map((s,i)=>{const b=document.createElement('button');b.textContent=(i===0?'✦ ':'◈ ')+s.name+' · '+s.type;b.addEventListener('click',()=>{if(travel)return;if(i===player.island){notice.textContent='Você já está nesta ilha.';return}if(!boatDock){notice.textContent='Vá até o porto e use E para embarcar.';return}sail(i)});destinations.appendChild(b);return b});
@@ -176,12 +176,31 @@ function islandScene(s){
  // nome cidade
  ctx.font='600 19px system-ui';ctx.textAlign='center';ctx.fillStyle='#f5ebdb';ctx.fillText(s.city,x,y+260);
 }
+// Renderização estática em cache: o terreno deixa de ser reconstruído a 60 FPS.
+// Importante em celulares e na troca de ilhas.
+const islandCache=new Map();
+function drawCachedIsland(s){
+ let cached=islandCache.get(s.id);
+ if(!cached){
+  const margin=120,side=Math.ceil(s.r*2+margin*2);
+  const canvas=document.createElement('canvas');canvas.width=canvas.height=side;
+  const original=ctx;ctx=canvas.getContext('2d');
+  try{ctx.translate(margin+s.r-s.x,margin+s.r-s.y);islandScene(s);}
+  finally{ctx=original;}
+  cached={canvas,margin};islandCache.set(s.id,cached);
+ }
+ ctx.drawImage(cached.canvas,s.x-s.r-cached.margin,s.y-s.r-cached.margin);
+ // A orbe preserva uma leve animação, sem redesenhar todo o cenário.
+ const pulse=1.5+1.5*Math.sin(elapsed*1.7);
+ ctx.strokeStyle=s.orb;ctx.globalAlpha=.55;ctx.lineWidth=2;
+ ctx.beginPath();ctx.arc(s.x,s.y-49,25+pulse,0,TAU);ctx.stroke();ctx.globalAlpha=1;
+}
 function playerDraw(){circle(player.x+3,player.y+23,19,'#0007');rect(player.x-11,player.y+5,22,25,'#253a4d');poly([[player.x-13,player.y+13],[player.x,player.y-1],[player.x+13,player.y+13]],'#3e5665');circle(player.x,player.y-3,11,'#d6c6b1');circle(player.x+12,player.y-10,8,'#a8d0bd');circle(player.x+10,player.y-13,3,'#e6ffda')}
 function draw(dt){
  ctx.clearRect(0,0,W,H);skyBackground();ctx.save();ctx.translate(W/2-player.x,H/2-player.y);
  const island=islands[player.island];
  // ilhas remotas visíveis no mapa do mundo; exploração mantém foco na ilha atual
- for(const s of islands){if(dist(player.x,player.y,s.x,s.y)<Math.max(W,H)+s.r+400){islandScene(s)}}
+ for(const s of islands){if(dist(player.x,player.y,s.x,s.y)<Math.max(W,H)+s.r+400){drawCachedIsland(s)}}
  // rochas suspensas além das margens
  for(let i=0;i<16;i++){const angle=i*TAU/16,rr=island.r+65+rand(i+player.island*13)*95;poly([[island.x+Math.cos(angle)*rr-16,island.y+Math.sin(angle)*rr],[island.x+Math.cos(angle)*rr+15,island.y+Math.sin(angle)*rr-6],[island.x+Math.cos(angle)*rr+8,island.y+Math.sin(angle)*rr+23]],'#394f59')}
  playerDraw();ctx.restore();
