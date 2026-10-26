@@ -266,7 +266,7 @@ function animeSprite(name,x,y,w,h,mirror=false){
    spritePending.add(name);image=new Image();
    image.onload=()=>{spriteImages.set(name,image);spritePending.delete(name);islandCache.clear();};
    image.onerror=()=>{spritePending.delete(name);spriteImages.set(name,false);};
-   image.src='../assets/sprites2d/'+name+'.webp';
+   image.src='../assets/sprites2D/'+name+'.webp';
   }
   return false;
  }
