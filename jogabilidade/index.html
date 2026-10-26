@@ -10,17 +10,17 @@ header strong{font-family:Georgia,serif;color:#e5c98b;font-size:17px}header smal
 #nav{position:fixed;right:10px;top:91px;z-index:4;max-height:60vh;overflow:auto;width:min(215px,38vw)}#nav h2{font-size:12px;margin:0 0 8px;color:#e5c98b}#nav button{display:block;width:100%;margin:4px 0;text-align:left;font-size:11px;padding:7px}#nav button.active{border-color:#e5c98b;background:#465045}
 #prompt{position:fixed;bottom:86px;left:50%;transform:translateX(-50%);width:max-content;max-width:90vw;z-index:5;pointer-events:none;background:#0b1c2dea;border:1px solid #d4b57a88;border-radius:11px;padding:10px 16px;text-align:center;font-size:12px}
 #controls{position:fixed;bottom:12px;left:12px;right:12px;display:flex;justify-content:space-between;z-index:6;pointer-events:none}
-#joystick{width:128px;height:128px;border-radius:50%;border:2px solid #a7bac177;background:radial-gradient(circle,#26475caa,#102233e8);position:relative;pointer-events:auto;touch-action:none;user-select:none;box-shadow:inset 0 0 24px #0009,0 5px 24px #0008}
+#joystick{width:136px;height:136px;border-radius:50%;border:2px solid #a7bac177;background:radial-gradient(circle,#26475caa,#102233e8);position:relative;pointer-events:auto;touch-action:none;user-select:none;box-shadow:inset 0 0 24px #0009,0 5px 24px #0008}
 #stick{width:54px;height:54px;border-radius:50%;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:radial-gradient(circle at 35% 30%,#a9d9d1,#426778);border:2px solid #c1d7d3;box-shadow:0 4px 14px #0008;pointer-events:none}
-.action{pointer-events:auto;align-self:end;background:#655236;border-color:#b9a174;padding:15px;font-size:15px;touch-action:none}
-@media(max-width:660px){#nav{top:auto;bottom:155px;max-height:28vh;width:155px}#info{top:98px;max-width:58vw}header small{display:none}header strong{font-size:14px}header a{padding:7px;font-size:11px}#prompt{bottom:115px;font-size:11px}#joystick{width:118px;height:118px}}
+#joyLabel{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);font-size:9px;letter-spacing:.14em;color:#b2c9c4;pointer-events:none}#joystick:active{border-color:#cce3c9} .action{pointer-events:auto;align-self:end;background:#655236;border-color:#b9a174;padding:15px;font-size:15px;touch-action:none}
+@media(max-width:660px){#nav{top:auto;bottom:155px;max-height:28vh;width:155px}#info{top:98px;max-width:58vw}header small{display:none}header strong{font-size:14px}header a{padding:7px;font-size:11px}#prompt{bottom:115px;font-size:11px}#joystick{width:142px;height:142px;bottom:env(safe-area-inset-bottom,0px)}}
 </style></head><body>
 <canvas id="game" aria-label="Mapa jogável de sete ilhas flutuantes"></canvas>
 <header><div class="pill"><strong>Ateliê Arcano · Teste 2D</strong><small>Prólogo — Os Sete Refúgios</small></div><a href="../index.html">Jogo</a><a href="../magias/espadas.html">Efeitos 3D</a><a href="../magias/index.html">Magias</a></header>
-<section class="panel" id="info"><b id="area">Ilha Central · Luz</b><div id="objective">Explore a cidade e investigue as fendas.</div><div id="notice">Joystick deslizante ou WASD · E para interagir</div><div id="stats">Fendas fechadas: 0/6</div></section>
+<section class="panel" id="info"><b id="area">Ilha Central · Luz</b><div id="objective">Explore a cidade e investigue as fendas.</div><div id="notice">No celular, arraste o botão redondo para andar · E para interagir</div><div id="stats">Fendas fechadas: 0/6</div></section>
 <section class="panel" id="nav"><h2>Mapa do arquipélago</h2><div id="destinations"></div></section>
 <div id="prompt">Aproxime-se do porto ou de uma fenda para interagir.</div>
-<div id="controls"><div id="joystick" aria-label="Joystick deslizante de movimento"><div id="stick"></div></div><button class="action" id="interact">E · Interagir</button></div>
+<div id="controls"><div id="joystick" role="slider" aria-label="Controle deslizante de movimento, arraste para andar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="stick"></div><span id="joyLabel">DESLIZE</span></div><button class="action" id="interact">E · Interagir</button></div>
 <script>
 (()=>{
 'use strict';
@@ -60,10 +60,10 @@ function setJoy(e){
  const r=joy.getBoundingClientRect(),radius=r.width*.36;
  let x=e.clientX-(r.left+r.width/2),y=e.clientY-(r.top+r.height/2);
  const length=Math.hypot(x,y);if(length>radius){x=x/length*radius;y=y/length*radius;}
- joystick.x=x/radius;joystick.y=y/radius;
+ joystick.x=x/radius;joystick.y=y/radius;joy.setAttribute("aria-valuenow",String(Math.round(Math.min(100,length/radius*100))));
  stick.style.transform='translate(calc(-50% + '+x+'px),calc(-50% + '+y+'px))';
 }
-function resetJoy(){joystick.x=joystick.y=0;joystick.pointer=null;stick.style.transform='translate(-50%,-50%)';}
+function resetJoy(){joy.setAttribute('aria-valuenow','0');joystick.x=joystick.y=0;joystick.pointer=null;stick.style.transform='translate(-50%,-50%)';}
 joy.addEventListener('pointerdown',e=>{e.preventDefault();joystick.pointer=e.pointerId;joy.setPointerCapture(e.pointerId);setJoy(e)});
 joy.addEventListener('pointermove',e=>{if(joystick.pointer===e.pointerId){e.preventDefault();setJoy(e)}});
 for(const event of ['pointerup','pointercancel','lostpointercapture'])joy.addEventListener(event,e=>{if(joystick.pointer===e.pointerId)resetJoy()});
