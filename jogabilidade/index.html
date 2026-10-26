@@ -50,7 +50,7 @@ const islands=[
 ];
 const positions=[[0,0],[0,-1200],[1060,-620],[1060,620],[0,1200],[-1060,620],[-1060,-620]];
 islands.forEach((s,i)=>{s.x=positions[i][0];s.y=positions[i][1];s.closed=false;s.port={x:s.x+s.r*.63,y:s.y};s.fiss={x:s.x-s.r*.62,y:s.y+s.r*.16};s.homes=Array.from({length:s.houses},(_,j)=>{const row=Math.floor(j/6),col=j%6;return {x:s.x+(col-2.5)*55+(row%2)*13,y:s.y+85+row*51,w:32,h:26}})});
-const player={island:0,x:40,y:210,speed:215},keys=new Set();let last=performance.now(),elapsed=0,travel=0,from=0,to=0,boatDock=false,sceneMode='island',dungeon={x:0,y:190,level:1,monsters:[],sealed:false},portalTransition=0,portalTarget=null,clockTime=10,health=100,monsters=[];
+const player={island:0,x:40,y:210,speed:215},keys=new Set();let last=performance.now(),elapsed=0,travel=0,from=0,to=0,boatDock=false,sceneMode='island',dungeon={x:0,y:190,monsters:[],chests:[],drops:[],crystal:false,boss:null,sealed:false,loot:0},portalTransition=0,portalTarget=null,clockTime=10,health=100,monsters=[];
 let W=innerWidth,H=innerHeight,DPR=1;
 function resize(){DPR=Math.min(devicePixelRatio||1,1.5);W=innerWidth;H=innerHeight;C.width=Math.round(W*DPR);C.height=Math.round(H*DPR);ctx.setTransform(DPR,0,0,DPR,0,0)}addEventListener('resize',resize);resize();
 function rand(x){let z=Math.sin(x*127.1+78.23)*43758.545;return z-Math.floor(z)}
@@ -58,27 +58,46 @@ function updateHud(){const s=islands[player.island];info.textContent=s.name+' ·
 const btns=islands.map((s,i)=>{const b=document.createElement('button');b.textContent=(i===0?'✦ ':'◈ ')+s.name+' · '+s.type;b.addEventListener('click',()=>{if(travel>0)return;if(i===player.island){notice.textContent='Você já está nesta ilha.';return}if(!boatDock){notice.textContent='Vá até o porto e use E para embarcar.';setMap(false);return}sail(i)});destinations.appendChild(b);return b});
 function dist(x,y,a,b){return Math.hypot(x-a,y-b)}
 function sail(i){if(travel>0||i===player.island)return;from=player.island;to=i;travel=.8;boatDock=false;setMap(false);notice.textContent='Viajando de barco voador até '+islands[i].name+'…'}
+function enterDungeon(){
+ const source=islands[player.island];
+ dungeon={x:0,y:210,monsters:[{x:-135,y:80,hp:2},{x:120,y:-210,hp:2},{x:-125,y:-500,hp:2}],
+ chests:[{x:142,y:62,opened:false},{x:-145,y:-350,opened:false},{x:142,y:-640,opened:false}],
+ drops:[],crystal:false,boss:{x:0,y:-845,hp:5,awake:false},sealed:source.closed,loot:0,attackCooldown:0};
+ sceneMode='dungeon';notice.textContent='Explore a caverna, recolha o cristal e enfrente o guardião.';
+}
+function leaveDungeon(purified=false){
+ sceneMode='island';const entry=islands[player.island].fiss;
+ player.x=entry.x+60;player.y=entry.y+24;
+ notice.textContent=purified?'Orbe purificada! A Dungeon desapareceu e você foi teleportado para fora.':'Você retornou à superfície.';
+ updateHud();
+}
 function interact(){
  if(travel>0||portalTransition>0)return;
  if(sceneMode==='dungeon'){
-  const s=islands[player.island],nearSouth=dungeon.y>155&&Math.abs(dungeon.x)<75,nearNorth=dungeon.y< -150&&Math.abs(dungeon.x)<75;
-  if(nearSouth){
-   if(dungeon.level===1){portalTarget={mode:'island'};portalTransition=.65;}
-   else{portalTarget={mode:'dungeon',level:dungeon.level-1};portalTransition=.65;}
-   return;
+  const s=islands[player.island];
+  if(dungeon.y>165&&Math.abs(dungeon.x)<72){portalTarget={mode:'island'};portalTransition=.65;return;}
+  const chest=dungeon.chests.find(c=>!c.opened&&dist(dungeon.x,dungeon.y,c.x,c.y)<58);
+  if(chest){chest.opened=true;dungeon.loot++;if(dungeon.loot===2){dungeon.crystal=true;notice.textContent='Baú aberto: Cristal de Purificação obtido!';}else{dungeon.drops.push({x:chest.x+20,y:chest.y+24});notice.textContent='Baú aberto! Fragmento mágico coletado.';}return;}
+  const enemy=dungeon.monsters.find(m=>m.hp>0&&dist(dungeon.x,dungeon.y,m.x,m.y)<62);
+  if(enemy){if(dungeon.attackCooldown>0)return;enemy.hp--;dungeon.attackCooldown=.4;notice.textContent=enemy.hp?'Monstro atingido!':'Monstro derrotado: item encontrado!';if(enemy.hp===0)dungeon.drops.push({x:enemy.x,y:enemy.y});return;}
+  const boss=dungeon.boss;
+  if(boss.awake&&boss.hp>0&&dist(dungeon.x,dungeon.y,boss.x,boss.y)<95){
+   if(dungeon.attackCooldown>0)return;boss.hp--;dungeon.attackCooldown=.45;
+   notice.textContent=boss.hp?'Guardião ferido! Vida restante: '+boss.hp:'Guardião derrotado! Purifique a orbe com o cristal.';return;
   }
-  if(nearNorth){
-   if(dungeon.level<3){portalTarget={mode:'dungeon',level:dungeon.level+1};portalTransition=.65;return;}
-   if(!s.closed){s.closed=true;dungeon.sealed=true;notice.textContent='Núcleo da fenda selado! Os monstros deixarão de surgir aqui.';updateHud();}
-   else notice.textContent='Núcleo já selado. Retorne pelas passagens ao sul.';
-   return;
+  if(dist(dungeon.x,dungeon.y,0,-905)<100){
+   if(!dungeon.crystal){notice.textContent='É necessário um Cristal de Purificação. Procure nos baús.';return;}
+   if(boss.hp>0){boss.awake=true;notice.textContent='O guardião protege a orbe! Derrote-o primeiro.';return;}
+   s.closed=true;dungeon.sealed=true;notice.textContent='A orbe foi purificada e a Dungeon se desfez!';updateHud();
+   portalTarget={mode:'purified'};portalTransition=1.1;return;
   }
-  notice.textContent='Explore as passagens: norte desce um nível, sul retorna.';
+  if(dist(dungeon.x,dungeon.y,-105,-135)<60||dist(dungeon.x,dungeon.y,105,-485)<60){notice.textContent='Escada caracol: desça pelo corredor para continuar.';return;}
+  notice.textContent='Explore, abra baús, derrote monstros e encontre o cristal.';
   return;
  }
  const s=islands[player.island];
  if(dist(player.x,player.y,s.port.x,s.port.y)<115){boatDock=true;notice.textContent='Barco voador pronto. Escolha o destino.';setMap(true);return}
- if(s.fissure&&dist(player.x,player.y,s.fiss.x,s.fiss.y)<73){portalTarget={mode:'dungeon',level:1};portalTransition=.75;notice.textContent='Conectando à Dungeon '+s.type+'…';setMap(false);return}
+ if(s.fissure&&!s.closed&&dist(player.x,player.y,s.fiss.x,s.fiss.y)<73){portalTarget={mode:'dungeon',level:1};portalTransition=.75;notice.textContent='Conectando à Dungeon '+s.type+'…';setMap(false);return}
  if(dist(player.x,player.y,s.x,s.y)<115){notice.textContent='Orbe gigante de '+s.type+': sustenta a ilha e alimenta sua cidade.';return}
  notice.textContent='Aproxime-se do porto, da orbe gigante ou de uma fenda.'}
 document.getElementById('interact').addEventListener('click',interact);
@@ -234,22 +253,40 @@ function drawCachedIsland(s){
 function playerDraw(){circle(player.x+3,player.y+23,19,'#0007');rect(player.x-11,player.y+5,22,25,'#253a4d');poly([[player.x-13,player.y+13],[player.x,player.y-1],[player.x+13,player.y+13]],'#3e5665');circle(player.x,player.y-3,11,'#d6c6b1');circle(player.x+12,player.y-10,8,'#a8d0bd');circle(player.x+10,player.y-13,3,'#e6ffda')}
 
 function paintDungeon(){
- ctx.clearRect(0,0,W,H);rect(0,0,W,H,'#090e16');ctx.save();ctx.translate(W/2-dungeon.x,H/2-dungeon.y);
- rect(-280,-275,560,555,'#212934');
- for(let yy=-270;yy<270;yy+=38)for(let xx=-273;xx<273;xx+=38){ctx.fillStyle=(Math.abs(xx+yy)%3)?'#303642':'#383e46';ctx.fillRect(xx,yy,35,35);}
- for(let i=0;i<16;i++){const x=-278+i*37;rect(x,-290,34,25,'#51535b');rect(x,270,34,26,'#51535b');}
- rect(-310,-290,32,580,'#555762');rect(280,-290,32,580,'#555762');
- poly([[-50,255],[-50,220],[0,205],[50,220],[50,255]],'#967d62');
- // Escada de ligação entre os níveis internos.
- for(let j=0;j<5;j++)rect(-31+j*3,-267+j*7,62-j*6,5,'#9a907b');
+ ctx.clearRect(0,0,W,H);rect(0,0,W,H,'#070c15');
+ ctx.save();ctx.translate(W/2-dungeon.x,H/2-dungeon.y);
+ const rooms=[{y:60,h:390},{y:-320,h:340},{y:-730,h:440}];
+ for(const room of rooms){
+  rect(-245,room.y-room.h/2,490,room.h,'#232b35');
+  for(let yy=room.y-room.h/2;yy<room.y+room.h/2;yy+=36)for(let xx=-238;xx<238;xx+=36)rect(xx,yy,32,32,((xx+yy)/36|0)%2?'#303743':'#353b44');
+  rect(-264,room.y-room.h/2,23,room.h,'#50535d');rect(241,room.y-room.h/2,23,room.h,'#50535d');
+ }
+ // Corredores conectam os ambientes no mesmo plano, sem recarregar cenas.
+ rect(-76,-600,152,740,'#313640');
+ for(const stair of [{x:-105,y:-135},{x:105,y:-485}]){
+  circle(stair.x,stair.y,46,'#55515b');circle(stair.x,stair.y,35,'#252632');
+  ctx.strokeStyle='#beaf90';ctx.lineWidth=8;ctx.beginPath();ctx.arc(stair.x,stair.y,29,elapsed*.24,elapsed*.24+Math.PI*1.68);ctx.stroke();
+  for(let k=0;k<10;k++){const angle=k*TAU/10;rect(stair.x+Math.cos(angle)*22-4,stair.y+Math.sin(angle)*22-4,8,8,'#9b8e7a');}
+ }
+ for(const chest of dungeon.chests){
+  rect(chest.x-19,chest.y-13,38,27,chest.opened?'#46423b':'#86633a');
+  rect(chest.x-19,chest.y-13,38,6,chest.opened?'#7a7162':'#c29a5b');
+  rect(chest.x-3,chest.y-6,6,12,'#dac18e');
+ }
+ for(const drop of dungeon.drops){circle(drop.x,drop.y,7,'#b9c9cf');circle(drop.x-2,drop.y-2,3,'#fff3c0');}
+ for(const m of dungeon.monsters)if(m.hp>0){circle(m.x,m.y,15,'#714e6c');circle(m.x-5,m.y-3,3,'#efb1aa');circle(m.x+5,m.y-3,3,'#efb1aa');}
  const s=islands[player.island];
- circle(0,-205,dungeon.level===3?51:36,s.closed?'#4c6257':'#17102b');
- circle(0,-205,dungeon.level===3?29:13,dungeon.level===3?(s.closed?'#799a85':s.orb):'#bba68b');
- ctx.strokeStyle=s.closed?'#86aa96':'#aa7dbc';ctx.lineWidth=5;ctx.beginPath();ctx.arc(0,-205,43,0,TAU);ctx.stroke();
- for(const m of dungeon.monsters){circle(m.x,m.y,13,'#8a627d');circle(m.x-4,m.y-3,3,'#f0bbc2');circle(m.x+4,m.y-3,3,'#f0bbc2');}
- circle(dungeon.x,dungeon.y+10,15,'#0009');circle(dungeon.x,dungeon.y,12,'#d8c7ad');rect(dungeon.x-8,dungeon.y+6,16,19,'#34556a');ctx.restore();
- const darkness=ctx.createRadialGradient(W/2,H/2,55,W/2,H/2,Math.max(W,H)*.65);darkness.addColorStop(0,'#00000000');darkness.addColorStop(1,'#000000ba');ctx.fillStyle=darkness;ctx.fillRect(0,0,W,H);
- ctx.font='600 13px system-ui';ctx.textAlign='center';ctx.fillStyle='#f6e4bf';ctx.fillText('DUNGEON '+dungeon.level+'/3 · '+s.type+' · '+(dungeon.level===3?(s.closed?'NÚCLEO SELADO':'NÚCLEO ATIVO'):'PASSAGENS SUBTERRÂNEAS'),W/2,95);
+ circle(0,-905,64,'#171324');circle(0,-905,36,s.orb);
+ ctx.strokeStyle='#ae8ac1';ctx.lineWidth=5;ctx.beginPath();ctx.arc(0,-905,52,0,TAU);ctx.stroke();
+ const boss=dungeon.boss;
+ if(boss.awake&&boss.hp>0){circle(boss.x,boss.y,36,'#513448');circle(boss.x-12,boss.y-8,6,'#f49ca3');circle(boss.x+12,boss.y-8,6,'#f49ca3');rect(boss.x-38,boss.y+45,76*boss.hp/5,7,'#d98186');}
+ poly([[-38,242],[-38,213],[0,193],[38,213],[38,242]],'#997e62');
+ circle(dungeon.x,dungeon.y+12,16,'#0009');circle(dungeon.x,dungeon.y,12,'#e0cdb4');rect(dungeon.x-8,dungeon.y+7,16,18,'#355567');
+ ctx.restore();
+ const vignette=ctx.createRadialGradient(W/2,H/2,70,W/2,H/2,Math.max(W,H)*.8);vignette.addColorStop(0,'#0000');vignette.addColorStop(1,'#010309b8');ctx.fillStyle=vignette;ctx.fillRect(0,0,W,H);
+ ctx.textAlign='center';ctx.font='600 13px system-ui';ctx.fillStyle='#f2dcb0';
+ ctx.fillText('DUNGEON · '+s.type+' · PLANO CONTÍNUO',W/2,Math.max(118,H*.13));
+ ctx.font='11px system-ui';ctx.fillText('Cristal: '+(dungeon.crystal?'obtido':'não encontrado')+' · Baús: '+dungeon.chests.filter(c=>c.opened).length+'/3 · Chefe: '+(boss.hp>0?'vivo':'derrotado'),W/2,Math.max(136,H*.13+20));
 }
 function drawPortalTransition(){
  ctx.fillStyle='#050913ed';ctx.fillRect(0,0,W,H);
@@ -277,14 +314,14 @@ function draw(dt){
  if(travel>0){rect(0,0,W,H,'#07121be0');ctx.textAlign='center';ctx.font='24px Georgia,serif';ctx.fillStyle='#e1c99c';ctx.fillText('✧ Barco Voador ✧',W/2,H/2-12);ctx.font='14px system-ui';ctx.fillText('Atravessando o céu rumo a '+islands[to].name,W/2,H/2+23)}
 }
 function frame(now){const dt=Math.min((now-last)/1000,.05);last=now;elapsed+=dt;clockTime=(clockTime+dt*.18)%24;const night=clockTime>=18||clockTime<6;clockTag.textContent=(night?'🌙 Noite':'☀️ Dia')+' · '+String(Math.floor(clockTime)).padStart(2,'0')+':'+String(Math.floor((clockTime%1)*60)).padStart(2,'0');
- if(portalTransition>0){portalTransition-=dt;if(portalTransition<=0){portalTransition=0;const target=portalTarget;portalTarget=null;if(target.mode==='island'){sceneMode='island';const entry=islands[player.island].fiss;player.x=entry.x+58;player.y=entry.y+28;notice.textContent='Retornou à superfície.';}else{sceneMode='dungeon';dungeon.level=target.level;dungeon.x=0;dungeon.y=target.level===1?198:198;dungeon.sealed=islands[player.island].closed;notice.textContent='Caverna subterrânea · nível '+target.level+'/3';}}}
+ if(portalTransition>0){portalTransition-=dt;if(portalTransition<=0){portalTransition=0;const target=portalTarget;portalTarget=null;if(target.mode==='island'||target.mode==='purified'){leaveDungeon(target.mode==='purified');}else{enterDungeon();}}}
  if(travel>0){travel-=dt;if(travel<=0){travel=0;player.island=to;const s=islands[to];player.x=s.port.x-64;player.y=s.port.y+66;setMap(false);notice.textContent='Chegou a '+s.name+'. Procure a cidade e a fenda.';updateHud();}}
  else{
  let dx=Number(keys.has('arrowright')||keys.has('d'))-Number(keys.has('arrowleft')||keys.has('a'))+joystick.x;
  let dy=Number(keys.has('arrowdown')||keys.has('s'))-Number(keys.has('arrowup')||keys.has('w'))+joystick.y;
  const len=Math.max(1,Math.hypot(dx,dy));dx/=len;dy/=len;
  const s=islands[player.island];
- if(sceneMode==='dungeon'){dungeon.x=Math.max(-252,Math.min(252,dungeon.x+dx*player.speed*dt));dungeon.y=Math.max(-250,Math.min(245,dungeon.y+dy*player.speed*dt));prompt.textContent=dungeon.y>155&&Math.abs(dungeon.x)<75?(dungeon.level===1?'[E] Retornar à superfície':'[E] Subir um nível'):dungeon.y< -150&&Math.abs(dungeon.x)<75?(dungeon.level<3?'[E] Descer ao próximo nível':!s.closed?'[E] Selar o núcleo':'Núcleo selado'):'Explore a caverna · passagens ao norte e ao sul';}
+ if(sceneMode==='dungeon'){dungeon.x=Math.max(-230,Math.min(230,dungeon.x+dx*player.speed*dt));dungeon.y=Math.max(-970,Math.min(245,dungeon.y+dy*player.speed*dt));dungeon.attackCooldown=Math.max(0,dungeon.attackCooldown-dt);if(dungeon.y< -680&&!dungeon.boss.awake&&dungeon.boss.hp>0){dungeon.boss.awake=true;notice.textContent='O GUARDIÃO DESPERTOU na sala da orbe!';}prompt.textContent=dungeon.y>165&&Math.abs(dungeon.x)<72?'[E] Voltar à superfície':dist(dungeon.x,dungeon.y,0,-905)<100?'[E] Purificar a orbe':dungeon.monsters.some(m=>m.hp>0&&dist(dungeon.x,dungeon.y,m.x,m.y)<62)?'[E] Atacar monstro':dungeon.chests.some(c=>!c.opened&&dist(dungeon.x,dungeon.y,c.x,c.y)<58)?'[E] Abrir baú':dungeon.boss.awake&&dungeon.boss.hp>0&&dist(dungeon.x,dungeon.y,dungeon.boss.x,dungeon.boss.y)<95?'[E] Atacar chefe':'Explore a Dungeon e encontre o cristal';}
  else{const nx=player.x+dx*player.speed*dt,ny=player.y+dy*player.speed*dt;
  if(dist(nx,ny,s.x,s.y)<s.r-23){player.x=nx;player.y=ny;}
  if((dx||dy)&&boatDock){boatDock=false;notice.textContent='Aproxime-se do porto para escolher uma viagem.'}
