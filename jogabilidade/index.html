@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Ateliê Arcano | Teste de Jogabilidade 2D</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,Segoe UI,sans-serif}*{box-sizing:border-box}body{margin:0;background:#080f19;color:#eaf0ee;overflow:hidden}canvas{display:block;width:100vw;height:100dvh;touch-action:none}
+header{position:fixed;top:10px;left:10px;right:10px;z-index:5;display:flex;gap:8px;align-items:center;flex-wrap:wrap;pointer-events:none}header>*{pointer-events:auto}
+.pill,.panel{background:#0e1b2eea;border:1px solid #60727988;box-shadow:0 8px 30px #0008;border-radius:12px;padding:10px 12px;backdrop-filter:blur(9px)}
+header strong{font-family:Georgia,serif;color:#e5c98b;font-size:17px}header small{display:block;color:#b8c8ca;font-size:11px}a,button{color:#f3ecdb}a{text-decoration:none}header a,button{border:1px solid #647884;background:#1b3544;border-radius:9px;padding:9px 12px;font:600 12px system-ui;cursor:pointer}button:hover,header a:hover{background:#345164}
+#info{position:fixed;left:10px;top:91px;max-width:min(370px,calc(100vw - 20px));z-index:4;font-size:12px;line-height:1.55}
+#info b{color:#e6c58e}#notice{min-height:19px;color:#a9d5cc}
+#nav{position:fixed;right:10px;top:91px;z-index:4;max-height:60vh;overflow:auto;width:min(215px,38vw)}#nav h2{font-size:12px;margin:0 0 8px;color:#e5c98b}#nav button{display:block;width:100%;margin:4px 0;text-align:left;font-size:11px;padding:7px}#nav button.active{border-color:#e5c98b;background:#465045}
+#prompt{position:fixed;bottom:86px;left:50%;transform:translateX(-50%);width:max-content;max-width:90vw;z-index:5;pointer-events:none;background:#0b1c2dea;border:1px solid #d4b57a88;border-radius:11px;padding:10px 16px;text-align:center;font-size:12px}
+#controls{position:fixed;bottom:12px;left:12px;right:12px;display:flex;justify-content:space-between;z-index:6;pointer-events:none}
+#pad{display:grid;grid-template-columns:repeat(3,45px);grid-template-rows:repeat(2,45px);gap:4px}#pad button{padding:0;font-size:19px;pointer-events:auto;touch-action:none;user-select:none}#pad .up{grid-column:2}.action{pointer-events:auto;align-self:end;background:#655236;border-color:#b9a174;padding:15px;font-size:15px;touch-action:none}
+@media(max-width:660px){#nav{top:auto;bottom:155px;max-height:28vh;width:155px}#info{top:98px;max-width:58vw}header small{display:none}header strong{font-size:14px}header a{padding:7px;font-size:11px}#prompt{bottom:115px;font-size:11px}#pad{grid-template-columns:repeat(3,43px);grid-template-rows:repeat(2,43px)}}
+</style></head><body>
+<canvas id="game" aria-label="Mapa jogável de sete ilhas flutuantes"></canvas>
+<header><div class="pill"><strong>Ateliê Arcano · Teste 2D</strong><small>Prólogo — Os Sete Refúgios</small></div><a href="../index.html">Jogo</a><a href="../magias/espadas.html">Efeitos 3D</a><a href="../magias/index.html">Magias</a></header>
+<section class="panel" id="info"><b id="area">Ilha Central · Luz</b><div id="objective">Explore a cidade e investigue as fendas.</div><div id="notice">WASD / setas para andar · E para interagir</div><div id="stats">Fendas fechadas: 0/6</div></section>
+<section class="panel" id="nav"><h2>Mapa do arquipélago</h2><div id="destinations"></div></section>
+<div id="prompt">Aproxime-se do porto ou de uma fenda para interagir.</div>
+<div id="controls"><div id="pad"><button class="up" data-dir="up">▲</button><button data-dir="left">◀</button><button data-dir="down">▼</button><button data-dir="right">▶</button></div><button class="action" id="interact">E · Interagir</button></div>
+<script>
+(()=>{
+'use strict';
+const C=document.getElementById('game'),ctx=C.getContext('2d'),info=document.getElementById('area'),objective=document.getElementById('objective'),notice=document.getElementById('notice'),stats=document.getElementById('stats'),prompt=document.getElementById('prompt'),destinations=document.getElementById('destinations');
+const TAU=Math.PI*2;
+const islands=[
+{id:'luz',name:'Ilha Central',type:'Luz',color:'#aabda8',edge:'#657c66',orb:'#ffdf97',r:470,city:'Aurora',houses:26,detail:'Capital dos sete refúgios; o maior núcleo de energia.',fissure:false},
+{id:'gelo',name:'Ilha Glacial',type:'Gelo',color:'#a8ccd4',edge:'#648d9e',orb:'#b6edff',r:310,city:'Brumal',houses:13,detail:'Neve, gelo e lagos congelados.',fissure:true},
+{id:'fogo',name:'Ilha Vulcânica',type:'Fogo',color:'#87685e',edge:'#513f3e',orb:'#ff873d',r:310,city:'Cinéria',houses:13,detail:'Rocha escura, crateras e rios de lava.',fissure:true},
+{id:'vento',name:'Ilha das Dunas',type:'Vento',color:'#c9b47e',edge:'#96825d',orb:'#d9e8ba',r:310,city:'Siroco',houses:13,detail:'Areia, ventos fortes e torres de vigia.',fissure:true},
+{id:'agua',name:'Ilha Pantanosa',type:'Água',color:'#6a9488',edge:'#3b655f',orb:'#79d9c9',r:310,city:'Juncal',houses:13,detail:'Passarelas, lagos rasos e névoa.',fissure:true},
+{id:'terra',name:'Ilha da Floresta',type:'Terra',color:'#68835a',edge:'#3e6045',orb:'#83bc72',r:310,city:'Raizalta',houses:13,detail:'Árvores antigas e ruínas cobertas de musgo.',fissure:true},
+{id:'raio',name:'Ilha dos Cristais',type:'Elétrica',color:'#666f93',edge:'#424b73',orb:'#c1afff',r:310,city:'Fulgrita',houses:13,detail:'Cristais e veios de energia elétrica.',fissure:true}
+];
+const positions=[[0,0],[0,-1200],[1060,-620],[1060,620],[0,1200],[-1060,620],[-1060,-620]];
+islands.forEach((s,i)=>{s.x=positions[i][0];s.y=positions[i][1];s.closed=false;s.port={x:s.x+s.r*.63,y:s.y};s.fiss={x:s.x-s.r*.62,y:s.y+s.r*.16};s.homes=Array.from({length:s.houses},(_,j)=>{const row=Math.floor(j/6),col=j%6;return {x:s.x+(col-2.5)*55+(row%2)*13,y:s.y+85+row*51,w:32,h:26}})});
+const player={island:0,x:40,y:210,speed:215},keys=new Set(),touch=new Set();let last=performance.now(),elapsed=0,travel=0,from=0,to=0,boatDock=false;
+let W=innerWidth,H=innerHeight,DPR=1;
+function resize(){DPR=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;C.width=Math.round(W*DPR);C.height=Math.round(H*DPR);ctx.setTransform(DPR,0,0,DPR,0,0)}addEventListener('resize',resize);resize();
+function rand(x){let z=Math.sin(x*127.1+78.23)*43758.545;return z-Math.floor(z)}
+function updateHud(){const s=islands[player.island];info.textContent=s.name+' · '+s.type+' · Cidade de '+s.city;objective.textContent=s.detail;stats.textContent='Fendas fechadas: '+islands.filter(i=>i.fissure&&i.closed).length+'/6';[...destinations.children].forEach((b,i)=>b.classList.toggle('active',i===player.island))}
+const btns=islands.map((s,i)=>{const b=document.createElement('button');b.textContent=(i===0?'✦ ':'◈ ')+s.name+' · '+s.type;b.addEventListener('click',()=>{if(travel)return;if(i===player.island){notice.textContent='Você já está nesta ilha.';return}if(!boatDock){notice.textContent='Vá até o porto e use E para embarcar.';return}sail(i)});destinations.appendChild(b);return b});
+function dist(x,y,a,b){return Math.hypot(x-a,y-b)}
+function sail(i){if(travel||i===player.island)return;from=player.island;to=i;travel=.8;boatDock=false;notice.textContent='Viajando de barco voador até '+islands[i].name+'…'}
+function interact(){
+ if(travel)return;
+ const s=islands[player.island];
+ if(dist(player.x,player.y,s.port.x,s.port.y)<115){boatDock=true;notice.textContent='Barco voador preparado. Escolha uma ilha no mapa à direita.';return}
+ if(s.fissure&&!s.closed&&dist(player.x,player.y,s.fiss.x,s.fiss.y)<105){s.closed=true;notice.textContent='Fenda selada! Os Obsérs recuperaram fragmentos de informação.';updateHud();return}
+ if(dist(player.x,player.y,s.x,s.y)<115){notice.textContent='Orbe gigante de '+s.type+': sustenta a ilha e alimenta sua cidade.';return}
+ notice.textContent='Aproxime-se do porto, da orbe gigante ou de uma fenda.'}
+document.getElementById('interact').addEventListener('click',interact);
+addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','e','E'].includes(e.key))e.preventDefault();keys.add(e.key.toLowerCase());if(e.key.toLowerCase()==='e'&&!e.repeat)interact()});
+addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
+document.querySelectorAll('[data-dir]').forEach(b=>{const d=b.dataset.dir;const up=()=>touch.delete(d);b.addEventListener('pointerdown',e=>{e.preventDefault();b.setPointerCapture(e.pointerId);touch.add(d)});b.addEventListener('pointerup',up);b.addEventListener('pointercancel',up);b.addEventListener('lostpointercapture',up)});
+function circle(x,y,r,color){ctx.beginPath();ctx.arc(x,y,r,0,TAU);ctx.fillStyle=color;ctx.fill()}
+function rect(x,y,w,h,color){ctx.fillStyle=color;ctx.fillRect(x,y,w,h)}
+function poly(points,color){ctx.beginPath();points.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();ctx.fillStyle=color;ctx.fill()}
+function islandScene(s){
+ const x=s.x,y=s.y,r=s.r;
+ circle(x+15,y+28,r+15,'#0009');circle(x,y,r+14,s.edge);circle(x,y,r,s.color);
+ ctx.strokeStyle='#fff2';ctx.lineWidth=4;ctx.beginPath();ctx.arc(x,y,r-27,0,TAU);ctx.stroke();
+ // caminhos entre o porto, o centro energético e a cidade
+ ctx.strokeStyle=s.type==='Luz'?'#dcd0b0':'#bcb19a';ctx.lineWidth=34;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(s.port.x,s.port.y);ctx.moveTo(x,y);ctx.lineTo(x,y+205);ctx.stroke();
+ for(let i=0;i<30;i++){const a=rand(i*11+islands.indexOf(s)*63)*TAU,dd=(.28+rand(i*3+10)*.61)*r,xx=x+Math.cos(a)*dd,yy=y+Math.sin(a)*dd;if(Math.abs(xx-x)<165&&Math.abs(yy-y)<215)continue;
+ if(s.type==='Terra'||s.type==='Luz'){circle(xx,yy,14,'#314e38');circle(xx-5,yy-6,10,'#648669')}
+ else if(s.type==='Gelo'){poly([[xx,yy-19],[xx+13,yy],[xx,yy+13],[xx-12,yy]],'#e8f8ff')}
+ else if(s.type==='Fogo'){poly([[xx-15,yy+11],[xx,yy-17],[xx+17,yy+11]],'#473839');circle(xx,yy+12,5,'#be5b35')}
+ else if(s.type==='Vento'){circle(xx,yy,12,'#dac693');circle(xx+7,yy+2,7,s.color)}
+ else if(s.type==='Água'){circle(xx,yy,17,'#376e75');circle(xx,yy,7,'#739f8d')}
+ else {poly([[xx,yy-20],[xx+12,yy-2],[xx+5,yy+15],[xx-8,yy+15],[xx-13,yy-4]],'#ae9bdb')}
+ }
+ // casas e estruturas da cidade em cubos
+ for(const h of s.homes){const xx=h.x,yy=h.y;if(dist(xx,yy,x,y)>r-52)continue;rect(xx+3,yy+7,h.w,h.h,'#0004');rect(xx,yy,h.w,h.h,s.type==='Fogo'?'#5d5049':'#b9b2a0');rect(xx,yy-5,h.w,8,'#596473');rect(xx+11,yy+14,9,12,'#384953')}
+ // prédio principal, torre quadrada e orbe circular
+ rect(x-38,y-24,76,72,'#2c3945');rect(x-48,y+37,96,16,'#897f69');rect(x-27,y-41,54,21,'#8b897e');
+ circle(x,y-49,30,s.orb+'55');circle(x,y-49,17,s.orb);
+ ctx.strokeStyle=s.orb;ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y-49,25+2*Math.sin(elapsed*1.5),0,TAU);ctx.stroke();
+ // porto e barco
+ rect(s.port.x-35,s.port.y-35,72,69,'#786955');rect(s.port.x-31,s.port.y-30,63,59,'#a99c7c');
+ poly([[s.port.x+25,s.port.y-10],[s.port.x+84,s.port.y],[s.port.x+25,s.port.y+10]],'#5e493b');circle(s.port.x+12,s.port.y,7,'#cfbd8d');
+ if(s.fissure){const f=s.fiss;if(!s.closed){ctx.save();ctx.translate(f.x,f.y);ctx.rotate(.18*Math.sin(elapsed));circle(0,0,40,'#120b28');ctx.strokeStyle='#b18bd6';ctx.lineWidth=7;ctx.beginPath();ctx.ellipse(0,0,30+3*Math.sin(elapsed*5),44,0,0,TAU);ctx.stroke();poly([[-9,-27],[8,-7],[-6,14],[9,25],[-1,36],[-20,7]],'#7954a9');ctx.restore()}else{circle(f.x,f.y,32,'#304b45');circle(f.x,f.y,13,'#72b4a1')}}
+ // nome cidade
+ ctx.font='600 19px system-ui';ctx.textAlign='center';ctx.fillStyle='#f5ebdb';ctx.fillText(s.city,x,y+260);
+}
+function playerDraw(){circle(player.x,player.y+11,17,'#0006');circle(player.x,player.y,13,'#e5d7bc');rect(player.x-10,player.y+6,20,23,'#304c65');circle(player.x+12,player.y-10,9,'#c0e9b8')}
+function draw(dt){
+ ctx.clearRect(0,0,W,H);rect(0,0,W,H,'#101e2c');ctx.save();ctx.translate(W/2-player.x,H/2-player.y);
+ const island=islands[player.island];
+ // ilhas remotas visíveis no mapa do mundo; exploração mantém foco na ilha atual
+ for(const s of islands){if(dist(player.x,player.y,s.x,s.y)<Math.max(W,H)+s.r+400){islandScene(s)}}
+ // rochas suspensas além das margens
+ for(let i=0;i<16;i++){const angle=i*TAU/16,rr=island.r+65+rand(i+player.island*13)*95;poly([[island.x+Math.cos(angle)*rr-16,island.y+Math.sin(angle)*rr],[island.x+Math.cos(angle)*rr+15,island.y+Math.sin(angle)*rr-6],[island.x+Math.cos(angle)*rr+8,island.y+Math.sin(angle)*rr+23]],'#394f59')}
+ playerDraw();ctx.restore();
+ if(travel){rect(0,0,W,H,'#07121be0');ctx.textAlign='center';ctx.font='24px Georgia,serif';ctx.fillStyle='#e1c99c';ctx.fillText('✧ Barco Voador ✧',W/2,H/2-12);ctx.font='14px system-ui';ctx.fillText('Atravessando o céu rumo a '+islands[to].name,W/2,H/2+23)}
+}
+function frame(now){const dt=Math.min((now-last)/1000,.05);last=now;elapsed+=dt;
+ if(travel){travel-=dt;if(travel<=0){player.island=to;const s=islands[to];player.x=s.port.x-64;player.y=s.port.y+66;notice.textContent='Chegou a '+s.name+'. Procure a cidade e a fenda.';updateHud();}}
+ else{
+ let dx=Number(keys.has('arrowright')||keys.has('d')||touch.has('right'))-Number(keys.has('arrowleft')||keys.has('a')||touch.has('left'));
+ let dy=Number(keys.has('arrowdown')||keys.has('s')||touch.has('down'))-Number(keys.has('arrowup')||keys.has('w')||touch.has('up'));
+ const len=Math.hypot(dx,dy)||1;dx/=len;dy/=len;
+ const s=islands[player.island],nx=player.x+dx*player.speed*dt,ny=player.y+dy*player.speed*dt;
+ if(dist(nx,ny,s.x,s.y)<s.r-23){player.x=nx;player.y=ny;}
+ if((dx||dy)&&boatDock){boatDock=false;notice.textContent='Aproxime-se do porto para escolher uma viagem.'}
+ const nearDock=dist(player.x,player.y,s.port.x,s.port.y)<115;
+ const nearFiss=s.fissure&&!s.closed&&dist(player.x,player.y,s.fiss.x,s.fiss.y)<105;
+ prompt.textContent=nearDock?'[E] Embarcar no barco voador · escolha o destino':nearFiss?'[E] Fechar a fenda espacial':dist(player.x,player.y,s.x,s.y)<115?'[E] Examinar a orbe gigante':'WASD / setas: caminhar · E: interagir · aproxime-se de um porto';
+ }
+ draw(dt);requestAnimationFrame(frame)}
+updateHud();requestAnimationFrame(frame);
+})();
+</script></body></html>
