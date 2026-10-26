@@ -26,18 +26,18 @@ header{left:10px;right:10px;top:calc(8px + env(safe-area-inset-top));flex-wrap:n
 #prompt{bottom:170px;max-width:min(440px,94vw)}
 #controls{bottom:calc(12px + env(safe-area-inset-bottom));align-items:flex-end}
 @media(max-width:660px){header{gap:5px}header strong{font-size:12px}header a{font-size:11px}#info{top:70px;max-width:calc(100vw - 92px);font-size:11px}#info #objective{display:none}#mapToggle{top:71px;right:10px}#nav{top:46%;bottom:auto;max-height:68dvh;width:calc(100vw - 26px)}#prompt{bottom:calc(165px + env(safe-area-inset-bottom));font-size:10px;padding:8px 10px}#joystick{width:132px;height:132px;bottom:0}.action{padding:14px 12px}}
-</style></head><body>
+#equipment{position:fixed;bottom:calc(152px + env(safe-area-inset-bottom));right:12px;z-index:9;display:flex;gap:5px;max-width:calc(100vw - 24px);flex-wrap:wrap;justify-content:flex-end}#equipment button{background:#182e3cdd;border:1px solid #78848c;padding:8px 10px;border-radius:9px;font-size:11px}#equipment button.equipped{border-color:#e8cb84;color:#ffe1a5;background:#51452d}#attack{position:fixed;right:12px;bottom:calc(90px + env(safe-area-inset-bottom));z-index:10;background:#704334;border-color:#e1aa7d;padding:12px 15px}@media(max-width:660px){#equipment{bottom:calc(168px + env(safe-area-inset-bottom));left:8px;right:8px;justify-content:center}#equipment button{padding:8px;font-size:10px}#attack{bottom:calc(95px + env(safe-area-inset-bottom));right:12px}} </style></head><body>
 <canvas id="game" aria-label="Mapa jogável de sete ilhas flutuantes"></canvas>
 <header><div class="pill"><strong>Ateliê Arcano · Teste 2D</strong><small>Prólogo — Os Sete Refúgios</small></div><a href="../index.html">Jogo</a><a href="../magias/espadas.html">Efeitos 3D</a><a href="../magias/index.html">Magias</a></header>
 <section class="panel" id="info"><b id="area">Ilha Central · Luz</b><div id="objective">Explore a cidade e investigue as fendas.</div><div id="notice">No celular, arraste o botão redondo para andar · E para interagir</div><div id="stats">Dungeons seladas: 0/6</div><div id="clockTag">☀️ Dia · 10:00</div></section>
 <button id="mapToggle" type="button">🗺️ Ilhas</button><section class="panel" id="nav" role="dialog" aria-label="Destinos do barco voador"><button id="closeMap" type="button">Fechar ✕</button><h2>Barco Voador · Destinos</h2><p id="mapHelp">Vá ao porto e interaja para escolher sua próxima ilha.</p><div id="destinations"></div></section>
 <div id="prompt">Aproxime-se do porto ou de uma fenda para interagir.</div>
-<div id="controls"><div id="joystick" role="slider" aria-label="Controle deslizante de movimento, arraste para andar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="stick"></div><span id="joyLabel">DESLIZE</span></div><button class="action" id="interact">E · Interagir</button></div>
+<div id="equipment" aria-label="Selecionar arma"><button data-weapon="sword">⚔️ Espada</button><button data-weapon="dagger">🗡️ Adaga</button><button data-weapon="bow">🏹 Arco</button><button data-weapon="orb">🔮 Orbe</button></div><button id="attack" type="button">⚡ Atacar</button><div id="controls"><div id="joystick" role="slider" aria-label="Controle deslizante de movimento, arraste para andar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="stick"></div><span id="joyLabel">DESLIZE</span></div><button class="action" id="interact">E · Interagir</button></div>
 <script>
 (()=>{
 'use strict';
 const C=document.getElementById('game');let ctx=C.getContext('2d');const info=document.getElementById('area'),objective=document.getElementById('objective'),notice=document.getElementById('notice'),stats=document.getElementById('stats'),prompt=document.getElementById('prompt'),destinations=document.getElementById('destinations');
-const TAU=Math.PI*2;
+const TAU=Math.PI*2;let equipped='sword',attackFlash=0;const weapons={sword:{name:'Espada',range:68,damage:2,cooldown:.55},dagger:{name:'Adaga',range:48,damage:1,cooldown:.22},bow:{name:'Arco e flecha',range:280,damage:1,cooldown:.8},orb:{name:'Orbe mágica',range:225,damage:2,cooldown:1.1}};function chooseWeapon(w){equipped=w;document.querySelectorAll('[data-weapon]').forEach(b=>b.classList.toggle('equipped',b.dataset.weapon===w));notice.textContent='Equipado: '+weapons[w].name;}document.querySelectorAll('[data-weapon]').forEach(b=>b.addEventListener('click',()=>chooseWeapon(b.dataset.weapon)));chooseWeapon('sword');
 const clockTag=document.getElementById('clockTag');const navPanel=document.getElementById('nav'),mapToggle=document.getElementById('mapToggle');function setMap(open){navPanel.classList.toggle('open',open);mapToggle.setAttribute('aria-expanded',String(open));}mapToggle.addEventListener('click',()=>setMap(!navPanel.classList.contains('open')));document.getElementById('closeMap').addEventListener('click',()=>setMap(false));
 const islands=[
 {id:'luz',name:'Ilha Central',type:'Luz',color:'#aabda8',edge:'#657c66',orb:'#ffdf97',r:470,city:'Aurora',houses:26,detail:'Capital dos sete refúgios; o maior núcleo de energia.',fissure:false},
@@ -72,6 +72,19 @@ function leaveDungeon(purified=false){
  notice.textContent=purified?'Orbe purificada! A Dungeon desapareceu e você foi teleportado para fora.':'Você retornou à superfície.';
  updateHud();
 }
+function attack(){
+ if(sceneMode!=='dungeon'||travel>0||portalTransition>0){notice.textContent='Ataques disponíveis dentro das Dungeons.';return;}
+ if(dungeon.attackCooldown>0)return;
+ const w=weapons[equipped],targets=dungeon.monsters.filter(m=>m.hp>0).concat(dungeon.boss.awake&&dungeon.boss.hp>0?[dungeon.boss]:[]);
+ let target=null,distance=Infinity;
+ for(const m of targets){const d=dist(dungeon.x,dungeon.y,m.x,m.y);if(d<w.range&&d<distance){target=m;distance=d;}}
+ dungeon.attackCooldown=w.cooldown;attackFlash=.18;
+ if(!target){notice.textContent=weapons[equipped].name+': ataque sem alvo ao alcance.';return;}
+ target.hp=Math.max(0,target.hp-w.damage);
+ if(target.hp===0&&target!==dungeon.boss)dungeon.drops.push({x:target.x,y:target.y});
+ notice.textContent=target.hp>0?'Acertou com '+w.name+'! Vida restante: '+target.hp:target===dungeon.boss?'Guardião derrotado! Use o cristal para purificar a orbe.':'Monstro derrotado com '+w.name+'!';
+}
+document.getElementById('attack').addEventListener('click',attack);
 function interact(){
  if(travel>0||portalTransition>0)return;
  if(sceneMode==='dungeon'){
@@ -79,13 +92,6 @@ function interact(){
   if(dungeon.y>165&&Math.abs(dungeon.x)<72){portalTarget={mode:'island'};portalTransition=.65;return;}
   const chest=dungeon.chests.find(c=>!c.opened&&dist(dungeon.x,dungeon.y,c.x,c.y)<58);
   if(chest){chest.opened=true;dungeon.loot++;if(dungeon.loot===2){dungeon.crystal=true;notice.textContent='Baú aberto: Cristal de Purificação obtido!';}else{dungeon.drops.push({x:chest.x+20,y:chest.y+24});notice.textContent='Baú aberto! Fragmento mágico coletado.';}return;}
-  const enemy=dungeon.monsters.find(m=>m.hp>0&&dist(dungeon.x,dungeon.y,m.x,m.y)<62);
-  if(enemy){if(dungeon.attackCooldown>0)return;enemy.hp--;dungeon.attackCooldown=.4;notice.textContent=enemy.hp?'Monstro atingido!':'Monstro derrotado: item encontrado!';if(enemy.hp===0)dungeon.drops.push({x:enemy.x,y:enemy.y});return;}
-  const boss=dungeon.boss;
-  if(boss.awake&&boss.hp>0&&dist(dungeon.x,dungeon.y,boss.x,boss.y)<95){
-   if(dungeon.attackCooldown>0)return;boss.hp--;dungeon.attackCooldown=.45;
-   notice.textContent=boss.hp?'Guardião ferido! Vida restante: '+boss.hp:'Guardião derrotado! Purifique a orbe com o cristal.';return;
-  }
   if(dist(dungeon.x,dungeon.y,0,-905)<100){
    if(!dungeon.crystal){notice.textContent='É necessário um Cristal de Purificação. Procure nos baús.';return;}
    if(boss.hp>0){boss.awake=true;notice.textContent='O guardião protege a orbe! Derrote-o primeiro.';return;}
@@ -102,7 +108,7 @@ function interact(){
  if(dist(player.x,player.y,s.x,s.y)<115){notice.textContent='Orbe gigante de '+s.type+': sustenta a ilha e alimenta sua cidade.';return}
  notice.textContent='Aproxime-se do porto, da orbe gigante ou de uma fenda.'}
 document.getElementById('interact').addEventListener('click',interact);
-addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','e','E'].includes(e.key))e.preventDefault();keys.add(e.key.toLowerCase());if(e.key.toLowerCase()==='e'&&!e.repeat)interact()});
+addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','e','E','f','F'].includes(e.key))e.preventDefault();keys.add(e.key.toLowerCase());if(e.key.toLowerCase()==='e'&&!e.repeat)interact();if((e.key===' '||e.key.toLowerCase()==='f')&&!e.repeat)attack()});
 addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
 const joy=document.getElementById('joystick'),stick=document.getElementById('stick'),joystick={x:0,y:0,pointer:null};
 function setJoy(e){
@@ -275,7 +281,7 @@ function paintDungeon(){
   rect(chest.x-3,chest.y-6,6,12,'#dac18e');
  }
  for(const drop of dungeon.drops){circle(drop.x,drop.y,7,'#b9c9cf');circle(drop.x-2,drop.y-2,3,'#fff3c0');}
- for(const m of dungeon.monsters)if(m.hp>0){circle(m.x,m.y,15,'#714e6c');circle(m.x-5,m.y-3,3,'#efb1aa');circle(m.x+5,m.y-3,3,'#efb1aa');}
+ if(attackFlash>0){circle(dungeon.x,dungeon.y,weapons[equipped].range,'#d4b36a16');}for(const m of dungeon.monsters)if(m.hp>0){circle(m.x,m.y,15,'#714e6c');circle(m.x-5,m.y-3,3,'#efb1aa');circle(m.x+5,m.y-3,3,'#efb1aa');}
  const s=islands[player.island];
  circle(0,-905,64,'#171324');circle(0,-905,36,s.orb);
  ctx.strokeStyle='#ae8ac1';ctx.lineWidth=5;ctx.beginPath();ctx.arc(0,-905,52,0,TAU);ctx.stroke();
@@ -322,7 +328,7 @@ function frame(now){const dt=Math.min((now-last)/1000,.05);last=now;elapsed+=dt;
  let dy=Number(keys.has('arrowdown')||keys.has('s'))-Number(keys.has('arrowup')||keys.has('w'))+joystick.y;
  const len=Math.max(1,Math.hypot(dx,dy));dx/=len;dy/=len;
  const s=islands[player.island];
- if(sceneMode==='dungeon'){dungeon.x=Math.max(-230,Math.min(230,dungeon.x+dx*player.speed*dt));dungeon.y=Math.max(-970,Math.min(245,dungeon.y+dy*player.speed*dt));dungeon.attackCooldown=Math.max(0,dungeon.attackCooldown-dt);if(dungeon.y< -680&&!dungeon.boss.awake&&dungeon.boss.hp>0){dungeon.boss.awake=true;notice.textContent='O GUARDIÃO DESPERTOU na sala da orbe!';}prompt.textContent=dungeon.y>165&&Math.abs(dungeon.x)<72?'[E] Voltar à superfície':dist(dungeon.x,dungeon.y,0,-905)<100?'[E] Purificar a orbe':dungeon.monsters.some(m=>m.hp>0&&dist(dungeon.x,dungeon.y,m.x,m.y)<62)?'[E] Atacar monstro':dungeon.chests.some(c=>!c.opened&&dist(dungeon.x,dungeon.y,c.x,c.y)<58)?'[E] Abrir baú':dungeon.boss.awake&&dungeon.boss.hp>0&&dist(dungeon.x,dungeon.y,dungeon.boss.x,dungeon.boss.y)<95?'[E] Atacar chefe':'Explore a Dungeon e encontre o cristal';}
+ if(sceneMode==='dungeon'){dungeon.x=Math.max(-230,Math.min(230,dungeon.x+dx*player.speed*dt));dungeon.y=Math.max(-970,Math.min(245,dungeon.y+dy*player.speed*dt));dungeon.attackCooldown=Math.max(0,dungeon.attackCooldown-dt);attackFlash=Math.max(0,attackFlash-dt);if(dungeon.y< -680&&!dungeon.boss.awake&&dungeon.boss.hp>0){dungeon.boss.awake=true;notice.textContent='O GUARDIÃO DESPERTOU na sala da orbe!';}prompt.textContent=dungeon.y>165&&Math.abs(dungeon.x)<72?'[E] Voltar à superfície':dist(dungeon.x,dungeon.y,0,-905)<100?'[E] Purificar a orbe':dungeon.monsters.some(m=>m.hp>0&&dist(dungeon.x,dungeon.y,m.x,m.y)<62)?'[Atacar] Golpear monstro':dungeon.chests.some(c=>!c.opened&&dist(dungeon.x,dungeon.y,c.x,c.y)<58)?'[E] Abrir baú':dungeon.boss.awake&&dungeon.boss.hp>0&&dist(dungeon.x,dungeon.y,dungeon.boss.x,dungeon.boss.y)<95?'[Atacar] Golpear chefe':'Explore a Dungeon e encontre o cristal';}
  else{const nx=player.x+dx*player.speed*dt,ny=player.y+dy*player.speed*dt;
  if(dist(nx,ny,s.x,s.y)<s.r-23){player.x=nx;player.y=ny;}
  if((dx||dy)&&boatDock){boatDock=false;notice.textContent='Aproxime-se do porto para escolher uma viagem.'}
