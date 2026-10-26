@@ -66,6 +66,7 @@ function enterDungeon(){
  sceneMode='dungeon';notice.textContent='Explore a caverna, recolha o cristal e enfrente o guardião.';
 }
 function leaveDungeon(purified=false){
+ if(purified)islandCache.delete(islands[player.island].id);
  sceneMode='island';const entry=islands[player.island].fiss;
  player.x=entry.x+60;player.y=entry.y+24;
  notice.textContent=purified?'Orbe purificada! A Dungeon desapareceu e você foi teleportado para fora.':'Você retornou à superfície.';
@@ -220,7 +221,7 @@ function islandScene(s){
  // porto e barco
  rect(s.port.x-35,s.port.y-35,72,69,'#786955');rect(s.port.x-31,s.port.y-30,63,59,'#a99c7c');
  poly([[s.port.x+25,s.port.y-10],[s.port.x+84,s.port.y],[s.port.x+25,s.port.y+10]],'#5e493b');circle(s.port.x+12,s.port.y,7,'#cfbd8d');
- if(s.fissure){const f=s.fiss;
+ if(s.fissure&&!s.closed){const f=s.fiss;
   // Pequena passagem escavada no solo, sem um portal gigante.
   circle(f.x,f.y+8,27,'#2c3034');
   poly([[f.x-34,f.y+21],[f.x-25,f.y-7],[f.x-11,f.y-19],[f.x+10,f.y-16],[f.x+29,f.y-3],[f.x+36,f.y+21]],'#595a5b');
