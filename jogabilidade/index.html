@@ -70,9 +70,48 @@ for(const event of ['pointerup','pointercancel','lostpointercapture'])joy.addEve
 function circle(x,y,r,color){ctx.beginPath();ctx.arc(x,y,r,0,TAU);ctx.fillStyle=color;ctx.fill()}
 function rect(x,y,w,h,color){ctx.fillStyle=color;ctx.fillRect(x,y,w,h)}
 function poly(points,color){ctx.beginPath();points.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();ctx.fillStyle=color;ctx.fill()}
+
+// Acabamento 2D inspirado na era 64-bit: luz ambiente, relevo, texturas e sprites vetoriais.
+function islandFinish(s){
+ const x=s.x,y=s.y,r=s.r;
+ ctx.save();ctx.beginPath();ctx.arc(x,y,r,0,TAU);ctx.clip();
+ const light=ctx.createRadialGradient(x-r*.4,y-r*.55,18,x,y,r*1.35);
+ light.addColorStop(0,'#ffffff27');light.addColorStop(.55,'#ffffff08');light.addColorStop(1,'#050d1a73');
+ ctx.fillStyle=light;ctx.fillRect(x-r,y-r,r*2,r*2);
+ for(let i=0;i<340;i++){const ang=rand(i*4+islands.indexOf(s)*211)*TAU,dd=Math.sqrt(rand(i*7+27))*r;
+ const xx=x+Math.cos(ang)*dd,yy=y+Math.sin(ang)*dd;
+ const n=rand(i*19+31);ctx.fillStyle=n>.49?'#ffffff18':'#09111c23';
+ ctx.fillRect(Math.round(xx/3)*3,Math.round(yy/3)*3,3+(i%3)*2,2+(i%2)*2);}
+ ctx.restore();
+ ctx.strokeStyle='#e7dcc033';ctx.lineWidth=4;ctx.beginPath();ctx.arc(x,y,r-5,Math.PI*1.12,Math.PI*1.89);ctx.stroke();
+ ctx.strokeStyle='#080b1b88';ctx.lineWidth=11;ctx.beginPath();ctx.arc(x,y,r+3,Math.PI*.1,Math.PI*.94);ctx.stroke();
+}
+function skyBackground(){
+ const g=ctx.createLinearGradient(0,0,W,H);g.addColorStop(0,'#152a38');g.addColorStop(.5,'#122433');g.addColorStop(1,'#080e1e');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+ for(let i=0;i<35;i++){const xx=(rand(i*2+3)*W+elapsed*(i%3+1)*1.5)%W,yy=rand(i*13+6)*H;
+ ctx.globalAlpha=.07+rand(i*7)*.09;circle(xx,yy,3+rand(i+9)*18,'#c1d6d6');}
+ ctx.globalAlpha=1;
+}
+function paintedBuildings(s){
+ for(const h of s.homes){const xx=h.x,yy=h.y;if(dist(xx,yy,s.x,s.y)>s.r-52)continue;
+ ctx.fillStyle='#080e1988';ctx.fillRect(xx+7,yy+11,h.w+2,h.h+6);
+ ctx.fillStyle=s.type==='Fogo'?'#65554f':s.type==='Gelo'?'#c7d9dc':s.type==='Elétrica'?'#9797b2':'#c5b6a0';
+ ctx.fillRect(xx,yy,h.w,h.h);
+ ctx.fillStyle='#ffffff33';ctx.fillRect(xx+2,yy+2,3,h.h-3);
+ poly([[xx-5,yy+1],[xx+h.w/2,yy-17],[xx+h.w+5,yy+1]],s.type==='Fogo'?'#403a41':'#485d67');
+ rect(xx+12,yy+13,8,13,'#344653');rect(xx+3,yy+7,5,6,'#d9ad67');
+ }
+}
+function landmarkGlow(s){
+ const cx=s.x,cy=s.y-49;
+ const rg=ctx.createRadialGradient(cx,cy,8,cx,cy,72);
+ rg.addColorStop(0,s.orb+'aa');rg.addColorStop(.45,s.orb+'33');rg.addColorStop(1,s.orb+'00');
+ ctx.fillStyle=rg;ctx.beginPath();ctx.arc(cx,cy,72,0,TAU);ctx.fill();
+ circle(cx,cy,14,s.orb);circle(cx-5,cy-6,5,'#ffffff99');
+}
 function islandScene(s){
  const x=s.x,y=s.y,r=s.r;
- circle(x+15,y+28,r+15,'#0009');circle(x,y,r+14,s.edge);circle(x,y,r,s.color);
+ circle(x+24,y+40,r+26,'#0008');circle(x+10,y+18,r+19,'#10151e');circle(x,y,r+14,s.edge);circle(x,y,r,s.color);islandFinish(s);
  ctx.strokeStyle='#fff2';ctx.lineWidth=4;ctx.beginPath();ctx.arc(x,y,r-27,0,TAU);ctx.stroke();
  // caminhos entre o porto, o centro energético e a cidade
  ctx.strokeStyle=s.type==='Luz'?'#dcd0b0':'#bcb19a';ctx.lineWidth=34;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(s.port.x,s.port.y);ctx.moveTo(x,y);ctx.lineTo(x,y+205);ctx.stroke();
@@ -125,9 +164,10 @@ function islandScene(s){
  }
  // casas e estruturas da cidade em cubos
  for(const h of s.homes){const xx=h.x,yy=h.y;if(dist(xx,yy,x,y)>r-52)continue;rect(xx+3,yy+7,h.w,h.h,'#0004');rect(xx,yy,h.w,h.h,s.type==='Fogo'?'#5d5049':'#b9b2a0');rect(xx,yy-5,h.w,8,'#596473');rect(xx+11,yy+14,9,12,'#384953')}
+ paintedBuildings(s);
  // prédio principal, torre quadrada e orbe circular
  rect(x-38,y-24,76,72,'#2c3945');rect(x-48,y+37,96,16,'#897f69');rect(x-27,y-41,54,21,'#8b897e');
- circle(x,y-49,30,s.orb+'55');circle(x,y-49,17,s.orb);
+ landmarkGlow(s);
  ctx.strokeStyle=s.orb;ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y-49,25+2*Math.sin(elapsed*1.5),0,TAU);ctx.stroke();
  // porto e barco
  rect(s.port.x-35,s.port.y-35,72,69,'#786955');rect(s.port.x-31,s.port.y-30,63,59,'#a99c7c');
@@ -136,9 +176,9 @@ function islandScene(s){
  // nome cidade
  ctx.font='600 19px system-ui';ctx.textAlign='center';ctx.fillStyle='#f5ebdb';ctx.fillText(s.city,x,y+260);
 }
-function playerDraw(){circle(player.x,player.y+11,17,'#0006');circle(player.x,player.y,13,'#e5d7bc');rect(player.x-10,player.y+6,20,23,'#304c65');circle(player.x+12,player.y-10,9,'#c0e9b8')}
+function playerDraw(){circle(player.x+3,player.y+23,19,'#0007');rect(player.x-11,player.y+5,22,25,'#253a4d');poly([[player.x-13,player.y+13],[player.x,player.y-1],[player.x+13,player.y+13]],'#3e5665');circle(player.x,player.y-3,11,'#d6c6b1');circle(player.x+12,player.y-10,8,'#a8d0bd');circle(player.x+10,player.y-13,3,'#e6ffda')}
 function draw(dt){
- ctx.clearRect(0,0,W,H);rect(0,0,W,H,'#101e2c');ctx.save();ctx.translate(W/2-player.x,H/2-player.y);
+ ctx.clearRect(0,0,W,H);skyBackground();ctx.save();ctx.translate(W/2-player.x,H/2-player.y);
  const island=islands[player.island];
  // ilhas remotas visíveis no mapa do mundo; exploração mantém foco na ilha atual
  for(const s of islands){if(dist(player.x,player.y,s.x,s.y)<Math.max(W,H)+s.r+400){islandScene(s)}}
