@@ -261,7 +261,7 @@ function drawCachedIsland(s){
 const spriteImages=new Map(),spritePending=new Set();
 function animeSprite(name,x,y,w,h,mirror=false){
  let image=spriteImages.get(name);
- if(!image){
+ if(image===undefined){
   if(!spritePending.has(name)){
    spritePending.add(name);image=new Image();
    image.onload=()=>{spriteImages.set(name,image);spritePending.delete(name);islandCache.clear();};
@@ -270,7 +270,7 @@ function animeSprite(name,x,y,w,h,mirror=false){
   }
   return false;
  }
- if(!image.complete||!image.naturalWidth)return false;
+ if(!image||!image.complete||!image.naturalWidth)return false;
  ctx.save();ctx.translate(x,y);if(mirror)ctx.scale(-1,1);
  ctx.drawImage(image,-w/2,-h,w,h);ctx.restore();return true;
 }
