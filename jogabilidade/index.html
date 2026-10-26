@@ -29,7 +29,7 @@ header{left:10px;right:10px;top:calc(8px + env(safe-area-inset-top));flex-wrap:n
 </style></head><body>
 <canvas id="game" aria-label="Mapa jogável de sete ilhas flutuantes"></canvas>
 <header><div class="pill"><strong>Ateliê Arcano · Teste 2D</strong><small>Prólogo — Os Sete Refúgios</small></div><a href="../index.html">Jogo</a><a href="../magias/espadas.html">Efeitos 3D</a><a href="../magias/index.html">Magias</a></header>
-<section class="panel" id="info"><b id="area">Ilha Central · Luz</b><div id="objective">Explore a cidade e investigue as fendas.</div><div id="notice">No celular, arraste o botão redondo para andar · E para interagir</div><div id="stats">Fendas fechadas: 0/6</div></section>
+<section class="panel" id="info"><b id="area">Ilha Central · Luz</b><div id="objective">Explore a cidade e investigue as fendas.</div><div id="notice">No celular, arraste o botão redondo para andar · E para interagir</div><div id="stats">Dungeons seladas: 0/6</div><div id="clockTag">☀️ Dia · 10:00</div></section>
 <button id="mapToggle" type="button">🗺️ Ilhas</button><section class="panel" id="nav" role="dialog" aria-label="Destinos do barco voador"><button id="closeMap" type="button">Fechar ✕</button><h2>Barco Voador · Destinos</h2><p id="mapHelp">Vá ao porto e interaja para escolher sua próxima ilha.</p><div id="destinations"></div></section>
 <div id="prompt">Aproxime-se do porto ou de uma fenda para interagir.</div>
 <div id="controls"><div id="joystick" role="slider" aria-label="Controle deslizante de movimento, arraste para andar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="stick"></div><span id="joyLabel">DESLIZE</span></div><button class="action" id="interact">E · Interagir</button></div>
@@ -37,7 +37,8 @@ header{left:10px;right:10px;top:calc(8px + env(safe-area-inset-top));flex-wrap:n
 (()=>{
 'use strict';
 const C=document.getElementById('game');let ctx=C.getContext('2d');const info=document.getElementById('area'),objective=document.getElementById('objective'),notice=document.getElementById('notice'),stats=document.getElementById('stats'),prompt=document.getElementById('prompt'),destinations=document.getElementById('destinations');
-const TAU=Math.PI*2;const navPanel=document.getElementById('nav'),mapToggle=document.getElementById('mapToggle');function setMap(open){navPanel.classList.toggle('open',open);mapToggle.setAttribute('aria-expanded',String(open));}mapToggle.addEventListener('click',()=>setMap(!navPanel.classList.contains('open')));document.getElementById('closeMap').addEventListener('click',()=>setMap(false));
+const TAU=Math.PI*2;
+const clockTag=document.getElementById('clockTag');const navPanel=document.getElementById('nav'),mapToggle=document.getElementById('mapToggle');function setMap(open){navPanel.classList.toggle('open',open);mapToggle.setAttribute('aria-expanded',String(open));}mapToggle.addEventListener('click',()=>setMap(!navPanel.classList.contains('open')));document.getElementById('closeMap').addEventListener('click',()=>setMap(false));
 const islands=[
 {id:'luz',name:'Ilha Central',type:'Luz',color:'#aabda8',edge:'#657c66',orb:'#ffdf97',r:470,city:'Aurora',houses:26,detail:'Capital dos sete refúgios; o maior núcleo de energia.',fissure:false},
 {id:'gelo',name:'Ilha Glacial',type:'Gelo',color:'#a8ccd4',edge:'#648d9e',orb:'#b6edff',r:310,city:'Brumal',houses:13,detail:'Neve, gelo e lagos congelados.',fissure:true},
@@ -49,19 +50,25 @@ const islands=[
 ];
 const positions=[[0,0],[0,-1200],[1060,-620],[1060,620],[0,1200],[-1060,620],[-1060,-620]];
 islands.forEach((s,i)=>{s.x=positions[i][0];s.y=positions[i][1];s.closed=false;s.port={x:s.x+s.r*.63,y:s.y};s.fiss={x:s.x-s.r*.62,y:s.y+s.r*.16};s.homes=Array.from({length:s.houses},(_,j)=>{const row=Math.floor(j/6),col=j%6;return {x:s.x+(col-2.5)*55+(row%2)*13,y:s.y+85+row*51,w:32,h:26}})});
-const player={island:0,x:40,y:210,speed:215},keys=new Set();let last=performance.now(),elapsed=0,travel=0,from=0,to=0,boatDock=false;
+const player={island:0,x:40,y:210,speed:215},keys=new Set();let last=performance.now(),elapsed=0,travel=0,from=0,to=0,boatDock=false,sceneMode='island',dungeon={x:0,y:190,monsters:[],sealed:false},clockTime=10,health=100,monsters=[];
 let W=innerWidth,H=innerHeight,DPR=1;
 function resize(){DPR=Math.min(devicePixelRatio||1,1.5);W=innerWidth;H=innerHeight;C.width=Math.round(W*DPR);C.height=Math.round(H*DPR);ctx.setTransform(DPR,0,0,DPR,0,0)}addEventListener('resize',resize);resize();
 function rand(x){let z=Math.sin(x*127.1+78.23)*43758.545;return z-Math.floor(z)}
-function updateHud(){const s=islands[player.island];info.textContent=s.name+' · '+s.type+' · Cidade de '+s.city;objective.textContent=s.detail;stats.textContent='Fendas fechadas: '+islands.filter(i=>i.fissure&&i.closed).length+'/6';[...destinations.children].forEach((b,i)=>b.classList.toggle('active',i===player.island))}
+function updateHud(){const s=islands[player.island];info.textContent=s.name+' · '+s.type+' · Cidade de '+s.city;objective.textContent=s.detail;stats.textContent='Dungeons seladas: '+islands.filter(i=>i.fissure&&i.closed).length+'/6';[...destinations.children].forEach((b,i)=>b.classList.toggle('active',i===player.island))}
 const btns=islands.map((s,i)=>{const b=document.createElement('button');b.textContent=(i===0?'✦ ':'◈ ')+s.name+' · '+s.type;b.addEventListener('click',()=>{if(travel>0)return;if(i===player.island){notice.textContent='Você já está nesta ilha.';return}if(!boatDock){notice.textContent='Vá até o porto e use E para embarcar.';setMap(false);return}sail(i)});destinations.appendChild(b);return b});
 function dist(x,y,a,b){return Math.hypot(x-a,y-b)}
 function sail(i){if(travel>0||i===player.island)return;from=player.island;to=i;travel=.8;boatDock=false;setMap(false);notice.textContent='Viajando de barco voador até '+islands[i].name+'…'}
 function interact(){
  if(travel>0)return;
+ if(sceneMode==='dungeon'){
+  const s=islands[player.island];
+  if(dungeon.y>155&&Math.abs(dungeon.x)<75){sceneMode='island';player.x=s.fiss.x+78;player.y=s.fiss.y+32;notice.textContent='Você saiu da Dungeon.';return;}
+  if(dungeon.y< -150&&Math.abs(dungeon.x)<75&&!s.closed){s.closed=true;dungeon.sealed=true;notice.textContent='Núcleo da fenda selado! A invasão noturna foi interrompida.';updateHud();return;}
+  notice.textContent='Procure o núcleo ao norte ou a saída ao sul.';return;
+ }
  const s=islands[player.island];
  if(dist(player.x,player.y,s.port.x,s.port.y)<115){boatDock=true;notice.textContent='Barco voador pronto. Escolha o destino.';setMap(true);return}
- if(s.fissure&&!s.closed&&dist(player.x,player.y,s.fiss.x,s.fiss.y)<105){s.closed=true;notice.textContent='Fenda selada! Os Obsérs recuperaram fragmentos de informação.';updateHud();return}
+ if(s.fissure&&dist(player.x,player.y,s.fiss.x,s.fiss.y)<105){sceneMode='dungeon';dungeon={x:0,y:198,monsters:[],sealed:s.closed};notice.textContent='Dungeon '+s.type+': encontre o núcleo e sele a fenda.';setMap(false);return}
  if(dist(player.x,player.y,s.x,s.y)<115){notice.textContent='Orbe gigante de '+s.type+': sustenta a ilha e alimenta sua cidade.';return}
  notice.textContent='Aproxime-se do porto, da orbe gigante ou de uma fenda.'}
 document.getElementById('interact').addEventListener('click',interact);
@@ -184,7 +191,13 @@ function islandScene(s){
  // porto e barco
  rect(s.port.x-35,s.port.y-35,72,69,'#786955');rect(s.port.x-31,s.port.y-30,63,59,'#a99c7c');
  poly([[s.port.x+25,s.port.y-10],[s.port.x+84,s.port.y],[s.port.x+25,s.port.y+10]],'#5e493b');circle(s.port.x+12,s.port.y,7,'#cfbd8d');
- if(s.fissure){const f=s.fiss;if(!s.closed){ctx.save();ctx.translate(f.x,f.y);ctx.rotate(.18*Math.sin(elapsed));circle(0,0,40,'#120b28');ctx.strokeStyle='#b18bd6';ctx.lineWidth=7;ctx.beginPath();ctx.ellipse(0,0,30+3*Math.sin(elapsed*5),44,0,0,TAU);ctx.stroke();poly([[-9,-27],[8,-7],[-6,14],[9,25],[-1,36],[-20,7]],'#7954a9');ctx.restore()}else{circle(f.x,f.y,32,'#304b45');circle(f.x,f.y,13,'#72b4a1')}}
+ if(s.fissure){const f=s.fiss;
+  // Entrada de caverna, com pedras emergindo do chão.
+  circle(f.x,f.y+18,48,'#202b30');poly([[f.x-60,f.y+32],[f.x-49,f.y-17],[f.x-24,f.y-37],[f.x+18,f.y-31],[f.x+52,f.y-8],[f.x+64,f.y+32]],s.closed?'#61716a':'#555561');
+  circle(f.x,f.y+10,30,s.closed?'#425e55':'#141320');
+  poly([[f.x-21,f.y+30],[f.x-17,f.y-4],[f.x,f.y-21],[f.x+17,f.y-4],[f.x+21,f.y+30]],s.closed?'#284a42':'#130e23');
+  if(!s.closed){ctx.strokeStyle='#856ba1';ctx.lineWidth=3;ctx.beginPath();ctx.arc(f.x,f.y+9,33,Math.PI,TAU);ctx.stroke();}
+ }
  // nome cidade
  ctx.font='600 19px system-ui';ctx.textAlign='center';ctx.fillStyle='#f5ebdb';ctx.fillText(s.city,x,y+260);
 }
@@ -208,28 +221,57 @@ function drawCachedIsland(s){
  ctx.beginPath();ctx.arc(s.x,s.y-49,25+pulse,0,TAU);ctx.stroke();ctx.globalAlpha=1;
 }
 function playerDraw(){circle(player.x+3,player.y+23,19,'#0007');rect(player.x-11,player.y+5,22,25,'#253a4d');poly([[player.x-13,player.y+13],[player.x,player.y-1],[player.x+13,player.y+13]],'#3e5665');circle(player.x,player.y-3,11,'#d6c6b1');circle(player.x+12,player.y-10,8,'#a8d0bd');circle(player.x+10,player.y-13,3,'#e6ffda')}
+
+function paintDungeon(){
+ ctx.clearRect(0,0,W,H);rect(0,0,W,H,'#090e16');ctx.save();ctx.translate(W/2-dungeon.x,H/2-dungeon.y);
+ rect(-280,-275,560,555,'#212934');
+ for(let yy=-270;yy<270;yy+=38)for(let xx=-273;xx<273;xx+=38){ctx.fillStyle=(Math.abs(xx+yy)%3)?'#303642':'#383e46';ctx.fillRect(xx,yy,35,35);}
+ for(let i=0;i<16;i++){const x=-278+i*37;rect(x,-290,34,25,'#51535b');rect(x,270,34,26,'#51535b');}
+ rect(-310,-290,32,580,'#555762');rect(280,-290,32,580,'#555762');
+ poly([[-50,255],[-50,220],[0,205],[50,220],[50,255]],'#967d62');
+ const s=islands[player.island];
+ circle(0,-205,51,s.closed?'#4c6257':'#17102b');
+ circle(0,-205,29,s.closed?'#799a85':s.orb);
+ ctx.strokeStyle=s.closed?'#86aa96':'#aa7dbc';ctx.lineWidth=5;ctx.beginPath();ctx.arc(0,-205,43,0,TAU);ctx.stroke();
+ for(const m of dungeon.monsters){circle(m.x,m.y,13,'#8a627d');circle(m.x-4,m.y-3,3,'#f0bbc2');circle(m.x+4,m.y-3,3,'#f0bbc2');}
+ circle(dungeon.x,dungeon.y+10,15,'#0009');circle(dungeon.x,dungeon.y,12,'#d8c7ad');rect(dungeon.x-8,dungeon.y+6,16,19,'#34556a');ctx.restore();
+ const darkness=ctx.createRadialGradient(W/2,H/2,55,W/2,H/2,Math.max(W,H)*.65);darkness.addColorStop(0,'#00000000');darkness.addColorStop(1,'#000000ba');ctx.fillStyle=darkness;ctx.fillRect(0,0,W,H);
+ ctx.font='600 13px system-ui';ctx.textAlign='center';ctx.fillStyle='#f6e4bf';ctx.fillText('DUNGEON · '+s.type+' · '+(s.closed?'NÚCLEO SELADO':'NÚCLEO ATIVO'),W/2,95);
+}
+function drawNightMonsters(dt){
+ const s=islands[player.island];if(!s.fissure||s.closed||(clockTime>=6&&clockTime<18))return;
+ const t=elapsed;
+ for(let i=0;i<4;i++){const a=t*.25+i*TAU/4,rr=45+(i%2)*28;const xx=s.fiss.x+Math.cos(a)*rr,yy=s.fiss.y+Math.sin(a)*rr;
+ circle(xx,yy,15,'#171125');circle(xx-5,yy-4,3,'#e79aa9');circle(xx+5,yy-4,3,'#e79aa9');}
+}
+
 function draw(dt){
+ if(sceneMode==='dungeon'){paintDungeon();return;}
  ctx.clearRect(0,0,W,H);skyBackground();ctx.save();ctx.translate(W/2-player.x,H/2-player.y);
  const island=islands[player.island];
  // ilhas remotas visíveis no mapa do mundo; exploração mantém foco na ilha atual
  for(const s of islands){if(dist(player.x,player.y,s.x,s.y)<Math.max(W,H)+s.r+400){drawCachedIsland(s)}}
  // rochas suspensas além das margens
  for(let i=0;i<16;i++){const angle=i*TAU/16,rr=island.r+65+rand(i+player.island*13)*95;poly([[island.x+Math.cos(angle)*rr-16,island.y+Math.sin(angle)*rr],[island.x+Math.cos(angle)*rr+15,island.y+Math.sin(angle)*rr-6],[island.x+Math.cos(angle)*rr+8,island.y+Math.sin(angle)*rr+23]],'#394f59')}
- playerDraw();ctx.restore();
+ drawNightMonsters(dt);playerDraw();ctx.restore();
+ if(clockTime>=18||clockTime<6){ctx.fillStyle='#03091583';ctx.fillRect(0,0,W,H);}
  if(travel>0){rect(0,0,W,H,'#07121be0');ctx.textAlign='center';ctx.font='24px Georgia,serif';ctx.fillStyle='#e1c99c';ctx.fillText('✧ Barco Voador ✧',W/2,H/2-12);ctx.font='14px system-ui';ctx.fillText('Atravessando o céu rumo a '+islands[to].name,W/2,H/2+23)}
 }
-function frame(now){const dt=Math.min((now-last)/1000,.05);last=now;elapsed+=dt;
+function frame(now){const dt=Math.min((now-last)/1000,.05);last=now;elapsed+=dt;clockTime=(clockTime+dt*.18)%24;const night=clockTime>=18||clockTime<6;clockTag.textContent=(night?'🌙 Noite':'☀️ Dia')+' · '+String(Math.floor(clockTime)).padStart(2,'0')+':'+String(Math.floor((clockTime%1)*60)).padStart(2,'0');
  if(travel>0){travel-=dt;if(travel<=0){travel=0;player.island=to;const s=islands[to];player.x=s.port.x-64;player.y=s.port.y+66;setMap(false);notice.textContent='Chegou a '+s.name+'. Procure a cidade e a fenda.';updateHud();}}
  else{
  let dx=Number(keys.has('arrowright')||keys.has('d'))-Number(keys.has('arrowleft')||keys.has('a'))+joystick.x;
  let dy=Number(keys.has('arrowdown')||keys.has('s'))-Number(keys.has('arrowup')||keys.has('w'))+joystick.y;
  const len=Math.max(1,Math.hypot(dx,dy));dx/=len;dy/=len;
- const s=islands[player.island],nx=player.x+dx*player.speed*dt,ny=player.y+dy*player.speed*dt;
+ const s=islands[player.island];
+ if(sceneMode==='dungeon'){dungeon.x=Math.max(-252,Math.min(252,dungeon.x+dx*player.speed*dt));dungeon.y=Math.max(-250,Math.min(245,dungeon.y+dy*player.speed*dt));prompt.textContent=dungeon.y>155&&Math.abs(dungeon.x)<75?'[E] Sair da Dungeon':dungeon.y< -150&&Math.abs(dungeon.x)<75&&!s.closed?'[E] Selar o núcleo':'Explore a Dungeon · procure o núcleo ao norte e a saída ao sul';}
+ else{const nx=player.x+dx*player.speed*dt,ny=player.y+dy*player.speed*dt;
  if(dist(nx,ny,s.x,s.y)<s.r-23){player.x=nx;player.y=ny;}
  if((dx||dy)&&boatDock){boatDock=false;notice.textContent='Aproxime-se do porto para escolher uma viagem.'}
  const nearDock=dist(player.x,player.y,s.port.x,s.port.y)<115;
  const nearFiss=s.fissure&&!s.closed&&dist(player.x,player.y,s.fiss.x,s.fiss.y)<105;
- prompt.textContent=nearDock?'[E] Embarcar no barco voador · escolha o destino':nearFiss?'[E] Fechar a fenda espacial':dist(player.x,player.y,s.x,s.y)<115?'[E] Examinar a orbe gigante':'WASD / setas: caminhar · E: interagir · aproxime-se de um porto';
+ prompt.textContent=nearDock?'[E] Embarcar no barco voador · escolha o destino':nearFiss?'[E] Entrar na Dungeon':dist(player.x,player.y,s.x,s.y)<115?'[E] Examinar a orbe gigante':'WASD / setas: caminhar · E: interagir · aproxime-se de um porto';
+ }
  }
  draw(dt);requestAnimationFrame(frame)}
 updateHud();requestAnimationFrame(frame);
