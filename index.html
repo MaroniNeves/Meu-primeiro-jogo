@@ -245,7 +245,7 @@ body.play-active #arcanoQuickPanel{top:calc(114px + env(safe-area-inset-top))}
   <script defer src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script><script defer src="./agua-v1226.js"></script><script defer src="./arcano-assets-v1232.js"></script><script defer src="./nature-imported-v1239.js"></script><script defer src="./fogo-grama-v1267.js"></script><script defer src="./ecossistema-v1232.js"></script>
 </head>
 <body><canvas id="stage" aria-label="Cena tridimensional de chuva, poças e lagoas"></canvas>
-<header class="top"><div class="row"><div class="name"><strong>✦ Ateliê Arcano · Floresta V12.68 · solo em camadas · chuva, aquífero e vegetação</strong><small>Grama em tufos originais · pedras texturizadas · solo granular · gotejamento das folhas</small></div><a class="home" href="./magias/index.html" title="Abrir as 100 magias">✨ Magias</a>
+<header class="top"><div class="row"><div class="name"><strong>✦ Ateliê Arcano · Floresta V12.68 · solo em camadas · chuva, aquífero e vegetação</strong><small>Grama em tufos originais · pedras texturizadas · solo granular · gotejamento das folhas</small></div><a class="home ar-legacy" href="./magias/espadas.html" title="Abrir laboratório dos demais efeitos 3D">✨ Efeitos 3D</a><a class="home" href="./magias/index.html" title="Abrir as 100 magias">✨ Magias</a>
 <a class="home" href="./jogabilidade/index.html" title="Explorar as sete ilhas em 2D">🎮 Protótipo 2D</a></div>
 <nav class="pills" aria-label="Escolher efeito"><button type="button" data-mode="rain">🌧 Chuva</button><button type="button" data-mode="puddle">💧 Poças</button><button type="button" data-mode="lagoon">🌊 Lagoa</button><button type="button" data-mode="storm">⛈ Temporal</button></nav></header>
 <button type="button" id="playEntry" aria-label="Jogar e controlar o personagem">🎮 Jogar</button>
@@ -484,13 +484,14 @@ body.play-active #arcanoQuickPanel{top:calc(114px + env(safe-area-inset-top))}
   <p>Entre no mundo da magia. Explore efeitos tridimensionais, experimente feitiços ou aventure-se pela floresta viva.</p>
   <div class="arcano-mode-options">
    
+   <a href="./magias/espadas.html"><span class="arcano-icon" aria-hidden="true">✨</span><span class="arcano-mode-text"><strong>Efeitos 3D</strong><small>Fogo, água, magia e efeitos visuais</small></span></a>
    <a href="./magias/index.html"><span class="arcano-icon" aria-hidden="true">✦</span><span class="arcano-mode-text"><strong>Magias</strong><small>Biblioteca de 100 feitiços originais</small></span></a>
    <button type="button" class="arcano-main-play" id="arcanoModePlay"><span class="arcano-icon" aria-hidden="true">🎮</span><span class="arcano-mode-text"><strong>Jogar</strong><small>Explore a floresta com seu personagem</small></span></button>
   </div>
   <div class="arcano-foot">Cada ambiente mantém seus modelos, cenário e controles originais.</div>
  </div>
 </div>
-<button type="button" id="arcanoOpenModes" aria-controls="arcanoModeMenu" aria-label="Escolher entre Magias e Jogar">☰ Modos</button>
+<button type="button" id="arcanoOpenModes" aria-controls="arcanoModeMenu" aria-label="Escolher entre Efeitos 3D, Magias e Jogar">☰ Modos</button>
 <script>
 (function(){
  const menu=document.getElementById('arcanoModeMenu');
