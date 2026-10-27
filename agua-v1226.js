@@ -192,6 +192,7 @@ const rocksRaw=[[-1.75,-4.7,.55],[.4,-3.3,.56],[.68,-1.8,.56],[-.65,-.5,.46],[.8
 const rocks=rocksRaw.map(([x,z,r])=>{
  const trail=.92-.70*Math.sin(x*.47+.6)+.17*Math.sin(x*1.34);
  if(Math.abs(z-trail)<r+1.18)z=trail+(z>trail?1:-1)*(r+1.50);
+ if(Math.abs(x+2.3)<5.0&&Math.abs(z-trail)<2.8)z=trail+(z>trail?1:-1)*(r+3.0);
  return [x,z,r];
 });
 const center=z=>-2.3+.55*Math.sin(z*.69)+.48*Math.sin(z*.29+1.3);
@@ -217,7 +218,9 @@ function elevation(x,z){
  // Encostas sobem na direção da margem, sem criar saída lateral do rio.
  const bank=clamp((lateral-width)/1.5,0,1);
  y+=.15*(1-bank)*bank*(1+.3*Math.sin(z*.55));
- for(const b of basins){const d=((x-b.x)/b.sx)**2+((z-b.z)/b.sz)**2;y-=b.deep*Math.exp(-1.5*d);}
+ const roadAxis=.92-.70*Math.sin(x*.47+.6)+.17*Math.sin(x*1.34);
+ const approach=Math.abs(z-roadAxis)<2.0&&Math.abs(x-center(z))<5.0;
+ if(!approach)for(const b of basins){const d=((x-b.x)/b.sx)**2+((z-b.z)/b.sz)**2;y-=b.deep*Math.exp(-1.5*d);}
  // Escavar somente o canal: mesmo sobre depressões, fundo entre 0,12 e 0,52 abaixo da lamina.
  // Pontos de margem nao entram nesta correcao, evitando dependencia circular.
  if(lateral<width-.055){
@@ -2351,7 +2354,8 @@ function rebuildImportedRocks(){
   // Não mover as rochas físicas (que afetam água/erosão) sem recalcular
   // hidrologia; omitir somente a geometria que conflita com o caminho.
   const roadZ=.92-.70*Math.sin(x*.47+.6)+.17*Math.sin(x*1.34);
-  if(Math.abs(z-roadZ)<Math.max(.86,r*.92+.30))continue;
+  if(Math.abs(z-roadZ)<Math.max(.86,r*.92+.30)||
+     (Math.abs(x+2.3)<5.0&&Math.abs(z-roadZ)<3.1))continue;
   const selected=importedRockModels[(i*7+Math.floor(seeded()*11))%importedRockModels.length];
   const visual=selected.root.clone(true);
   visual.name='Pedra original '+selected.item.name+' / variação '+(i+1);
