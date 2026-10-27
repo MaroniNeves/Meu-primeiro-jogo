@@ -197,11 +197,16 @@ const rocks=rocksRaw.map(([x,z,r])=>{
 const center=z=>-2.3+.55*Math.sin(z*.69)+.48*Math.sin(z*.29+1.3);
 const riverWidth=z=>.95+.23*Math.sin(z*.24+1.4)**2+.15*Math.sin(z*.71)**2;
 const riverShore=(x,z)=>Math.abs(x-center(z))-riverWidth(z);
+// Canal permanente, raso (no maximo 0,52 unidade): bordas secas e agua fixa.
+function riverDepthAt(x,z){
+ const t=clamp((-riverShore(x,z)-.07)/.62,0,1);
+ return .52*t*t*(3-2*t);
+}
 function elevation(x,z){
  let y=.32-.073*z+.16*Math.sin(x*.83+z*.26)+.115*Math.cos(z*1.22-x*.34)+.055*Math.sin(x*2.25+z*1.92);
  // Canal escavado com margens em encosta e trechos de diferentes profundidades.
  const lateral=Math.abs(x-center(z)),width=riverWidth(z);
- const deep=.45+.23*(.5+.5*Math.sin(z*.37+Math.sin(z*.12)*2))+.12*Math.sin(z*.91)**2;
+ const deep=.39+.09*(.5+.5*Math.sin(z*.37+Math.sin(z*.12)*2))+.04*Math.sin(z*.91)**2;
  const bed=1-clamp(lateral/width,0,1);
  y-=deep*bed*bed*(3-2*bed);
  // Encostas sobem na direção da margem, sem criar saída lateral do rio.
@@ -3010,14 +3015,18 @@ function hydrologyStep(dt){
   const lagoon=basins[1],invX=1/lagoon.sx,invZ=1/lagoon.sz;
   for(let k=0;k<size;k++){
    const x=(gridX[k]-lagoon.x)*invX,z=(gridZ[k]-lagoon.z)*invZ;
-   const withinRiver=Math.abs(gridX[k]-center(gridZ[k]))<riverWidth(gridZ[k])*.70;
-   permanentLakeMask[k]=withinRiver||x*x+z*z<.70?1:0;
+   permanentLakeMask[k]=x*x+z*z<.70?1:0;
   }
  }
  const rain=rainMeters[level]*dt,evap=.00027*dt;
  for(let k=0;k<size;k++){
+  const riverDepth=riverDepthAt(gridX[k],gridZ[k]);
   const permanentLake=permanentLakeMask[k]===1;
-  if(permanentLake){
+  if(riverDepth>0){
+   depth[k]=riverDepth;
+  }else if(riverShore(gridX[k],gridZ[k])<1.90){
+   depth[k]=0; // faixa da margem sem extravasamento do rio
+  }else if(permanentLake){
    // Água permanente só no interior do canal e na lagoa cadastrada.
    depth[k]=Math.max(depth[k],.034);
   }else{
@@ -3064,7 +3073,8 @@ const flowTransfers=new Float64Array(4);
 function flowStep(dt,multiplier){
  delta.fill(0);const speed=(.62+rainLevels[level]*.07)*dt*2.0*multiplier;
  for(let j=1;j<NZ-1;j++)for(let i=1;i<NX-1;i++){
-  const k=idx(i,j),v=depth[k];if(v<.000008)continue;
+  const k=idx(i,j),v=depth[k];
+  if(riverShore(gridX[k],gridZ[k])<1.90||v<.000008)continue;
   const head=soil[k]+v,base=k*4;let sum=0;
   flowTransfers[0]=flowTransfers[1]=flowTransfers[2]=flowTransfers[3]=0;
   for(let n=0;n<4;n++){const q=gridNeighbors[base+n];
@@ -3081,6 +3091,9 @@ function flowStep(dt,multiplier){
   const k=idx(i,j);
   // A profundidade junto às pedras não é zerada: a malha 3D as oculta parcialmente.
   depth[k]=Math.max(0,depth[k]+delta[k]);
+  const x=gridX[k],z=gridZ[k],river=riverDepthAt(x,z);
+  if(river>0)depth[k]=river;
+  else if(riverShore(x,z)<1.90)depth[k]=0;
   if(i===0||j===0||i===NX-1||j===NZ-1){
    const escape=depth[k]*Math.min(.25,dt*.35);
    depth[k]-=escape;stats.outflow+=escape*area;
@@ -3230,7 +3243,9 @@ function rebuild(){
  wetted=count*area;
  // A malha visual 2-3× mais densa interpola os dados; não gera quadrados da grade antiga.
  for(let j=0;j<VIS_NZ;j++)for(let i=0;i<VIS_NX;i++){
-  const k=j*VIS_NX+i,x=wx(i),z=wz(j),d=sample(depth,x,z);
+  const k=j*VIS_NX+i,x=wx(i),z=wz(j);
+  const fixedRiver=riverDepthAt(x,z),shore=riverShore(x,z);
+  const d=fixedRiver>0?fixedRiver:shore<1.90?0:sample(depth,x,z);
   waterPositions[k*3+1]=sample(soil,x,z)+d+.010;
   waterDepths[k]=d;
   waterMud[k]=sample(turbidity,x,z);
