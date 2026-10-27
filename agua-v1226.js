@@ -78,7 +78,7 @@ function configureSoilCells(preserve=true){
   soilKeyIndex[k]=soilProfileIndex(key);
   const cap=baseCapacity[k]*p.capacity,perm=basePermeability[k]*p.drain;
   soilCapacity[k]=cap;permeability[k]=perm;
-  if(soilMoisture[k]>cap){depth[k]+=soilMoisture[k]-cap;soilMoisture[k]=cap;}
+  if(soilMoisture[k]>cap)soilMoisture[k]=cap;
   soilOrganic[k]=preserve?clamp(soilOrganic[k]*.38+p.organic*.62,.02,1.2):p.organic;
   soilLitter[k]=preserve?soilLitter[k]:p.organic*.17;
   soilN[k]=preserve?clamp(soilN[k]*.35+p.n*.65,0,1.2):p.n;
@@ -2971,7 +2971,7 @@ function spawnLeafDrips(dt){
   if(!spawned){leafDripAccumulator=0;break;}
  }
 }
-let mode='rain',process='combined',level=3,lastRainLevel=3,timeScale=4,paused=false,showWet=true,showFoam=true,enableInfiltration=true;
+let mode='rain',process='combined',level=3,lastRainLevel=3,timeScale=4,paused=false,showWet=true,showFoam=true,enableInfiltration=false;
 let rainStyle='enhanced',time=0,visualTime=0,acc=0,spawnAcc=0,lastUI=0,wetted=0,frame=0;
 // Escala V12.21: fonte única para deposição, visual, vento e movimento superficial.
 // Valores em unidades internas por segundo SIMULADO; não equivalem a mm/h calibrados.
@@ -3073,33 +3073,7 @@ function hydrologyStep(dt){
 }
 // Aquífero pedagógico: a percolação existente chega ao lençol, que escoa
 // lentamente de cotas altas para baixas e pode alimentar nascentes em vales.
-function aquiferStep(dt){
- aquiferFlux.fill(0);
- const speed=.036*dt;
- for(let j=1;j<NZ-1;j++)for(let i=1;i<NX-1;i++){
-  const k=idx(i,j),store=deepWater[k];
-  if(store<.000001)continue;
-  const base=k*4;
-  const head=soil[k]-1.15+store*1.6;
-  let available=Math.min(store,.0045*dt);
-  for(let n=0;n<4;n++){
-   if(available<=0)break;
-   const q=gridNeighbors[base+n];
-   const nextHead=soil[q]-1.15+deepWater[q]*1.6;
-   const transfer=Math.min(available,Math.max(0,head-nextHead)*speed*.25);
-   aquiferFlux[k]-=transfer;aquiferFlux[q]+=transfer;
-   available-=transfer;
-  }
-  // Exsudação pontual SOMENTE em solos baixos + lençol elevado + saturados.
-  const lowland=soil[k]<-.23&&basinHold[k]>.38;
-  const excess=deepWater[k]-.23;
-  if(lowland&&excess>0&&soilMoisture[k]>.73*soilCapacity[k]){
-   const spring=Math.min(Math.max(0,excess)*.005*dt,.0022*dt);
-   aquiferFlux[k]-=spring;depth[k]+=spring;
-  }
- }
- for(let k=0;k<size;k++)deepWater[k]=Math.max(0,deepWater[k]+aquiferFlux[k]);
-}
+function aquiferStep(dt){/* Percolação e fluxo subterrâneo desativados. */}
 // Reutilizar as quatro parcelas de vazão em vez de alocar um Array
 // por célula molhada. Os valores são zerados antes de cada uso.
 const flowTransfers=new Float64Array(4);
@@ -4271,7 +4245,7 @@ $('intensity').addEventListener('change',e=>setRainLevel(+e.target.value));
 $('stopRain').addEventListener('click',()=>setRainLevel(level===0?(lastRainLevel||3):0));
 $('process').addEventListener('change',e=>{process=e.target.value;updateInfo(true);});
 $('timelapse').addEventListener('change',e=>{timeScale=clamp(+e.target.value,1,64);acc=0;updateInfo(true);});
-$('infiltration').addEventListener('change',e=>{enableInfiltration=e.target.checked;updateInfo(true);});
+// Infiltracao removida: nenhuma opcao de simulacao do subsolo.
 $('wetVisual').addEventListener('change',e=>{showWet=e.target.checked;rebuild();updateInfo(true);});
 $('foamToggle').addEventListener('change',e=>{showFoam=e.target.checked;rebuild();updateInfo(true);});
 $('climate').addEventListener('change',e=>{
