@@ -337,7 +337,10 @@ body.play-active #forestMini{display:block}
   <input id="ecoFov" type="range" min="35" max="75" step="1" value="52" style="width:100%;accent-color:#91ceb0">
   <label for="ecoViewDistance" style="display:flex;justify-content:space-between;gap:10px;margin-top:8px">🌄 Distância de renderização <strong id="ecoViewDistanceVal">98 u</strong></label>
   <input id="ecoViewDistance" type="range" min="55" max="240" step="5" value="98" style="width:100%;accent-color:#91ceb0">
-  <small style="display:block;color:#aec8c5;font-size:11px;line-height:1.45">Para aumentar FPS sem reduzir texturas ou modelos, diminua a distância visível: árvores e grama fora da câmera não são desenhadas. O FOV altera o enquadramento, mas sozinho não garante mais FPS. A floresta continua em transição para campo aberto.</small>
+  <label for="ecoDistanceLOD" style="display:flex;align-items:center;gap:9px;margin-top:10px;color:#e0eddc;font:600 12px system-ui"><input id="ecoDistanceLOD" type="checkbox" checked style="width:18px;height:18px;accent-color:#9ccfa8"> 🌿 Suavização por distância (LOD)</label>
+  <label for="ecoLODRange" style="display:flex;justify-content:space-between;gap:10px;margin-top:7px">Distância de qualidade máxima <strong id="ecoLODRangeVal">35%</strong></label>
+  <input id="ecoLODRange" type="range" min="15" max="80" step="5" value="35" style="width:100%;accent-color:#91ceb0">
+  <small style="display:block;color:#aec8c5;font-size:11px;line-height:1.45">Até a distância selecionada, preserva a qualidade gráfica escolhida. Mais longe, reduz progressivamente a densidade de árvores, pedras e vegetação secundária, sem alterar a textura dos objetos próximos. O limite de renderização continua definido acima.</small>
  </div>
   <div class="hydro-flags">
     <label for="physicalWeather"><input id="physicalWeather" type="checkbox" checked> Chuva gerada por temperatura, umidade, pressão e vento (por regiões)</label>
