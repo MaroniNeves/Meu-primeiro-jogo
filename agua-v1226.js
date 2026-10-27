@@ -76,8 +76,8 @@ function configureSoilCells(preserve=true){
   const key=soilType==='mosaico'?chooseMosaicSoil(x,z,soil[k],k):soilType;
   const p=SOIL_PROFILES[key]||SOIL_PROFILES.franco;
   soilKeyIndex[k]=soilProfileIndex(key);
-  const cap=baseCapacity[k]*p.capacity,perm=basePermeability[k]*p.drain;
-  soilCapacity[k]=cap;permeability[k]=perm;
+  const cap=baseCapacity[k]*p.capacity;
+  soilCapacity[k]=cap;permeability[k]=0;
   if(soilMoisture[k]>cap)soilMoisture[k]=cap;
   soilOrganic[k]=preserve?clamp(soilOrganic[k]*.38+p.organic*.62,.02,1.2):p.organic;
   soilLitter[k]=preserve?soilLitter[k]:p.organic*.17;
@@ -768,7 +768,7 @@ for(let j=0;j<NZ;j++)for(let i=0;i<NX;i++){
  const moss=.5+.5*Math.sin(x*1.4-z*.88),v=clamp(.48+.29*Math.sin(x*.43+z*.3)+.15*moss,.14,.9);
  cover[k]=riverShore(x,z)<1.75?0:clamp(.05+.60*moss+.24*Math.sin(z*.55+x*1.33),0,.82);
  soilCapacity[k]=.060+.085*cover[k]+.023*(.5+.5*Math.cos(x*1.7-z*.8));
- permeability[k]=.003+.002*cover[k]+.0007*(.5+.5*Math.sin(x*.9+z*1.4));
+ permeability[k]=0;
   let basinFactor=0;
   for(const b of basins){
     const q=((x-b.x)/b.sx)**2+((z-b.z)/b.sz)**2;
@@ -780,7 +780,7 @@ for(let j=0;j<NZ;j++)for(let i=0;i<NX;i++){
  a.lerp(b,clamp(.32+v*.45,0,1));for(let m=0;m<3;m++)dry[k*3+m]=colors[k*3+m]=a.toArray()[m];
 }
 baseCapacity.set(soilCapacity);basePermeability.set(permeability);
-for(let k=0;k<size;k++)permeability[k]=basePermeability[k]*1.45;
+for(let k=0;k<size;k++)permeability[k]=0;
 // A paleta inicial é substituída pelo mosaico de solos depois que o terreno existe.
 landG.setAttribute('color',new T.BufferAttribute(colors,3));landG.computeVertexNormals();
 const land=new T.Mesh(landG,new T.MeshStandardMaterial({map:groundTexture(),vertexColors:true,roughness:1,side:T.FrontSide}));
