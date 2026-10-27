@@ -59,7 +59,7 @@ function recordEcoEvent(message){
 const targetNativeGrass=api.forestInstances.filter(a=>a.type==='grass');
 // A estrada atravessa a clareira central, não fica escondida atrás da floresta.
 const roadZ=x=>.92-.70*Math.sin(x*.47+.6)+.17*Math.sin(x*1.34);
-const riverX=z=>-2.3+.55*Math.sin(z*.69)+.48*Math.sin(z*.29+1.3);
+const riverX=z=>-2.3+.67*Math.sin(z*.69)+.60*Math.sin(z*.29+1.3);
 function idx(x,z){const i=clamp(Math.round((x+W*.5)/dx),0,NX-1),j=clamp(Math.round((z+L*.5)/dz),0,NZ-1);return j*NX+i;}
 function position(k){const i=k%NX,j=(k-i)/NX;return {x:-W*.5+i*dx,z:-L*.5+j*dz};}
 function height(x,z){
