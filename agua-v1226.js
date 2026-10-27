@@ -195,7 +195,7 @@ const rocks=rocksRaw.map(([x,z,r])=>{
  if(Math.abs(x+2.3)<5.0&&Math.abs(z-trail)<2.8)z=trail+(z>trail?1:-1)*(r+3.0);
  return [x,z,r];
 });
-const center=z=>-2.3+.55*Math.sin(z*.69)+.48*Math.sin(z*.29+1.3);
+const center=z=>-2.3+.67*Math.sin(z*.69)+.60*Math.sin(z*.29+1.3);
 const riverWidth=z=>.95+.23*Math.sin(z*.24+1.4)**2+.15*Math.sin(z*.71)**2;
 const riverShore=(x,z)=>Math.abs(x-center(z))-riverWidth(z);
 // Canal permanente, raso (no maximo 0,52 unidade): bordas secas e agua fixa.
@@ -220,7 +220,7 @@ function elevation(x,z){
  y+=.15*(1-bank)*bank*(1+.3*Math.sin(z*.55));
  const roadAxis=.92-.70*Math.sin(x*.47+.6)+.17*Math.sin(x*1.34);
  const roadDist=Math.abs(z-roadAxis),crossDist=Math.abs(x-center(z));
- const protectedRoad=(1-smooth(clamp((roadDist-1.35)/1.25,0,1)))*(1-smooth(clamp((crossDist-3.4)/2.0,0,1)));
+ const protectedRoad=(1-smooth(clamp((roadDist-1.7)/1.35,0,1)))*(1-smooth(clamp((crossDist-4.4)/1.8,0,1)));
  for(const basin of basins){const d=((x-basin.x)/basin.sx)**2+((z-basin.z)/basin.sz)**2;y-=basin.deep*Math.exp(-1.5*d)*(1-protectedRoad);}
  // Escavar somente o canal: mesmo sobre depressões, fundo entre 0,12 e 0,52 abaixo da lamina.
  // Pontos de margem nao entram nesta correcao, evitando dependencia circular.
@@ -2644,7 +2644,7 @@ const waterPositions=new Float32Array(VIS_SIZE*3),waterDepths=new Float32Array(V
 const waterMud=new Float32Array(VIS_SIZE),waterFlow=new Float32Array(VIS_SIZE*2);
 const waterG=new T.BufferGeometry(),triangles=[];
 const wz=j=>-L*.5+j*L/(VIS_NZ-1);
-const wx=(i,z)=>center(z)+(i/(VIS_NX-1)*2-1)*riverWidth(z)*.72;
+const wx=(i,z)=>center(z)+(i/(VIS_NX-1)*2-1)*riverWidth(z)*.82;
 for(let j=0;j<VIS_NZ;j++)for(let i=0;i<VIS_NX;i++){
  const k=j*VIS_NX+i,z=wz(j);waterPositions[k*3]=wx(i,z);waterPositions[k*3+2]=z;
  if(j<VIS_NZ-1&&i<VIS_NX-1){const a=k,b=k+1,c=k+VIS_NX,d=c+1;triangles.push(a,c,b,b,c,d);}
@@ -3105,7 +3105,7 @@ function flowStep(dt,multiplier){
  delta.fill(0);const speed=(.62+rainLevels[level]*.07)*dt*2.0*multiplier;
  for(let j=1;j<NZ-1;j++)for(let i=1;i<NX-1;i++){
   const k=idx(i,j),v=depth[k];
-  if(riverShore(gridX[k],gridZ[k])<1.90||permanentLakeMask?.[k]===1||v<.000008)continue;
+  if(riverShore(gridX[k],gridZ[k])<1.90||roadRainFactor(gridX[k],gridZ[k])===0||permanentLakeMask?.[k]===1||v<.000008)continue;
   const head=soil[k]+v,base=k*4;let sum=0;
   flowTransfers[0]=flowTransfers[1]=flowTransfers[2]=flowTransfers[3]=0;
   for(let n=0;n<4;n++){const q=gridNeighbors[base+n];
@@ -3235,7 +3235,7 @@ function rebuild(){
    const sat=clamp(soilMoisture[k]/Math.max(.001,soilCapacity[k]),0,1);
    const approachDry=Math.abs(x-center(z))<5.2&&Math.abs(z-roadAt(x))<2.2;
    const damp=approachDry?0:showWet?clamp(sat*.84+wet[k]*.16,0,.95):0;
-   const dark=clamp(terrainShoreDamp[k]*(.53+.25*sat),0,.72);
+   const dark=approachDry?0:clamp(terrainShoreDamp[k]*(.53+.25*sat),0,.72);
    const road=ecoActive?clamp(eco.roadMask[k]||0,0,1):staticRoadBlend[k];
    const abrasion=ecoActive?clamp(eco.traffic[k]||0,0,1):0;
    const effectiveCover=ecoActive?eco.cover[k]:cover[k];
@@ -3244,7 +3244,7 @@ function rebuild(){
      (1-clamp(depth[k]/.065,0,.85)),0,1);
    const greenAmount=clamp(.36+health*.59,0,.96);
    const saturated=clamp(soilMoisture[k]/Math.max(.001,soilCapacity[k]),0,1.4);
-   const mud=clamp((saturated-.20)*.90+depth[k]*6.5,0,1);
+   const mud=approachDry?0:clamp((saturated-.20)*.90+depth[k]*6.5,0,1);
    const nestDirt=ecoActive?(eco.nestBareMask?.[k]||0)/255:0;
    const distanceToRiver=Math.abs(x-center(z));
    const riverbed=distanceToRiver<=riverWidth(z);
@@ -3263,7 +3263,7 @@ function rebuild(){
     const sand=[.63,.50,.34],dryBank=[.56,.44,.31];
     const streamDamp=riverbed?.79:clamp(damp*.45,0,.4);
     const sandTone=(riverbed?sand[c]:dryBank[c])*(1-streamDamp*.33);
-    colors[ix]=sandBank?sandTone:green*(1-dirtAmount)+soilTone*dirtAmount;
+    colors[ix]=approachDry?terrainDryPath[c]:sandBank?sandTone:green*(1-dirtAmount)+soilTone*dirtAmount;
    }
   }
  }
