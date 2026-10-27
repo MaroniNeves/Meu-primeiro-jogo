@@ -2991,60 +2991,24 @@ function seed(m){
 // A chuva é alimentada por um campo uniforme; gotas animadas representam a mesma chuva,
 // sem depositar um segundo volume ao colidir (evita contagem dupla).
 function hydrologyStep(dt){
- const manualRain=rainMeters[level]*dt;
- const interp=process==='retention'?1.75:process==='infiltration'?.95:1;
- const infiltrate=process==='runoff'?.11:process==='infiltration'?3.0:process==='retention'?.8:1;
- const sunIntensity=Math.max(0,solarAt(dayClock));
- const climateEvap=physicalWeather?clamp(.29+sunIntensity*.82+(1-atmHumMean)*.18,.26,1.28):1;
- const evaporate=(process==='retention'?3.1:process==='runoff'?.65:1)*climateEvap;
- const speed=process==='runoff'?1.65:1;
+ // Chuva gera poças temporárias; rios/lagoas permanentes mantêm sua geometria.
+ // Remoção de água superficial sem absorção, percolação ou fertilização do solo.
+ const rainRate=physicalWeather?rainRateFromAtmos(atmHumMean):rainMeters[level];
  for(let k=0;k<size;k++){
-  // Precipitação regional derivada de nuvens, umidade e transporte pelo vento.
-  // Mesmo com céu parcialmente limpo, a seleção manual de garoa/fraca
- // garante precipitação real mínima; temporais continuam regionais.
- const atmospheric=physicalWeather?rainRateFromAtmos(rainField[k]):rainMeters[level];
- const weakFloor=physicalWeather&&level>0&&level<=2?rainMeters[level]*.24:0;
- const rain=Math.max(atmospheric,weakFloor)*dt;
-  if(rain>0){
-   const canopyCap=.007+cover[k]*.037;
-   const retained=Math.min(rain*cover[k]*.55*interp,Math.max(0,canopyCap-canopy[k]));
-   canopy[k]+=retained;depth[k]+=rain-retained;stats.rain+=rain*area;
+  const localRain=physicalWeather?rainRateFromAtmos(rainField[k]):rainRate;
+  const floor=physicalWeather&&level>0&&level<=2?rainMeters[level]*.24:0;
+  const rain=Math.max(localRain,floor)*dt;
+  if(rain>0){depth[k]+=rain;stats.rain+=rain*area;}
+  // Mantém aparência de solo molhado, mas não armazena água infiltrada.
+  soilMoisture[k]=clamp(soilMoisture[k]+rain*.18-.000045*dt,0,soilCapacity[k]);
+  const permanent=typeof riverMask!=='undefined'&&riverMask[k]>.5;
+  if(!permanent){
+   const dissipate=Math.min(depth[k],.00027*dt);
+   depth[k]-=dissipate;stats.evaporated+=dissipate*area;
   }
-  const sat=clamp(soilMoisture[k]/soilCapacity[k],0,1);
-  if(enableInfiltration&&depth[k]>.000001){
-   const remaining=soilCapacity[k]-soilMoisture[k];
-   const intake=Math.min(depth[k],Math.max(0,remaining),
-     // Chuva intensa recarrega poros abertos mais depressa enquanto o solo
-     // ainda tem capacidade disponível; solo encharcado continua limitado.
-     permeability[k]*infiltrate*(.13+1.37*(1-sat)**1.4)*
-     (1+Math.min(1.15,rainMeters[level]*125))*Math.max(.19,1.65-1.80*basinHold[k])*dt);
-   depth[k]-=intake;soilMoisture[k]+=intake;stats.infiltrated+=intake*area;
-  }
-  // Parte da água sai dos poros superficiais e alimenta a camada subterrânea.
-  const saturation=clamp(soilMoisture[k]/soilCapacity[k],0,1);
-  // Percolação continua após a chuva, abrindo poros para absorver água da superfície.
-  const seep=Math.min(soilMoisture[k],Math.max(0,saturation-.42)*.0030*dt);
-  soilMoisture[k]-=seep;deepWater[k]+=seep;
-  // Água interceptada por folhas / palhada evapora antes de tocar a terra.
-  const ec=Math.min(canopy[k],(.00020+cover[k]*.00012)*evaporate*dt);
-  canopy[k]-=ec;stats.evaporated+=ec*area;
-  // Evaporação da água exposta continua mesmo quando a chuva é desligada.
-  const es=Math.min(depth[k],.00040*evaporate*dt);
-  depth[k]-=es;stats.evaporated+=es*area;
-  const soilEvap=Math.min(soilMoisture[k],.000065*evaporate*dt);
-  soilMoisture[k]-=soilEvap;stats.evaporated+=soilEvap*area;
-  const roots=Math.min(soilMoisture[k],cover[k]*(.58+.67*soilPlant[k])*.00013*evaporate*dt);
-  soilMoisture[k]-=roots;stats.transpired+=roots*area;
-  // Formação progressiva de lama: partículas soltas sob chuva/turbulência.
-  const profile=SOIL_PROFILES[SOIL_KEYS[soilKeyIndex[k]]];
-  const erosion=profile.erosion*(.85+.15*(1-soilPlant[k]));
-  const stirred=depth[k]>.002 ? rain*erosion*(7.0-4.5*cover[k]) : 0;
-  const runoffStir=depth[k]>.002 ? erosion*depth[k]*.006*dt : 0;
-  const settle=.0026*dt*(1.0+Math.max(0,1.0-erosion));
-  turbidity[k]=clamp(turbidity[k]+stirred+runoffStir-settle,0,clamp(profile.erosion*.90+.12,.16,1));
+  turbidity[k]=Math.max(0,turbidity[k]-.001*dt);
  }
- flowStep(dt,speed);
- aquiferStep(dt);
+ // Lagoas e rios desenhados pela cena não dependem da simulação de formação.
 }
 // Aquífero pedagógico: a percolação existente chega ao lençol, que escoa
 // lentamente de cotas altas para baixas e pode alimentar nascentes em vales.
@@ -4399,13 +4363,10 @@ function loop(now){
   acc+=dt*timeScale;
   const step=timeScale>=64?.22:timeScale>=16?.14:timeScale>=4?.09:.06;
   let steps=0;while(acc>=step&&steps<12){hydrologyStep(step);acc-=step;steps++;}
-  soilEcologySeconds+=dt;plantVisualSeconds+=dt;
-  if(soilEcologySeconds>=.85){
-   ecologyStep(soilEcologySeconds);soilEcologySeconds=0;
-  }
-  if(plantVisualSeconds>=2.8){
-   updatePlantVisuals();updateSprouts();updateForestHealth();plantVisualSeconds=0;
-  }
+  // Solo e árvores naturais são estáticos: não simular mineralização,
+  // fertilização, mortalidade ou crescimento ecológico por célula.
+  plantVisualSeconds+=dt;
+  if(plantVisualSeconds>=12){updateForestHealth();plantVisualSeconds=0;}
   if(acc>step*14)acc=step*14;
   updateGroundFog(dt);
   if(++frame%2===0)rebuild();
