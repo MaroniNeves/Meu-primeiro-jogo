@@ -561,9 +561,9 @@ function initializeLandscape(){
   // preexistente é apenas um histórico inicial, não um desenho permanente.
   const roadT=clamp(1-distRoad/1.10,0,1);
   const historic=roadT*roadT*(3-2*roadT);
-  traffic[k]=historic*.76;
-  // O piso de terra termina antes do canal; a ponte ocupa o vão.
+  // A trilha termina na cabeceira; trânsito histórico não pinta solo no leito.
   const onCrossing=distRiver<2.7;
+  traffic[k]=onCrossing?0:historic*.76;
   fixedRoadMask[k]=onCrossing?0:historic;
   roadMask[k]=fixedRoadMask[k];
   riverMask[k]=clamp(1-distRiver/1.2,0,1);
