@@ -47,7 +47,7 @@ foliage.name='Tufos reais de grama Quaternius';rocks.name='Cinco geometrias de p
 animals.name='Formigas e minhocas minúsculas';roads.name='Estrada e ponte demonstrativas';
 for(const g of [foliage,rocks,animals,roads])realm.add(g);
 const meshLibrary={},textureLibrary={};let ready=false, biologicalSpeed=4,previewMagnification=1, trampleEnabled=true;
-const grassPatches=[],rockPositions=[],colonies=[],worms=[],antDraws=[],wormDraws=[];
+const grassPatches=[],rockPositions=[],colonies=[],antDraws=[];
 const nestDisplays=new Map();
 let colonySequence=0,ecologicalDays=0,burrowLength=0,castsReturned=0;
 const ecoEvents=[];
@@ -1131,16 +1131,6 @@ function initialColonies(){
  }
  // Minhocas removidas: não criar indivíduos, galerias nem malhas.
 }
-function goodForWorms(k){
- const moist=api.soilMoisture[k]/Math.max(.0001,api.soilCapacity[k]);
- const temp=api.atmosphere.getMetrics().temperature;
- // Lamas oxigenadas próximas das margens são favoráveis; água funda/anóxica
- // e solo seco NÃO são. A matéria orgânica sustenta a reprodução.
- const muddy=clamp((moist-.28)/.34,0,1)*clamp((1.13-moist)/.21,0,1);
- const oxygen=clamp((.085-api.depth[k])/.08,.03,1);
- const organic=.45+.55*clamp(api.soilOrganic[k]/.25,0,1);
- return muddy*oxygen*organic*clamp((temp-9)/9,0,1)*clamp((36-temp)/13,0,1);
-}
 function addCarcass(x,z,mass=.03){
  const k=idx(x,z);api.soilLitter[k]=clamp(api.soilLitter[k]+mass,0,1.8);
  api.soilOrganic[k]=clamp(api.soilOrganic[k]+mass*.15,0,1.8);
@@ -1242,9 +1232,9 @@ function visualizeAnimals(){
  for(const child of [...animals.children]){
   animals.remove(child);
   if(child.isInstancedMesh)child.material.dispose();
-  if(child.userData.animatedWorm){child.geometry.dispose();child.material.dispose();}
+  
  }
- antDraws.length=0;wormDraws.length=0;
+ antDraws.length=0;
  const variants=['ant1','ant2','ant3','antRed','ant4','ant5'];
  for(const c of colonies){
   // Malhas OBJ antigas tinham transformações e eixos inconsistentes.
@@ -1276,26 +1266,7 @@ function visualizeAnimals(){
   }));
   antDraws.push({m,c,max,agents,cargo});
  }
- const wormModels=['worm1','worm2','worm3'];
- for(let i=0;i<worms.length;i++){
-  const w=worms[i],base=meshLibrary[wormModels[i%3]];
-  if(!base)continue;
-  const geometry=base.clone(),pos=geometry.getAttribute('position');
-  geometry.computeBoundingBox();
-  const box=geometry.boundingBox,size=new T.Vector3();box.getSize(size);
-  const axis=size.x>size.y&&size.x>size.z?0:size.z>size.y?2:1;
-  const side=axis===0?2:0;
-  const low=axis===0?box.min.x:axis===1?box.min.y:box.min.z;
-  const high=axis===0?box.max.x:axis===1?box.max.y:box.max.z;
-  const m=new T.Mesh(geometry,new T.MeshStandardMaterial({
-   color:i%3===0?'#90716d':i%3===1?'#9f7e74':'#84625e',
-   roughness:1,metalness:0,side:T.DoubleSide}));
-  m.name='Minhoca OBJ com segmentos e contrações '+i;
-  m.castShadow=false;m.frustumCulled=false;
-  m.userData.animatedWorm=true;animals.add(m);
-  wormDraws.push({m,w,pos,orig:Float32Array.from(pos.array),
-   axis,side,span:Math.max(.0001,high-low),low,phase:random()*6.28});
- }
+
 }let lastAntImpactReport=-999,antsDrowned=0,antsCrushed=0;
 function killSurfaceAnt(item,agent,x,z,cause){
  if(agent.dead)return;
