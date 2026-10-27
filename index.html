@@ -112,9 +112,9 @@ body.play-active #gameFPS{font:700 12px system-ui;color:#bcecc6;white-space:nowr
 body.play-active .game-top{flex-wrap:wrap}
 
 /* Portal dark fantasy — menu de entrada isolado das cenas. */
-#arcanoModeMenu{position:fixed;inset:0;z-index:60;display:grid;place-items:center;overflow:auto;padding:clamp(14px,4vw,32px);background:radial-gradient(ellipse at 50% 15%,#52635135,transparent 57%),linear-gradient(145deg,#050d13ed,#081215f4);backdrop-filter:blur(13px)}
+#arcanoModeMenu{position:fixed;inset:0;z-index:60;display:flex;align-items:safe center;justify-content:center;overflow:auto;padding:clamp(14px,4vw,32px);background:radial-gradient(ellipse at 50% 15%,#52635135,transparent 57%),linear-gradient(145deg,#050d13ed,#081215f4);backdrop-filter:blur(13px)}
 #arcanoModeMenu[hidden]{display:none!important}
-.arcano-mode-card{position:relative;isolation:isolate;width:min(730px,100%);padding:clamp(22px,5vw,43px);overflow:hidden;border:1px solid #b4a07868;border-radius:22px;background:linear-gradient(145deg,#182a30f5,#0d191ff7 70%);box-shadow:0 28px 90px #000b,inset 0 1px #d7caa421;color:#e9efe8;text-align:left}
+.arcano-mode-card{position:relative;isolation:isolate;flex:none;width:min(730px,100%);max-height:calc(100dvh - 28px);overflow-y:auto;overscroll-behavior:contain;padding:clamp(22px,5vw,43px);border:1px solid #b4a07868;border-radius:22px;background:linear-gradient(145deg,#182a30f5,#0d191ff7 70%);box-shadow:0 28px 90px #000b,inset 0 1px #d7caa421;color:#e9efe8;text-align:left}
 .arcano-mode-card:before{content:"";position:absolute;z-index:-1;inset:0;background:radial-gradient(ellipse at 0 0,#a58b5230,transparent 50%),radial-gradient(ellipse at 100% 100%,#56837820,transparent 48%);pointer-events:none}
 .arcano-kicker{display:inline-block;margin-bottom:13px;color:#c6ac76;letter-spacing:.21em;font:700 10px system-ui;text-transform:uppercase}
 .arcano-mode-card h2{font:400 clamp(35px,6vw,58px)/1.02 Georgia,serif;color:#f0ddb1;margin:0 0 15px;letter-spacing:.015em}
@@ -131,6 +131,10 @@ body.play-active #arcanoOpenModes{display:none}
 @media(max-width:570px){.arcano-mode-card{padding:23px 17px;border-radius:17px}.arcano-mode-options{grid-template-columns:1fr;gap:9px}.arcano-mode-options button.arcano-main-play{grid-column:auto}.arcano-mode-options a,.arcano-mode-options button{min-height:78px;padding:12px 13px}.arcano-icon{flex-basis:44px;height:44px}.arcano-mode-card p{margin-bottom:19px}.arcano-mode-card h2{font-size:38px}}
 @media(prefers-reduced-motion:reduce){.arcano-mode-options a,.arcano-mode-options button{transition:none}}
 
+/* Destaque e visibilidade do prototipo 2D no portal */
+.arcano-mode-options a.arcano-test2d{border-color:#9faf83;background:linear-gradient(140deg,#375045,#223c3c)}
+.arcano-mode-card{scrollbar-width:thin;scrollbar-color:#9faf83 #192d2b}
+@media(max-height:700px){.arcano-mode-card{max-height:calc(100dvh - 18px)}.arcano-mode-options a,.arcano-mode-options button{min-height:70px}.arcano-mode-card p{margin-bottom:12px}}
 /* V12.70: console flutuante para ajustes de mundo também durante o jogo */
 #rainControls.bottom{position:fixed;left:auto;right:clamp(10px,2vw,26px);top:clamp(72px,12vh,120px);bottom:auto;margin:0;width:min(410px,calc(100vw - 20px));max-width:none;max-height:min(72dvh,680px);z-index:52;border:1px solid #9d927080;border-radius:17px;background:linear-gradient(160deg,#172a30f7,#0c181ff7);box-shadow:0 18px 48px #000a,inset 0 1px #e2c9911e;padding:0 14px 14px;overflow-y:auto;overscroll-behavior:contain;scrollbar-color:#8d9274 #16252b}
 #rainControls .arcano-panel-heading{position:sticky;top:0;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 -14px 12px;padding:13px 14px;background:#182c32f9;border-bottom:1px solid #8f98733e;cursor:grab;touch-action:none;user-select:none}
@@ -505,7 +509,7 @@ body.play-active #forestMini{display:block}
    
    <a href="./magias/espadas.html"><span class="arcano-icon" aria-hidden="true">✨</span><span class="arcano-mode-text"><strong>Efeitos 3D</strong><small>Fogo, água, magia e efeitos visuais</small></span></a>
    <a href="./magias/index.html"><span class="arcano-icon" aria-hidden="true">✦</span><span class="arcano-mode-text"><strong>Magias</strong><small>Biblioteca de 100 feitiços originais</small></span></a>
-   <a href="./jogabilidade/index.html"><span class="arcano-icon" aria-hidden="true">🗺️</span><span class="arcano-mode-text"><strong>Teste de Jogabilidade 2D</strong><small>Explore os Sete Refúgios no protótipo 2D</small></span></a>
+   <a class="arcano-test2d" href="./jogabilidade/index.html"><span class="arcano-icon" aria-hidden="true">🗺️</span><span class="arcano-mode-text"><strong>Teste de Jogabilidade 2D</strong><small>Explore os Sete Refúgios no protótipo 2D</small></span></a>
    <button type="button" class="arcano-main-play" id="arcanoModePlay"><span class="arcano-icon" aria-hidden="true">🎮</span><span class="arcano-mode-text"><strong>Jogar</strong><small>Explore a floresta com seu personagem</small></span></button>
   </div>
   <div class="arcano-foot">Cada ambiente mantém seus modelos, cenário e controles originais.</div>
