@@ -2639,7 +2639,7 @@ const waterPositions=new Float32Array(VIS_SIZE*3),waterDepths=new Float32Array(V
 const waterMud=new Float32Array(VIS_SIZE),waterFlow=new Float32Array(VIS_SIZE*2);
 const waterG=new T.BufferGeometry(),triangles=[];
 const wz=j=>-L*.5+j*L/(VIS_NZ-1);
-const wx=(i,z)=>center(z)+(i/(VIS_NX-1)*2-1)*(riverWidth(z)-.065);
+const wx=(i,z)=>center(z)+(i/(VIS_NX-1)*2-1)*riverWidth(z)*.72;
 for(let j=0;j<VIS_NZ;j++)for(let i=0;i<VIS_NX;i++){
  const k=j*VIS_NX+i,z=wz(j);waterPositions[k*3]=wx(i,z);waterPositions[k*3+2]=z;
  if(j<VIS_NZ-1&&i<VIS_NX-1){const a=k,b=k+1,c=k+VIS_NX,d=c+1;triangles.push(a,c,b,b,c,d);}
@@ -3271,8 +3271,11 @@ function rebuild(){
  for(let j=0;j<VIS_NZ;j++)for(let i=0;i<VIS_NX;i++){
   const k=j*VIS_NX+i,z=wz(j),x=wx(i,z),level=riverLevelAt(z);
   // Todas as seções compartilham a mesma lamina, inclusive onde o leito e mais baixo.
-  waterPositions[k*3+1]=level+.006;
-  waterDepths[k]=Math.max(.012,level-elevation(x,z));
+  // A superficie so aparece onde o leito esta abaixo da agua;
+  // nunca elevar artificialmente a agua sobre solo/grama.
+  const clearance=level-elevation(x,z);
+  waterPositions[k*3+1]=level+.003;
+  waterDepths[k]=Math.max(0,clearance);
   waterMud[k]=0;
   waterFlow[k*2]=0;
   waterFlow[k*2+1]=.11;
