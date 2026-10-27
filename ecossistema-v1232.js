@@ -1239,9 +1239,9 @@ function lifeDay(days){
   c.foodGathered+=gathered;c.foodStored=clamp(c.foodStored+gathered*7,0,120);
   // Fezes e restos da alimentação entram novamente na camada orgânica.
   const detritus=gathered*.13+days*c.workers*.000012;
-  api.soilOrganic[k]=clamp(api.soilOrganic[k]+detritus*.75,0,1.8);
-  api.soilLitter[k]=clamp(api.soilLitter[k]+detritus*.25,0,1.8);
-  castsReturned+=detritus;
+  // Sem adubação do solo pelas formigas.
+
+
   const broodFood=c.brood.reduce((sum,g)=>sum+(g.stage==='larva'?g.count:0),0)*.004;
   // Rainha fundadora claustral utiliza reservas durante os primeiros ovos.
   // Ao surgir a primeira operária, o consumo comum da colônia é retomado.
@@ -1333,23 +1333,23 @@ function lifeDay(days){
   const wetEnough=moist>.35&&moist<1.13;
   // Alimentam-se do detrito e dos microrganismos que o colonizam.
   const litter=Math.min(api.soilLitter[k],days*w.adults*.0017*safe);
-  api.soilLitter[k]-=litter;
+
   // As minhocas também ingerem pequenas parcelas do solo rico em detritos.
   // Toda massa de húmus gerada vem de matéria ingerida; não surge do nada.
   const organicIngested=Math.min(api.soilOrganic[k],
    days*w.adults*.00014*safe);
-  api.soilOrganic[k]-=organicIngested;
+
   const consumed=litter+organicIngested;
   const nutrition=clamp(consumed/Math.max(.00001,days*w.adults*.00019),0,1);
   const casts=consumed*.73;
-  w.castings+=casts;castsReturned+=casts;
-  api.soilOrganic[k]=clamp(api.soilOrganic[k]+casts*.62,0,1.8);
-  api.soilN[k]=clamp(api.soilN[k]+casts*.14,0,1.3);
-  api.soilP[k]=clamp(api.soilP[k]+casts*.051,0,1.3);
-  api.soilBiota[k]=clamp(api.soilBiota[k]+days*w.adults*.00028*safe,0,1);
+  // Minhocas permanecem como fauna, sem produção de adubo.
+
+
+
+
   const work=days*w.adults*.00125*safe;
   w.burrows+=work;burrowLength+=work;
-  api.permeability[k]=clamp(api.permeability[k]*(1+work*.022),.000001,.16);
+
   // Hermafroditas com fecundação cruzada: exigem >= 2 adultos para casulos.
   if(w.adults>=2&&safe>.42&&nutrition>.34){
    w.pairProgress+=days*Math.min(w.adults/4,2)*.082*safe*nutrition;
@@ -1857,33 +1857,18 @@ function update(dt){
    if(water>0&&riverMask[k]>.36&&api.depth[k]<.06)
     api.depth[k]=Math.min(.06,api.depth[k]+water);
   }
-  // Ao deixar de passar, a trilha perde compactação, o solo recupera água
-  // e a grama invade gradualmente a faixa de terra batida.
+  // Grama recupera volume somente com tempo sem novas passadas.
+  // Não há fotossíntese, fertilidade, umidade ou química do solo nessa regra.
+  const dtBio=.7;
   for(let cell=0;cell<cells;cell++){
-   const moist=api.soilMoisture[cell]/Math.max(.001,api.soilCapacity[cell]);
-   const water=clamp(1-Math.abs(moist-.67)/.69,0,1);
-   const light=lightField[cell];
-   const organics=clamp(api.soilOrganic[cell]/.72,0,1);
-   const nutrients=clamp(api.soilN[cell]*.48+api.soilP[cell]*.24+
-     organics*.28,0,1);
-   const salinity=clamp(1-api.soilSalinity[cell]*1.3,0,1);
-   const oxygen=clamp((1.2-moist)/.55,0,1);
-   const submerged=api.depth[cell]>.04?.15:1;
-   const suitability=water*light*nutrients*salinity*oxygen*submerged;
-   // Multiplicador de tempo ecológico usado tanto no ressecamento quanto no crescimento.
-   const dtBio=.7*clamp(biologicalSpeed/4,.5,30);
-   traffic[cell]=Math.max(0,traffic[cell]-.00012*dtBio);
-   animalTrail[cell]=Math.max(0,animalTrail[cell]-.00010*dtBio);
-   compaction[cell]=Math.max(0,compaction[cell]-.000045*dtBio);
+   traffic[cell]=Math.max(0,traffic[cell]-.00085*dtBio);
+   animalTrail[cell]=Math.max(0,animalTrail[cell]-.00075*dtBio);
    const wear=Math.max(traffic[cell],animalTrail[cell]);
    const normalized=clamp((wear-.18)/.65,0,1);
    roadMask[cell]=Math.max(fixedRoadMask[cell],normalized*normalized*(3-2*normalized));
-   const isPermanentRoad=fixedRoadMask[cell]>.06||nestBareMask[cell]>105;
-   const desired=isPermanentRoad?0:clamp(.22+.87*suitability-roadMask[cell]*1.1,0,1);
-   const growthRate=desired>cover[cell]?.0035*suitability:.028*roadMask[cell]+.001;
-   cover[cell]=isPermanentRoad?0:clamp(cover[cell]+(desired-cover[cell])*growthRate*dtBio,0,1);
-   if(!isPermanentRoad&&wear<.25&&suitability>.22)
-    api.soilPlant[cell]=clamp(api.soilPlant[cell]+.0008*suitability*dtBio,.025,1.25);
+   const permanent=fixedRoadMask[cell]>.06||nestBareMask[cell]>105;
+   const desired=permanent?0:clamp(1-roadMask[cell]*1.1,0,1);
+   cover[cell]=permanent?0:clamp(cover[cell]+(desired-cover[cell])*.008,0,1);
   }
   if(grassRefreshRequested||grassAccumulator===0)grassRefreshRequested=false;
   updateGrassMeshes();
