@@ -2991,24 +2991,25 @@ function seed(m){
 // A chuva é alimentada por um campo uniforme; gotas animadas representam a mesma chuva,
 // sem depositar um segundo volume ao colidir (evita contagem dupla).
 function hydrologyStep(dt){
- // Chuva gera poças temporárias; rios/lagoas permanentes mantêm sua geometria.
- // Remoção de água superficial sem absorção, percolação ou fertilização do solo.
- const rainRate=physicalWeather?rainRateFromAtmos(atmHumMean):rainMeters[level];
+ // Precipitação leve configurada pelo nível de chuva. Não simula formação
+ // regional da chuva, drenagem subterrânea ou transporte de bacias.
+ const rain=rainMeters[level]*dt,evap=.00027*dt;
+ const lagoon=basins[1];
  for(let k=0;k<size;k++){
-  const localRain=physicalWeather?rainRateFromAtmos(rainField[k]):rainRate;
-  const floor=physicalWeather&&level>0&&level<=2?rainMeters[level]*.24:0;
-  const rain=Math.max(localRain,floor)*dt;
-  if(rain>0){depth[k]+=rain;stats.rain+=rain*area;}
-  // Mantém aparência de solo molhado, mas não armazena água infiltrada.
-  soilMoisture[k]=clamp(soilMoisture[k]+rain*.18-.000045*dt,0,soilCapacity[k]);
-  const permanent=typeof riverMask!=='undefined'&&riverMask[k]>.5;
-  if(!permanent){
-   const dissipate=Math.min(depth[k],.00027*dt);
-   depth[k]-=dissipate;stats.evaporated+=dissipate*area;
+  const x=gridX[k],z=gridZ[k];
+  const d=((x-lagoon.x)/lagoon.sx)**2+((z-lagoon.z)/lagoon.sz)**2;
+  const permanentLake=d<.70;
+  if(permanentLake){
+   // Lagos cadastrados permanecem presentes; poças fora deles desaparecem.
+   depth[k]=Math.max(depth[k],.022);
+  }else{
+   if(rain>0){depth[k]+=rain;stats.rain+=rain*area;}
+   const lost=Math.min(depth[k],evap);depth[k]-=lost;stats.evaporated+=lost*area;
   }
+  // Solo escurece após chover e seca suavemente, sem infiltração de poças.
+  soilMoisture[k]=clamp(soilMoisture[k]+rain*.15-.000045*dt,0,soilCapacity[k]);
   turbidity[k]=Math.max(0,turbidity[k]-.001*dt);
  }
- // Lagoas e rios desenhados pela cena não dependem da simulação de formação.
 }
 // Aquífero pedagógico: a percolação existente chega ao lençol, que escoa
 // lentamente de cotas altas para baixas e pode alimentar nascentes em vales.
