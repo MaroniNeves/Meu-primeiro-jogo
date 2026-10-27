@@ -509,6 +509,25 @@ function makeRoad(){
      }
      addBox(span+.10,.095,.10,deckMat,0,.47,lateral,'Corrimão da ponte');
     }
+    // Abrir o vao REAL sob a ponte: o solo nao pode atravessar as tabuas
+    // nem formar blocos de areia/pedra no centro do caminho.
+    const alongXBridge=Math.cos(direction),alongZBridge=Math.sin(direction);
+    let excavated=0;
+    for(let k=0;k<cells;k++){
+     const p=position(k),u=(p.x-mx)*alongXBridge+(p.z-mz)*alongZBridge;
+     const side=-(p.x-mx)*alongZBridge+(p.z-mz)*alongXBridge;
+     if(Math.abs(u)>span*.5-.18||Math.abs(side)>1.00)continue;
+     const longitudinal=clamp((span*.5-Math.abs(u)-.18)/.75,0,1);
+     const lateral=clamp((1.0-Math.abs(side))/.24,0,1);
+     const clearance=(.12+.30*longitudinal)*lateral;
+     const maximum=deckY-clearance;
+     if(api.soil[k]>maximum){api.soil[k]=maximum;excavated++;}
+    }
+    if(excavated){
+     const terrainPositions=api.terrain.geometry.attributes.position;
+     for(let k=0;k<cells;k++)terrainPositions.setY(k,api.soil[k]);
+     terrainPositions.needsUpdate=true;api.terrain.geometry.computeVertexNormals();
+    }
     roads.add(bridge);
     // Coordenadas locais da ponte: X = comprimento, Z = largura.
     // O centro do boneco não pode atravessar os corrimãos laterais.
