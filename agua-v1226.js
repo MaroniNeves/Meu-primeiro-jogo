@@ -1139,6 +1139,11 @@ const QUALITY_PRESETS={
 };
 let graphicsQuality=mobile?'balanced':'high';
 let viewFov=mobile?52:58,viewDistance=mobile?98:170;
+let distanceLOD=true,lodFullRange=.35,lodTick=0;
+try{const enabled=localStorage.getItem('arcano.distanceLOD'),range=Number(localStorage.getItem('arcano.lodFullRange'));if(enabled!==null)distanceLOD=enabled==='true';if(range>=.15&&range<=.8)lodFullRange=range;}catch(_){}
+function refreshLODControls(){const box=$('ecoDistanceLOD'),slider=$('ecoLODRange'),label=$('ecoLODRangeVal');if(box)box.checked=distanceLOD;if(slider){slider.value=String(Math.round(lodFullRange*100));slider.disabled=!distanceLOD;}if(label)label.textContent=Math.round(lodFullRange*100)+'%';}
+function updateDistanceLOD(){distanceLOD=!!$('ecoDistanceLOD')?.checked;lodFullRange=clamp(Number($('ecoLODRange')?.value||35)/100,.15,.8);refreshLODControls();try{localStorage.setItem('arcano.distanceLOD',String(distanceLOD));localStorage.setItem('arcano.lodFullRange',String(lodFullRange));}catch(_){}applyForestVisibility();}
+
 try{
  const fov=Number(localStorage.getItem('arcano.viewFov'));
  const distance=Number(localStorage.getItem('arcano.viewDistance'));
@@ -1179,8 +1184,14 @@ let originalsReady=0,originalsUnavailable=0;
 function visibleByQuality(a){
  const q=QUALITY_PRESETS[graphicsQuality];
  const density=(a.type==='tree'||a.type==='pine'||a.type==='rock')?q.tree:q.small;
+ const distance=Math.sqrt(a.obj.position.distanceToSquared(camera.position));
+ // Distância próxima recebe a qualidade máxima escolhida pelo usuário.
+ // Depois do início do LOD, a densidade decai progressivamente, até o horizonte.
+ const start=viewDistance*lodFullRange;
+ const fade=distanceLOD&&distance>start?clamp((distance-start)/Math.max(1,viewDistance-start),0,1):0;
+ const factor=distanceLOD?Math.max(.12,1-.88*fade*fade*(3-2*fade)):1;
  return (forestCollection==='mixed'||forestCollection===a.pack)&&
-  a.qualityRank<=density&&a.obj.position.distanceToSquared(camera.position)<Math.pow(viewDistance+8,2)&&(a.type==='tree'||a.type==='pine'||a.type==='rock'||
+  a.qualityRank<=density*factor&&distance<viewDistance+8&&(a.type==='tree'||a.type==='pine'||a.type==='rock'||
   soilHealth[idx(clamp(Math.round((a.x+W*.5)/dx),0,NX-1),
                  clamp(Math.round((a.z+L*.5)/dz),0,NZ-1))]>.10);
 }
@@ -4400,6 +4411,7 @@ function loop(now){
  // A câmera já foi atualizada antes dos reflexos. Evitar a segunda
  // aplicação da mesma matriz a cada quadro; manter o caso pausado.
  if(paused||document.hidden)setView();
+ if(distanceLOD&&forestInstances.length){lodTick+=rawDt;if(lodTick>=.35){lodTick=0;applyForestVisibility();}}
  renderer.render(scene,camera);
  gamePerf.elapsed+=rawDt;gamePerf.frames++;
  if(gamePerf.elapsed>=1.25){
@@ -4416,6 +4428,7 @@ function loop(now){
 
 window.addEventListener('resize',resize);
 window.addEventListener('error',e=>{if((e.filename||'').includes('agua-v1226'))fail(e.error||e.message);});
+if($('ecoDistanceLOD')){$('ecoDistanceLOD').addEventListener('change',updateDistanceLOD);$('ecoLODRange')?.addEventListener('input',updateDistanceLOD);refreshLODControls();}
 window.arcanoWaterV1226={scene,renderer,getMainCamera:()=>camera,getGrassPlayer:()=>game.active?game:null,setGraphicsQuality,getGraphicsQuality:()=>graphicsQuality,getViewDistance:()=>viewDistance,getViewFov:()=>viewFov,setViewSettings,biomeField,QUALITY_PRESETS,snapForestToGround,setForestCollection,leafWindUniforms,leafWindMaterials,getFog:()=>({strength:fogStrength,target:fogTarget,rainMemory:fogRainMemory,age:fogRainAge,dewGap:fogDewGap,wind:atmWindMean,reason:fogCause}),forestGroup,forestModels,forestInstances,setFloraVisible,seed,setMode,add,setSoilType,addSoilOrganic,addSoilNutrients,terrain:land,water,stones,grass,sprouts:sproutGroup,soilProfiles:SOIL_PROFILES,soilKeyIndex,soilOrganic,soilLitter,soilN,soilP,soilK,soilCa,soilPH,soilSalinity,soilBiota,soilPlant,soilHealth,soilLimiting,soilCapacity,permeability,ecologyStep,soilMoisture,deepWater,canopy,depth,soil,turbidity,stats,impactHeightAt,rockHeightAt,rockSolids,setRainLevel,getRainLevel:()=>level,applyClimate,skyDome,atmosphere:{temp:atmTemp,humidity:atmHumidity,pressure:atmPressure,cloud:atmCloud,rain:atmRain,rainField,getDayClock:()=>dayClock,getGrassWindHeading:()=>atmWindHeading,getGrassWindPower:()=>windUserPower,getGrassStorm:()=>stormActive()||climate==='storm',getMetrics:()=>({temperature:atmTempMean,humidity:atmHumMean,pressure:atmPressureMean,wind:atmWindMean,clouds:atmCloudMean,rain:atmRainMean,daySeconds:dayClock})},reflectionCamera,reflectionCamera2,getMode:()=>mode,getWetArea:()=>wetted,getImpacts:()=>totalImpacts};
 try{resize();setMode('puddle');setGraphicsQuality(graphicsQuality);setViewSettings(viewFov,viewDistance);requestAnimationFrame(loop);}catch(e){fail(e);}
 })();
