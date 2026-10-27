@@ -900,8 +900,11 @@ function setupFruits(){
 }
 function spawnFruit(test=false){
  if(!fruitGeo||fruits.length>=(mobileDevice?42:80))return;
+ // Apenas um subconjunto fixo das árvores do mapa frutifica por enquanto.
+ // fruitBearing poderá ser definido individualmente no futuro.
  const candidates=api.forestInstances.filter(a=>
-  a.type==='tree'&&a.obj.visible&&Number.isFinite(a.dropY)&&a.dropY>a.y+.8);
+  a.type==='tree'&&a.obj.visible&&Number.isFinite(a.dropY)&&a.dropY>a.y+.8&&
+  (a.fruitBearing===true||(a.fruitBearing!==false&&Math.abs(Math.round(a.x*13+a.z*17))%4===0)));
  if(!candidates.length)return;
  const tree=candidates[Math.floor(random()*candidates.length)];
  const spread=clamp((tree.crownWidth||2.5)*.22,.12,.70);
@@ -2139,8 +2142,8 @@ async function setup(){
  };
  const leafTest=$('ecoLeafTest');
  if(leafTest)leafTest.onclick=()=>{
-  for(let i=0;i<24;i++)spawnFallingLeaf();
-  recordEcoEvent('Folhas soltas no experimento para observar queda e decomposição.');
+  // Folhas caindo foram desativadas para reduzir custo visual e de física.
+  recordEcoEvent('A simulação de folhas caindo está desativada.');
   status();
  };
  const organic=$('ecoCarcass');if(organic)organic.onclick=()=>{
