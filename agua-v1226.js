@@ -3185,7 +3185,7 @@ function rebuild(){
   if(!terrainDirtyRows[j])continue;
   terrainColorsChanged=true;firstDirtyRow=Math.min(firstDirtyRow,j);lastDirtyRow=j;
   for(let i=0;i<NX;i++){
-   const k=idx(i,j),o=k*3;
+   const k=idx(i,j),o=k*3,x=gridX[k],z=gridZ[k];
    const sat=clamp(soilMoisture[k]/Math.max(.001,soilCapacity[k]),0,1);
    const damp=showWet?clamp(sat*.84+wet[k]*.16,0,.95):0;
    const dark=clamp(terrainShoreDamp[k]*(.53+.25*sat),0,.72);
