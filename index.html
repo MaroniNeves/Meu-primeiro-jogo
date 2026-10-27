@@ -243,6 +243,16 @@ body.play-active #arcanoQuickPanel{top:calc(114px + env(safe-area-inset-top))}
 #arcanoQuickPanel button,#arcanoQuickPanel select{border:1px solid #829888;border-radius:8px;background:#263e42;color:#edf2e9;padding:9px;min-height:38px;cursor:pointer}
 #arcanoQuickPanel label{display:grid;gap:6px;margin:12px 0;color:#d4e3d9}
 #arcanoQuickPanel select{width:100%}
+#arcanoQuickPanel{width:min(430px,calc(100vw - 22px));max-height:min(85dvh,780px);overscroll-behavior:contain}
+body.play-active #arcanoQuickPanel{top:calc(60px + env(safe-area-inset-top,0px));max-height:calc(100dvh - 75px)}
+.arcano-quick-section{margin:10px 0;padding:9px 10px;border:1px solid #526f69;border-radius:10px;background:#12282bef}
+.arcano-quick-section summary{font:700 13px system-ui;color:#e5dab2;cursor:pointer;padding:6px 0}
+#arcanoQuickPanel .arcano-setting{display:grid;gap:6px;margin:10px 0;color:#d2e5df;font:600 12px system-ui}
+#arcanoQuickPanel .arcano-setting-check{display:flex;align-items:center;gap:9px}
+#arcanoQuickPanel .arcano-setting input[type=range]{width:100%;accent-color:#9fd2aa}
+#arcanoQuickPanel .arcano-setting input[type=checkbox]{width:19px;height:19px;accent-color:#9fd2aa;flex:none}
+#arcanoQuickPanel .arcano-setting output{color:#e4d29d;font:700 11px system-ui}
+
 #arcanoQuickPanel .arcano-quick-row{display:flex;align-items:center;justify-content:space-between;gap:7px}
 #arcanoQuickPanel #arcanoQuickForecast{line-height:1.5;color:#c4d7ce;margin:12px 0;padding:10px;border:1px solid #61776c;border-radius:9px}
 
@@ -501,6 +511,9 @@ body.play-active #forestMini{display:block}
  <header><strong>✦ Ajustes do mundo</strong><button type="button" id="arcanoQuickClose" aria-label="Fechar ajustes">✕</button></header>
  <label>🌧 Chuva <select id="arcanoQuickRain"><option value="0">Sem chuva</option><option value="1">Garoa</option><option value="2">Chuva fraca</option><option value="3">Moderada</option><option value="4">Forte</option><option value="5">Temporal</option></select></label>
  <label>◷ Velocidade do tempo <select id="arcanoQuickTime"><option value="1">1×</option><option value="4">4×</option><option value="16">16×</option><option value="64">64×</option></select></label>
+ <details class="arcano-quick-section" open><summary>🎨 Gráficos e distância</summary><div id="arcanoQuickGraphics"></div></details>
+ <details class="arcano-quick-section" open><summary>🌦 Clima, atmosfera e água</summary><div id="arcanoQuickWeather"></div></details>
+ <details class="arcano-quick-section"><summary>🌳 Ambiente e desempenho</summary><div id="arcanoQuickEnvironment"></div></details>
  <div id="arcanoQuickForecast" aria-live="off">Clima simulado: aguardando dados…</div>
  <div class="arcano-quick-row"><span>Tecla de acesso: <b id="arcanoQuickKeyLabel">P</b></span><button type="button" id="arcanoQuickRebind">Trocar tecla</button></div>
 </section><div id="arcanoModeMenu" role="dialog" aria-modal="true" aria-label="Escolher ambiente do Ateliê Arcano">
@@ -540,7 +553,7 @@ body.play-active #forestMini{display:block}
  try{const saved=localStorage.getItem(storage);if(valid.test(saved)&&!reserved.has(saved))key=saved;}catch(e){}
  const keyLabel=code=>code.replace(/^Key/,'').replace(/^Digit/,'');
  function syncKey(){document.getElementById('arcanoQuickKeyLabel').textContent=keyLabel(key);toggle.textContent='⚙ Ajustes ('+keyLabel(key)+')';rebind.textContent='Trocar tecla';}
- function show(open){panel.hidden=!open;toggle.setAttribute('aria-expanded',String(open));}
+ function show(open){panel.hidden=!open;toggle.setAttribute('aria-expanded',String(open));if(open&&typeof mirrors!=='undefined')mirrors.forEach(fn=>fn());}
  toggle.addEventListener('click',()=>show(panel.hidden));close.addEventListener('click',()=>show(false));
  rebind.addEventListener('click',()=>{recording=true;rebind.textContent='Pressione uma tecla…';});
  window.addEventListener('keydown',e=>{
@@ -555,13 +568,51 @@ body.play-active #forestMini{display:block}
   ui.value=original.value;ui.addEventListener('change',()=>{original.value=ui.value;original.dispatchEvent(new Event('change',{bubbles:true}));});
  }
  bind('arcanoQuickRain','intensity');bind('arcanoQuickTime','timelapse');
+ // Controles adicionais refletem os controles verdadeiros do motor 3D.
+ // Os elementos de origem permanecem únicos; os espelhos disparam os mesmos eventos.
+ const mirrors=[];
+ const categories=[
+  ['arcanoQuickGraphics',[
+   ['graphicsQuality','Qualidade gráfica'],['ecoFov','Campo de visão (FOV)'],['ecoViewDistance','Distância de renderização'],
+   ['ecoDistanceLOD','Ativar suavização por distância (LOD)'],['ecoLODRange','Área de qualidade máxima (%)']]],
+  ['arcanoQuickWeather',[
+   ['physicalWeather','Clima físico automático'],['climate','Clima e iluminação'],['windIntensity','Intensidade do vento (%)'],
+   ['rainStyle','Aparência da chuva'],['process','Simulação da água'],['fogToggle','Neblina'],
+   ['infiltration','Infiltração no solo'],['wetVisual','Terra molhada'],['foamToggle','Espuma e detritos'],
+   ['reflectionToggle','Reflexos na água']]],
+  ['arcanoQuickEnvironment',[
+   ['floraToggle','Modelos 3D da vegetação'],['forestPack','Pacote da floresta'],['soilType','Tipo de solo']]]
+ ];
+ for(const [group,items] of categories){
+  const container=document.getElementById(group);
+  for(const [source,label] of items){
+   const original=document.getElementById(source);
+   if(!original)continue;
+   const wrapper=document.createElement('label');wrapper.className='arcano-setting';
+   const mirror=original.cloneNode(true);mirror.id='arcanoQuickMirror_'+source;mirror.removeAttribute('style');mirror.removeAttribute('aria-labelledby');
+   const value=document.createElement('output');
+   if(mirror.type==='checkbox'){
+    wrapper.classList.add('arcano-setting-check');wrapper.append(mirror,document.createTextNode(label));
+   }else{
+    const heading=document.createElement('span');heading.textContent=label;
+    if(mirror.type==='range'){heading.append(' · ',value);}
+    wrapper.append(heading,mirror);
+   }
+   const sync=()=>{if(mirror.type==='checkbox')mirror.checked=original.checked;else mirror.value=original.value;if(mirror.type==='range')value.textContent=mirror.value+(source==='ecoFov'?'°':source==='ecoViewDistance'?' u':source==='windIntensity'||source==='ecoLODRange'?'%':'');mirror.disabled=original.disabled;};
+   const apply=()=>{if(mirror.type==='checkbox')original.checked=mirror.checked;else original.value=mirror.value;original.dispatchEvent(new Event(mirror.type==='range'?'input':'change',{bubbles:true}));if(mirror.type==='range')original.dispatchEvent(new Event('change',{bubbles:true}));sync();};
+   mirror.addEventListener(mirror.type==='range'?'input':'change',apply);
+   original.addEventListener('input',sync);original.addEventListener('change',sync);
+   container.appendChild(wrapper);mirrors.push(sync);sync();
+  }
+ }
+
  const rain=document.getElementById('arcanoQuickRain'),time=document.getElementById('arcanoQuickTime');
  function refresh(){if(panel.hidden)return;
   for(const [ui,id] of [[rain,'intensity'],[time,'timelapse']]){const src=document.getElementById(id);if(src&&ui.value!==src.value)ui.value=src.value;}
   const m=window.arcanoWaterV1226?.atmosphere?.getMetrics?.();
   if(m)document.getElementById('arcanoQuickForecast').textContent='Clima simulado: '+m.temperature.toFixed(1)+' °C · umidade '+Math.round(m.humidity*100)+'% · vento '+m.wind.toFixed(1)+' · nuvens '+Math.round(m.clouds*100)+'%.';
  }
- setInterval(refresh,3000);syncKey();show(false);
+ setInterval(refresh,1200);syncKey();show(false);
 })();
 </script>
 <script>
