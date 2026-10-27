@@ -219,8 +219,9 @@ function elevation(x,z){
  const bank=clamp((lateral-width)/1.5,0,1);
  y+=.15*(1-bank)*bank*(1+.3*Math.sin(z*.55));
  const roadAxis=.92-.70*Math.sin(x*.47+.6)+.17*Math.sin(x*1.34);
- const approach=Math.abs(z-roadAxis)<2.0&&Math.abs(x-center(z))<5.0;
- if(!approach)for(const b of basins){const d=((x-b.x)/b.sx)**2+((z-b.z)/b.sz)**2;y-=b.deep*Math.exp(-1.5*d);}
+ const roadDist=Math.abs(z-roadAxis),crossDist=Math.abs(x-center(z));
+ const protectedRoad=(1-smooth(clamp((roadDist-1.35)/1.25,0,1)))*(1-smooth(clamp((crossDist-3.4)/2.0,0,1)));
+ for(const basin of basins){const d=((x-basin.x)/basin.sx)**2+((z-basin.z)/basin.sz)**2;y-=basin.deep*Math.exp(-1.5*d)*(1-protectedRoad);}
  // Escavar somente o canal: mesmo sobre depressões, fundo entre 0,12 e 0,52 abaixo da lamina.
  // Pontos de margem nao entram nesta correcao, evitando dependencia circular.
  if(lateral<width-.055){
@@ -3244,7 +3245,8 @@ function rebuild(){
    const nestDirt=ecoActive?(eco.nestBareMask?.[k]||0)/255:0;
    const distanceToRiver=Math.abs(x-center(z));
    const riverbed=distanceToRiver<=riverWidth(z);
-   const sandBank=distanceToRiver<riverWidth(z)+1.90;
+   const bridgeApproach=Math.abs(z-(.92-.70*Math.sin(x*.47+.6)+.17*Math.sin(x*1.34)))<.90&&distanceToRiver<4.9;
+   const sandBank=distanceToRiver<riverWidth(z)+1.90&&!bridgeApproach;
    const dirtAmount=clamp(Math.max(road*(.99+.08*abrasion),nestDirt*.995),0,.995);
    for(let c=0;c<3;c++){
     const ix=o+c;
