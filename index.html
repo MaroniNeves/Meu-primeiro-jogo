@@ -3,7 +3,7 @@
 <style>
 :root{color-scheme:dark;--bg:#101d29;--edge:#45606b;--font:#eaf1ed;--muted:#aabfc7;--accent:#80c0bf}*{box-sizing:border-box}
 body{margin:0;background:#0b131b;color:var(--font);font:14px/1.35 system-ui,Segoe UI,sans-serif;overflow:hidden}
-canvas{position:fixed;inset:0;width:100vw;height:100dvh;display:block;touch-action:none}
+#stage{position:fixed;inset:0;width:100vw;height:100dvh;display:block;touch-action:none}
 .top{position:fixed;z-index:10;top:calc(8px + env(safe-area-inset-top));left:9px;right:9px;padding:10px 11px;background:#10202de8;border:1px solid #46606c;border-radius:13px;box-shadow:0 6px 24px #0008}
 .top .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.name{flex:1;min-width:0}.name strong{display:block;font-size:14px;color:#f6dfad}.name small{display:block;font-size:11px;color:#bdd1d7}a.home{border:1px solid #6a8b97;color:#d6eef2;text-decoration:none;padding:8px 10px;border-radius:8px;white-space:nowrap;font-size:12px}
 .pills{display:flex;gap:5px;margin-top:8px}.pills button{flex:1;background:#243849;border:1px solid #54707e;color:#edf7f8;border-radius:9px;padding:9px 4px;font:600 12px system-ui}.pills button.active{background:#7cb9c0;color:#0a2330;border-color:#c9eff0}
@@ -245,7 +245,7 @@ body.play-active #arcanoQuickPanel{top:calc(114px + env(safe-area-inset-top))}
 /* Minimap 3D da floresta, compatível com o modo Jogar */
 #forestMini{display:none;position:fixed;z-index:48;left:14px;bottom:calc(14px + env(safe-area-inset-bottom,0px));top:auto;right:auto;width:138px;height:138px;border:2px solid #b6c7a6a8;border-radius:50%;background:#0c211de8;box-shadow:0 12px 30px #000a;overflow:hidden;cursor:pointer;padding:0;touch-action:manipulation}
 body.play-active #forestMini{display:block}
-#forestMini canvas{display:block;width:100%;height:100%;border-radius:50%}
+#forestMini canvas{position:static;inset:auto;display:block;width:100%;height:100%;border-radius:50%;touch-action:manipulation}
 #forestMini strong,#forestMini em{position:absolute;left:50%;transform:translateX(-50%);top:7px;background:#081912c9;color:#f1e3af;padding:4px 7px;border-radius:999px;font:700 10px system-ui;pointer-events:none;white-space:nowrap}
 #forestMini em{font-style:normal;top:auto;bottom:7px;font-size:9px;color:#e0efe5}
 #forestMapDialog[hidden]{display:none!important}
@@ -253,7 +253,7 @@ body.play-active #forestMini{display:block}
 #forestMapCard{position:relative;width:min(730px,96vw);max-height:94dvh;overflow:auto;padding:18px;border-radius:19px;background:#12261ff7;border:1px solid #b7c8a188;box-shadow:0 24px 80px #000c;color:#eaf1e5}
 #forestMapCard h2{font:24px Georgia,serif;color:#f3d99a;margin:0 50px 7px 0}
 #forestMapCard p{font:12px/1.5 system-ui;color:#bcd3c8;margin:0 55px 12px 0}
-#forestMapBig{display:block;width:100%;height:auto;aspect-ratio:1.5;border:1px solid #718a7888;border-radius:13px;background:#0a1d21}
+#forestMapBig{position:static;inset:auto;display:block;width:100%;height:auto;aspect-ratio:1.5;border:1px solid #718a7888;border-radius:13px;background:#0a1d21}
 #forestMapClose{position:absolute;right:17px;top:17px;background:#324d42;color:#f1f5e6;border:1px solid #839b82;border-radius:10px;padding:10px 13px;cursor:pointer;font:700 12px system-ui}
 #forestMapLegend{margin-top:9px;font:12px system-ui;color:#e4e5cf}
 @media(max-width:660px){#forestMini{left:10px;bottom:calc(10px + env(safe-area-inset-bottom,0px));top:auto;right:auto;width:104px;height:104px}#forestMapCard{padding:12px}#forestMapCard h2{font-size:19px}#forestMapBig{aspect-ratio:1}#forestMapLegend{font-size:10px}}
