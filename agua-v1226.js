@@ -194,10 +194,18 @@ const rocks=rocksRaw.map(([x,z,r])=>{
  if(Math.abs(z-trail)<r+1.18)z=trail+(z>trail?1:-1)*(r+1.50);
  return [x,z,r];
 });
-const center=z=>-.72+.63*Math.sin(z*.75)+.20*Math.sin(z*1.52);
+const center=z=>-2.3+.55*Math.sin(z*.69)+.48*Math.sin(z*.29+1.3);
+const riverWidth=z=>.95+.23*Math.sin(z*.24+1.4)**2+.15*Math.sin(z*.71)**2;
+const riverShore=(x,z)=>Math.abs(x-center(z))-riverWidth(z);
 function elevation(x,z){
  let y=.32-.073*z+.16*Math.sin(x*.83+z*.26)+.115*Math.cos(z*1.22-x*.34)+.055*Math.sin(x*2.25+z*1.92);
- y-=.36*Math.exp(-.5*((x-center(z))/.87)**2);
+ // Canal escavado com margens em encosta e trechos de diferentes profundidades.
+ const lateral=Math.abs(x-center(z)),width=riverWidth(z);
+ const deep=.45+.23*(.5+.5*Math.sin(z*.37+Math.sin(z*.12)*2))+.12*Math.sin(z*.91)**2;
+ const bed=1-clamp(lateral/width,0,1);
+ y-=deep*bed*bed*(3-2*bed);
+ const bank=clamp((lateral-width)/1.5,0,1);
+ y+=.10*(1-bank)*bank*(1+.3*Math.sin(z*.55));
  for(const b of basins){const d=((x-b.x)/b.sx)**2+((z-b.z)/b.sz)**2;y-=b.deep*Math.exp(-1.5*d);}
  return y;
 }
@@ -735,7 +743,7 @@ for(let j=0;j<NZ;j++)for(let i=0;i<NX;i++){
  const k=idx(i,j),x=nx(i),z=nz(j),h=elevation(x,z);soil[k]=h;landP[k*3+1]=h;
  blocked[k]=rockAt(x,z)?1:0;
  const moss=.5+.5*Math.sin(x*1.4-z*.88),v=clamp(.48+.29*Math.sin(x*.43+z*.3)+.15*moss,.14,.9);
- cover[k]=clamp(.05+.60*moss+.24*Math.sin(z*.55+x*1.33),0,.82);
+ cover[k]=riverShore(x,z)<1.75?0:clamp(.05+.60*moss+.24*Math.sin(z*.55+x*1.33),0,.82);
  soilCapacity[k]=.060+.085*cover[k]+.023*(.5+.5*Math.cos(x*1.7-z*.8));
  permeability[k]=.003+.002*cover[k]+.0007*(.5+.5*Math.sin(x*.9+z*1.4));
   let basinFactor=0;
@@ -2064,6 +2072,8 @@ function placeForestModel(item,root){
    if(edge>.985&&randomForest()<.35)continue;
   }
   if(rockAt(x,z))continue;
+  // Nenhuma árvore, arbusto ou outra vegetação na água ou na margem de terra.
+  if(riverShore(x,z)<(item.type==='tree'||item.type==='pine'?2.35:1.75))continue;
   let basinBlocked=false;
   for(const b of basins){
    const q=Math.pow((x-b.x)/(b.sx+.2),2)+Math.pow((z-b.z)/(b.sz+.2),2);
