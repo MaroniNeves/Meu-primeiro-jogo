@@ -92,11 +92,29 @@ header a:hover{background:#284039}
 }
 @media(max-width:390px){header strong{max-width:31vw;font-size:11px}header a{padding:9px 6px;font-size:9px}#equipment{width:174px}#prompt{bottom:calc(171px + var(--safe-bottom))}#joystick{width:110px;height:110px}}
 @media(max-height:520px) and (orientation:landscape){#info{top:64px;max-height:130px;overflow:hidden}#prompt{bottom:9px;max-width:42vw}#equipment{bottom:calc(83px + var(--safe-bottom));right:12px}#joystick{width:100px;height:100px}#attack{bottom:calc(14px + var(--safe-bottom))}#interact{min-height:40px}#mapToggle{top:65px}}
+
+/* Minimap interativo: mundo aberto e dungeon, com expansão */
+#miniMapButton{position:fixed;right:16px;top:calc(159px + env(safe-area-inset-top,0px));width:140px;height:140px;z-index:18;padding:0;border:1px solid #b6bfa58c;border-radius:15px;overflow:hidden;background:#0c1a24e8;box-shadow:0 12px 32px #0009;cursor:pointer;touch-action:manipulation}
+#miniMapButton canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#miniMapButton span{position:absolute;top:5px;left:7px;padding:3px 6px;background:#08141dbb;border-radius:6px;font-size:10px;color:#f4db9b;pointer-events:none}
+#miniMapButton small{position:absolute;bottom:5px;right:6px;background:#08141dc9;padding:3px 6px;border-radius:5px;font-size:9px;color:#e2eadd;pointer-events:none}
+#mapOverlay{position:fixed;inset:0;z-index:55;background:#02080ddc;display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(8px)}
+#mapOverlay.open{display:flex}
+#expandedMapPanel{position:relative;width:min(760px,98vw);max-height:94dvh;padding:18px;background:#11212beF;border:1px solid #a8bba383;border-radius:18px;box-shadow:0 24px 90px #000c}
+#expandedMapPanel h2{font:24px Georgia,serif;color:#ead49b;margin:0 54px 6px 0}
+#expandedMapPanel p{font-size:12px;color:#b8cbc8;margin:0 52px 12px 0}
+#expandedMap{display:block;width:100%;height:auto;max-height:65dvh;aspect-ratio:1.5/1;border:1px solid #54736c;border-radius:12px;background:#0c1b29}
+#closeExpandedMap{position:absolute;right:17px;top:17px;padding:9px 12px;background:#253a42;border:1px solid #8e9e91;color:#eff2e9;border-radius:10px;cursor:pointer;font-size:12px}
+#miniMapLegend{font-size:12px;color:#d5decf;margin-top:10px}
+@media(max-width:660px){#miniMapButton{right:9px;top:calc(132px + env(safe-area-inset-top,0px));width:94px;height:94px;border-radius:12px}#expandedMapPanel{padding:13px}#expandedMapPanel h2{font-size:19px}#expandedMap{aspect-ratio:1/1}#miniMapLegend{font-size:10px}}
+@media(max-height:540px) and (orientation:landscape){#miniMapButton{top:115px;width:86px;height:86px}#expandedMap{max-height:55dvh}}
 </style></head><body>
 <canvas id="game" aria-label="Mapa jogável de sete ilhas flutuantes"></canvas>
 <header><div class="pill"><strong>Ateliê Arcano · Teste 2D</strong><small>Prólogo — Os Sete Refúgios</small></div><a href="../index.html">Jogo</a><a href="../magias/espadas.html">Efeitos 3D</a><a href="../magias/index.html">Magias</a></header>
 <section class="panel" id="info"><b id="area">Ilha Central · Luz</b><div id="objective">Explore a cidade e investigue as fendas.</div><div id="notice">No celular, arraste o botão redondo para andar · E para interagir</div><div id="stats">Dungeons seladas: 0/6</div><div id="clockTag">☀️ Dia · 10:00</div></section>
 <button id="mapToggle" type="button" aria-expanded="false" aria-controls="nav">🗺️ Ilhas</button><section class="panel" id="nav" role="dialog" aria-label="Destinos do barco voador"><button id="closeMap" type="button">Fechar ✕</button><h2>Barco Voador · Destinos</h2><p id="mapHelp">Vá ao porto e interaja para escolher sua próxima ilha.</p><div id="destinations"></div></section>
+<button id="miniMapButton" type="button" aria-label="Expandir minimapa" aria-controls="mapOverlay" aria-expanded="false"><canvas id="miniMap" width="280" height="280"></canvas><span>◈ MINIMAPA</span><small>⛶ Expandir</small></button>
+<div id="mapOverlay" role="dialog" aria-modal="true" aria-label="Mapa ampliado do jogo"><div id="expandedMapPanel"><button type="button" id="closeExpandedMap">✕ Fechar</button><h2 id="expandedMapTitle">Mapa dos Sete Refúgios</h2><p id="expandedMapDescription">Você está indicado pelo ponto dourado. As ilhas e passagens são apresentadas no mapa.</p><canvas id="expandedMap" width="900" height="600"></canvas><div id="miniMapLegend">● Dourado: você · ◈ Ilha · Vermelho: passagem ativa · Verde: passagem selada</div></div></div>
 <div id="prompt">Aproxime-se do porto ou de uma fenda para interagir.</div>
 <div id="equipment" aria-label="Selecionar arma"><button data-weapon="sword">⚔️ Espada</button><button data-weapon="dagger">🗡️ Adaga</button><button data-weapon="bow">🏹 Arco</button><button data-weapon="orb">🔮 Orbe</button></div><button id="attack" type="button">⚡ Atacar</button><div id="controls"><div id="joystick" role="slider" aria-label="Controle deslizante de movimento, arraste para andar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="stick"></div><span id="joyLabel">DESLIZE</span></div><button class="action" id="interact">E · Interagir</button></div>
 <script>
@@ -120,6 +138,43 @@ const player={island:0,x:40,y:210,speed:215},keys=new Set();let last=performance
 let W=innerWidth,H=innerHeight,DPR=1;
 function resize(){DPR=Math.min(devicePixelRatio||1,1.5);W=innerWidth;H=innerHeight;C.width=Math.round(W*DPR);C.height=Math.round(H*DPR);ctx.setTransform(DPR,0,0,DPR,0,0)}addEventListener('resize',resize);resize();
 function rand(x){let z=Math.sin(x*127.1+78.23)*43758.545;return z-Math.floor(z)}
+
+const miniMapButton=document.getElementById('miniMapButton'),miniMapCanvas=document.getElementById('miniMap'),expandedMapCanvas=document.getElementById('expandedMap'),mapOverlay=document.getElementById('mapOverlay');
+const closeExpandedMap=document.getElementById('closeExpandedMap');
+function showExpandedMap(open){mapOverlay.classList.toggle('open',open);miniMapButton.setAttribute('aria-expanded',String(open));if(open)paintMiniMap(expandedMapCanvas,true);}
+miniMapButton.addEventListener('click',()=>showExpandedMap(true));closeExpandedMap.addEventListener('click',()=>showExpandedMap(false));
+mapOverlay.addEventListener('click',e=>{if(e.target===mapOverlay)showExpandedMap(false)});
+addEventListener('keydown',e=>{if(e.key==='Escape'&&mapOverlay.classList.contains('open'))showExpandedMap(false)});
+function paintMiniMap(canvas,expanded){
+ const g=canvas.getContext('2d'),w=canvas.width,h=canvas.height,scale=Math.min(w/2650,h/3200)*(expanded?.88:1.27);
+ g.clearRect(0,0,w,h);g.fillStyle='#0b1a27';g.fillRect(0,0,w,h);
+ // Minimap mostra a ilha atual detalhada; o mapa expandido exibe todos os refúgios.
+ if(sceneMode==='dungeon'){
+  const k=Math.min(w/630,h/1350),ox=w/2,oy=h/2+350*k;
+  g.fillStyle='#2b3540';g.strokeStyle='#6c7777';g.lineWidth=Math.max(1,k*7);
+  for(const [cy,ch] of [[60,390],[-320,340],[-730,440]]){g.fillRect(ox-245*k,oy+(cy-ch/2)*k,490*k,ch*k);g.strokeRect(ox-245*k,oy+(cy-ch/2)*k,490*k,ch*k)}
+  g.fillStyle='#3f4a51';g.fillRect(ox-76*k,oy-600*k,152*k,740*k);
+  for(const m of dungeon.monsters){if(m.hp>0){g.fillStyle='#d78a86';g.beginPath();g.arc(ox+m.x*k,oy+m.y*k,Math.max(3,9*k),0,TAU);g.fill()}}
+  g.fillStyle='#8ee2be';g.beginPath();g.arc(ox,oy-905*k,Math.max(5,22*k),0,TAU);g.fill();
+  g.fillStyle='#f7d78d';g.strokeStyle='#2b2420';g.lineWidth=2;g.beginPath();g.arc(ox+dungeon.x*k,oy+dungeon.y*k,Math.max(5,11*k),0,TAU);g.fill();g.stroke();
+ }else{
+  let ox=w/2,oy=h/2;
+  if(!expanded){const island=islands[player.island];ox-=island.x*scale;oy-=island.y*scale;}
+  g.strokeStyle='#68808c80';g.lineWidth=expanded?2:1;
+  for(let i=1;i<islands.length;i++){const x0=ox+islands[0].x*scale,y0=oy+islands[0].y*scale,x1=ox+islands[i].x*scale,y1=oy+islands[i].y*scale;g.beginPath();g.moveTo(x0,y0);g.lineTo(x1,y1);g.stroke()}
+  for(const island of islands){
+   const x=ox+island.x*scale,y=oy+island.y*scale,rad=Math.max(expanded?20:22,island.r*scale*.78);
+   g.fillStyle=island.edge;g.beginPath();g.ellipse(x,y,rad,rad*.82,0,0,TAU);g.fill();
+   g.fillStyle=island.color;g.beginPath();g.ellipse(x,y-rad*.12,rad*.86,rad*.69,0,0,TAU);g.fill();
+   g.fillStyle=island.orb;g.beginPath();g.arc(x,y,Math.max(3,rad*.15),0,TAU);g.fill();
+   if(island.fissure){g.fillStyle=island.closed?'#83d1a2':'#df8085';g.beginPath();g.arc(ox+island.fiss.x*scale,oy+island.fiss.y*scale,Math.max(3,rad*.095),0,TAU);g.fill()}
+   if(expanded){g.textAlign='center';g.font='600 13px system-ui';g.fillStyle='#f2f0df';g.fillText(island.name,x,y+rad+18)}
+  }
+  const px=ox+player.x*scale,py=oy+player.y*scale;
+  g.fillStyle='#ffdd88';g.strokeStyle='#101e22';g.lineWidth=3;g.beginPath();g.arc(px,py,expanded?9:7,0,TAU);g.fill();g.stroke();
+ }
+ if(expanded){document.getElementById('expandedMapTitle').textContent=sceneMode==='dungeon'?'Mapa da Dungeon':'Mapa dos Sete Refúgios';document.getElementById('expandedMapDescription').textContent=sceneMode==='dungeon'?'Acompanhe sua posição, os inimigos e a câmara da orbe.':'Sua posição está marcada em dourado. Vermelho indica passagem aberta e verde, passagem selada.';}
+}
 function updateHud(){const s=islands[player.island];info.textContent=s.name+' · '+s.type+' · Cidade de '+s.city;objective.textContent=s.detail;stats.textContent='Dungeons seladas: '+islands.filter(i=>i.fissure&&i.closed).length+'/6';[...destinations.children].forEach((b,i)=>b.classList.toggle('active',i===player.island))}
 const btns=islands.map((s,i)=>{const b=document.createElement('button');b.textContent=(i===0?'✦ ':'◈ ')+s.name+' · '+s.type;b.addEventListener('click',()=>{if(travel>0)return;if(i===player.island){notice.textContent='Você já está nesta ilha.';return}if(!boatDock){notice.textContent='Vá até o porto e use E para embarcar.';setMap(false);return}sail(i)});destinations.appendChild(b);return b});
 function dist(x,y,a,b){return Math.hypot(x-a,y-b)}
@@ -403,7 +458,7 @@ function frame(now){const dt=Math.min((now-last)/1000,.05);last=now;elapsed+=dt;
  prompt.textContent=nearDock?'[E] Embarcar no barco voador · escolha o destino':nearFiss?'[E] Entrar na pequena passagem':dist(player.x,player.y,s.x,s.y)<115?'[E] Examinar a orbe gigante':'WASD / setas: caminhar · E: interagir · aproxime-se de um porto';
  }
  }
- draw(dt);if(portalTransition>0&&sceneMode!=='dungeon')drawPortalTransition();requestAnimationFrame(frame)}
+ draw(dt);if(Math.floor(elapsed*8)!==Math.floor((elapsed-dt)*8)){paintMiniMap(miniMapCanvas,false);if(mapOverlay.classList.contains("open"))paintMiniMap(expandedMapCanvas,true)}if(portalTransition>0&&sceneMode!=='dungeon')drawPortalTransition();requestAnimationFrame(frame)}
 updateHud();requestAnimationFrame(frame);
 })();
 </script></body></html>
