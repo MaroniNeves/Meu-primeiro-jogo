@@ -673,11 +673,11 @@ async function grassShape(){
    const growth=clamp(cover[k]*(1-traffic[k])*
      (.55+.45*clamp(api.soilPlant[k],0,1)),0,1);
    if(growth<.02)return false;
-   const scale=(name==='grassShort1'?.28:name==='grassTall1'?.42:.36)*
+   const scale=(name==='grassShort1'?.22:name==='grassTall1'?.28:.25)*
      (.73+random()*.58)*multiplier;
    obj.position.set(x,height(x,z)-.018,z);
    obj.rotation.set((random()-.5)*.08,random()*Math.PI*2,(random()-.5)*.08);
-   obj.scale.set(scale*(.74+random()*.50),scale*(.93+random()*.38),
+   obj.scale.set(scale*(.74+random()*.50),Math.min(.30,scale*(.78+random()*.28)),
      scale*(.78+random()*.44));
    obj.updateMatrix();
    const color=api.biomeField?.(x,z)||0;
