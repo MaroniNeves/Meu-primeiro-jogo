@@ -2679,20 +2679,6 @@ const waterM=new T.ShaderMaterial({
 });
 const water=new T.Mesh(waterG,waterM);water.frustumCulled=false;water.renderOrder=3;
 water.name='Água V12.27 · reflexos alinhados ao cenário';scene.add(water);
-// Malha separada para lago fixo e poças: rio nao usa esta grade.
-const PNX=mobile?76:112,PNZ=mobile?62:92,PN=PNX*PNZ;
-const pp=new Float32Array(PN*3),pd=new Float32Array(PN),pm=new Float32Array(PN),pf=new Float32Array(PN*2),pg=new T.BufferGeometry(),pt=[];
-const px=i=>-W*.5+i*W/(PNX-1),pz=j=>-L*.5+j*L/(PNZ-1);
-for(let j=0;j<PNZ;j++)for(let i=0;i<PNX;i++){
- const k=j*PNX+i;pp[k*3]=px(i);pp[k*3+2]=pz(j);
- if(i<PNX-1&&j<PNZ-1){const b=k+1,c=k+PNX,d=c+1;pt.push(k,c,b,b,c,d);}
-}
-pg.setAttribute('position',new T.BufferAttribute(pp,3).setUsage(T.DynamicDrawUsage));
-pg.setAttribute('waterDepth',new T.BufferAttribute(pd,1).setUsage(T.DynamicDrawUsage));
-pg.setAttribute('mudAmount',new T.BufferAttribute(pm,1).setUsage(T.DynamicDrawUsage));
-pg.setAttribute('waterFlow',new T.BufferAttribute(pf,2).setUsage(T.DynamicDrawUsage));
-pg.setIndex(pt);pg.boundingSphere=new T.Sphere(new T.Vector3(),Math.hypot(W,L)+5);
-const pondMesh=new T.Mesh(pg,waterM);pondMesh.frustumCulled=false;pondMesh.renderOrder=3;scene.add(pondMesh);
 // Render target da câmera espelhada; preserva os cubemaps existentes como fallback.
 const planarRT=new T.WebGLRenderTarget(mobile?640:1024,mobile?512:768,{
  generateMipmaps:false,minFilter:T.LinearFilter,magFilter:T.LinearFilter,
@@ -3296,15 +3282,6 @@ function rebuild(){
  waterG.attributes.mudAmount.needsUpdate=true;
  waterG.attributes.waterFlow.needsUpdate=true;
 
- // Rio fica restrito a sua faixa; esta malha mostra exclusivamente lago e pocas.
- for(let j=0;j<PNZ;j++)for(let i=0;i<PNX;i++){
-  const k=j*PNX+i,x=px(i),z=pz(j),gx=clamp(Math.round((x+W*.5)/dx),0,NX-1),gz=clamp(Math.round((z+L*.5)/dz),0,NZ-1);
-  const lake=permanentLakeMask?.[idx(gx,gz)]===1;
-  const d=riverShore(x,z)<1.90?0:lake?.12:roadRainFactor(x,z)>0?sample(depth,x,z):0;
-  pp[k*3+1]=sample(soil,x,z)+d+.008;pd[k]=d;
-  pm[k]=lake?0:sample(turbidity,x,z);pf[k*2]=pf[k*2+1]=0;
- }
- for(const attr of Object.values(pg.attributes))attr.needsUpdate=true;
  // Espuma localizada apenas em alguns trechos calmos da margem.
  if(showFoam)for(let j=1;j<NZ-1&&foamCount<foamLimit;j++)
  for(let i=1;i<NX-1&&foamCount<foamLimit;i++){
