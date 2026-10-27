@@ -204,8 +204,9 @@ function elevation(x,z){
  const deep=.45+.23*(.5+.5*Math.sin(z*.37+Math.sin(z*.12)*2))+.12*Math.sin(z*.91)**2;
  const bed=1-clamp(lateral/width,0,1);
  y-=deep*bed*bed*(3-2*bed);
+ // Encostas sobem na direção da margem, sem criar saída lateral do rio.
  const bank=clamp((lateral-width)/1.5,0,1);
- y+=.10*(1-bank)*bank*(1+.3*Math.sin(z*.55));
+ y+=.15*(1-bank)*bank*(1+.3*Math.sin(z*.55));
  for(const b of basins){const d=((x-b.x)/b.sx)**2+((z-b.z)/b.sz)**2;y-=b.deep*Math.exp(-1.5*d);}
  return y;
 }
@@ -760,7 +761,7 @@ baseCapacity.set(soilCapacity);basePermeability.set(permeability);
 for(let k=0;k<size;k++)permeability[k]=basePermeability[k]*1.45;
 // A paleta inicial é substituída pelo mosaico de solos depois que o terreno existe.
 landG.setAttribute('color',new T.BufferAttribute(colors,3));landG.computeVertexNormals();
-const land=new T.Mesh(landG,new T.MeshStandardMaterial({map:groundTexture(),vertexColors:true,roughness:1,side:T.DoubleSide}));
+const land=new T.Mesh(landG,new T.MeshStandardMaterial({map:groundTexture(),vertexColors:true,roughness:1,side:T.FrontSide}));
 // O mapa de terra original é multiplicativo e deixa o gramado marrom.
 // Nos pixels vivos, preservar a cor verde da superfície e apenas parte
 // da textura de solo. Estrada, barro, margens e solo morto mantêm a terra.
@@ -3009,15 +3010,16 @@ function hydrologyStep(dt){
   const lagoon=basins[1],invX=1/lagoon.sx,invZ=1/lagoon.sz;
   for(let k=0;k<size;k++){
    const x=(gridX[k]-lagoon.x)*invX,z=(gridZ[k]-lagoon.z)*invZ;
-   permanentLakeMask[k]=(x*x+z*z)<.70?1:0;
+   const withinRiver=Math.abs(gridX[k]-center(gridZ[k]))<riverWidth(gridZ[k])*.70;
+   permanentLakeMask[k]=withinRiver||x*x+z*z<.70?1:0;
   }
  }
  const rain=rainMeters[level]*dt,evap=.00027*dt;
  for(let k=0;k<size;k++){
   const permanentLake=permanentLakeMask[k]===1;
   if(permanentLake){
-   // Lagos cadastrados permanecem presentes; poças fora deles desaparecem.
-   depth[k]=Math.max(depth[k],.022);
+   // Água permanente só no interior do canal e na lagoa cadastrada.
+   depth[k]=Math.max(depth[k],.034);
   }else{
    if(rain>0){depth[k]+=rain;stats.rain+=rain*area;}
    const lost=Math.min(depth[k],evap);depth[k]-=lost;stats.evaporated+=lost*area;
