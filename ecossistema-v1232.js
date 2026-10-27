@@ -1123,34 +1123,13 @@ function excavateNest(c,days,safe){
  updateNestSurface(c);
 }
 function initialColonies(){
- recordEcoEvent('Início com rainhas, crias e operárias.');
+ recordEcoEvent('Três colônias fixas: dez formigas coletoras em cada uma.');
  for(const [x,z] of [[-6,2.5],[4.5,2.9],[-2,-4.1]]){
-  const c=newColony(x,z,24+colonies.length*12,15,false);
+  const c=newColony(x,z,10,15,false);
+  c.brood=[];c.queenFertile=false;
   colonies.push(c);nestSurface(c);
  }
- const totalWormSites=mobileDevice?28:48;
- for(let i=0;i<totalWormSites;i++){
-  let x=(random()-.5)*15,z=(random()-.5)*11;
-  // Favorece lama AREJADA, sem criar minhocas em água funda.
-  // Uma faixa junto ao rio recebe mais grupos que terras secas.
-  let best=-1;
-  for(let tries=0;tries<28;tries++){
-   const tz=(random()-.5)*13;
-   const nearRiver=i%3===0;
-   const tx=nearRiver?riverX(tz)+(random()<.5?-1:1)*(.60+random()*.52):
-     (random()-.5)*18;
-   const kk=idx(tx,tz);
-   const score=goodForWorms(kk)+
-    (nearRiver&&api.depth[kk]<.045?.28:0)-
-    roadMask[kk]*.38;
-   if(score>best){best=score;x=tx;z=tz;}
-  }
-  worms.push({x,z,adults:3+Math.floor(random()*5),juveniles:2,
-   cocoons:[{days:10,count:1,incubation:39+random()*27}],organic:.1,
-   burrows:0,matureProgress:0,deathProgress:0,pairProgress:0,
-   juvenileMaturityDays:55+random()*22,locomotion:random()*6.28,
-   depth:.14+random()*.23,castings:0,age:30+random()*180});
- }
+ // Minhocas removidas: não criar indivíduos, galerias nem malhas.
 }
 function goodForWorms(k){
  const moist=api.soilMoisture[k]/Math.max(.0001,api.soilCapacity[k]);
@@ -1170,324 +1149,9 @@ function addCarcass(x,z,mass=.03){
 // Passos ecológicos discretos por dia simulado; parâmetros são didáticos
 // e dependem de espécies/condições reais, não constituem previsão de campo.
 function lifeDay(days){
+ // Colônias fixas: sem reprodução, mortalidade, adubo ou biologia subterrânea.
  ecologicalDays+=days;
- // Crescimento em DIAS simulados: avançar o tempo também recupera
- // gramados e trilhas abandonadas (e não apenas o cronômetro da cena).
- for(let k=0;k<cells;k++){
-  // Recuperação por tempo sem pisoteio; não depende de água nem nutrientes.
-  const growth=1;
-  const recovery=days*.024;
-  traffic[k]=Math.max(0,traffic[k]-recovery);
-  animalTrail[k]=Math.max(0,animalTrail[k]-recovery*.85);
-  compaction[k]=Math.max(0,compaction[k]-recovery*.45);
-  const wear=Math.max(traffic[k],animalTrail[k]);
-  const factor=clamp((wear-.18)/.65,0,1);
-  roadMask[k]=Math.max(fixedRoadMask[k],factor*factor*(3-2*factor));
-  const permanent=fixedRoadMask[k]>.06||nestBareMask[k]>105;
-  const desired=permanent?0:clamp(growth*1.2-roadMask[k]*.93,0,1);
-  if(permanent)cover[k]=0;
-  else if(desired>cover[k])cover[k]=clamp(cover[k]+days*.014*growth,0,desired);
-  if(!permanent)api.soilPlant[k]=clamp(api.soilPlant[k]+days*.003*growth,.025,1.25);
- }
- // A recuperação ecológica altera só as células necessárias: o cache
- // identifica os setores afetados sem reprocessar milhões de tufos.
- if(days>=1)updateGrassMeshes();
- // Fotossíntese e desenvolvimento da vegetação renovam sementes/néctar;
- // não surgem novas fontes sobre estrada, área alagada ou gramado morto.
- for(let k=0;k<cells;k++){
-  const vegetation=clamp(cover[k]*(1-traffic[k]),0,1);
-  const growth=clamp(api.soilPlant[k],0,1.3);
-  const submersion=api.depth[k]>.065?.12:1;
-  foodResources[k]=clamp(foodResources[k]+
-   days*(.001+.012*vegetation*growth)*submersion*(1-roadMask[k]),0,.24);
- }
- const climate=api.atmosphere.getMetrics(),temp=climate.temperature;
- for(const c of [...colonies]){
-  if(!c.pheromones)c.pheromones=new Float32Array(cells);
-  const k=idx(c.x,c.z);
-  const moist=clamp(api.soilMoisture[k]/Math.max(.0001,api.soilCapacity[k]),0,1.8);
-  const flooded=api.depth[k]>.075;
-  c.temperature=temp;c.reproductiveCooldown=Math.max(0,c.reproductiveCooldown-days);
-  // Se a camada profunda estiver saturada, mover rainha e crias às
-  // câmaras intermediárias seguras; casulos e estoques permanecem em camadas.
-  const deepSaturation=api.deepWater?.[k]||0;
-  c.queenDepth=deepSaturation>.42?.42:.78;
-  const safe=clamp((temp-10)/10,0,1)*clamp((39-temp)/10,0,1)*
-   clamp((moist-.04)/.28,0,1)*clamp((1.16-moist)/.4,0,1)*
-   (flooded?.13:1);
-  // Feromônios evaporam e são lavados pela água superficial/chuva.
-  const decay=clamp((.13+Math.max(0,moist-.7)*.18)*days,0,.85);
-  for(let i=0;i<cells;i++)c.pheromones[i]*=(1-decay);
-  distributeTasks(c);
-  let gathered=0,searchBudget=days*(.014+.0014*c.foragers)*safe;
-  const sites=chooseFoodSites(c);
-  for(const item of sites){
-   if(searchBudget<=0)break;
-   const site=item.k;
-   const available=foodResources[site]+api.soilLitter[site]*.70+leafLitterField[site]*.85;
-   const possible=Math.min(available,searchBudget);
-   if(possible<.000015)continue;
-   const take=possible*Math.min(1,.55+.35*c.pheromones[site]);
-   const plantFood=Math.min(foodResources[site],take);
-   foodResources[site]-=plantFood;
-   const leafTaken=collectLeafFragments(site,Math.max(0,take-plantFood));
-   c.leafCargo=clamp((c.leafCargo||0)+leafTaken*125,0,1.0);
-   const litterFood=Math.min(api.soilLitter[site],Math.max(0,take-plantFood-leafTaken));
-   api.soilLitter[site]-=litterFood;
-   searchBudget-=take;
-   gathered+=take;
-   reinforceTrail(c,site,Math.min(1,take*30));
-  }
-  c.food=clamp(c.food+gathered*35,0,360);
-  c.foodGathered+=gathered;c.foodStored=clamp(c.foodStored+gathered*7,0,120);
-  // Fezes e restos da alimentação entram novamente na camada orgânica.
-  const detritus=gathered*.13+days*c.workers*.000012;
-  // Sem adubação do solo pelas formigas.
-
-
-  const broodFood=c.brood.reduce((sum,g)=>sum+(g.stage==='larva'?g.count:0),0)*.004;
-  // Rainha fundadora claustral utiliza reservas durante os primeiros ovos.
-  // Ao surgir a primeira operária, o consumo comum da colônia é retomado.
-  const founding=c.founder&&c.workers===0;
-  const need=days*(founding?.078:(.19+.015*c.workers+broodFood));
-  const ration=Math.min(c.food,need);c.food-=ration;
-  c.leafCargo=Math.max(0,(c.leafCargo||0)-days*.004);
-  const fed=need>0?ration/need:1;
-  c.daysWithoutFood=fed<.38?c.daysWithoutFood+days:Math.max(0,c.daysWithoutFood-days*.25);
-  // Morte de operárias, agravada por escassez, calor, enchentes e idade.
-  c.deathProgress+=days*c.workers*
-   (.0028+(1-safe)*.013+Math.max(0,.62-fed)*.034);
-  const casualties=Math.min(c.workers,Math.floor(c.deathProgress));
-  c.deathProgress-=casualties;
-  if(casualties){
-   c.workers-=casualties;c.dead+=casualties;
-   addCarcass(c.x,c.z,casualties*.0018);
-   if(casualties>=7)recordEcoEvent('Colônia '+(c.id+1)+' perdeu '+casualties+' operárias.');
-  }
-  const nurseEfficiency=clamp(c.nurses/Math.max(1,c.brood.length*1.3),0,1);
-  if(c.queen&&c.queenFertile&&safe>.42&&fed>.50&&c.food>1.2){
-   // Rainha põe ovos; operárias estéreis não se tornam rainhas.
-   c.eggProgress+=days*(.72+c.workers*.026)*safe;
-   const eggs=Math.min(9,Math.floor(c.eggProgress));
-   if(eggs>0){
-    c.eggProgress-=eggs;
-    c.brood.push({stage:'egg',age:0,count:eggs});
-    c.food=Math.max(0,c.food-eggs*.028);
-   }
-  }
-  let born=0;const next=[];
-  const development=clamp((temp-11)/16,.18,1.25)*clamp(fed*.75+nurseEfficiency*.25,.12,1);
-  for(const cohort of c.brood){
-   cohort.age+=days*development;
-   if(cohort.stage==='egg'&&cohort.age>=9)cohort.stage='larva';
-   if(cohort.stage==='larva'&&cohort.age>=24)cohort.stage='pupa';
-   if(cohort.stage==='pupa'&&cohort.age>=40){born+=cohort.count;continue;}
-   if(fed<.3&&random()<days*.08){
-    const lost=Math.min(cohort.count,Math.max(1,Math.ceil(cohort.count*.12)));
-    cohort.count-=lost;addCarcass(c.x,c.z,lost*.00024);
-   }
-   if(cohort.count>0)next.push(cohort);
-  }
-  c.brood=next.slice(-96);
-  c.workers=clamp(c.workers+born,0,240);
-  if(c.founder&&born>0)recordEcoEvent('Primeiras operárias da colônia '+(c.id+1)+' nasceram.');
-  if(c.workers>0)c.founder=false;
-  c.queenAge+=days;
-  // Reservas e proteção das operárias influenciam a sobrevivência da rainha.
-  // Períodos prolongados sem alimentação, água ou oxigênio causam colapso.
-  if(c.queen){
-   const danger=safe<.18||fed<.22?1:safe<.35||fed<.52?.32:-.48;
-   c.queenStress=clamp((c.queenStress||0)+days*danger,0,80);
-  }
-  if(c.queen&&(c.queenAge>365*9||c.queenStress>34)){
-   c.queen=false;c.queenFertile=false;
-   addCarcass(c.x,c.z,.004);
-   recordEcoEvent('Rainha da colônia '+(c.id+1)+' morreu.');
-  }
-  distributeTasks(c);
-  excavateNest(c,days,safe);
-  const nuptialWeather=temp>21&&temp<31&&moist>.25&&moist<.8&&!flooded;
-  if(c.queen&&c.workers>140&&c.food>36&&c.queenAge>110&&
-   nuptialWeather&&c.reproductiveCooldown===0&&colonies.length<6&&
-   random()<days*.018){
-   let fx=c.x,fz=c.z,found=false;
-   for(let tries=0;tries<24;tries++){
-    const angle=random()*Math.PI*2,dist=2.2+random()*3.8;
-    const px=clamp(c.x+Math.cos(angle)*dist,-9,9);
-    const pz=clamp(c.z+Math.sin(angle)*dist,-7,7),newK=idx(px,pz);
-    if(roadMask[newK]>.38||riverMask[newK]>.36||api.depth[newK]>.035)continue;
-    if(colonies.some(other=>Math.hypot(other.x-px,other.z-pz)<1.45))continue;
-    fx=px;fz=pz;found=true;break;
-   }
-   if(found){
-    // Rainha jovem fecundada em voo nupcial, de forma probabilística.
-    const daughter=newColony(fx,fz,0,8,true);
-    daughter.brood.push({stage:'egg',age:0,count:3});
-    colonies.push(daughter);nestSurface(daughter);visualizeAnimals();
-    recordEcoEvent('Nova rainha fundou a colônia '+(daughter.id+1)+'.');
-    c.food-=7;c.reproductiveCooldown=110;
-   }
-  }
- }
- let hatchedToday=0;
- for(const w of worms){
-  const k=idx(w.x,w.z),safe=goodForWorms(k);
-  const moist=clamp(api.soilMoisture[k]/Math.max(.0001,api.soilCapacity[k]),0,1.8);
-  const wetEnough=moist>.35&&moist<1.13;
-  // Alimentam-se do detrito e dos microrganismos que o colonizam.
-  const litter=Math.min(api.soilLitter[k],days*w.adults*.0017*safe);
-
-  // As minhocas também ingerem pequenas parcelas do solo rico em detritos.
-  // Toda massa de húmus gerada vem de matéria ingerida; não surge do nada.
-  const organicIngested=Math.min(api.soilOrganic[k],
-   days*w.adults*.00014*safe);
-
-  const consumed=litter+organicIngested;
-  const nutrition=clamp(consumed/Math.max(.00001,days*w.adults*.00019),0,1);
-  const casts=consumed*.73;
-  // Minhocas permanecem como fauna, sem produção de adubo.
-
-
-
-
-  const work=days*w.adults*.00125*safe;
-  w.burrows+=work;burrowLength+=work;
-
-  // Hermafroditas com fecundação cruzada: exigem >= 2 adultos para casulos.
-  if(w.adults>=2&&safe>.42&&nutrition>.34){
-   w.pairProgress+=days*Math.min(w.adults/4,2)*.082*safe*nutrition;
-   const pairings=Math.min(2,Math.floor(w.pairProgress));
-   if(pairings>0){
-    w.pairProgress-=pairings;
-    for(let i=0;i<pairings;i++)w.cocoons.push({
-     days:0,count:1+Math.floor(random()*3),incubation:31+random()*43
-    });
-   }
-  }
-  let hatch=0;const cocoons=[];
-  for(const cocoon of w.cocoons){
-   cocoon.days+=days*(safe>.22?1:.25);
-   if(cocoon.days>=cocoon.incubation)hatch+=cocoon.count;
-   else cocoons.push(cocoon);
-  }
-  w.cocoons=cocoons.slice(-40);
-  w.juveniles=Math.min(130,w.juveniles+hatch);
-  hatchedToday+=hatch;
-  w.matureProgress+=days*w.juveniles/Math.max(40,w.juvenileMaturityDays)*safe;
-  const mature=Math.min(w.juveniles,Math.floor(w.matureProgress));
-  w.matureProgress-=mature;w.juveniles-=mature;w.adults+=mature;
-  // Mortalidade e reciclagem orgânica com pouca umidade ou inundação anóxica.
-  w.deathProgress+=w.adults*days*(safe<.13?.034:.0027+Math.max(0,.35-nutrition)*.011);
-  const deaths=Math.min(w.adults,Math.floor(w.deathProgress));
-  w.deathProgress-=deaths;
-  if(deaths){w.adults-=deaths;addCarcass(w.x,w.z,deaths*.003);}
-  w.adults=Math.min(95,w.adults);w.age+=days;
-  // Migração lenta das galerias entre células à procura de alimento e umidade.
-  if(w.adults>0){
-   const heading=position(k),options=[k,k-1,k+1,k-NX,k+NX];
-   let best=k,bestScore=-1;
-   for(const near of options){
-    if(near<0||near>=cells)continue;
-    const target=position(near);
-    if(Math.hypot(target.x-heading.x,target.z-heading.z)>Math.max(dx,dz)*1.3)continue;
-    const score=goodForWorms(near)+api.soilLitter[near]*.35+
-      (near===k?.14:0)+random()*.075;
-    if(score>bestScore){bestScore=score;best=near;}
-   }
-   const target=position(best),step=Math.min(1,days*.18);
-   w.x+=(target.x-w.x)*step;w.z+=(target.z-w.z)*step;
-  }
-  // Enterram-se mais quando o ar seca; aproximam-se da superfície após chuva.
-  w.depth=clamp(w.depth+(wetEnough&&safe>.4?-.013:.023)*days,.016,.48);
- }
- if(hatchedToday>0&&Math.floor(ecologicalDays)%10===0)
-  recordEcoEvent(hatchedToday+' minhocas eclodiram dos casulos.');
-}
-const normalizedAntGeometries=new Map();
-function antGeometry(name){
- const source=meshLibrary[name]||meshLibrary.ant1;
- if(!source)return null;
- if(normalizedAntGeometries.has(source))return normalizedAntGeometries.get(source);
- const geom=source.clone();geom.computeBoundingBox();
- let bounds=geom.boundingBox,size=new T.Vector3();bounds.getSize(size);
- // Evitar eixo vertical incorreto em alguns modelos antigos Z-up.
- if(size.y>Math.max(size.x,size.z)*1.6){
-  geom.rotateX(Math.PI*.5);geom.computeBoundingBox();
-  bounds=geom.boundingBox;bounds.getSize(size);
- }
- const largest=Math.max(size.x,size.y,size.z,.000001);
- geom.scale(1/largest,1/largest,1/largest);
- geom.computeBoundingBox();bounds=geom.boundingBox;
- const center=new T.Vector3();bounds.getCenter(center);
- geom.translate(-center.x,-bounds.min.y,-center.z);
- geom.computeBoundingSphere();
- normalizedAntGeometries.set(source,geom);
- return geom;
-}
-// Esconde quaisquer modelos antigos de formiga inseridos fora do sistema
-// de instâncias animadas; protege contra a formiga gigante estática.
-function hideDetachedAntModels(){
- // A versão antiga só procurava "ant" no NOME DA MALHA. Nos OBJ/FBX
- // originais, o nome costuma pertencer ao GRUPO PAI e a malha chama-se
- // Mesh_0 ou Object_0. Remover a origem de qualquer formiga estática.
- const pattern=/(^|[\s_.-])(ant|formiga|leaf.?cutter|red.?ant)([\s_.-]|\d|$)|^(leaf.?cutter|red.?ant|formiga)/i;
- const roots=new Set();
- api.scene.traverse(obj=>{
-  if(!obj.isMesh&&!obj.isSkinnedMesh)return;
-  let p=obj,insideEcology=false,antRoot=null;
-  while(p&&p!==api.scene){
-   if(p===realm){insideEcology=true;break;}
-   if(pattern.test(p.name||''))antRoot=p;
-   p=p.parent;
-  }
-  if(!insideEcology&&antRoot)roots.add(antRoot);
- });
- for(const obj of roots){
-  // Não descartar os recursos compartilhados; apenas retirar do cenário.
-  if(obj.parent)obj.parent.remove(obj);
- }
- if(roots.size)console.info('[Arcano V12.40] Formigas estáticas removidas:',roots.size);
-}
-let compactAntMesh=null;
-function compactAntGeometry(){
- if(compactAntMesh)return compactAntMesh;
- const bodies=[
-  {x:-.43,r:.32},{x:.07,r:.23},{x:.43,r:.22}
- ];
- const vertices=[],indices=[];
- const sphere=new T.SphereGeometry(1,7,5);
- const pos=sphere.getAttribute('position');
- const face=sphere.getIndex();
- for(const b of bodies){
-  const offset=vertices.length/3;
-  for(let i=0;i<pos.count;i++){
-   vertices.push(pos.getX(i)*b.r+b.x,
-    pos.getY(i)*b.r*.75+.28,pos.getZ(i)*b.r*.75);
-  }
-  for(let j=0;j<face.count;j++)indices.push(offset+face.getX(j));
- }
- const limb=(ax,ay,az,bx,by,bz,r=.022)=>{
-  const a=new T.Vector3(ax,ay,az),b=new T.Vector3(bx,by,bz);
-  const d=b.clone().sub(a),length=d.length();
-  const g=new T.CylinderGeometry(r,r*.8,length,4);
-  g.rotateZ(Math.PI/2);g.translate(length/2,0,0);
-  const q=new T.Quaternion().setFromUnitVectors(new T.Vector3(1,0,0),d.normalize());
-  g.applyQuaternion(q);g.translate(...a.toArray());
-  const gp=g.getAttribute('position'),ix=g.getIndex(),base=vertices.length/3;
-  for(let i=0;i<gp.count;i++)vertices.push(gp.getX(i),gp.getY(i),gp.getZ(i));
-  for(let i=0;i<ix.count;i++)indices.push(base+ix.getX(i));
-  g.dispose();
- };
- for(const x of [-.3,0,.28])for(const sign of [-1,1]){
-  limb(x,.3,sign*.10,x+.08,.12,sign*.45);
-  limb(x+.08,.12,sign*.45,x+.14,.015,sign*.58);
- }
- for(const sign of [-1,1])limb(.49,.44,sign*.07,.68,.65,sign*.28,.016);
- sphere.dispose();
- const g=new T.BufferGeometry();
- g.setAttribute('position',new T.Float32BufferAttribute(vertices,3));
- g.setIndex(indices);g.computeVertexNormals();g.computeBoundingSphere();
- compactAntMesh=g;return g;
+ for(const c of colonies){c.workers=10;c.brood.length=0;c.foragers=10;c.nurses=0;c.builders=0;c.guards=0;c.scouts=0;}
 }
 function visualizeAnimals(){
  for(const child of [...animals.children]){
@@ -1502,7 +1166,7 @@ function visualizeAnimals(){
   // Um modelo minúsculo procedural elimina definitivamente a formiga
   // gigante e mantém colônias completas sem mutação de asset global.
   const geo=compactAntGeometry();if(!geo)continue;
-  const max=mobileDevice?10:18;
+  const max=10;
   const mesh=new T.InstancedMesh(geo,new T.MeshStandardMaterial({
    color:c.id%2?'#a3533b':'#49332b',roughness:1,metalness:0,side:T.DoubleSide}),max);
   mesh.name='Operárias · reconhecimento, coleta, retorno · colônia '+(c.id+1);
@@ -1521,7 +1185,7 @@ function visualizeAnimals(){
   cargo.name='Fragmentos de folhas transportados';cargo.count=0;
   cargo.frustumCulled=false;animals.add(cargo);
   const agents=Array.from({length:max},(_,i)=>({
-   dead:false,deadUntil:0,retreatAt:-1,
+   dead:false,deadUntil:0,retreatAt:-1,returning:false,carrying:false,
    originX:c.x,originZ:c.z,retreatDuration:1,x:c.x,z:c.z,phase:random()*2,
    targetX:c.x,targetZ:c.z,goalAt:0,lastTick:0,walkPhase:random()*6.283
   }));
@@ -1569,123 +1233,49 @@ function checkAntTrampling(x,z,weight){
    killSurfaceAnt(item,agent,agent.x,agent.z,'pisoteio');
  }
 }
-let wormVisualFrame=0;
 function moveAnimals(t){
  const body=new T.Object3D(),carrier=new T.Object3D();
  const magnify=clamp(previewMagnification,1,4);
- const rainLevel=api.getRainLevel?.()||0,heavy=rainLevel>0,storm=rainLevel>=4;
  for(const item of antDraws){
-  const {m,c,max,agents,cargo}=item;
-  cargo.count=0;m.count=Math.min(max,Math.max(0,Math.ceil(c.workers*.2)));
-  const foragingSite=position(c.lastFoodSite??idx(c.x,c.z));
-  for(let i=0;i<m.count;i++){
-   const agent=agents[i];
-   const dt=clamp(t-(agent.lastTick||t-.016),.001,.12);
-   agent.lastTick=t;
-   if(agent.dead){
-    const remaining=agent.deadUntil-t;
-    if(remaining>0){
-     body.position.set(agent.x,height(agent.x,agent.z)+.004,agent.z);
-     body.rotation.set(.45,0,1.35);
-     body.scale.set(.011*magnify,.001*magnify,.010*magnify*
-      clamp(remaining/3.4,.02,1));
-    }else{
-     body.position.set(agent.x,-100,agent.z);body.scale.setScalar(.000001);
+  const {m,c,agents,cargo}=item;
+  m.count=10;cargo.count=0;
+  for(let i=0;i<10;i++){
+   const a=agents[i],dt=Math.min(.09,Math.max(.001,t-(a.lastTick||t-.016)));
+   a.lastTick=t;
+   // Alterna entre explorar locais com comida e regressar ao formigueiro.
+   if(!a.returning&&(a.goalAt<=t||Math.hypot(a.targetX-a.x,a.targetZ-a.z)<.06)){
+    if(a.goalAt>0){a.returning=true;a.carrying=true;}
+    else{
+     const angle=random()*Math.PI*2,radius=.6+random()*1.6;
+     a.targetX=clamp(c.x+Math.cos(angle)*radius,-W*.48,W*.48);
+     a.targetZ=clamp(c.z+Math.sin(angle)*radius,-L*.48,L*.48);
+     a.goalAt=t+12;
     }
-    body.updateMatrix();m.setMatrixAt(i,body.matrix);continue;
    }
-   if(!heavy&&agent.retreatAt>=0){
-    agent.retreatAt=-1;agent.goalAt=0;
+   if(a.returning){a.targetX=c.x;a.targetZ=c.z;}
+   const vx=a.targetX-a.x,vz=a.targetZ-a.z,dist=Math.hypot(vx,vz);
+   const step=Math.min(dist,dt*.21);
+   if(dist>.0001){a.x+=vx/dist*step;a.z+=vz/dist*step;}
+   if(a.returning&&Math.hypot(a.x-c.x,a.z-c.z)<.065){
+    a.returning=false;a.carrying=false;a.goalAt=0;
+    c.foodStored=Math.min(120,(c.foodStored||0)+.01);
    }
-   let x=agent.x,z=agent.z;
-   let direction=0;
-   if(heavy){
-    if(agent.retreatAt<0){
-     agent.retreatAt=t;agent.originX=x;agent.originZ=z;
-     const distance=Math.hypot(x-c.x,z-c.z);
-     agent.retreatDuration=1.5+distance*(storm?4.2:5.8);
-    }
-    const percent=clamp((t-agent.retreatAt)/agent.retreatDuration,0,1);
-    const remainX=c.x-x,remainZ=c.z-z;
-    direction=Math.atan2(remainX,remainZ);
-    x=agent.originX+(c.x-agent.originX)*percent;
-    z=agent.originZ+(c.z-agent.originZ)*percent;
-    if(percent>=1){
-     body.position.set(c.x,-100,c.z);body.scale.setScalar(.000001);
-     body.updateMatrix();m.setMatrixAt(i,body.matrix);
-     agent.x=c.x;agent.z=c.z;continue;
-    }
-    if(api.depth[idx(x,z)]>.052||
-       (storm&&(t-agent.retreatAt>13||percent>.70&&random()<.0015))){
-     killSurfaceAnt(item,agent,x,z,'chuva');
-     body.position.set(x,-100,z);body.scale.setScalar(.000001);
-     body.updateMatrix();m.setMatrixAt(i,body.matrix);continue;
-    }
-   }else{
-    // Rota persistente, individual e contínua no mapa. Nunca teleportar
-    // para a entrada ou repetir a mesma reta oscilante.
-    if(agent.goalAt<=t||Math.hypot(agent.targetX-x,agent.targetZ-z)<.028){
-     const nest=i%4===0||random()<.42,baseX=nest?c.x:foragingSite.x;
-     const baseZ=nest?c.z:foragingSite.z,ang=random()*Math.PI*2;
-     const radius=.08+random()*(nest?.35:1.10);
-     agent.targetX=clamp(baseX+Math.cos(ang)*radius,-W*.48,W*.48);
-     agent.targetZ=clamp(baseZ+Math.sin(ang)*radius,-L*.48,L*.48);
-     agent.goalAt=t+4+random()*9;
-    }
-    const vx=agent.targetX-x,vz=agent.targetZ-z;
-    const distance=Math.max(.000001,Math.hypot(vx,vz));
-    direction=Math.atan2(vx,vz);
-    const step=Math.min(distance,dt*(.075+(i%5)*.022));
-    x+=vx/distance*step;z+=vz/distance*step;
-   }
-   agent.x=x;agent.z=z;
-   // Marcha: pequenas oscilações de corpo e passos, quase invisíveis fora da lupa.
-   const phase=t*(13+i%3*2)+agent.walkPhase;
-   body.position.set(x,height(x,z)+.002+Math.abs(Math.sin(phase))*.00035,z);
-   body.rotation.set(.025*Math.sin(phase),direction,.05*Math.cos(phase));
-   body.scale.setScalar((api.depth[idx(x,z)]>.06?.004:.011)*magnify);
+   const heading=Math.atan2(vx,vz);
+   body.position.set(a.x,height(a.x,a.z)+.004,a.z);
+   body.rotation.set(0,heading,0);body.scale.setScalar(.011*magnify);
    body.updateMatrix();m.setMatrixAt(i,body.matrix);
-   const nearNest=Math.hypot(x-c.x,z-c.z)<.38;
-   if(!heavy&&nearNest&&c.leafCargo>.004&&i%3===0){
-    carrier.position.set(x,height(x,z)+.008,z);
-    carrier.rotation.set(0,direction,0);
-    carrier.scale.setScalar(.08*magnify);
+   if(a.carrying){
+    carrier.position.set(a.x,height(a.x,a.z)+.01,a.z);
+    carrier.rotation.set(0,heading,0);carrier.scale.setScalar(.03*magnify);
     carrier.updateMatrix();cargo.setMatrixAt(cargo.count++,carrier.matrix);
    }
   }
-  m.instanceMatrix.needsUpdate=true;cargo.instanceMatrix.needsUpdate=true;
+  m.instanceMatrix.needsUpdate=true;
+  cargo.instanceMatrix.needsUpdate=true;
  }
- wormVisualFrame++;
- for(const item of wormDraws){
-  const {m,w,pos,orig,axis,side,span,low,phase}=item;
-  const k=idx(w.x,w.z),quality=goodForWorms(k);
-  const moisture=clamp(api.soilMoisture[k]/Math.max(.001,api.soilCapacity[k]),0,1.5);
-  const emerging=w.adults>0&&moisture>.36&&moisture<1.06&&
-   quality>.24&&Math.sin(t*.13+w.locomotion)>.12;
-  m.visible=emerging||previewMagnification>1;
-  if(!m.visible)continue;
-  const phaseNow=t*2.8+phase;
-  for(let j=0;j<pos.count;j++){
-   const u=clamp((orig[j*3+axis]-low)/span,0,1);
-   const wave=Math.sin(phaseNow-u*12.6);
-   for(let component=0;component<3;component++){
-    let value=orig[j*3+component];
-    if(component===axis)value+=.032*span*wave;
-    else if(component===side)value+=.045*span*Math.sin(phaseNow-u*9.3)*Math.sin(u*Math.PI);
-    pos.array[j*3+component]=value;
-   }
-  }
-  pos.needsUpdate=true;
-  if(wormVisualFrame%6===0)m.geometry.computeVertexNormals();
-  const cx=w.x+.036*Math.sin(t*.33+w.locomotion);
-  const cz=w.z+.026*Math.sin(t*.26+phase);
-  m.position.set(cx,height(cx,cz)-(emerging?.008:w.depth)+.009,cz);
-  m.rotation.set(0,w.locomotion+t*.032,0);
-  const extension=.068*(1+.12*Math.sin(phaseNow)),radial=.068*(1-.06*Math.sin(phaseNow));
-  m.scale.setScalar(radial*magnify);
-  m.scale.setComponent(axis,extension*magnify);
- }
-}// V12.53: uma só leitura dos índices ecológicos por célula, em vez de
+}
+//
+// V12.53: uma só leitura dos índices ecológicos por célula, em vez de
 // percorrer as ~2 milhões de instâncias a cada 0,7 s. Os setores que
 // realmente mudaram são os únicos cujos buffers são revisitados.
 function updateGrassMeshes(force=false){
@@ -1785,7 +1375,7 @@ function clearLargeRocksFromTrails(){
 function trample(x,z,weight=.22){
  if(!trampleEnabled)return;
  markFootprint(x,z);
- checkAntTrampling(x,z,weight);
+ // Formigas não morrem por pisoteio: total fixo de dez por colônia.
  stampTraffic(x,z,weight,false);
  // Atualização da malha é consolidada a cada passo da simulação.
  // Recalcular mais de 100 mil instâncias em CADA pegada travava o Android.
@@ -1877,7 +1467,7 @@ function update(dt){
   updateGrassMeshes();
  }
  while(ecologicalAccumulator>1){lifeDay(1);ecologicalAccumulator-=1;if(nestCutGroup.visible)drawNestCutaway();}
- moveAnimals(time);animateUndergroundWorkers(time);
+ moveAnimals(time);
  if(uiAccumulator>1.4){uiAccumulator=0;hideDetachedAntModels();status();}
 }
 function status(){
