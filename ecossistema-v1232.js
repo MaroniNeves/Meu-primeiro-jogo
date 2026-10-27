@@ -1153,6 +1153,91 @@ function lifeDay(days){
  ecologicalDays+=days;
  for(const c of colonies){c.workers=10;c.brood.length=0;c.foragers=10;c.nurses=0;c.builders=0;c.guards=0;c.scouts=0;}
 }
+function antGeometry(name){
+ const source=meshLibrary[name]||meshLibrary.ant1;
+ if(!source)return null;
+ if(normalizedAntGeometries.has(source))return normalizedAntGeometries.get(source);
+ const geom=source.clone();geom.computeBoundingBox();
+ let bounds=geom.boundingBox,size=new T.Vector3();bounds.getSize(size);
+ // Evitar eixo vertical incorreto em alguns modelos antigos Z-up.
+ if(size.y>Math.max(size.x,size.z)*1.6){
+  geom.rotateX(Math.PI*.5);geom.computeBoundingBox();
+  bounds=geom.boundingBox;bounds.getSize(size);
+ }
+ const largest=Math.max(size.x,size.y,size.z,.000001);
+ geom.scale(1/largest,1/largest,1/largest);
+ geom.computeBoundingBox();bounds=geom.boundingBox;
+ const center=new T.Vector3();bounds.getCenter(center);
+ geom.translate(-center.x,-bounds.min.y,-center.z);
+ geom.computeBoundingSphere();
+ normalizedAntGeometries.set(source,geom);
+ return geom;
+}
+// Esconde quaisquer modelos antigos de formiga inseridos fora do sistema
+// de instâncias animadas; protege contra a formiga gigante estática.
+function hideDetachedAntModels(){
+ // A versão antiga só procurava "ant" no NOME DA MALHA. Nos OBJ/FBX
+ // originais, o nome costuma pertencer ao GRUPO PAI e a malha chama-se
+ // Mesh_0 ou Object_0. Remover a origem de qualquer formiga estática.
+ const pattern=/(^|[\s_.-])(ant|formiga|leaf.?cutter|red.?ant)([\s_.-]|\d|$)|^(leaf.?cutter|red.?ant|formiga)/i;
+ const roots=new Set();
+ api.scene.traverse(obj=>{
+  if(!obj.isMesh&&!obj.isSkinnedMesh)return;
+  let p=obj,insideEcology=false,antRoot=null;
+  while(p&&p!==api.scene){
+   if(p===realm){insideEcology=true;break;}
+   if(pattern.test(p.name||''))antRoot=p;
+   p=p.parent;
+  }
+  if(!insideEcology&&antRoot)roots.add(antRoot);
+ });
+ for(const obj of roots){
+  // Não descartar os recursos compartilhados; apenas retirar do cenário.
+  if(obj.parent)obj.parent.remove(obj);
+ }
+ if(roots.size)console.info('[Arcano V12.40] Formigas estáticas removidas:',roots.size);
+}
+let compactAntMesh=null;
+function compactAntGeometry(){
+ if(compactAntMesh)return compactAntMesh;
+ const bodies=[
+  {x:-.43,r:.32},{x:.07,r:.23},{x:.43,r:.22}
+ ];
+ const vertices=[],indices=[];
+ const sphere=new T.SphereGeometry(1,7,5);
+ const pos=sphere.getAttribute('position');
+ const face=sphere.getIndex();
+ for(const b of bodies){
+  const offset=vertices.length/3;
+  for(let i=0;i<pos.count;i++){
+   vertices.push(pos.getX(i)*b.r+b.x,
+    pos.getY(i)*b.r*.75+.28,pos.getZ(i)*b.r*.75);
+  }
+  for(let j=0;j<face.count;j++)indices.push(offset+face.getX(j));
+ }
+ const limb=(ax,ay,az,bx,by,bz,r=.022)=>{
+  const a=new T.Vector3(ax,ay,az),b=new T.Vector3(bx,by,bz);
+  const d=b.clone().sub(a),length=d.length();
+  const g=new T.CylinderGeometry(r,r*.8,length,4);
+  g.rotateZ(Math.PI/2);g.translate(length/2,0,0);
+  const q=new T.Quaternion().setFromUnitVectors(new T.Vector3(1,0,0),d.normalize());
+  g.applyQuaternion(q);g.translate(...a.toArray());
+  const gp=g.getAttribute('position'),ix=g.getIndex(),base=vertices.length/3;
+  for(let i=0;i<gp.count;i++)vertices.push(gp.getX(i),gp.getY(i),gp.getZ(i));
+  for(let i=0;i<ix.count;i++)indices.push(base+ix.getX(i));
+  g.dispose();
+ };
+ for(const x of [-.3,0,.28])for(const sign of [-1,1]){
+  limb(x,.3,sign*.10,x+.08,.12,sign*.45);
+  limb(x+.08,.12,sign*.45,x+.14,.015,sign*.58);
+ }
+ for(const sign of [-1,1])limb(.49,.44,sign*.07,.68,.65,sign*.28,.016);
+ sphere.dispose();
+ const g=new T.BufferGeometry();
+ g.setAttribute('position',new T.Float32BufferAttribute(vertices,3));
+ g.setIndex(indices);g.computeVertexNormals();g.computeBoundingSphere();
+ compactAntMesh=g;return g;
+}
 function visualizeAnimals(){
  for(const child of [...animals.children]){
   animals.remove(child);
@@ -1479,10 +1564,10 @@ function status(){
  }
  const workers=colonies.reduce((a,b)=>a+b.workers,0),eggs=colonies.reduce((a,b)=>a+b.brood.filter(g=>g.stage==='egg').reduce((sum,c)=>sum+c.count,0),0);
  const larva=colonies.reduce((a,b)=>a+b.brood.reduce((sum,c)=>sum+(c.stage==='larva'?c.count:0),0),0);
- const adults=worms.reduce((a,b)=>a+b.adults,0),cocoons=worms.reduce((a,b)=>a+b.cocoons.reduce((sum,c)=>sum+c.count,0),0);
+ const adults=0,cocoons=0;
  updateColonyInspector();
  const el=$('ecoStatus');if(el)el.textContent=
-  grassDrawn+' tufos de grama ('+lastGrassQuality+') · '+colonies.length+' colônias · '+workers+' operárias · '+eggs+' ovos · '+larva+' larvas · '+adults+' minhocas adultas · '+cocoons+' casulos · galerias '+burrowLength.toFixed(1)+' m simulados · resíduos '+castsReturned.toFixed(2)+' u. '+
+  grassDrawn+' tufos de grama ('+lastGrassQuality+') · '+colonies.length+' colônias · '+workers+' operárias · '+eggs+' ovos · '+larva+' larvas · somente busca de comida e retorno ao ninho. '+
   'É uma simulação ecológica simplificada; rainhas e crias ficam nos ninhos. Quase invisíveis fora da lupa.';
  const eventPanel=$('ecoEvents');if(eventPanel)eventPanel.textContent=ecoEvents.join('\n');
  const waterStatus=$('ecoWaterStatus');if(waterStatus)waterStatus.textContent=
@@ -1501,7 +1586,7 @@ function status(){
   '🍂 '+fallingLeaves.length+' folhas 3D na cena · '+leafCollected.toFixed(3)+
   ' u recolhidas por formigas · '+leafDeposited.toFixed(3)+
   ' u transformadas em nutrientes · '+antsCrushed+' formigas esmagadas · '+
-  antsDrowned+' perdidas na chuva · '+worms.length+' grupos de minhocas';
+  antsDrowned+' perdidas na chuva · minhocas removidas';
 }
 const nestCutGroup=new T.Group();
 nestCutGroup.name='Raio-X das galerias do formigueiro';
