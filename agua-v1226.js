@@ -2990,15 +2990,21 @@ function seed(m){
 }
 // A chuva é alimentada por um campo uniforme; gotas animadas representam a mesma chuva,
 // sem depositar um segundo volume ao colidir (evita contagem dupla).
+let permanentLakeMask=null;
 function hydrologyStep(dt){
- // Precipitação leve configurada pelo nível de chuva. Não simula formação
- // regional da chuva, drenagem subterrânea ou transporte de bacias.
+ // Lagoas fixas são identificadas uma única vez, evitando cálculo por célula
+ // a cada passo da física. Poças temporárias desaparecem com o tempo.
+ if(!permanentLakeMask){
+  permanentLakeMask=new Uint8Array(size);
+  const lagoon=basins[1],invX=1/lagoon.sx,invZ=1/lagoon.sz;
+  for(let k=0;k<size;k++){
+   const x=(gridX[k]-lagoon.x)*invX,z=(gridZ[k]-lagoon.z)*invZ;
+   permanentLakeMask[k]=(x*x+z*z)<.70?1:0;
+  }
+ }
  const rain=rainMeters[level]*dt,evap=.00027*dt;
- const lagoon=basins[1];
  for(let k=0;k<size;k++){
-  const x=gridX[k],z=gridZ[k];
-  const d=((x-lagoon.x)/lagoon.sx)**2+((z-lagoon.z)/lagoon.sz)**2;
-  const permanentLake=d<.70;
+  const permanentLake=permanentLakeMask[k]===1;
   if(permanentLake){
    // Lagos cadastrados permanecem presentes; poças fora deles desaparecem.
    depth[k]=Math.max(depth[k],.022);
