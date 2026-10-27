@@ -3029,6 +3029,8 @@ function seed(m){
 let permanentLakeMask=null;
 const roadAt=x=>.92-.70*Math.sin(x*.47+.6)+.17*Math.sin(x*1.34);
 function roadRainFactor(x,z){
+ // A entrada da ponte permanece seca, inclusive durante temporais.
+ if(Math.abs(x-center(z))<5.2&&Math.abs(z-roadAt(x))<2.2)return 0;
  const distance=Math.abs(z-roadAt(x));
  if(distance>=1.05)return 1;
  if(level<4)return 0;
@@ -3231,7 +3233,8 @@ function rebuild(){
   for(let i=0;i<NX;i++){
    const k=idx(i,j),o=k*3,x=gridX[k],z=gridZ[k];
    const sat=clamp(soilMoisture[k]/Math.max(.001,soilCapacity[k]),0,1);
-   const damp=showWet?clamp(sat*.84+wet[k]*.16,0,.95):0;
+   const approachDry=Math.abs(x-center(z))<5.2&&Math.abs(z-roadAt(x))<2.2;
+   const damp=approachDry?0:showWet?clamp(sat*.84+wet[k]*.16,0,.95):0;
    const dark=clamp(terrainShoreDamp[k]*(.53+.25*sat),0,.72);
    const road=ecoActive?clamp(eco.roadMask[k]||0,0,1):staticRoadBlend[k];
    const abrasion=ecoActive?clamp(eco.traffic[k]||0,0,1):0;
@@ -3245,9 +3248,9 @@ function rebuild(){
    const nestDirt=ecoActive?(eco.nestBareMask?.[k]||0)/255:0;
    const distanceToRiver=Math.abs(x-center(z));
    const riverbed=distanceToRiver<=riverWidth(z);
-   const bridgeApproach=Math.abs(z-(.92-.70*Math.sin(x*.47+.6)+.17*Math.sin(x*1.34)))<.90&&distanceToRiver<4.9;
+   const bridgeApproach=Math.abs(z-roadAt(x))<1.55&&distanceToRiver<5.2;
    const sandBank=distanceToRiver<riverWidth(z)+1.90&&!bridgeApproach;
-   const dirtAmount=clamp(Math.max(road*(.99+.08*abrasion),nestDirt*.995),0,.995);
+   const dirtAmount=bridgeApproach?1:clamp(Math.max(road*(.99+.08*abrasion),nestDirt*.995),0,.995);
    for(let c=0;c<3;c++){
     const ix=o+c;
     const base=dry[ix]*(1-damp)+mudRGB[c]*damp;
