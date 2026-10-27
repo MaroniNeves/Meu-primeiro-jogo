@@ -498,19 +498,20 @@ body.play-active #forestMini{display:block}
  <div class="arcano-quick-row"><span>Tecla de acesso: <b id="arcanoQuickKeyLabel">P</b></span><button type="button" id="arcanoQuickRebind">Trocar tecla</button></div>
 </section><div id="arcanoModeMenu" role="dialog" aria-modal="true" aria-label="Escolher ambiente do Ateliê Arcano">
  <div class="arcano-mode-card">
-  <div class="arcano-kicker">✦ Portal de entrada · três caminhos</div>
+  <div class="arcano-kicker">✦ Portal de entrada · quatro caminhos</div>
   <h2>Ateliê Arcano</h2>
   <p>Entre no mundo da magia. Explore efeitos tridimensionais, experimente feitiços ou aventure-se pela floresta viva.</p>
   <div class="arcano-mode-options">
    
    <a href="./magias/espadas.html"><span class="arcano-icon" aria-hidden="true">✨</span><span class="arcano-mode-text"><strong>Efeitos 3D</strong><small>Fogo, água, magia e efeitos visuais</small></span></a>
    <a href="./magias/index.html"><span class="arcano-icon" aria-hidden="true">✦</span><span class="arcano-mode-text"><strong>Magias</strong><small>Biblioteca de 100 feitiços originais</small></span></a>
+   <a href="./jogabilidade/index.html"><span class="arcano-icon" aria-hidden="true">🗺️</span><span class="arcano-mode-text"><strong>Teste de Jogabilidade 2D</strong><small>Explore os Sete Refúgios no protótipo 2D</small></span></a>
    <button type="button" class="arcano-main-play" id="arcanoModePlay"><span class="arcano-icon" aria-hidden="true">🎮</span><span class="arcano-mode-text"><strong>Jogar</strong><small>Explore a floresta com seu personagem</small></span></button>
   </div>
   <div class="arcano-foot">Cada ambiente mantém seus modelos, cenário e controles originais.</div>
  </div>
 </div>
-<button type="button" id="arcanoOpenModes" aria-controls="arcanoModeMenu" aria-label="Escolher entre Efeitos 3D, Magias e Jogar">☰ Modos</button>
+<button type="button" id="arcanoOpenModes" aria-controls="arcanoModeMenu" aria-label="Escolher entre Efeitos 3D, Magias, Teste 2D e Jogar">☰ Modos</button>
 <script>
 (function(){
  const menu=document.getElementById('arcanoModeMenu');
