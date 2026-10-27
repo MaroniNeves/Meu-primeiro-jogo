@@ -3048,7 +3048,9 @@ function hydrologyStep(dt){
   const lagoon=basins[1],invX=1/lagoon.sx,invZ=1/lagoon.sz;
   for(let k=0;k<size;k++){
    const x=(gridX[k]-lagoon.x)*invX,z=(gridZ[k]-lagoon.z)*invZ;
-   permanentLakeMask[k]=x*x+z*z<.70?1:0;
+   const gx=gridX[k],gz=gridZ[k];
+   const nearBridge=Math.abs(gx-center(gz))<5.8&&Math.abs(gz-roadAt(gx))<3.0;
+   permanentLakeMask[k]=!nearBridge&&x*x+z*z<.70?1:0;
   }
  }
  const rain=rainMeters[level]*dt,evap=.00027*dt;
@@ -3226,6 +3228,9 @@ function rebuild(){
    const riverbed=distanceToRiver<=riverWidth(z);
    const bridgeApproach=Math.abs(z-roadAt(x))<1.70&&distanceToRiver<5.2;
    const sandBank=distanceToRiver<riverWidth(z)+1.90&&!bridgeApproach;
+   // Faixa de umidade da encosta: intensa na agua e transicao suave ate a terra seca.
+   const shoreDistance=Math.max(0,distanceToRiver-riverWidth(z));
+   const wetBank=bridgeApproach||approachDry?0:1-smooth(clamp(shoreDistance/1.90,0,1));
    const dirtAmount=bridgeApproach?1:clamp(Math.max(road*(.99+.08*abrasion),nestDirt*.995),0,.995);
    for(let c=0;c<3;c++){
     const ix=o+c;
@@ -3239,7 +3244,9 @@ function rebuild(){
     const sand=[.63,.50,.34],dryBank=[.56,.44,.31];
     const streamDamp=riverbed?.79:clamp(damp*.45,0,.4);
     const sandTone=(riverbed?sand[c]:dryBank[c])*(1-streamDamp*.33);
-    colors[ix]=approachDry?terrainDryPath[c]:sandBank?sandTone:green*(1-dirtAmount)+soilTone*dirtAmount;
+    const bankTone=dryBank[c]*(1-.34*wetBank);
+    const naturalBank=bankTone*(wetBank)+sandTone*(1-wetBank);
+    colors[ix]=approachDry?terrainDryPath[c]:sandBank?(riverbed?sandTone:naturalBank):green*(1-dirtAmount)+soilTone*dirtAmount;
    }
   }
  }
