@@ -422,7 +422,7 @@ function makeRoadSurfaceDetails(){
   const x=(rng()-.5)*W*.955;
   const z=roadZ(x)+(rng()-.5)*1.66;
   const k=idx(x,z);
-  if(fixedRoadMask[k]<.13||Math.abs(x-riverX(z))<2.7||api.depth[k]>.045||riverMask[k]>.56||
+  if(fixedRoadMask[k]<.13||Math.abs(x-riverX(z))<4.5||api.depth[k]>.045||riverMask[k]>.56||
      (Math.abs(x+1.5)<2.2&&Math.abs(z-roadZ(x))<.6))continue;
   const t=rng(),kind=t<.38?0:t<.62?1:t<.79?2:3;
   const mesh=meshes[kind],index=mesh.count;
