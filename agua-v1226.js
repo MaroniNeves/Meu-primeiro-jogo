@@ -3001,7 +3001,9 @@ function refreshRainDiagnostics(){
 function add(x,z,vol){
  const i=Math.round((x+W/2)/dx),j=Math.round((z+L/2)/dz);
  if(i<1||j<1||i>=NX-1||j>=NZ-1)return;
- const k=idx(i,j);depth[k]=Math.min(1.65,depth[k]+vol);
+ const k=idx(i,j);
+ if(riverShore(x,z)<1.90||permanentLakeMask?.[k]===1||roadRainFactor(x,z)===0)return;
+ depth[k]=Math.min(.55,depth[k]+vol);
 }
 function seed(m){
  depth.fill(0);delta.fill(0);soilMoisture.fill(0);deepWater.fill(0);canopy.fill(0);turbidity.fill(0);
@@ -3020,6 +3022,15 @@ function seed(m){
 // A chuva é alimentada por um campo uniforme; gotas animadas representam a mesma chuva,
 // sem depositar um segundo volume ao colidir (evita contagem dupla).
 let permanentLakeMask=null;
+const roadAt=x=>.92-.70*Math.sin(x*.47+.6)+.17*Math.sin(x*1.34);
+function roadRainFactor(x,z){
+ const distance=Math.abs(z-roadAt(x));
+ if(distance>=1.05)return 1;
+ if(level<4)return 0;
+ const lowSpot=Math.max(0,Math.sin(x*.71+1.4)*Math.cos(x*.23-.6));
+ const patch=clamp((lowSpot-.65)/.29,0,1);
+ return patch*(level===4?.32:1)*clamp((1.05-distance)/.32,0,1);
+}
 function hydrologyStep(dt){
  // Lagoas fixas são identificadas uma única vez, evitando cálculo por célula
  // a cada passo da física. Poças temporárias desaparecem com o tempo.
@@ -3040,11 +3051,11 @@ function hydrologyStep(dt){
   }else if(riverShore(gridX[k],gridZ[k])<1.90){
    depth[k]=0; // faixa da margem sem extravasamento do rio
   }else if(permanentLake){
-   // Água permanente só no interior do canal e na lagoa cadastrada.
-   depth[k]=Math.max(depth[k],.034);
+   depth[k]=.12; // lago permanente, sem ganho de volume pela chuva
   }else{
-   if(rain>0){depth[k]+=rain;stats.rain+=rain*area;}
-   const lost=Math.min(depth[k],evap);depth[k]-=lost;stats.evaporated+=lost*area;
+   const x=gridX[k],z=gridZ[k],factor=roadRainFactor(x,z);
+   if(rain>0&&factor>0){const added=rain*factor;depth[k]+=added;stats.rain+=added*area;}
+   const lost=Math.min(depth[k],evap*(factor===0?6:1));depth[k]-=lost;stats.evaporated+=lost*area;
   }
   // Solo escurece após chover e seca suavemente, sem infiltração de poças.
   soilMoisture[k]=clamp(soilMoisture[k]+rain*.15-.000045*dt,0,soilCapacity[k]);
@@ -3087,7 +3098,7 @@ function flowStep(dt,multiplier){
  delta.fill(0);const speed=(.62+rainLevels[level]*.07)*dt*2.0*multiplier;
  for(let j=1;j<NZ-1;j++)for(let i=1;i<NX-1;i++){
   const k=idx(i,j),v=depth[k];
-  if(riverShore(gridX[k],gridZ[k])<1.90||v<.000008)continue;
+  if(riverShore(gridX[k],gridZ[k])<1.90||permanentLakeMask?.[k]===1||v<.000008)continue;
   const head=soil[k]+v,base=k*4;let sum=0;
   flowTransfers[0]=flowTransfers[1]=flowTransfers[2]=flowTransfers[3]=0;
   for(let n=0;n<4;n++){const q=gridNeighbors[base+n];
@@ -3107,6 +3118,8 @@ function flowStep(dt,multiplier){
   const x=gridX[k],z=gridZ[k],river=riverDepthAt(x,z);
   if(river>0)depth[k]=river;
   else if(riverShore(x,z)<1.90)depth[k]=0;
+  else if(permanentLakeMask?.[k]===1)depth[k]=.12;
+  else if(roadRainFactor(x,z)===0&&Math.abs(z-roadAt(x))<1.05)depth[k]=0;
   if(i===0||j===0||i===NX-1||j===NZ-1){
    const escape=depth[k]*Math.min(.25,dt*.35);
    depth[k]-=escape;stats.outflow+=escape*area;
