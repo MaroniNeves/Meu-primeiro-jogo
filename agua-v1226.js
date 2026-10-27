@@ -199,11 +199,9 @@ const center=z=>-2.3+.67*Math.sin(z*.69)+.60*Math.sin(z*.29+1.3);
 const riverWidth=z=>.95+.23*Math.sin(z*.24+1.4)**2+.15*Math.sin(z*.71)**2;
 const riverShore=(x,z)=>Math.abs(x-center(z))-riverWidth(z);
 // Canal permanente, raso (no maximo 0,52 unidade): bordas secas e agua fixa.
-function riverLevelAt(z){
- // Cota unica de superficie a partir das duas margens, sem usar a profundidade de cada celula.
- const c=center(z),w=riverWidth(z)+.16;
- return Math.min(elevation(c-w,z),elevation(c+w,z))-.10;
-}
+// Rio sem cachoeiras: uma cota global, calculada uma unica vez.
+const RIVER_SURFACE_LEVEL=.16;
+function riverLevelAt(z){return RIVER_SURFACE_LEVEL;}
 function riverDepthAt(x,z){
  if(riverShore(x,z)>=-.055)return 0;
  return Math.max(.001,riverLevelAt(z)-elevation(x,z));
@@ -222,11 +220,15 @@ function elevation(x,z){
  const roadDist=Math.abs(z-roadAxis),crossDist=Math.abs(x-center(z));
  const protectedRoad=(1-smooth(clamp((roadDist-1.7)/1.35,0,1)))*(1-smooth(clamp((crossDist-4.4)/1.8,0,1)));
  for(const basin of basins){const d=((x-basin.x)/basin.sx)**2+((z-basin.z)/basin.sz)**2;y-=basin.deep*Math.exp(-1.5*d)*(1-protectedRoad);}
- // Escavar somente o canal: mesmo sobre depressões, fundo entre 0,12 e 0,52 abaixo da lamina.
- // Pontos de margem nao entram nesta correcao, evitando dependencia circular.
+ // Leito e margens acima/abaixo de um nivel UNICO; declives enchem ate a mesma linha.
+ const waterline=riverLevelAt(z);
  if(lateral<width-.055){
-  const waterline=riverLevelAt(z);
-  y=clamp(y,waterline-.52,waterline-.12);
+  const blend=smooth(clamp((width-.055-lateral)/.42,0,1));
+  const bedLevel=clamp(y,waterline-.52,waterline-.12);
+  y=y*(1-blend)+bedLevel*blend;
+ }else if(lateral<width+1.70){
+  const bankBlend=smooth(clamp((width+1.70-lateral)/1.70,0,1));
+  y=Math.max(y,waterline+.14*bankBlend);
  }
  return y;
 }
@@ -3030,7 +3032,7 @@ let permanentLakeMask=null;
 const roadAt=x=>.92-.70*Math.sin(x*.47+.6)+.17*Math.sin(x*1.34);
 function roadRainFactor(x,z){
  // A entrada da ponte permanece seca, inclusive durante temporais.
- if(Math.abs(x-center(z))<5.2&&Math.abs(z-roadAt(x))<2.2)return 0;
+ if(Math.abs(z-roadAt(x))<1.70)return 0;
  const distance=Math.abs(z-roadAt(x));
  if(distance>=1.05)return 1;
  if(level<4)return 0;
@@ -3248,7 +3250,7 @@ function rebuild(){
    const nestDirt=ecoActive?(eco.nestBareMask?.[k]||0)/255:0;
    const distanceToRiver=Math.abs(x-center(z));
    const riverbed=distanceToRiver<=riverWidth(z);
-   const bridgeApproach=Math.abs(z-roadAt(x))<1.55&&distanceToRiver<5.2;
+   const bridgeApproach=Math.abs(z-roadAt(x))<1.70&&distanceToRiver<5.2;
    const sandBank=distanceToRiver<riverWidth(z)+1.90&&!bridgeApproach;
    const dirtAmount=bridgeApproach?1:clamp(Math.max(road*(.99+.08*abrasion),nestDirt*.995),0,.995);
    for(let c=0;c<3;c++){
