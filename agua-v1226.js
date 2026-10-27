@@ -198,9 +198,14 @@ const center=z=>-2.3+.55*Math.sin(z*.69)+.48*Math.sin(z*.29+1.3);
 const riverWidth=z=>.95+.23*Math.sin(z*.24+1.4)**2+.15*Math.sin(z*.71)**2;
 const riverShore=(x,z)=>Math.abs(x-center(z))-riverWidth(z);
 // Canal permanente, raso (no maximo 0,52 unidade): bordas secas e agua fixa.
+function riverLevelAt(z){
+ // Cota unica de superficie a partir das duas margens, sem usar a profundidade de cada celula.
+ const c=center(z),w=riverWidth(z)+.16;
+ return Math.min(elevation(c-w,z),elevation(c+w,z))-.10;
+}
 function riverDepthAt(x,z){
- const t=clamp((-riverShore(x,z)-.07)/.62,0,1);
- return .52*t*t*(3-2*t);
+ if(riverShore(x,z)>=-.055)return 0;
+ return Math.max(.001,riverLevelAt(z)-elevation(x,z));
 }
 function elevation(x,z){
  let y=.32-.073*z+.16*Math.sin(x*.83+z*.26)+.115*Math.cos(z*1.22-x*.34)+.055*Math.sin(x*2.25+z*1.92);
@@ -213,6 +218,12 @@ function elevation(x,z){
  const bank=clamp((lateral-width)/1.5,0,1);
  y+=.15*(1-bank)*bank*(1+.3*Math.sin(z*.55));
  for(const b of basins){const d=((x-b.x)/b.sx)**2+((z-b.z)/b.sz)**2;y-=b.deep*Math.exp(-1.5*d);}
+ // Escavar somente o canal: mesmo sobre depressões, fundo entre 0,12 e 0,52 abaixo da lamina.
+ // Pontos de margem nao entram nesta correcao, evitando dependencia circular.
+ if(lateral<width-.055){
+  const waterline=riverLevelAt(z);
+  y=clamp(y,waterline-.52,waterline-.12);
+ }
  return y;
 }
 function rockAt(x,z){return rocks.some(([rx,rz,r])=>((x-rx)**2+(z-rz)**2)<(r*.86)**2);}
@@ -2622,13 +2633,15 @@ loadPainterlyForest();
 const SURFACE_VISIBLE=.006,SURFACE_RIPPLE=.012,SURFACE_POND=.018;
 const wet=new Float32Array(size),flow=new Float32Array(size*2);
 const flowXField=new Float32Array(size),flowZField=new Float32Array(size);
-const VIS_NX=mobile?118:166,VIS_NZ=mobile?96:134,VIS_SIZE=VIS_NX*VIS_NZ;
+// Faixa estreita dedicada ao rio: nenhuma malha de agua espalhada sobre o mapa.
+const VIS_NX=mobile?17:23,VIS_NZ=mobile?130:220,VIS_SIZE=VIS_NX*VIS_NZ;
 const waterPositions=new Float32Array(VIS_SIZE*3),waterDepths=new Float32Array(VIS_SIZE);
 const waterMud=new Float32Array(VIS_SIZE),waterFlow=new Float32Array(VIS_SIZE*2);
 const waterG=new T.BufferGeometry(),triangles=[];
-const wx=i=>-W*.5+i*W/(VIS_NX-1),wz=j=>-L*.5+j*L/(VIS_NZ-1);
+const wz=j=>-L*.5+j*L/(VIS_NZ-1);
+const wx=(i,z)=>center(z)+(i/(VIS_NX-1)*2-1)*(riverWidth(z)-.065);
 for(let j=0;j<VIS_NZ;j++)for(let i=0;i<VIS_NX;i++){
- const k=j*VIS_NX+i;waterPositions[k*3]=wx(i);waterPositions[k*3+2]=wz(j);
+ const k=j*VIS_NX+i,z=wz(j);waterPositions[k*3]=wx(i,z);waterPositions[k*3+2]=z;
  if(j<VIS_NZ-1&&i<VIS_NX-1){const a=k,b=k+1,c=k+VIS_NX,d=c+1;triangles.push(a,c,b,b,c,d);}
 }
 waterG.setAttribute('position',new T.BufferAttribute(waterPositions,3).setUsage(T.DynamicDrawUsage));
@@ -3243,14 +3256,13 @@ function rebuild(){
  wetted=count*area;
  // A malha visual 2-3× mais densa interpola os dados; não gera quadrados da grade antiga.
  for(let j=0;j<VIS_NZ;j++)for(let i=0;i<VIS_NX;i++){
-  const k=j*VIS_NX+i,x=wx(i),z=wz(j);
-  const fixedRiver=riverDepthAt(x,z),shore=riverShore(x,z);
-  const d=fixedRiver>0?fixedRiver:shore<1.90?0:sample(depth,x,z);
-  waterPositions[k*3+1]=sample(soil,x,z)+d+.010;
-  waterDepths[k]=d;
-  waterMud[k]=sample(turbidity,x,z);
-  waterFlow[k*2]=sample(flowXField,x,z);
-  waterFlow[k*2+1]=sample(flowZField,x,z);
+  const k=j*VIS_NX+i,z=wz(j),x=wx(i,z),level=riverLevelAt(z);
+  // Todas as seções compartilham a mesma lamina, inclusive onde o leito e mais baixo.
+  waterPositions[k*3+1]=level+.006;
+  waterDepths[k]=Math.max(.012,level-elevation(x,z));
+  waterMud[k]=0;
+  waterFlow[k*2]=0;
+  waterFlow[k*2+1]=.11;
  }
  waterG.attributes.position.needsUpdate=true;
  waterG.attributes.waterDepth.needsUpdate=true;
