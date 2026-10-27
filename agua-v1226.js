@@ -3199,6 +3199,9 @@ function rebuild(){
    const saturated=clamp(soilMoisture[k]/Math.max(.001,soilCapacity[k]),0,1.4);
    const mud=clamp((saturated-.20)*.90+depth[k]*6.5,0,1);
    const nestDirt=ecoActive?(eco.nestBareMask?.[k]||0)/255:0;
+   const distanceToRiver=Math.abs(x-center(z));
+   const riverbed=distanceToRiver<=riverWidth(z);
+   const sandBank=distanceToRiver<riverWidth(z)+1.90;
    const dirtAmount=clamp(Math.max(road*(.99+.08*abrasion),nestDirt*.995),0,.995);
    for(let c=0;c<3;c++){
     const ix=o+c;
@@ -3208,7 +3211,11 @@ function rebuild(){
     const soilLayer=Math.fround(base*(1-dark)+terrainWetBrown[c]*dark);
     const green=soilLayer*(1-greenAmount)+staticGrassRGB[ix]*greenAmount;
     const soilTone=terrainDryPath[c]*(1-mud)+terrainMudPath[c]*mud;
-    colors[ix]=green*(1-dirtAmount)+soilTone*dirtAmount;
+    // Cor do fundo e das margens vem da geografia, NUNCA da biomassa verde.
+    const sand=[.63,.50,.34],dryBank=[.56,.44,.31];
+    const streamDamp=riverbed?.79:clamp(damp*.45,0,.4);
+    const sandTone=(riverbed?sand[c]:dryBank[c])*(1-streamDamp*.33);
+    colors[ix]=sandBank?sandTone:green*(1-dirtAmount)+soilTone*dirtAmount;
    }
   }
  }
