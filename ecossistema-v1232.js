@@ -81,7 +81,7 @@ grassCellLastScale.fill(NaN);
 let grassForceRefresh=true;
 function grassAliveScale(k){
  const wear=Math.max(traffic[k],animalTrail[k]),c=cover[k];
- const hydro=api.depth[k]>.08?0:1;
+ const hydro=1;
  const alive=fixedRoadMask[k]>.06?0:
   clamp(c*(1-wear)*hydro*(1-nestBareMask[k]/255),0,1);
  return alive>.11?(.47+.53*alive):.0001;
@@ -954,8 +954,8 @@ function animateFruits(dt){
    if(f.stage==='rotten'){
     const decay=Math.min(f.mass,dt*(.000021+.000028*moist));
     f.mass-=decay;fruitNutrients+=decay;
-    api.soilLitter[k]=clamp(api.soilLitter[k]+decay*.64,0,1.8);
-    api.soilOrganic[k]=clamp(api.soilOrganic[k]+decay*.36,0,1.8);
+    
+    
     f.mesh.scale.multiplyScalar(Math.max(.96,1-dt*.025));
     if(f.mass<.000007){
      fruitGroup.remove(f.mesh);f.mesh.material.dispose();fruits.splice(i,1);
@@ -1171,12 +1171,9 @@ function lifeDay(days){
  // Crescimento em DIAS simulados: avançar o tempo também recupera
  // gramados e trilhas abandonadas (e não apenas o cronômetro da cena).
  for(let k=0;k<cells;k++){
-  const sat=api.soilMoisture[k]/Math.max(.001,api.soilCapacity[k]);
-  const optimum=clamp(1-Math.abs(.65-sat)/.65,0,1);
-  const fertilizer=clamp((api.soilOrganic[k]+api.soilN[k])*.52,0,1);
-  const growth=optimum*lightField[k]*fertilizer*
-   clamp(1-api.soilSalinity[k],0,1)*(api.depth[k]>.08?.12:1);
-  const recovery=days*(.003+.014*growth);
+  // Recuperação por tempo sem pisoteio; não depende de água nem nutrientes.
+  const growth=1;
+  const recovery=days*.024;
   traffic[k]=Math.max(0,traffic[k]-recovery);
   animalTrail[k]=Math.max(0,animalTrail[k]-recovery*.85);
   compaction[k]=Math.max(0,compaction[k]-recovery*.45);
@@ -1767,8 +1764,8 @@ function stampTraffic(x,z,weight=.25,animal=false){
   traffic[k]=clamp(traffic[k]+press,0,1);
   if(animal)animalTrail[k]=clamp(animalTrail[k]+press*.96,0,1);
   compaction[k]=clamp(compaction[k]+press*.33,0,1);
-  api.soilPlant[k]=clamp(api.soilPlant[k]-press*(animal?.12:.18),.025,1.25);
-  api.permeability[k]=Math.max(.000005,api.permeability[k]*(1-press*.015));
+  // Pisoteio afeta apenas a trilha; não altera a fertilidade.
+  // Permeabilidade estática: sem custo de recalcular por pisada.
   const t=clamp((Math.max(traffic[k],animalTrail[k])-.18)/.65,0,1);
   roadMask[k]=Math.max(fixedRoadMask[k],t*t*(3-2*t));
   // Muito trânsito remove vegetação de imediato, mas ela pode rebrotar
@@ -1842,7 +1839,8 @@ function update(dt){
  dt=Math.min(dt,.09);time+=dt;ecologicalAccumulator+=ecologicalDayRate(dt);
  animateGrassVisuals(dt);
  wildfire?.update(dt,api.getMainCamera?.());
- animateLeafFall(dt);animateFruits(dt);
+ // Queda de folhas desativada; manter apenas maturacao visual de frutos.
+ animateFruits(dt);
  grassAccumulator+=dt;uiAccumulator+=dt;
  // Recarrega o rio somente pela fonte a montante, sem água infinita em toda a cena.
  if(grassAccumulator>.7){
