@@ -243,11 +243,11 @@ body.play-active #arcanoQuickPanel{top:calc(114px + env(safe-area-inset-top))}
 #arcanoQuickPanel #arcanoQuickForecast{line-height:1.5;color:#c4d7ce;margin:12px 0;padding:10px;border:1px solid #61776c;border-radius:9px}
 
 /* Minimap 3D da floresta, compatível com o modo Jogar */
-#forestMini{display:none;position:fixed;z-index:48;top:calc(78px + env(safe-area-inset-top,0px));right:14px;width:156px;height:156px;border:1px solid #b6c7a6a8;border-radius:15px;background:#0c211de8;box-shadow:0 12px 30px #000a;overflow:hidden;cursor:pointer;padding:0;touch-action:manipulation}
+#forestMini{display:none;position:fixed;z-index:48;left:14px;bottom:calc(14px + env(safe-area-inset-bottom,0px));top:auto;right:auto;width:138px;height:138px;border:2px solid #b6c7a6a8;border-radius:50%;background:#0c211de8;box-shadow:0 12px 30px #000a;overflow:hidden;cursor:pointer;padding:0;touch-action:manipulation}
 body.play-active #forestMini{display:block}
-#forestMini canvas{display:block;width:100%;height:100%}
-#forestMini strong,#forestMini em{position:absolute;left:8px;top:7px;background:#081912c9;color:#f1e3af;padding:4px 7px;border-radius:6px;font:700 10px system-ui;pointer-events:none}
-#forestMini em{font-style:normal;top:auto;left:auto;bottom:7px;right:7px;font-size:9px;color:#e0efe5}
+#forestMini canvas{display:block;width:100%;height:100%;border-radius:50%}
+#forestMini strong,#forestMini em{position:absolute;left:50%;transform:translateX(-50%);top:7px;background:#081912c9;color:#f1e3af;padding:4px 7px;border-radius:999px;font:700 10px system-ui;pointer-events:none;white-space:nowrap}
+#forestMini em{font-style:normal;top:auto;bottom:7px;font-size:9px;color:#e0efe5}
 #forestMapDialog[hidden]{display:none!important}
 #forestMapDialog{position:fixed;inset:0;z-index:100;background:#030a0bea;backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:14px}
 #forestMapCard{position:relative;width:min(730px,96vw);max-height:94dvh;overflow:auto;padding:18px;border-radius:19px;background:#12261ff7;border:1px solid #b7c8a188;box-shadow:0 24px 80px #000c;color:#eaf1e5}
@@ -256,8 +256,8 @@ body.play-active #forestMini{display:block}
 #forestMapBig{display:block;width:100%;height:auto;aspect-ratio:1.5;border:1px solid #718a7888;border-radius:13px;background:#0a1d21}
 #forestMapClose{position:absolute;right:17px;top:17px;background:#324d42;color:#f1f5e6;border:1px solid #839b82;border-radius:10px;padding:10px 13px;cursor:pointer;font:700 12px system-ui}
 #forestMapLegend{margin-top:9px;font:12px system-ui;color:#e4e5cf}
-@media(max-width:660px){#forestMini{top:calc(64px + env(safe-area-inset-top,0px));right:9px;width:110px;height:110px}#forestMapCard{padding:12px}#forestMapCard h2{font-size:19px}#forestMapBig{aspect-ratio:1}#forestMapLegend{font-size:10px}}
-@media(max-height:490px) and (orientation:landscape){#forestMini{top:57px;width:100px;height:100px}#forestMapBig{max-height:62dvh}}
+@media(max-width:660px){#forestMini{left:10px;bottom:calc(10px + env(safe-area-inset-bottom,0px));top:auto;right:auto;width:104px;height:104px}#forestMapCard{padding:12px}#forestMapCard h2{font-size:19px}#forestMapBig{aspect-ratio:1}#forestMapLegend{font-size:10px}}
+@media(max-height:490px) and (orientation:landscape){#forestMini{left:10px;bottom:calc(8px + env(safe-area-inset-bottom,0px));top:auto;right:auto;width:92px;height:92px}#forestMapBig{max-height:62dvh}}
 </style>  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js","fflate":"https://cdn.jsdelivr.net/npm/fflate@0.8.2/esm/browser.js"}}</script>
   <script defer src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script><script defer src="./agua-v1226.js"></script><script defer src="./arcano-assets-v1232.js"></script><script defer src="./nature-imported-v1239.js"></script><script defer src="./fogo-grama-v1267.js"></script><script defer src="./ecossistema-v1232.js"></script>
 </head>
