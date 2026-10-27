@@ -1139,7 +1139,20 @@ const QUALITY_PRESETS={
 };
 let graphicsQuality=mobile?'balanced':'high';
 let viewFov=mobile?52:58,viewDistance=mobile?98:170;
-let distanceLOD=true,lodFullRange=.35,lodTick=0;
+let distanceLOD=true,lodFullRange=.35;
+const lodState={cursor:0,active:false,lastX:NaN,lastZ:NaN,lastDistance:0};
+function requestDistanceLOD(){lodState.cursor=0;lodState.active=true;}
+function processDistanceLODBatch(){
+ if(!forestInstances.length||!lodState.active)return;
+ // Limita a carga por quadro para evitar picos de CPU durante movimento.
+ const end=Math.min(forestInstances.length,lodState.cursor+Math.min(160,Math.max(32,Math.ceil(forestInstances.length/24))));
+ for(let i=lodState.cursor;i<end;i++){
+  const a=forestInstances[i],visible=a.type!=='grass'&&visibleByQuality(a);
+  if(a.obj.visible!==visible)a.obj.visible=visible;
+ }
+ lodState.cursor=end;
+ if(end>=forestInstances.length){lodState.active=false;lodState.lastX=camera.position.x;lodState.lastZ=camera.position.z;lodState.lastDistance=viewDistance;}
+}
 try{const enabled=localStorage.getItem('arcano.distanceLOD'),range=Number(localStorage.getItem('arcano.lodFullRange'));if(enabled!==null)distanceLOD=enabled==='true';if(range>=.15&&range<=.8)lodFullRange=range;}catch(_){}
 function refreshLODControls(){const box=$('ecoDistanceLOD'),slider=$('ecoLODRange'),label=$('ecoLODRangeVal');if(box)box.checked=distanceLOD;if(slider){slider.value=String(Math.round(lodFullRange*100));slider.disabled=!distanceLOD;}if(label)label.textContent=Math.round(lodFullRange*100)+'%';}
 function updateDistanceLOD(){distanceLOD=!!$('ecoDistanceLOD')?.checked;lodFullRange=clamp(Number($('ecoLODRange')?.value||35)/100,.15,.8);refreshLODControls();try{localStorage.setItem('arcano.distanceLOD',String(distanceLOD));localStorage.setItem('arcano.lodFullRange',String(lodFullRange));}catch(_){}applyForestVisibility();}
@@ -1196,16 +1209,11 @@ function visibleByQuality(a){
                  clamp(Math.round((a.z+L*.5)/dz),0,NZ-1))]>.10);
 }
 function applyForestVisibility(){
- for(const a of forestInstances){
-  // Jamais renderizar Grass_Common_Short / Grass_Large_Extruded
-  // da floresta legada. A grama correta vive no módulo Quaternius.
-  a.obj.visible=a.type!=='grass'&&visibleByQuality(a);
- }
- // Proteção incondicional, antes e depois da inicialização ecológica,
- // durante troca de qualidade, fallback e recarregamento de assets.
+ // As alterações de configuração entram na fila, sem percorrer todos
+ // os objetos em um único quadro.
+ requestDistanceLOD();
  grass.visible=false;grass.count=0;
  meadowMesh.visible=false;meadowMesh.count=0;
-
 }
 
 // V12.26 / reparo de folhagens: vincula o PNG correto e conserva recortes alpha.
@@ -4411,7 +4419,11 @@ function loop(now){
  // A câmera já foi atualizada antes dos reflexos. Evitar a segunda
  // aplicação da mesma matriz a cada quadro; manter o caso pausado.
  if(paused||document.hidden)setView();
- if(distanceLOD&&forestInstances.length){lodTick+=rawDt;if(lodTick>=.35){lodTick=0;applyForestVisibility();}}
+ if(forestInstances.length){
+  const moved=(camera.position.x-lodState.lastX)**2+(camera.position.z-lodState.lastZ)**2>4;
+  if(!lodState.active&&(moved||lodState.lastDistance!==viewDistance))requestDistanceLOD();
+  processDistanceLODBatch();
+ }
  renderer.render(scene,camera);
  gamePerf.elapsed+=rawDt;gamePerf.frames++;
  if(gamePerf.elapsed>=1.25){
