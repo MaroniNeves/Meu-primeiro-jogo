@@ -581,7 +581,8 @@ function initializeLandscape(){
   const roadT=clamp(1-distRoad/1.10,0,1);
   const historic=roadT*roadT*(3-2*roadT);
   // A trilha termina na cabeceira; trânsito histórico não pinta solo no leito.
-  const onCrossing=distRiver<2.7;
+  // Pintar estrada ate as cabeceiras; so o canal fica sem solo de estrada.
+  const onCrossing=distRiver<1.40;
   traffic[k]=onCrossing?0:historic*.76;
   fixedRoadMask[k]=onCrossing?0:historic;
   roadMask[k]=fixedRoadMask[k];
