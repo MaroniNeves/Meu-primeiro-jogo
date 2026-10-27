@@ -673,7 +673,7 @@ async function grassShape(){
    const growth=clamp(cover[k]*(1-traffic[k])*
      (.55+.45*clamp(api.soilPlant[k],0,1)),0,1);
    if(growth<.02)return false;
-   const scale=(name==='grassShort1'?.43:name==='grassTall1'?.72:.63)*
+   const scale=(name==='grassShort1'?.28:name==='grassTall1'?.42:.36)*
      (.73+random()*.58)*multiplier;
    obj.position.set(x,height(x,z)-.018,z);
    obj.rotation.set((random()-.5)*.08,random()*Math.PI*2,(random()-.5)*.08);
