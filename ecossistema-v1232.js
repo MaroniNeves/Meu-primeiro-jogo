@@ -992,6 +992,26 @@ function rockShape(){
   m.castShadow=true;m.receiveShadow=true;rocks.add(m);rockPositions.push({x,z});
  }
 }
+// Seixos das margens em UMA malha instanciada, sem milhares de draw calls.
+function createRiverbankPebbles(){
+ const count=320,geo=new T.DodecahedronGeometry(1,0);
+ const mat=new T.MeshStandardMaterial({color:'#817e73',roughness:1,metalness:0});
+ const mesh=new T.InstancedMesh(geo,mat,count);
+ mesh.name='Seixos naturais das duas margens do rio';
+ mesh.castShadow=false;mesh.receiveShadow=true;mesh.frustumCulled=false;
+ const o=new T.Object3D();
+ for(let i=0;i<count;i++){
+  const z=-L*.47+(i/count)*L*.94+Math.sin(i*2.31)*.20;
+  const side=i%2===0?-1:1;
+  const x=riverX(z)+side*(1.34+(i%7)*.19+Math.abs(Math.sin(i*4.13))*.4);
+  const scale=.065+.09*Math.abs(Math.sin(i*1.71));
+  o.position.set(x,height(x,z)+scale*.17,z);
+  o.rotation.set(i*.19,i*1.39,i*.47);
+  o.scale.set(scale*1.4,scale*.46,scale);
+  o.updateMatrix();mesh.setMatrixAt(i,o.matrix);
+ }
+ mesh.instanceMatrix.needsUpdate=true;rocks.add(mesh);
+}
 function ecologicalDayRate(dt){return dt*biologicalSpeed/1440;}
 // Trilha química discreta na malha: evapora/é lavada pela chuva e é reforçada
 // quando a forrageadora retorna com alimento.
@@ -1674,7 +1694,7 @@ async function setup(){
   else animateGrassVisuals(dt);
  }
  requestAnimationFrame(frame);
- await grassShape();rockShape();setupLeafVisuals();setupFruits();visualizeAnimals();initializeLargeAnimalRoutes();
+ await grassShape();rockShape();createRiverbankPebbles();setupLeafVisuals();setupFruits();visualizeAnimals();initializeLargeAnimalRoutes();
  drawNestCutaway();hideDetachedAntModels();
  const board=$('ecoStatus');if(board)board.textContent='Pacotes enviados integrados: '+Object.keys(meshLibrary).length+' malhas · '+colonies.length+' colônias.';
  const s=$('ecoSpeed');if(s){s.oninput=e=>{biologicalSpeed=clamp(+e.target.value,1,200);$('ecoSpeedVal').textContent=biologicalSpeed+'×';};}
