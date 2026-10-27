@@ -214,8 +214,8 @@ function elevation(x,z){
  const bed=1-clamp(lateral/width,0,1);
  y-=deep*bed*bed*(3-2*bed);
  // Encostas sobem na direção da margem, sem criar saída lateral do rio.
- const bank=clamp((lateral-width)/1.5,0,1);
- y+=.15*(1-bank)*bank*(1+.3*Math.sin(z*.55));
+ // Margem e prado compartilham a mesma cota: sem lombada artificial na borda.
+ // O gradiente molhado continua sendo apenas de cor, nao altera a altura.
  const roadAxis=.92-.70*Math.sin(x*.47+.6)+.17*Math.sin(x*1.34);
  const roadDist=Math.abs(z-roadAxis),crossDist=Math.abs(x-center(z));
  const protectedRoad=(1-smooth(clamp((roadDist-1.7)/1.35,0,1)))*(1-smooth(clamp((crossDist-4.4)/1.8,0,1)));
