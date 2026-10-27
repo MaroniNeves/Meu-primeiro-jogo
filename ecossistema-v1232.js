@@ -516,12 +516,23 @@ function makeRoad(){
     for(let k=0;k<cells;k++){
      const p=position(k),u=(p.x-mx)*alongXBridge+(p.z-mz)*alongZBridge;
      const side=-(p.x-mx)*alongZBridge+(p.z-mz)*alongXBridge;
-     if(Math.abs(u)>span*.5-.18||Math.abs(side)>1.00)continue;
-     const longitudinal=clamp((span*.5-Math.abs(u)-.18)/.75,0,1);
-     const lateral=clamp((1.0-Math.abs(side))/.24,0,1);
-     const clearance=(.12+.30*longitudinal)*lateral;
-     const maximum=deckY-clearance;
-     if(api.soil[k]>maximum){api.soil[k]=maximum;excavated++;}
+     if(Math.abs(side)>1.00)continue;
+     const beyond=Math.abs(u)-span*.5;
+     if(beyond>=0&&beyond<2.80){
+      // A estrada chega suavemente ao nivel do tablado, sem um degrau alto.
+      const t=1-clamp(beyond/2.80,0,1);
+      const lane=1-smooth(clamp((Math.abs(side)-.66)/.34,0,1));
+      const blend=smooth(t)*lane;
+      const target=deckY+.0325;
+      const newY=api.soil[k]*(1-blend)+target*blend;
+      if(Math.abs(newY-api.soil[k])>.0001){api.soil[k]=newY;excavated++;}
+     }else if(beyond<0){
+      const longitudinal=clamp((span*.5-Math.abs(u)-.18)/.75,0,1);
+      const lateral=clamp((1.0-Math.abs(side))/.24,0,1);
+      const clearance=(.12+.30*longitudinal)*lateral;
+      const maximum=deckY-clearance;
+      if(api.soil[k]>maximum){api.soil[k]=maximum;excavated++;}
+     }
     }
     if(excavated){
      const terrainPositions=api.terrain.geometry.attributes.position;
