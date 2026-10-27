@@ -521,8 +521,8 @@ function makeRoad(){
      if(beyond>=0&&beyond<2.80){
       // A estrada chega suavemente ao nivel do tablado, sem um degrau alto.
       const t=1-clamp(beyond/2.80,0,1);
-      const lane=1-smooth(clamp((Math.abs(side)-.66)/.34,0,1));
-      const blend=smooth(t)*lane;
+      const lane=1-(function(v){return v*v*(3-2*v);})(clamp((Math.abs(side)-.66)/.34,0,1));
+      const blend=(t*t*(3-2*t))*lane;
       const target=deckY+.0325;
       const newY=api.soil[k]*(1-blend)+target*blend;
       if(Math.abs(newY-api.soil[k])>.0001){api.soil[k]=newY;excavated++;}
