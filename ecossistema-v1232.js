@@ -1269,6 +1269,7 @@ function visualizeAnimals(){
 
 }let lastAntImpactReport=-999,antsDrowned=0,antsCrushed=0;
 function killSurfaceAnt(item,agent,x,z,cause){
+ return; // Colônias fixas de dez operárias, sem mortalidade.
  if(agent.dead)return;
  agent.dead=true;agent.deadUntil=time+3.4;agent.x=x;agent.z=z;
  item.c.workers=Math.max(0,item.c.workers-1);item.c.dead++;
@@ -1282,6 +1283,7 @@ function killSurfaceAnt(item,agent,x,z,cause){
  }
 }
 function checkAntTrampling(x,z,weight){
+ return; // Passadas não reduzem o número fixo de formigas.
  const radius=.12+Math.min(.14,weight*.12);
  for(const item of antDraws)for(const agent of item.agents){
   if(agent.dead||!Number.isFinite(agent.x))continue;
@@ -1804,10 +1806,10 @@ async function setup(){
  };
  const original=api.grass;if(original){original.visible=false;original.count=0;}
  for(const obj of targetNativeGrass)obj.obj.visible=false;
- window.arcanoEcoV1232={active:true,cover,traffic,roadMask,animalTrail,riverMask,nestBareMask,colonies,worms,
+ window.arcanoEcoV1232={active:true,cover,traffic,roadMask,animalTrail,riverMask,nestBareMask,colonies,
   registerAnimalFootfall,movementCost,largeAnimals,
   trample,addCarcass,update,status,api,ready:()=>ready,setMagnification:n=>previewMagnification=n,
-  getColony:id=>colonies.find(c=>c.id===id),getWorms:()=>worms,inspectColony:updateColonyInspector,
+  getColony:id=>colonies.find(c=>c.id===id),getWorms:()=>[],inspectColony:updateColonyInspector,
   getWildfire:()=>wildfire,
   igniteGrass:(x,z,radius=1.35)=>wildfire?.ignite(x,z,radius)||false,
   extinguishFire:()=>wildfire?.quench(),
