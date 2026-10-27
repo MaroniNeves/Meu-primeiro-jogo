@@ -568,7 +568,7 @@ function initializeLandscape(){
   roadMask[k]=fixedRoadMask[k];
   riverMask[k]=clamp(1-distRiver/1.2,0,1);
   // Água somente dentro do leito, nunca sobre a terra das margens.
-  if(distRiver<.87)api.depth[k]=Math.max(api.depth[k],.032);
+  // Profundidade permanente definida somente pelo canal principal.
   // O leito já foi escavado pelo terreno principal; evitar escavar duas vezes.
   // A margem fica sem cobertura vegetal.
   if(roadMask[k]>.1)
