@@ -422,7 +422,7 @@ function makeRoadSurfaceDetails(){
   const x=(rng()-.5)*W*.955;
   const z=roadZ(x)+(rng()-.5)*1.66;
   const k=idx(x,z);
-  if(fixedRoadMask[k]<.13||api.depth[k]>.045||riverMask[k]>.56||
+  if(fixedRoadMask[k]<.13||Math.abs(x-riverX(z))<2.7||api.depth[k]>.045||riverMask[k]>.56||
      (Math.abs(x+1.5)<2.2&&Math.abs(z-roadZ(x))<.6))continue;
   const t=rng(),kind=t<.38?0:t<.62?1:t<.79?2:3;
   const mesh=meshes[kind],index=mesh.count;
@@ -457,9 +457,9 @@ function makeRoad(){
  }
  if(crossing!==null){
   function bank(direction){
-   for(let d=.2;d<2.45;d+=.035){
+   for(let d=1.15;d<4.4;d+=.04){
     const x=crossing+d*direction,z=roadZ(x),k=idx(x,z);
-    if(riverMask[k]<.075&&api.depth[k]<.065&&roadMask[k]>.50)
+    if(Math.abs(x-riverX(z))>2.65&&riverMask[k]<.075&&roadMask[k]>.32)
      return {x,z,y:height(x,z)};
    }
    return null;
@@ -467,7 +467,7 @@ function makeRoad(){
   const left=bank(-1),right=bank(1);
   if(left&&right){
    const span=Math.hypot(right.x-left.x,right.z-left.z);
-   if(span>.95&&span<4.7){
+   if(span>3&&span<9.5){
     const mx=(left.x+right.x)*.5,mz=(left.z+right.z)*.5;
     const direction=Math.atan2(right.z-left.z,right.x-left.x);
     const deckY=Math.max(left.y,right.y)+.13;
@@ -562,9 +562,13 @@ function initializeLandscape(){
   const roadT=clamp(1-distRoad/1.10,0,1);
   const historic=roadT*roadT*(3-2*roadT);
   traffic[k]=historic*.76;
-  fixedRoadMask[k]=historic;
-  roadMask[k]=historic;
+  // O piso de terra termina antes do canal; a ponte ocupa o vão.
+  const onCrossing=distRiver<2.7;
+  fixedRoadMask[k]=onCrossing?0:historic;
+  roadMask[k]=fixedRoadMask[k];
   riverMask[k]=clamp(1-distRiver/1.2,0,1);
+  // Água somente dentro do leito, nunca sobre a terra das margens.
+  if(distRiver<.87)api.depth[k]=Math.max(api.depth[k],.032);
   // O leito já foi escavado pelo terreno principal; evitar escavar duas vezes.
   // A margem fica sem cobertura vegetal.
   if(roadMask[k]>.1)
