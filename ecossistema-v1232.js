@@ -81,7 +81,7 @@ grassCellLastScale.fill(NaN);
 let grassForceRefresh=true;
 function grassAliveScale(k){
  const wear=Math.max(traffic[k],animalTrail[k]),c=cover[k];
- const hydro=1;
+ const hydro=riverMask[k]>.01?0:1;
  const alive=fixedRoadMask[k]>.06?0:
   clamp(c*(1-wear)*hydro*(1-nestBareMask[k]/255),0,1);
  return alive>.11?(.47+.53*alive):.0001;
@@ -564,23 +564,16 @@ function initializeLandscape(){
   traffic[k]=historic*.76;
   fixedRoadMask[k]=historic;
   roadMask[k]=historic;
-  riverMask[k]=clamp(1-distRiver/.68,0,1);
-  // A estrada recebe a compactação histórica; rio rebaixa o leito local.
-  if(riverMask[k]>.05){
-   // Profundidade física só nasce na fonte; impedir poças azuis geradas em todas as células.
-   // Sob a travessia o leito é um pouco mais profundo que as duas
-   // cabeceiras. A ponte cruza um VÃO real e não repousa no fundo do rio.
-   const nearBridge=Math.exp(-Math.pow((x+1.5)/1.35,2)-
-     Math.pow((z-.84)/1.15,2));
-   api.soil[k]-=Math.pow(riverMask[k],1.5)*(.13+.15*nearBridge);
-  }
+  riverMask[k]=clamp(1-distRiver/1.2,0,1);
+  // O leito já foi escavado pelo terreno principal; evitar escavar duas vezes.
+  // A margem fica sem cobertura vegetal.
   if(roadMask[k]>.1)
    api.permeability[k]*=(1-roadMask[k]*.38);
   compaction[k]=roadMask[k]*.48;
   const shade=.5+.5*Math.sin(x*.85+z*.34)*Math.cos(z*.6);
   const moist=api.soilMoisture[k]/Math.max(.001,api.soilCapacity[k]);
   lightField[k]=clamp(.45+.35*shade,0,1);
-  cover[k]=fixedRoadMask[k]>.06?0:
+  cover[k]=distRiver<3.1||fixedRoadMask[k]>.06?0:
    clamp(.89+.08*shade+.12*moist-roadMask[k]*1.06-riverMask[k]*.90,0,1);
   foodResources[k]=Math.max(0,cover[k]*(1-roadMask[k])*.12);
  }
@@ -613,7 +606,7 @@ async function grassShape(){
   if(Math.abs(x)>W*.49||Math.abs(z)>L*.49)return -1;
   const k=idx(x,z);
   if(fixedRoadMask[k]>.045||Math.abs(z-roadZ(x))<1.11||
-    nestBareMask[k]>20||riverMask[k]>.74||api.depth[k]>.068||
+    nestBareMask[k]>20||Math.abs(x-riverX(z))<3.1||api.depth[k]>.068||
     cover[k]<.025)return -1;
   return k;
  }
@@ -1517,7 +1510,8 @@ function update(dt){
    const wear=Math.max(traffic[cell],animalTrail[cell]);
    const normalized=clamp((wear-.18)/.65,0,1);
    roadMask[cell]=Math.max(fixedRoadMask[cell],normalized*normalized*(3-2*normalized));
-   const permanent=fixedRoadMask[cell]>.06||nestBareMask[cell]>105;
+   const p=position(cell);
+   const permanent=fixedRoadMask[cell]>.06||nestBareMask[cell]>105||Math.abs(p.x-riverX(p.z))<3.1;
    const desired=permanent?0:clamp(1-roadMask[cell]*1.1,0,1);
    cover[cell]=permanent?0:clamp(cover[cell]+(desired-cover[cell])*.008,0,1);
   }
