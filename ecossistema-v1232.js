@@ -702,20 +702,11 @@ async function grassShape(){
    const k=suitable(x,z);if(k<0)return false;
    // Moitas mais altas so aparecem longe da margem e nunca na agua.
    if(multiplier>2.0&&Math.abs(x-riverX(z))<riverGrassEdge(z)+1.2)return false;
-   if(multiplier>2.0){
-    const cx=Math.floor(x/1.1),cz=Math.floor(z/1.1);let crowded=false;
-    for(let ox=-1;ox<=1;ox++)for(let oz=-1;oz<=1;oz++)
-     for(const point of tallClumpGrid.get((cx+ox)+','+(cz+oz))||[])
-      if(Math.hypot(point.x-x,point.z-z)<1.05)crowded=true;
-    if(crowded)return false;
-    const key=cx+','+cz;if(!tallClumpGrid.has(key))tallClumpGrid.set(key,[]);
-    tallClumpGrid.get(key).push({x,z});
-   }
    const growth=clamp(cover[k]*(1-traffic[k])*
      (.55+.45*clamp(api.soilPlant[k],0,1)),0,1);
    if(growth<.02)return false;
    const scale=(name==='grassShort1'?.22:name==='grassTall1'?.28:.25)*
-     (.73+random()*.58)*multiplier;
+     (multiplier>2.0?.95+random()*.10:.73+random()*.58)*multiplier;
    obj.position.set(x,height(x,z)-.018,z);
    obj.rotation.set((random()-.5)*.08,random()*Math.PI*2,(random()-.5)*.08);
    const uniformScale=Math.min(multiplier>2.0?.85:.30,scale);
@@ -734,6 +725,37 @@ async function grassShape(){
    out.keys[out.count]=k;out.biomes[out.count]=color;out.count++;
    planted++;
    if(Math.abs(z-roadZ(x))<7.5)nearRoad++;else farRoad++;
+   return true;
+  }
+  function plantTallClump(x,z,growth){
+   const radius=.34,spacing=1.65,cellSize=1.7;
+   if(x-radius<minX||x+radius>maxX||z-radius<minZ||z+radius>maxZ)return false;
+   if(planted+9>grassBudgets.high)return false;
+   const cx=Math.floor(x/cellSize),cz=Math.floor(z/cellSize);
+   for(let ox=-1;ox<=1;ox++)for(let oz=-1;oz<=1;oz++)
+    for(const point of tallClumpGrid.get((cx+ox)+','+(cz+oz))||[])
+     if(Math.hypot(point.x-x,point.z-z)<spacing)return false;
+   const angle=random()*Math.PI*2;
+   const members=[{x,z,multiplier:2.95+growth*.10}];
+   // Dense inner ring and a shorter outer ring form one coherent tuft.
+   for(let i=0;i<8;i++){
+    const ring=i<4?.14:.29,a=angle+i*2.399963;
+    members.push({x:x+Math.cos(a)*ring,z:z+Math.sin(a)*ring,
+     multiplier:i<4?2.55+growth*.10:2.20+growth*.10});
+   }
+   let low=Infinity,high=-Infinity;
+   // Validate the complete group before planting; never leave isolated tall blades.
+   for(const point of members){
+    const k=suitable(point.x,point.z);
+    if(k<0||Math.abs(point.z-roadZ(point.x))<1.45||
+     Math.abs(point.x-riverX(point.z))<riverGrassEdge(point.z)+1.2)return false;
+    if(cover[k]*(1-traffic[k])*(.55+.45*clamp(api.soilPlant[k],0,1))<.02)return false;
+    const y=height(point.x,point.z);low=Math.min(low,y);high=Math.max(high,y);
+   }
+   if(high-low>.20)return false;
+   for(const point of members)if(!plant('grassTall1',point.x,point.z,point.multiplier))return false;
+   const key=cx+','+cz;if(!tallClumpGrid.has(key))tallClumpGrid.set(key,[]);
+   tallClumpGrid.get(key).push({x,z});
    return true;
   }
   // Mesmo adensamento em TODAS as regiões: não depender de grama
@@ -771,7 +793,7 @@ async function grassShape(){
       if(plant(secondary,px,pz,1.04+growth*.30))clumps++;
       // Uma minoria das moitas recebe gramíneas bem mais altas, longe do rio.
       if(random()<.085&&Math.abs(px-riverX(pz))>riverGrassEdge(pz)+1.2)
-       if(plant('grassTall1',px+.10,pz+.08,2.35+growth*.40))clumps++;
+       if(plantTallClump(px,pz,growth))clumps+=9;
      }
     }
    }
