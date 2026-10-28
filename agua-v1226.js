@@ -225,12 +225,11 @@ function elevation(x,z){
  for(const basin of basins){const d=((x-basin.x)/basin.sx)**2+((z-basin.z)/basin.sz)**2;y-=basin.deep*Math.exp(-1.5*d)*(1-protectedRoad);}
  // Leito e margens acima/abaixo de um nivel UNICO; declives enchem ate a mesma linha.
  const waterline=riverLevelAt(z);
- if(lateral<width-.055){
-  const blend=smooth(clamp((width-.055-lateral)/.42,0,1));
-  // O leito escava a geografia original, sem erguer barrancos artificiais.
-  const bedLevel=Math.min(y,waterline-.12-.14*bed);
-  y=y*(1-blend)+bedLevel*blend;
- }
+ // Erosao em rampa larga: o mesmo terreno continua ate a beira d'agua.
+ // A escavacao nunca eleva a encosta acima do gramado.
+ const slope=smooth(clamp((width+1.55-lateral)/2.05,0,1));
+ const bedLevel=Math.min(y,waterline-.14-.12*bed);
+ y-=Math.max(0,y-bedLevel)*slope;
  // Fora do canal o relevo e continuo: a margem e a grama usam o mesmo solo.
  return y;
 }
