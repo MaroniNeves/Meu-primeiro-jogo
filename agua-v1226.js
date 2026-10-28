@@ -2698,7 +2698,15 @@ const waterM=new T.ShaderMaterial({
  float bank=smoothstep(.67,.99,abs(waterEdge));
  float lap=sin(uTime*(1.8+motion*2.1)-p.z*3.0+abs(waterEdge)*8.0);
  p.x+=sign(waterEdge)*bank*.050*lap;
- p.y+=bank*.011*lap;\n vSlope=vec2((cos(a)*3.5*.64+sin(b)*1.7*.36)*amp,(cos(a)*1.4*.64-sin(b)*5.1*.36)*amp);\n vec4 w=modelMatrix*vec4(p,1.0);vWorld=w.xyz;gl_Position=projectionMatrix*viewMatrix*w;\n}",fragmentShader:"precision highp float;\nuniform float uTime;uniform samplerCube uEnv;uniform samplerCube uEnv2;\nuniform sampler2D uPlanar;\nuniform mat4 uPlanarMatrix;\nuniform float uPlanarReady,uMirrorY;\nuniform float uReflect,uDualProbes,uSunPower,uCloudiness,uWind,uWeatherReflect;\nuniform vec2 uProbeA,uProbeB;\nuniform vec3 uSun,uWeatherTint;\nvarying vec3 vWorld;varying float vDepth;varying float vMud;varying vec2 vSlope;varying float vMovement;varying float vEdge;\nvoid main(){\n float irregular=.0018*sin(vWorld.x*4.2+vWorld.z*3.7)+.0011*sin(vWorld.x*10.3-vWorld.z*7.4);\n float alpha=smoothstep(.002,.032,vDepth-.004+irregular);if(alpha<.025)discard;\n float shallow=clamp((vDepth-.006)/.054,0.,1.),deep=clamp((vDepth-.055)/.175,0.,1.);\n float abyss=clamp((vDepth-.21)/.28,0.,1.);\n vec3 color=mix(vec3(.40,.64,.56),vec3(.12,.53,.60),shallow);\n color=mix(color,vec3(.04,.35,.51),deep);\n color=mix(color,vec3(.012,.17,.35),abyss*.85);\n float dirty=clamp(vMud*.86,0.,.90);\n color=mix(color,vec3(.48,.29,.14),dirty);\n float rim=(1.-smoothstep(.004,.027,vDepth))*(1.-dirty*.85);\n color=mix(color,vec3(.71,.96,.91),rim*.28);\n vec2 tiny=vec2(sin(vWorld.x*6.1+vWorld.z*3.8-uTime*(1.3+uWind))+\n cos(vWorld.z*11.2-uTime*(1.6+uWind)),\n cos(vWorld.z*6.8-vWorld.x*3.4+uTime*(1.+uWind))+\n sin(vWorld.x*10.5+uTime*(1.4+uWind)));\n float breeze=.020+.055*vMovement+.026*uWind;\n vec3 n=normalize(vec3(-vSlope.x-tiny.x*breeze,1.,-vSlope.y-tiny.y*breeze));\n vec3 viewDir=normalize(cameraPosition-vWorld);\n float fresnel=pow(1.-clamp(dot(n,viewDir),0.,1.),2.1);\n vec3 ray=reflect(-viewDir,n);\n vec3 reflected=textureCube(uEnv,ray).rgb;\n // Segunda sonda posicionada numa depressão diferente: melhora a parallax aproximada.\n vec3 second=textureCube(uEnv2,ray).rgb;\n float d1=length(vWorld.xz-uProbeA),d2=length(vWorld.xz-uProbeB);\n float blend=uDualProbes*smoothstep(-1.4,1.4,d1-d2);\n reflected=mix(reflected,second,blend);\n // Espelho planar projetado do ponto de vista real.\n vec4 projected=uPlanarMatrix*vec4(vWorld,1.0);\n vec2 projUV=projected.xy/max(projected.w,.0001)*.5+.5;\n projUV+=tiny*(.00065+.0016*uWind);\n float valid=step(.005,projUV.x)*step(projUV.x,.995)*step(.005,projUV.y)*step(projUV.y,.995)*step(.01,projected.w);\n float heightMatch=exp(-abs(vWorld.y-uMirrorY)*.38);\n vec3 mirrored=texture2D(uPlanar,clamp(projUV,vec2(.005),vec2(.995))).rgb;\n reflected=mix(reflected,mirrored,clamp(uPlanarReady*valid*heightMatch,0.,1.));\n reflected=mix(reflected,uWeatherTint,.045+.065*uCloudiness);\n float roughness=clamp(vMovement*.75+uWind*.16,0.,1.);\n float reflectMix=uReflect*uWeatherReflect*(.14+.53*fresnel)*\n                  (1.-dirty*.72)*(1.-roughness*.22);\n color=mix(color,reflected,clamp(reflectMix,0.,.63));\n float sun=pow(max(dot(reflect(-normalize(uSun),n),viewDir),0.),52.);\n float waveA=sin(vWorld.x*13.7+vWorld.z*9.2-uTime*2.6);\n float waveB=sin(vWorld.z*17.3-vWorld.x*6.9+uTime*2.2);\n float crest=smoothstep(.24,.78,waveA*.60+waveB*.40);\n float sparkle=(.035*crest+.36*sun*uSunPower*(1.-uCloudiness*.60))*\n               (.75+.25*shallow)*(1.-dirty*.70);\n float travel=sin(dot(vWorld.xz,normalize(vec2(.08,1.0)+vSlope*.14))*4.4-uTime*(.55+vMovement*3.8));\n float broad=(.5+.5*travel)*(.07+.12*vMovement);\n color=mix(color,vec3(.36,.72,.76),clamp(broad,0.,.19));\n color=mix(color,vec3(.81,1.,.97),clamp(sparkle,0.,.30));\n float trans=.21+.58*smoothstep(.025,.39,vDepth);
+ p.y+=bank*.011*lap;\n vSlope=vec2((cos(a)*3.5*.64+sin(b)*1.7*.36)*amp,(cos(a)*1.4*.64-sin(b)*5.1*.36)*amp);\n vec4 w=modelMatrix*vec4(p,1.0);vWorld=w.xyz;gl_Position=projectionMatrix*viewMatrix*w;\n}",fragmentShader:"precision highp float;\nuniform float uTime;uniform samplerCube uEnv;uniform samplerCube uEnv2;\nuniform sampler2D uPlanar;\nuniform mat4 uPlanarMatrix;\nuniform float uPlanarReady,uMirrorY;\nuniform float uReflect,uDualProbes,uSunPower,uCloudiness,uWind,uWeatherReflect;\nuniform vec2 uProbeA,uProbeB;\nuniform vec3 uSun,uWeatherTint;\nvarying vec3 vWorld;varying float vDepth;varying float vMud;varying vec2 vSlope;varying float vMovement;varying float vEdge;\nvoid main(){\n float irregular=.0018*sin(vWorld.x*4.2+vWorld.z*3.7)+.0011*sin(vWorld.x*10.3-vWorld.z*7.4);\n float alpha=smoothstep(.002,.032,vDepth-.004+irregular);if(alpha<.025)discard;\n float shallow=clamp((vDepth-.006)/.054,0.,1.),deep=clamp((vDepth-.055)/.175,0.,1.);\n float abyss=clamp((vDepth-.21)/.28,0.,1.);\n vec3 color=mix(vec3(.40,.64,.56),vec3(.12,.53,.60),shallow);\n color=mix(color,vec3(.04,.35,.51),deep);\n color=mix(color,vec3(.012,.17,.35),abyss*.85);\n float dirty=clamp(vMud*.86,0.,.90);\n color=mix(color,vec3(.48,.29,.14),dirty);\n float rim=(1.-smoothstep(.004,.027,vDepth))*(1.-dirty*.85);\n color=mix(color,vec3(.71,.96,.91),rim*.28);\n vec2 tiny=vec2(sin(vWorld.x*6.1+vWorld.z*3.8-uTime*(1.3+uWind))+\n cos(vWorld.z*11.2-uTime*(1.6+uWind)),\n cos(vWorld.z*6.8-vWorld.x*3.4+uTime*(1.+uWind))+\n sin(vWorld.x*10.5+uTime*(1.4+uWind)));\n float fine=sin(vWorld.x*21.0+vWorld.z*12.0-uTime*(2.4+vMovement*3.2));
+ float small=cos(vWorld.z*32.0-vWorld.x*8.0-uTime*(1.7+vMovement*4.4));
+ float slow=sin(vWorld.x*2.4-vWorld.z*3.7-uTime*(.4+vMovement*1.5));
+ tiny+=vec2(fine*.32+slow*.4,small*.30-slow*.25);
+ float breeze=.022+.075*vMovement+.024*uWind;\n vec3 n=normalize(vec3(-vSlope.x-tiny.x*breeze,1.,-vSlope.y-tiny.y*breeze));\n vec3 viewDir=normalize(cameraPosition-vWorld);\n float fresnel=pow(1.-clamp(dot(n,viewDir),0.,1.),2.1);\n vec3 ray=reflect(-viewDir,n);\n vec3 reflected=textureCube(uEnv,ray).rgb;\n // Segunda sonda posicionada numa depressão diferente: melhora a parallax aproximada.\n vec3 second=textureCube(uEnv2,ray).rgb;\n float d1=length(vWorld.xz-uProbeA),d2=length(vWorld.xz-uProbeB);\n float blend=uDualProbes*smoothstep(-1.4,1.4,d1-d2);\n reflected=mix(reflected,second,blend);\n // Espelho planar projetado do ponto de vista real.\n vec4 projected=uPlanarMatrix*vec4(vWorld,1.0);\n vec2 projUV=projected.xy/max(projected.w,.0001)*.5+.5;\n projUV+=tiny*(.00065+.0016*uWind);\n float valid=step(.005,projUV.x)*step(projUV.x,.995)*step(.005,projUV.y)*step(projUV.y,.995)*step(.01,projected.w);\n float heightMatch=exp(-abs(vWorld.y-uMirrorY)*.38);\n vec3 mirrored=texture2D(uPlanar,clamp(projUV,vec2(.005),vec2(.995))).rgb;\n reflected=mix(reflected,mirrored,clamp(uPlanarReady*valid*heightMatch,0.,1.));\n reflected=mix(reflected,uWeatherTint,.045+.065*uCloudiness);\n float roughness=clamp(vMovement*.75+uWind*.16,0.,1.);\n float reflectMix=uReflect*uWeatherReflect*(.14+.53*fresnel)*\n                  (1.-dirty*.72)*(1.-roughness*.22);\n color=mix(color,reflected,clamp(reflectMix,0.,.63));\n float sun=pow(max(dot(reflect(-normalize(uSun),n),viewDir),0.),52.);\n float waveA=sin(vWorld.x*13.7+vWorld.z*9.2-uTime*2.6);\n float waveB=sin(vWorld.z*17.3-vWorld.x*6.9+uTime*2.2);\n float crest=smoothstep(.24,.78,waveA*.60+waveB*.40);\n float sparkle=(.035*crest+.36*sun*uSunPower*(1.-uCloudiness*.60))*\n               (.75+.25*shallow)*(1.-dirty*.70);\n float travel=sin(dot(vWorld.xz,normalize(vec2(.08,1.0)+vSlope*.14))*4.4-uTime*(.55+vMovement*3.8));\n float micro=sin(vWorld.x*27.0+vWorld.z*19.0-uTime*(2.6+vMovement*4.1));
+ float streak=sin(vWorld.z*7.3+sin(vWorld.x*3.1+vWorld.z*2.4)*1.2-uTime*(.8+vMovement*3.3));
+ float broad=(.5+.5*travel)*(.04+.085*vMovement)+
+  (.5+.5*streak)*(.025+.060*vMovement)+
+  (.5+.5*micro)*(.008+.025*vMovement);\n color=mix(color,vec3(.36,.72,.76),clamp(broad,0.,.19));\n color=mix(color,vec3(.81,1.,.97),clamp(sparkle,0.,.30));\n float trans=.21+.58*smoothstep(.025,.39,vDepth);
  float shoreLap=.5+.5*sin(uTime*(1.8+vMovement*2.0)-vWorld.z*3.0+vEdge*8.0);
  float edgeWash=smoothstep(.70,.98,vEdge)*shoreLap;
  color=mix(color,vec3(.67,.78,.70),edgeWash*.085);
@@ -3765,19 +3773,37 @@ function updateGame(dt){
   const canMoveTo=(tx,tz)=>{
    const deck=bridge?.surfaceAt(tx,tz);
    const footY=deck==null?terrainContact(tx,tz):deck;
-   if(Math.abs(footY-oldY)>.65||bridge?.blocksSegment(game.position.x,game.position.z,tx,tz))return false;
+   if(Math.abs(footY-oldY)>1.05||bridge?.blocksSegment(game.position.x,game.position.z,tx,tz))return false;
    for(const [rx,rz,r] of rocks){
     const radius=r*.86;
     const before=(game.position.x-rx)**2+(game.position.z-rz)**2;
     const after=(tx-rx)**2+(tz-rz)**2;
     if(after<radius*radius&&after<before-1e-7)return false;
    }
-   return (deck!=null||sample(depth,tx,tz)<.18)&&!treesNearGame(tx,tz);
+   return (deck!=null||sample(depth,tx,tz)<.34)&&!treesNearGame(tx,tz);
   };
-  // Se bloquear na diagonal, deslizar pelo eixo livre sem grudar na rocha.
+  // Deslize orientado: testar desvios crescentes da direcao solicitada.
+  // O primeiro caminho livre mantem o maximo possivel da intencao do jogador.
   if(canMoveTo(nx,nz)){game.position.x=nx;game.position.z=nz;}
-  else if(canMoveTo(nx,game.position.z))game.position.x=nx;
-  else if(canMoveTo(game.position.x,nz))game.position.z=nz;
+  else{
+   const step=dt*speed*length;
+   const heading=Math.atan2(dirZ,dirX);
+   let moved=false;
+   for(const offset of [.22,-.22,.46,-.46,.72,-.72,1.02,-1.02,1.42,-1.42]){
+    const tx=clamp(game.position.x+Math.cos(heading+offset)*step,-W*.48,W*.48);
+    const tz=clamp(game.position.z+Math.sin(heading+offset)*step,-L*.48,L*.48);
+    if(canMoveTo(tx,tz)){game.position.x=tx;game.position.z=tz;moved=true;break;}
+   }
+   if(!moved){
+    if(Math.abs(dirX)>=Math.abs(dirZ)){
+     if(canMoveTo(nx,game.position.z))game.position.x=nx;
+     else if(canMoveTo(game.position.x,nz))game.position.z=nz;
+    }else{
+     if(canMoveTo(game.position.x,nz))game.position.z=nz;
+     else if(canMoveTo(nx,game.position.z))game.position.x=nx;
+    }
+   }
+  }
   const newHeading=Math.atan2(dirX,dirZ);
   game.heading+=Math.atan2(Math.sin(newHeading-game.heading),
    Math.cos(newHeading-game.heading))*Math.min(1,dt*8);
