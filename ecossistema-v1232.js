@@ -23,7 +23,7 @@ const foodResources=new Float32Array(cells);
 // mas não eliminam cobertura verde nas outras áreas do mapa.
 const nestBareMask=new Uint8Array(cells);
 function paintNestBareSoil(x,z){
- const radius=.24,inner=.09;
+ const radius=.13,inner=.055;
  const i0=Math.max(0,Math.floor((x-radius+W*.5)/dx));
  const i1=Math.min(NX-1,Math.ceil((x+radius+W*.5)/dx));
  const j0=Math.max(0,Math.floor((z-radius+L*.5)/dz));
@@ -35,7 +35,7 @@ function paintNestBareSoil(x,z){
   const mask=clamp((radius-d)/(radius-inner),0,1);
   const eased=mask*mask*(3-2*mask);
   nestBareMask[k]=Math.max(nestBareMask[k],Math.round(255*eased));
-  cover[k]=Math.min(cover[k],1-eased);
+  cover[k]=Math.min(cover[k],1-Math.pow(eased,4));
   foodResources[k]*=1-eased;
  }
  // Força uma atualização das instâncias sem esperar uma nova geração de grama.
@@ -83,7 +83,7 @@ function grassAliveScale(k){
  const wear=Math.max(traffic[k],animalTrail[k]),c=cover[k];
  const hydro=riverMask[k]>.01?0:1;
  const alive=fixedRoadMask[k]>.06?0:
-  clamp(c*(1-wear)*hydro*(1-nestBareMask[k]/255),0,1);
+  clamp(c*(1-wear)*hydro*(1-Math.pow(nestBareMask[k]/255,4)),0,1);
  return alive>.11?(.47+.53*alive):.0001;
 }
 function applyGrassQuality(){
@@ -651,7 +651,7 @@ async function grassShape(){
   if(Math.abs(x)>W*.49||Math.abs(z)>L*.49)return -1;
   const k=idx(x,z);
   if(fixedRoadMask[k]>.045||Math.abs(z-roadZ(x))<1.11||
-    nestBareMask[k]>20||Math.abs(x-riverX(z))<3.1||api.depth[k]>.068||
+    nestBareMask[k]>190||Math.abs(x-riverX(z))<3.1||api.depth[k]>.068||
     cover[k]<.025)return -1;
   return k;
  }
@@ -1576,7 +1576,7 @@ function update(dt){
    const normalized=clamp((wear-.18)/.65,0,1);
    roadMask[cell]=Math.max(fixedRoadMask[cell],normalized*normalized*(3-2*normalized));
    const p=position(cell);
-   const permanent=fixedRoadMask[cell]>.06||nestBareMask[cell]>105||Math.abs(p.x-riverX(p.z))<3.1;
+   const permanent=fixedRoadMask[cell]>.06||nestBareMask[cell]>190||Math.abs(p.x-riverX(p.z))<3.1;
    const desired=permanent?0:clamp(1-roadMask[cell]*1.1,0,1);
    cover[cell]=permanent?0:clamp(cover[cell]+(desired-cover[cell])*.008,0,1);
   }
