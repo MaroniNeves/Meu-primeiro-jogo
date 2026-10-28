@@ -422,8 +422,18 @@ function makeRoadSurfaceDetails(){
   const x=(rng()-.5)*W*.955;
   const z=roadZ(x)+(rng()-.5)*1.66;
   const k=idx(x,z);
-  if(fixedRoadMask[k]<.13||Math.abs(x-riverX(z))<4.5||api.depth[k]>.045||riverMask[k]>.56||
-     (Math.abs(x+1.5)<2.2&&Math.abs(z-roadZ(x))<.6))continue;
+  const bridge=window.arcanoBridgeSolid;
+  let atBridgeEnd=false;
+  if(bridge){
+   const angle=-bridge.rotation,du=x-bridge.center.x,dv=z-bridge.center.z;
+   const along=du*Math.cos(angle)+dv*Math.sin(angle);
+   const side=-du*Math.sin(angle)+dv*Math.cos(angle);
+   const gap=Math.abs(along)-bridge.span*.5;
+   if(Math.abs(side)<.95&&gap<.10)continue;
+   atBridgeEnd=Math.abs(side)<.95&&gap>=.10&&gap<2.1;
+  }
+  if((fixedRoadMask[k]<.13&&!atBridgeEnd)||api.depth[k]>.045||riverMask[k]>.56||
+     (!atBridgeEnd&&Math.abs(x-riverX(z))<2.1))continue;
   const t=rng(),kind=t<.38?0:t<.62?1:t<.79?2:3;
   const mesh=meshes[kind],index=mesh.count;
   if(index>=mesh.instanceMatrix.count)continue;
