@@ -196,7 +196,9 @@ const rocks=rocksRaw.map(([x,z,r])=>{
  return [x,z,r];
 });
 const center=z=>-2.3+.67*Math.sin(z*.69)+.60*Math.sin(z*.29+1.3);
-const riverWidth=z=>clamp(1.08+.35*Math.sin(z*.105+.6)+.24*Math.sin(z*.34+1.7)+.12*Math.sin(z*.69),.68,1.80);
+const RIVER_BANK_WIDTH=3.2;
+const riverWidth=z=>clamp(2.65+.60*Math.sin(z*.105+.6)+.42*Math.sin(z*.34+1.7)+.20*Math.sin(z*.69),1.65,3.85);
+window.arcanoRiverProfile={center,halfWidth:riverWidth,bankWidth:RIVER_BANK_WIDTH};
 const riverShore=(x,z)=>Math.abs(x-center(z))-riverWidth(z);
 // O rio acompanha a descida longitudinal do relevo, sem variar o volume com chuva.
 // Queda de agua em um trecho curto, com patamares mais suaves fora dela.
@@ -211,16 +213,14 @@ function riverLevelAt(z){
  return RIVER_SURFACE_LEVEL+riverManualFill-.055*z-.46*drop;
 }
 function riverDepthAt(x,z){
- if(riverShore(x,z)>3.0)return 0;
+ if(riverShore(x,z)>RIVER_BANK_WIDTH+.8)return 0;
  return Math.max(0,riverLevelAt(z)-terrainContact(x,z));
 }
 function elevation(x,z){
  let y=.32-.073*z+.16*Math.sin(x*.83+z*.26)+.115*Math.cos(z*1.22-x*.34)+.055*Math.sin(x*2.25+z*1.92);
- // Canal escavado com margens em encosta e trechos de diferentes profundidades.
+ // Cavidade mais larga e profunda, com fundo descendente e encostas suaves.
  const lateral=Math.abs(x-center(z)),width=riverWidth(z);
- const deep=.39+.09*(.5+.5*Math.sin(z*.37+Math.sin(z*.12)*2))+.04*Math.sin(z*.91)**2;
  const bed=1-clamp(lateral/width,0,1);
- y-=deep*bed*bed*(3-2*bed);
  // Encostas sobem na direção da margem, sem criar saída lateral do rio.
  // Margem e prado compartilham a mesma cota: sem lombada artificial na borda.
  // O gradiente molhado continua sendo apenas de cor, nao altera a altura.
@@ -231,10 +231,11 @@ function elevation(x,z){
  // Leito e margens acima/abaixo de um nivel UNICO; declives enchem ate a mesma linha.
  const waterline=riverLevelAt(z)-riverManualFill;
  // Erosao em rampa larga: o mesmo terreno continua ate a beira d'agua.
- // A escavacao nunca eleva a encosta acima do gramado.
- const slope=smooth(clamp((width+1.55-lateral)/2.05,0,1));
- const bedLevel=Math.min(y,waterline-.14-.12*bed);
- y-=Math.max(0,y-bedLevel)*slope;
+ // O perfil continuo substitui depressões antigas dentro do canal.
+ const bankT=smooth(clamp((width+RIVER_BANK_WIDTH-lateral)/RIVER_BANK_WIDTH,0,1));
+ const channelDepth=.18+.77*smooth(bed);
+ const bedLevel=waterline-channelDepth;
+ y+=(bedLevel-y)*bankT;
  // Fora do canal o relevo e continuo: a margem e a grama usam o mesmo solo.
  return y;
 }
@@ -772,7 +773,7 @@ for(let j=0;j<NZ;j++)for(let i=0;i<NX;i++){
  const k=idx(i,j),x=nx(i),z=nz(j),h=elevation(x,z);soil[k]=h;landP[k*3+1]=h;
  blocked[k]=rockAt(x,z)?1:0;
  const moss=.5+.5*Math.sin(x*1.4-z*.88),v=clamp(.48+.29*Math.sin(x*.43+z*.3)+.15*moss,.14,.9);
- cover[k]=riverShore(x,z)<1.75?0:clamp(.05+.60*moss+.24*Math.sin(z*.55+x*1.33),0,.82);
+ cover[k]=riverShore(x,z)<RIVER_BANK_WIDTH?0:clamp(.05+.60*moss+.24*Math.sin(z*.55+x*1.33),0,.82);
  soilCapacity[k]=.060+.085*cover[k]+.023*(.5+.5*Math.cos(x*1.7-z*.8));
  permeability[k]=0;
   let basinFactor=0;
@@ -2102,7 +2103,7 @@ function placeForestModel(item,root){
   }
   if(rockAt(x,z))continue;
   // Nenhuma árvore, arbusto ou outra vegetação na água ou na margem de terra.
-  if(riverShore(x,z)<(item.type==='tree'||item.type==='pine'?2.35:1.75))continue;
+  if(riverShore(x,z)<(item.type==='tree'||item.type==='pine'?RIVER_BANK_WIDTH+.7:RIVER_BANK_WIDTH+.25))continue;
   let basinBlocked=false;
   for(const b of basins){
    const q=Math.pow((x-b.x)/(b.sx+.2),2)+Math.pow((z-b.z)/(b.sz+.2),2);
@@ -2663,7 +2664,7 @@ function updateRiverEdges(){
   const z=wz(j),cx=center(z),level=riverLevelAt(z);
   for(let side=0;side<2;side++){
    const dir=side?1:-1;let wet=cx,dry=cx;
-   for(let offset=.12;offset<=riverWidth(z)+3.0;offset+=.12){
+   for(let offset=.12;offset<=riverWidth(z)+RIVER_BANK_WIDTH+1;offset+=.12){
     dry=cx+dir*offset;
     if(terrainContact(dry,z)>=level)break;
     wet=dry;
@@ -3126,7 +3127,7 @@ function add(x,z,vol){
  const i=Math.round((x+W/2)/dx),j=Math.round((z+L/2)/dz);
  if(i<1||j<1||i>=NX-1||j>=NZ-1)return;
  const k=idx(i,j);
- if(riverShore(x,z)<1.90||permanentLakeMask?.[k]===1||roadRainFactor(x,z)===0)return;
+ if(riverShore(x,z)<RIVER_BANK_WIDTH+.5||permanentLakeMask?.[k]===1||roadRainFactor(x,z)===0)return;
  depth[k]=Math.min(.55,depth[k]+vol);
 }
 function seed(m){
@@ -3176,7 +3177,7 @@ function hydrologyStep(dt){
   const permanentLake=permanentLakeMask[k]===1;
   if(riverDepth>0){
    depth[k]=riverDepth;
-  }else if(riverShore(gridX[k],gridZ[k])<1.90){
+  }else if(riverShore(gridX[k],gridZ[k])<RIVER_BANK_WIDTH+.5){
    depth[k]=0; // faixa da margem sem extravasamento do rio
   }else if(permanentLake){
    depth[k]=.12; // lago permanente, sem ganho de volume pela chuva
@@ -3200,7 +3201,7 @@ function flowStep(dt,multiplier){
  delta.fill(0);const speed=(.62+rainLevels[level]*.07)*dt*2.0*multiplier;
  for(let j=1;j<NZ-1;j++)for(let i=1;i<NX-1;i++){
   const k=idx(i,j),v=depth[k];
-  if(riverShore(gridX[k],gridZ[k])<1.90||roadRainFactor(gridX[k],gridZ[k])===0||permanentLakeMask?.[k]===1||v<.000008)continue;
+  if(riverShore(gridX[k],gridZ[k])<RIVER_BANK_WIDTH+.5||roadRainFactor(gridX[k],gridZ[k])===0||permanentLakeMask?.[k]===1||v<.000008)continue;
   const head=soil[k]+v,base=k*4;let sum=0;
   flowTransfers[0]=flowTransfers[1]=flowTransfers[2]=flowTransfers[3]=0;
   for(let n=0;n<4;n++){const q=gridNeighbors[base+n];
@@ -3219,7 +3220,7 @@ function flowStep(dt,multiplier){
   depth[k]=Math.max(0,depth[k]+delta[k]);
   const x=gridX[k],z=gridZ[k],river=riverDepthAt(x,z);
   if(river>0)depth[k]=river;
-  else if(riverShore(x,z)<1.90)depth[k]=0;
+  else if(riverShore(x,z)<RIVER_BANK_WIDTH+.5)depth[k]=0;
   else if(permanentLakeMask?.[k]===1)depth[k]=.12;
   else if(roadRainFactor(x,z)===0&&Math.abs(z-roadAt(x))<1.05)depth[k]=0;
   if(i===0||j===0||i===NX-1||j===NZ-1){
@@ -3343,11 +3344,11 @@ function rebuild(){
    const nestDirt=ecoActive?(eco.nestBareMask?.[k]||0)/255:0;
    const distanceToRiver=Math.abs(x-center(z));
    const riverbed=distanceToRiver<=riverWidth(z);
-   const bridgeApproach=Math.abs(z-roadAt(x))<1.70&&distanceToRiver<5.2;
-   const sandBank=distanceToRiver<riverWidth(z)+1.90&&!bridgeApproach;
+   const bridgeApproach=Math.abs(z-roadAt(x))<1.70&&distanceToRiver<riverWidth(z)+RIVER_BANK_WIDTH+2.0;
+   const sandBank=distanceToRiver<riverWidth(z)+RIVER_BANK_WIDTH&&!bridgeApproach;
    // Faixa de umidade da encosta: intensa na agua e transicao suave ate a terra seca.
    const shoreDistance=Math.max(0,distanceToRiver-riverWidth(z));
-   const wetBank=bridgeApproach||approachDry?0:1-smooth(clamp(shoreDistance/1.90,0,1));
+   const wetBank=bridgeApproach||approachDry?0:1-smooth(clamp(shoreDistance/RIVER_BANK_WIDTH,0,1));
    const dirtAmount=bridgeApproach?1:clamp(Math.max(road*(.99+.08*abrasion),nestDirt*.995),0,.995);
    for(let c=0;c<3;c++){
     const ix=o+c;
@@ -3364,7 +3365,7 @@ function rebuild(){
     const bankTone=dryBank[c]*(1-.34*wetBank);
     const naturalBank=bankTone*(wetBank)+sandTone*(1-wetBank);
     const terrainBase=green*(1-dirtAmount)+soilTone*dirtAmount;
-    const bankBlend=riverbed?1:1-smooth(clamp((shoreDistance-1.15)/.95,0,1));
+    const bankBlend=riverbed?1:1-smooth(clamp((shoreDistance-1.8)/1.4,0,1));
     // Terra da estrada prevalece no seu eixo; nas bordas se mistura com a areia.
     const roadBlend=smooth(clamp((Math.abs(z-roadAt(x))-.54)/1.00,0,1));
     const shoreBlend=riverbed?1:bankBlend*(bridgeApproach?roadBlend:1);
