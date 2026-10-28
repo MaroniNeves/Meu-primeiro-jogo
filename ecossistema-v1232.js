@@ -60,6 +60,9 @@ const targetNativeGrass=api.forestInstances.filter(a=>a.type==='grass');
 // A estrada atravessa a clareira central, não fica escondida atrás da floresta.
 const roadZ=x=>.92-.70*Math.sin(x*.47+.6)+.17*Math.sin(x*1.34);
 const riverX=z=>-2.3+.67*Math.sin(z*.69)+.60*Math.sin(z*.29+1.3);
+const riverHalfWidth=z=>window.arcanoRiverProfile?.halfWidth(z)||2.65;
+const riverBankEdge=z=>riverHalfWidth(z)+(window.arcanoRiverProfile?.bankWidth||3.2);
+
 function idx(x,z){const i=clamp(Math.round((x+W*.5)/dx),0,NX-1),j=clamp(Math.round((z+L*.5)/dz),0,NZ-1);return j*NX+i;}
 function position(k){const i=k%NX,j=(k-i)/NX;return {x:-W*.5+i*dx,z:-L*.5+j*dz};}
 function height(x,z){
@@ -467,9 +470,9 @@ function makeRoad(){
  }
  if(crossing!==null){
   function bank(direction){
-   for(let d=1.15;d<4.4;d+=.04){
+   for(let d=1.15;d<11.5;d+=.04){
     const x=crossing+d*direction,z=roadZ(x),k=idx(x,z);
-    if(Math.abs(x-riverX(z))>2.65&&riverMask[k]<.075&&roadMask[k]>.32)
+    if(Math.abs(x-riverX(z))>riverBankEdge(z)+.15&&riverMask[k]<.075&&roadMask[k]>.32&&api.depth[k]<.02)
      return {x,z,y:height(x,z)};
    }
    return null;
@@ -477,7 +480,7 @@ function makeRoad(){
   const left=bank(-1),right=bank(1);
   if(left&&right){
    const span=Math.hypot(right.x-left.x,right.z-left.z);
-   if(span>3&&span<9.5){
+   if(span>3&&span<25){
     const mx=(left.x+right.x)*.5,mz=(left.z+right.z)*.5;
     const direction=Math.atan2(right.z-left.z,right.x-left.x);
     const deckY=Math.max(left.y,right.y)+.13;
@@ -614,11 +617,11 @@ function initializeLandscape(){
   const historic=roadT*roadT*(3-2*roadT);
   // A trilha termina na cabeceira; trânsito histórico não pinta solo no leito.
   // Pintar estrada ate as cabeceiras; so o canal fica sem solo de estrada.
-  const onCrossing=distRiver<1.40;
+  const onCrossing=distRiver<riverHalfWidth(z)+.25;
   traffic[k]=onCrossing?0:historic*.76;
   fixedRoadMask[k]=onCrossing?0:historic;
   roadMask[k]=fixedRoadMask[k];
-  riverMask[k]=clamp(1-distRiver/1.2,0,1);
+  riverMask[k]=clamp(1-distRiver/(riverHalfWidth(z)+.2),0,1);
   // Água somente dentro do leito, nunca sobre a terra das margens.
   // Profundidade permanente definida somente pelo canal principal.
   // O leito já foi escavado pelo terreno principal; evitar escavar duas vezes.
@@ -629,7 +632,7 @@ function initializeLandscape(){
   const shade=.5+.5*Math.sin(x*.85+z*.34)*Math.cos(z*.6);
   const moist=api.soilMoisture[k]/Math.max(.001,api.soilCapacity[k]);
   lightField[k]=clamp(.45+.35*shade,0,1);
-  cover[k]=distRiver<3.1||fixedRoadMask[k]>.06?0:
+  cover[k]=distRiver<riverBankEdge(z)||fixedRoadMask[k]>.06?0:
    clamp(.89+.08*shade+.12*moist-roadMask[k]*1.06-riverMask[k]*.90,0,1);
   foodResources[k]=Math.max(0,cover[k]*(1-roadMask[k])*.12);
  }
@@ -662,7 +665,7 @@ async function grassShape(){
   if(Math.abs(x)>W*.49||Math.abs(z)>L*.49)return -1;
   const k=idx(x,z);
   if(fixedRoadMask[k]>.045||Math.abs(z-roadZ(x))<1.11||
-    nestBareMask[k]>190||Math.abs(x-riverX(z))<3.1||api.depth[k]>.068||
+    nestBareMask[k]>190||Math.abs(x-riverX(z))<riverBankEdge(z)||api.depth[k]>.068||
     cover[k]<.025)return -1;
   return k;
  }
@@ -692,7 +695,7 @@ async function grassShape(){
    if(!geo||planted>=grassBudgets.high)return false;
    const k=suitable(x,z);if(k<0)return false;
    // Moitas mais altas so aparecem longe da margem e nunca na agua.
-   if(multiplier>1.5&&Math.abs(x-riverX(z))<5.0)return false;
+   if(multiplier>1.5&&Math.abs(x-riverX(z))<riverBankEdge(z)+1.2)return false;
    const growth=clamp(cover[k]*(1-traffic[k])*
      (.55+.45*clamp(api.soilPlant[k],0,1)),0,1);
    if(growth<.02)return false;
@@ -751,7 +754,7 @@ async function grassShape(){
        other<.82?'grassMixed1':'grassMixed2';
       if(plant(secondary,px,pz,1.04+growth*.30))clumps++;
       // Uma minoria das moitas recebe gramíneas bem mais altas, longe do rio.
-      if(random()<.085&&Math.abs(px-riverX(pz))>5.0)
+      if(random()<.085&&Math.abs(px-riverX(pz))>riverBankEdge(pz)+1.2)
        if(plant('grassTall1',px+.10,pz+.08,2.35+growth*.40))clumps++;
      }
     }
@@ -1064,7 +1067,7 @@ function createRiverbankPebbles(){
  for(let i=0;i<count;i++){
   const z=-L*.47+(i/count)*L*.94+Math.sin(i*2.31)*.20;
   const side=i%2===0?-1:1;
-  const x=riverX(z)+side*(1.34+(i%7)*.19+Math.abs(Math.sin(i*4.13))*.4);
+  const x=riverX(z)+side*(riverHalfWidth(z)+.3+(i%7)*.19+Math.abs(Math.sin(i*4.13))*.4);
   const scale=.065+.09*Math.abs(Math.sin(i*1.71));
   o.position.set(x,height(x,z)+scale*.17,z);
   o.rotation.set(i*.19,i*1.39,i*.47);
@@ -1201,7 +1204,7 @@ function initialColonies(){
  for(const [originalX,originalZ] of [[-6,2.5],[4.5,2.9],[-2,-4.1]]){
   // Mover qualquer ninho em agua para solo seco, distante da beira do rio.
   let x=originalX,z=originalZ;
-  const safe=(px,pz)=>Math.abs(px-riverX(pz))>3.85&&
+  const safe=(px,pz)=>Math.abs(px-riverX(pz))>riverBankEdge(pz)+.8&&
    api.depth[idx(px,pz)]<.015&&riverMask[idx(px,pz)]<.02;
   if(!safe(x,z)){
    let chosen=false;
@@ -1607,7 +1610,7 @@ function update(dt){
    const normalized=clamp((wear-.18)/.65,0,1);
    roadMask[cell]=Math.max(fixedRoadMask[cell],normalized*normalized*(3-2*normalized));
    const p=position(cell);
-   const permanent=fixedRoadMask[cell]>.06||nestBareMask[cell]>190||Math.abs(p.x-riverX(p.z))<3.1;
+   const permanent=fixedRoadMask[cell]>.06||nestBareMask[cell]>190||Math.abs(p.x-riverX(p.z))<riverBankEdge(p.z);
    const desired=permanent?0:clamp(1-roadMask[cell]*1.1,0,1);
    cover[cell]=permanent?0:clamp(cover[cell]+(desired-cover[cell])*.008,0,1);
   }
