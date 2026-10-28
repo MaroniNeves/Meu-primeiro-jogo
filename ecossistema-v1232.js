@@ -865,7 +865,15 @@ function leafGeometry(){
  geo.setAttribute('position',new T.Float32BufferAttribute(v,3));
  geo.computeVertexNormals();return geo;
 }
+let leafEffectsEnabled=false;
+function setLeafEffectsEnabled(enabled){
+ leafEffectsEnabled=!!enabled;
+ if(leafEffectsEnabled&&!leafMeshes.length)setupLeafVisuals();
+ leafGroup.visible=leafEffectsEnabled;
+ return leafEffectsEnabled;
+}
 function setupLeafVisuals(){
+ if(leafMeshes.length)return;
  const geometry=window.ARCANO_NATURE_MODELS_V1239?.geometry?.(T,'leaf')||leafGeometry();
  const needles=leafGeometry();
  const palette=['#598739','#c8ab54','#b96443','#5b7140'];
@@ -1615,7 +1623,8 @@ function updateGrassMeshes(force=false){
 }
 // A estrada NÃO é um objeto gerado: é o resultado histórico de pisoteio,
 // compactação, perda de clorofila e redução dos tufos de grama.
-const largeAnimals=[];
+
+const largeAnimals=[]; // Só receberá animais com modelo visível integrado.
 let grassRefreshRequested=false;
 function stampTraffic(x,z,weight=.25,animal=false){
  const ix=Math.round((x+W*.5)/dx),iz=Math.round((z+L*.5)/dz);
@@ -1654,10 +1663,12 @@ function trample(x,z,weight=.22){
  // Recalcular mais de 100 mil instâncias em CADA pegada travava o Android.
  grassRefreshRequested=true;
 }
-function registerAnimalFootfall(x,z,mass=1){
+function registerAnimalFootfall(x,z,mass=1,animal=null){
+ if(!animal?.isObject3D||!animal.visible||!animal.parent)return false;
  // API para grandes animais que forem integrados no laboratório:
  // andar pela mata compacta terra; seguir uma trilha facilita o percurso.
  stampTraffic(x,z,clamp(mass*.22,.12,.68),true);
+ return true;
 }
 function movementCost(x,z){
  if(Math.abs(x)>W*.48||Math.abs(z)>L*.48)return 30;
@@ -1668,50 +1679,19 @@ function movementCost(x,z){
   clamp(slope,0,3)*2+api.depth[k]*14+(rock?10:0)
   -clamp(Math.max(roadMask[k],animalTrail[k]),0,1)*.55;
 }
-function initializeLargeAnimalRoutes(){
- // Enquanto não há modelos 3D dos animais grandes, o trânsito é simulado
- // sem introduzir criaturas artificiais visíveis ao usuário.
- for(let i=0;i<6;i++){
-  const x=(i-2.5)*W*.11,z=i%2?L*.12:-L*.12;
-  largeAnimals.push({x,z,angle:random()*Math.PI*2,
-   speed:.35+random()*.31,phase:random()*6.28,steps:0});
- }
-}
-function animateAnimalTrails(dt){
- if(!largeAnimals.length)return;
- for(const a of largeAnimals){
-  a.steps++;
-  const options=[-1.1,-.75,-.4,0,.4,.75,1.1];
-  let best=null,cost=Infinity;
-  for(const offset of options){
-   const angle=a.angle+offset;
-   const tx=a.x+Math.cos(angle)*1.1,tz=a.z+Math.sin(angle)*1.1;
-   const score=movementCost(tx,tz)+Math.abs(offset)*.08+random()*.13;
-   if(score<cost){cost=score;best=angle;}
-  }
-  if(best===null)continue;
-  a.angle=best;
-  const nx=clamp(a.x+Math.cos(a.angle)*a.speed*dt,-W*.46,W*.46);
-  const nz=clamp(a.z+Math.sin(a.angle)*a.speed*dt,-L*.46,L*.46);
-  if(Math.hypot(nx-a.x,nz-a.z)>.0001){
-   a.x=nx;a.z=nz;
-   stampTraffic(a.x,a.z,.095,true);
-  }
- }
-}
 let ecologicalAccumulator=0,time=0,grassAccumulator=0,uiAccumulator=0;
 function update(dt){
  if(!ready)return;
  dt=Math.min(dt,.09);time+=dt;ecologicalAccumulator+=ecologicalDayRate(dt);
  animateGrassVisuals(dt);
  wildfire?.update(dt,api.getMainCamera?.());
- // Queda de folhas desativada; manter apenas maturacao visual de frutos.
+ if(leafEffectsEnabled)animateLeafFall(dt);
  animateFruits(dt);
  grassAccumulator+=dt;uiAccumulator+=dt;
  // Recarrega o rio somente pela fonte a montante, sem água infinita em toda a cena.
  if(grassAccumulator>.7){
   grassAccumulator=0;
-  animateAnimalTrails(.7);
+  // Nenhuma trilha simulada sem um animal visível no jogo.
   if(api.getGraphicsQuality()!==lastGrassQuality)applyGrassQuality();
   updateFootprints();clearLargeRocksFromTrails();
   // Alimentação distribuída ao longo da entrada do canal.
@@ -1745,6 +1725,7 @@ function update(dt){
  if(uiAccumulator>1.4){uiAccumulator=0;hideDetachedAntModels();status();}
 }
 function status(){
+ if(!window.arcanoLaboratoryVisible?.())return;
  if(wildfire){
   const f=wildfire.status(),element=$('fireStatus');
   if(element)element.textContent='🔥 Fogo: '+f.burning+' células queimando · '
@@ -1896,7 +1877,7 @@ async function setup(){
   else animateGrassVisuals(dt);
  }
  requestAnimationFrame(frame);
- await grassShape();rockShape();createRiverbankPebbles();createRiverbedHabitat();setupLeafVisuals();setupFruits();visualizeAnimals();initializeLargeAnimalRoutes();
+ await grassShape();rockShape();createRiverbankPebbles();createRiverbedHabitat();setupFruits();visualizeAnimals();
  drawNestCutaway();hideDetachedAntModels();
  const board=$('ecoStatus');if(board)board.textContent='Pacotes enviados integrados: '+Object.keys(meshLibrary).length+' malhas · '+colonies.length+' colônias.';
  const s=$('ecoSpeed');if(s){s.oninput=e=>{biologicalSpeed=clamp(+e.target.value,1,200);$('ecoSpeedVal').textContent=biologicalSpeed+'×';};}
@@ -1911,17 +1892,7 @@ async function setup(){
   status();
  };
  const animalButton=$('ecoAnimalTrailTest');
- if(animalButton)animalButton.onclick=()=>{
-  // Trilhas novas fora do caminho original: caminho formado apenas por
-  // repetição de passos, nunca por um plano sobreposto.
-  for(let pass=0;pass<6;pass++)for(let i=0;i<130;i++){
-   const x=-W*.30+i*W*.60/129;
-   const z=9.5+Math.sin(x*.10)*2.1;
-   registerAnimalFootfall(x,z,.95);
-  }
-  recordEcoEvent('Trilha de animais grandes formada por trânsito repetido.');
-  clearLargeRocksFromTrails();updateGrassMeshes();status();
- };
+ if(animalButton){animalButton.disabled=true;animalButton.title='Disponível quando houver animais com modelos visíveis.';}
  const regrowButton=$('ecoRegrowTest');
  if(regrowButton)regrowButton.onclick=()=>{
   const living=largeAnimals.splice(0);
@@ -2004,10 +1975,12 @@ async function setup(){
   recordEcoEvent('Maçãs geradas: amadurecimento, queda e decomposição.');
   status();
  };
+ const leafToggle=$('leafEffectsToggle');if(leafToggle){leafToggle.onchange=e=>setLeafEffectsEnabled(e.target.checked);if(leafToggle.checked)setLeafEffectsEnabled(true);}
  const leafTest=$('ecoLeafTest');
  if(leafTest)leafTest.onclick=()=>{
-  // Folhas caindo foram desativadas para reduzir custo visual e de física.
-  recordEcoEvent('A simulação de folhas caindo está desativada.');
+  setLeafEffectsEnabled(true);for(let i=0;i<16;i++)spawnFallingLeaf();
+  const toggle=$('leafEffectsToggle');if(toggle)toggle.checked=true;
+  recordEcoEvent('Efeito de folhas ativado sob demanda.');
   status();
  };
  const organic=$('ecoCarcass');if(organic)organic.onclick=()=>{
@@ -2022,7 +1995,7 @@ async function setup(){
  };
  const original=api.grass;if(original){original.visible=false;original.count=0;}
  for(const obj of targetNativeGrass)obj.obj.visible=false;
- window.arcanoEcoV1232={active:true,cover,traffic,roadMask,animalTrail,riverMask,nestBareMask,colonies,
+ window.arcanoEcoV1232={active:true,setLeafEffectsEnabled,cover,traffic,roadMask,animalTrail,riverMask,nestBareMask,colonies,
   registerAnimalFootfall,movementCost,largeAnimals,
   trample,addCarcass,update,status,api,ready:()=>ready,setMagnification:n=>previewMagnification=n,
   getColony:id=>colonies.find(c=>c.id===id),getWorms:()=>[],inspectColony:updateColonyInspector,
@@ -2040,6 +2013,7 @@ async function setup(){
  status();
 }
 setup().catch(e=>{
+ api.ensureLegacyStoneVisuals?.();
  console.error('[Arcano V12.32] falha ao inicializar ecossistema:',e);
  const el=$('ecoStatus');if(el)el.textContent='Falha no carregamento de modelos: '+(e.message||e);
 });
