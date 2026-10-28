@@ -2653,7 +2653,7 @@ const SURFACE_VISIBLE=.006,SURFACE_RIPPLE=.012,SURFACE_POND=.018;
 const wet=new Float32Array(size),flow=new Float32Array(size*2);
 const flowXField=new Float32Array(size),flowZField=new Float32Array(size);
 // Faixa estreita dedicada ao rio: nenhuma malha de agua espalhada sobre o mapa.
-const VIS_NX=mobile?25:33,VIS_NZ=mobile?180:260,VIS_SIZE=VIS_NX*VIS_NZ;
+const VIS_NX=mobile?25:41,VIS_NZ=mobile?600:1000,VIS_SIZE=VIS_NX*VIS_NZ;
 const waterPositions=new Float32Array(VIS_SIZE*3),waterDepths=new Float32Array(VIS_SIZE);
 const waterMud=new Float32Array(VIS_SIZE),waterFlow=new Float32Array(VIS_SIZE*2);
 const waterG=new T.BufferGeometry(),triangles=[];
@@ -2737,7 +2737,7 @@ function createInteractiveRiver(){
   const normals=[riverSimulation.normal,riverSimulation.normal];
   const mesh=new window.ArcanoWater2(waterG,{
    color:0xc6ded3,scale:1,flowDirection:new T.Vector2(0,-1),flowSpeed:.035,
-   reflectivity:.055,textureWidth:mobile?256:512,textureHeight:mobile?256:512,
+   reflectivity:.08,textureWidth:mobile?256:512,textureHeight:mobile?256:512,
    normalMap0:normals[0],normalMap1:normals[1]
   });
   riverSimulation.normal.wrapS=riverSimulation.normal.wrapT=T.ClampToEdgeWrapping;
@@ -2757,6 +2757,7 @@ function createInteractiveRiver(){
    'flow = vec2(vCurrent.x,-vCurrent.y)*2.0;');
   shader.fragmentShader=shader.fragmentShader.replace('( vUv * scale ) + flow * flowMapOffset0','vUv');
   shader.fragmentShader=shader.fragmentShader.replace('( vUv * scale ) + flow * flowMapOffset1','vUv');
+  shader.fragmentShader=shader.fragmentShader.replace('normal.xz * 0.05','normal.xz * 0.11');
   shader.fragmentShader=shader.fragmentShader.replace('gl_FragColor = vec4( color, 1.0 ) * mix( refractColor, reflectColor, reflectance );',
    'vec3 absorption=exp(-vec3(.85,.25,.16)*max(vDepth,0.0)); vec3 bed=refractColor.rgb*absorption; gl_FragColor=vec4(color*mix(bed,reflectColor.rgb,reflectance),smoothstep(.006,.045,vDepth));');
   shader.side=T.DoubleSide;shader.depthWrite=false;
@@ -3126,6 +3127,9 @@ function refreshRainDiagnostics(){
  activeRainRegions=regions;
 }
 function add(x,z,vol){
+ if(riverDepthAt(x,z)>.025){
+  riverSimulation.disturb(x,z,clamp(vol*.6,.035,.085),.42);return;
+ }
  const i=Math.round((x+W/2)/dx),j=Math.round((z+L/2)/dz);
  if(i<1||j<1||i>=NX-1||j>=NZ-1)return;
  const k=idx(i,j);
@@ -3444,6 +3448,7 @@ const waterTintBase=new T.Color('#a8c8d6'),waterTintMud=new T.Color('#907058');
 const dirtTintDark=new T.Color('#584436');
 const waterTintScratch=new T.Color(),dirtTintScratch=new T.Color();
 function spawnSplash(x,z,h){
+ const onRiver=riverDepthAt(x,z)>.025;
  const i=Math.round((x+W*.5)/dx),j=Math.round((z+L*.5)/dz);
  if(i<0||j<0||i>=NX||j>=NZ)return;
  const k=idx(i,j);
@@ -3472,7 +3477,8 @@ function spawnSplash(x,z,h){
    size:inWater?.13+random()*.10:saturation>.58?.11+random()*.10:.08+random()*.07
   });
  }
- if(ripples.length<MAX_RIPPLES){
+ if(onRiver&&random()<.18)riverSimulation.disturb(x,z,.009,.22);
+ if(!onRiver&&ripples.length<MAX_RIPPLES){
   // Ondas de solo são pontuais; as de água propagam-se por mais tempo e distância.
   if(inWater||random()<.54){
    const mesh=ripplePool.find(m=>!m.visible&&!ripples.some(r=>r.mesh===m));
@@ -3492,14 +3498,9 @@ function emitGameWaterFootstep(x,z,heading,running,side){
  const fx=x+Math.cos(heading)*side*.075+Math.sin(heading)*.035;
  const fz=z-Math.sin(heading)*side*.075+Math.cos(heading)*.035;
  if(riverDepthAt(fx,fz)<.05)return;
- riverSimulation.disturb(fx,fz,running?.026:.017,.55);
+ riverSimulation.disturb(fx,fz,running?.085:.055,.42);
  const top=riverLevelAt(fz);
- const ripple=ripplePool.find(mesh=>!mesh.visible&&!ripples.some(r=>r.mesh===mesh));
- if(ripple&&ripples.length<MAX_RIPPLES){
-  ripple.material=rippleMaterial;ripple.visible=true;
-  ripples.push({mesh:ripple,x:fx,z:fz,kind:'water',
-    age:0,life:running?.94:.78});
- }
+ // Surface height and normals carry the wave; no ring mesh is drawn on the river.
  const count=running?10:6,power=running?.66:.42;
  for(let i=0;i<count&&splashes.length<MAX_SPLASH;i++){
   const angle=gameFootstepRng()*Math.PI*2;
