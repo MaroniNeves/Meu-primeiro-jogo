@@ -23,7 +23,7 @@
   constructor(geometry,nx,nz,length){
    this.geometry=geometry;this.nx=nx;this.nz=nz;this.length=length;
    this.height=new Float32Array(nx*nz);this.velocity=new Float32Array(nx*nz);
-   this.next=new Float32Array(nx*nz);this.bytes=new Uint8Array(nx*nz*4);
+   this.next=new Float32Array(nx*nz);this.nextVelocity=new Float32Array(nx*nz);this.travel=new Float32Array(nz);this.bytes=new Uint8Array(nx*nz*4);
    this.wave=new Float32Array(nx*nz);this.acc=0;this.time=0;
    geometry.setAttribute('waveHeight',new T.BufferAttribute(this.wave,1));
    this.normal=new T.DataTexture(this.bytes,nx,nz,T.RGBAFormat);
@@ -51,20 +51,35 @@
    const n=this.nx,m=this.nz,h=this.height,v=this.velocity;
    const p=this.geometry.attributes.position.array,d=this.geometry.attributes.waterDepth.array;
    const dz=this.length/(m-1),fixed=1/120;
+   const current=this.geometry.attributes.waterFlow?.array;
+   // Travel time down the curving channel: every phase moves from high to low.
+   let travel=0;
+   for(let j=0;j<m;j++){
+    const k=j*n+Math.floor(n/2),speed=Math.max(.15,current?current[k*2+1]:.35);
+    travel+=dz/speed;this.travel[j]=travel;
+   }
    while(this.acc>=fixed){
     for(let j=0;j<m;j++)for(let i=0;i<n;i++){
-     const k=j*n+i;if(d[k]<.006){this.next[k]=0;v[k]=0;continue;}
+     const k=j*n+i;if(d[k]<.006){this.next[k]=0;this.nextVelocity[k]=0;continue;}
      const left=i?k-1:k,right=i<n-1?k+1:k,up=j?k-n:k,down=j<m-1?k+n:k;
      const dx=Math.max(.045,(p[right*3]-p[left*3])/((i&&i<n-1)?2:1));
      const lap=((d[left]>.006?h[left]:h[k])+(d[right]>.006?h[right]:h[k])-2*h[k])/(dx*dx)+((d[up]>.006?h[up]:h[k])+(d[down]>.006?h[down]:h[k])-2*h[k])/(dz*dz);
-     v[k]=(v[k]+lap*.45*fixed)*.993;
-     this.next[k]=Math.max(-.035,Math.min(.035,h[k]+v[k]*fixed));
+     const courant=Math.min(.4,Math.max(0,current?current[k*2+1]:.35)*fixed/dz);
+     const upstreamHeight=d[up]>.006?h[up]:h[k];
+     const upstreamVelocity=d[up]>.006?v[up]:v[k];
+     const velocity=(v[k]-courant*(v[k]-upstreamVelocity)+lap*.45*fixed)*.993;
+     this.nextVelocity[k]=velocity;
+     this.next[k]=Math.max(-.035,Math.min(.035,h[k]-courant*(h[k]-upstreamHeight)+velocity*fixed));
     }
-    h.set(this.next);this.acc-=fixed;
+    h.set(this.next);v.set(this.nextVelocity);this.acc-=fixed;
    }
    for(let k=0;k<h.length;k++){
-    const z=p[k*3+2],x=p[k*3],fade=Math.min(1,Math.max(0,d[k]/.07));
-    this.wave[k]=fade*(h[k]+.0028*Math.sin(z*4.1+x*2.3-this.time*2.1)+.0018*Math.sin(z*6.7-x*3.2-this.time*3.3));
+    const row=Math.floor(k/n),across=(k%n)/(n-1),fade=Math.min(1,Math.max(0,d[k]/.07));
+    const phase=this.travel[row]-this.time;
+    const speed=current?Math.hypot(current[k*2],current[k*2+1]):.35;
+    const amplitude=.0025+Math.min(1,speed)*.004;
+    this.wave[k]=fade*(h[k]+amplitude*Math.sin(phase*2.1+Math.sin(across*11)*.7)+
+     amplitude*.55*Math.sin(phase*3.3-across*9.2));
    }
    this.geometry.attributes.waveHeight.needsUpdate=true;this.encodeNormals();
   }
