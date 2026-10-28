@@ -883,7 +883,7 @@ stones.add(importedStoneVisuals);
 const importedRockModels=[];
 const stonePalette=['#858a86','#8f877d','#757e7b','#998f80','#737b74','#877c6f','#919087'];
 const mossTone=new T.Color('#5d6d55');
-const stoneMaterial=new T.MeshToonMaterial({color:'#ffffff',vertexColors:true});
+let stoneMaterial=new T.MeshToonMaterial({color:'#ffffff',vertexColors:true});
 const stoneOutlineMaterial=new T.MeshBasicMaterial({
  color:'#49504b',side:T.BackSide,transparent:true,opacity:.75,depthWrite:false
 });
@@ -934,14 +934,14 @@ const stoneModels=[
 ];
 // Perfil físico aproximado das rochas: gotas atingem a parte exposta, não a submersa.
 const rockSolids=[];
-let visibleRocks=0;
+let visibleRocks=0;const legacyRockSpecs=[];let legacyStonesReady=false;
 for(let i=0;i<rocks.length;i++){
  const [x,z,r]=rocks[i];
  const pieces=1+(random()<.38?1:0);
- const cluster=new T.Group();cluster.name='Rochas orgânicas '+(i+1);
+ 
  for(let p=0;p<pieces;p++){
   const geo=stoneModels[(i*3+p*2)%stoneModels.length];
-  const rock=new T.Mesh(geo,stoneMaterial);
+  const rock=new T.Object3D();
   const side=p===0?1:(.38+random()*.22);
   const sx=r*side*(.96+random()*.20),sy=r*side*(.78+random()*.27),
         sz=r*side*(.95+random()*.19);
@@ -954,15 +954,16 @@ for(let i=0;i<rocks.length;i++){
   rockSolids.push({x:px,z:pz,rx:sx*1.04,rz:sz*1.04,
     bottom:rock.position.y+geo.userData.lowest*sy,
     top:rock.position.y+geo.userData.highest*sy});
-  // Outline discreto de anime, aplicado à silhueta, não uma borda preta larga.
-  const outline=new T.Mesh(geo,stoneOutlineMaterial);
-  outline.scale.set(1.025,1.034,1.025);outline.renderOrder=1;
-  outline.castShadow=false;outline.receiveShadow=false;
-  rock.add(outline);
-  cluster.add(rock);visibleRocks++;
+  legacyRockSpecs.push({geo,position:rock.position.clone(),scale:rock.scale.clone(),rotation:rock.rotation.clone()});visibleRocks++;
  }
- proceduralStoneVisuals.add(cluster);
 }
+function ensureLegacyStoneVisuals(){
+ if(legacyStonesReady)return;legacyStonesReady=true;
+ for(const spec of legacyRockSpecs){
+  const rock=new T.Mesh(spec.geo,stoneMaterial);rock.position.copy(spec.position);rock.scale.copy(spec.scale);rock.rotation.copy(spec.rotation);
+  rock.castShadow=true;rock.receiveShadow=true;
+  const outline=new T.Mesh(spec.geo,stoneOutlineMaterial);outline.scale.set(1.025,1.034,1.025);rock.add(outline);proceduralStoneVisuals.add(rock);
+ }
 // Seixos baixos ao redor das rochas grandes: 1 InstancedMesh em vez de muitas draw calls.
 const pebbleMax=mobile?70:115;
 const pebbleGeometry=makeAnimeStone(131,1,1);
@@ -987,29 +988,14 @@ for(let i=0;i<rocks.length&&pebbleCount<pebbleMax;i++){
 }
 pebbles.count=pebbleCount;pebbles.instanceMatrix.needsUpdate=true;
 proceduralStoneVisuals.add(pebbles);
+ proceduralStoneVisuals.visible=true;stones.visible=true;
+}
+
 
 // Plantas 3D estilizadas: cada muda tem âncora no solo, biomassa e cor próprias.
 // A mesma malha instanciada responde à fertilidade local (água, N/P/K, pH, sais e oxigênio).
-const grass=new T.InstancedMesh(
- new T.ConeGeometry(.085,.36,4),
- new T.MeshStandardMaterial({color:'#ffffff',roughness:1,flatShading:true}),
- mobile?160:330);
+const grass=new T.Group();grass.name='Grama antiga aposentada';grass.count=0;grass.visible=false;
 const ob=new T.Object3D(),grassAnchors=[];
-let gcount=0;
-for(let k=0;k<grass.count*3&&gcount<grass.count;k++){
- const x=(random()-.5)*W,z=(random()-.5)*L,y=terrainContact(x,z);
- if(rockAt(x,z)||y<-.15)continue;
- const scale=.60+random()*.95,angle=random()*6.28;
- grassAnchors.push({x,z,y,scale,angle});
- ob.position.set(x,y+.09*scale,z);ob.scale.set(scale,scale,scale);ob.rotation.y=angle;ob.updateMatrix();
- grass.setMatrixAt(gcount++,ob.matrix);
- grass.setColorAt(gcount-1,new T.Color('#6b9465'));
-}
-grass.count=gcount;
-// V12.51: grama cônica antiga é apenas um artefato histórico.
-// NÃO anexar à cena: nenhuma ordem de carregamento pode fazê-la reaparecer.
-grass.castShadow=false;grass.frustumCulled=false;grass.visible=false;
-grass.count=0;
 const plantBaseGreen=new T.Color('#668f5e'),plantHealthyGreen=new T.Color('#90ae71'),plantDry=new T.Color('#a19463');
 function updatePlantVisuals(){
  // Grama cônica aposentada; não atualiza matrizes antigas.
@@ -1036,6 +1022,9 @@ updatePlantVisuals();
 // Mudas com dois lóbulos/folhas, sem efeitos mágicos: arte original low-poly.
 const sproutGroup=new T.Group();sproutGroup.name='Mudas anime alimentadas pelo solo';scene.add(sproutGroup);
 const sproutHeads=[],sproutColors=['#83a775','#6f9666','#98ae7e'];
+let sproutsReady=false;
+function ensureSproutFallback(){
+ if(sproutsReady)return;sproutsReady=true;
 const sproutMaterial=new T.MeshToonMaterial({color:'#ffffff',vertexColors:false});
 for(let i=0;i<(mobile?24:48);i++){
  const x=(random()-.5)*(W-1),z=(random()-.5)*(L-1),y=terrainContact(x,z);
@@ -1051,6 +1040,8 @@ for(let i=0;i<(mobile?24:48);i++){
   leaf.rotation.z=sign*.35;g.add(leaf);
  }
  g.position.set(x,y+.012,z);sproutGroup.add(g);sproutHeads.push({group:g,x,z});
+}
+ updateSprouts();
 }
 function updateSprouts(){
  for(const item of sproutHeads){
@@ -1126,34 +1117,7 @@ function makeMeadowBlade(){
  g.setIndex(indices);g.computeVertexNormals();return g;
 }
 const meadowCount=mobile?390:920,meadowObj=new T.Object3D(),meadowAnchors=[];
-const meadowMesh=new T.InstancedMesh(makeMeadowBlade(),
- new T.MeshLambertMaterial({color:'#ffffff',vertexColors:true,side:T.DoubleSide}),
- meadowCount);
-const meadowRng=rand(93012);
-meadowMesh.count=0;meadowMesh.name='Gramado painterly denso — instâncias';
-for(let n=0;n<meadowCount*3&&meadowMesh.count<meadowCount;n++){
- const x=(meadowRng()-.5)*(W-1.0),z=(meadowRng()-.5)*(L-1.0);
- const y=terrainContact(x,z);
- if(y<-.21||rockAt(x,z))continue;
- const cell=idx(clamp(Math.round((x+W*.5)/dx),0,NX-1),
-  clamp(Math.round((z+L*.5)/dz),0,NZ-1));
- const density=clamp(.25+cover[cell]*.75,0,1);
- if(meadowRng()>density)continue;
- const size=.42+meadowRng()*1.55,rot=meadowRng()*6.283;
- meadowAnchors.push({x,z,size,rot,k:cell});
- meadowObj.position.set(x,y+.008,z);
- meadowObj.scale.set(size,size,size);meadowObj.rotation.set(0,rot,0);
- meadowObj.updateMatrix();
- meadowMesh.setMatrixAt(meadowMesh.count,meadowObj.matrix);
- const color=new T.Color(['#84a762','#6f9c57','#a2b575','#689866'][Math.floor(meadowRng()*4)]);
- meadowMesh.setColorAt(meadowMesh.count,color);
- meadowMesh.count++;
-}
-meadowMesh.instanceMatrix.needsUpdate=true;
-if(meadowMesh.instanceColor)meadowMesh.instanceColor.needsUpdate=true;
-// V12.51: lâminas triangulares do gramado procedural aposentadas.
-// Não entram na hierarquia da cena nem quando o pacote ecológico demora.
-meadowMesh.count=0;meadowMesh.visible=false;meadowMesh.frustumCulled=false;
+const meadowMesh=new T.Group();meadowMesh.name='Gramado antigo aposentado';meadowMesh.count=0;meadowMesh.visible=false;
 function updateMeadowHealth(){
  // Gramado legado não participa da cena; dispensa atualizações de cor.
  if(!meadowMesh.parent)return;
@@ -1556,7 +1520,7 @@ function setFloraVisible(v){
  applyForestVisibility();
  grass.visible=false;meadowMesh.visible=false;
  grass.count=0;meadowMesh.count=0;
- sproutGroup.visible=!forestGroup.visible;
+ if(!forestGroup.visible)ensureSproutFallback();sproutGroup.visible=!forestGroup.visible;
  if($('floraToggle'))$('floraToggle').checked=floraWanted;
  forestStatus(floraWanted?(floraLoaded?'ativos':'carregando'):'vegetação clássica');
 }
@@ -2565,7 +2529,7 @@ function setForestCollection(value){
 async function loadPainterlyForest(){
  if($('floraToggle'))$('floraToggle').checked=true;
  try{
-  const Module=await import('https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js');
+  const Module=T;
   const api=await import('https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/loaders/GLTFLoader.js');
   const loader=new api.GLTFLoader();
   let fbxLoader=null;
@@ -2577,6 +2541,7 @@ async function loadPainterlyForest(){
   }
   let ok=0;
   for(const item of FOREST_MODELS){
+   if(item.type==='grass'||item.type==='rock')continue; // Substituídos pelas malhas do ecossistema.
    if(!floraWanted&&mobile)break; // usuário pode desistir no celular
    try{
     let model;
@@ -2609,7 +2574,7 @@ async function loadPainterlyForest(){
  }catch(err){
   console.warn('[Arcano] Usando a vegetação original:',err);
   forestGroup.visible=false;grass.visible=false;meadowMesh.visible=false;
-  grass.count=0;meadowMesh.count=0;sproutGroup.visible=true;
+  grass.count=0;meadowMesh.count=0;ensureSproutFallback();sproutGroup.visible=true;
   floraWanted=false;forestStatus('fallback: vegetação clássica');
  }
 }
@@ -2716,21 +2681,12 @@ waterG.setIndex(triangles);waterG.boundingSphere=new T.Sphere(new T.Vector3(),Ma
 // Reflexões reais capturadas da cena: céu, nuvens, sol, pedras, capim e relevo.
 // Desktop: dois pontos de captura para refletir melhor áreas diferentes do terreno.
 // Mobile: uma sonda, resolução menor e captura menos frequente.
-const reflectionRT=new T.WebGLCubeRenderTarget(mobile?128:192,{
- generateMipmaps:false,minFilter:T.LinearFilter,magFilter:T.LinearFilter,format:T.RGBAFormat
-});
-const reflectionCamera=new T.CubeCamera(.15,85,reflectionRT);
-reflectionCamera.position.set(basins[1].x,.65,basins[1].z);scene.add(reflectionCamera);
-const reflectionRT2=mobile?null:new T.WebGLCubeRenderTarget(192,{
- generateMipmaps:false,minFilter:T.LinearFilter,magFilter:T.LinearFilter,format:T.RGBAFormat
-});
-const reflectionCamera2=reflectionRT2?new T.CubeCamera(.15,85,reflectionRT2):null;
-if(reflectionCamera2){reflectionCamera2.position.set(basins[0].x,.65,basins[0].z);scene.add(reflectionCamera2);}
+let reflectionRT=null,reflectionRT2=null,reflectionCamera=null,reflectionCamera2=null;
 const waterM=new T.ShaderMaterial({
  transparent:true,depthWrite:false,depthTest:true,side:T.DoubleSide,
  uniforms:{
-  uTime:{value:0},uEnv:{value:reflectionRT.texture},
-  uEnv2:{value:reflectionRT2?reflectionRT2.texture:reflectionRT.texture},
+  uTime:{value:0},uEnv:{value:null},
+  uEnv2:{value:null},
   uPlanar:{value:null},uPlanarMatrix:{value:new T.Matrix4()},uPlanarReady:{value:0},uMirrorY:{value:0},
   uReflect:{value:0},uDualProbes:{value:0},
   uProbeA:{value:new T.Vector2(basins[1].x,basins[1].z)},
@@ -2797,7 +2753,11 @@ function createInteractiveRiver(){
    const z=clamp(game?.active?game.position.z:camera.position.z,-L*.5,L*.5);
    const y=riverLevelAt(z);
    mesh.userData.captureY=y;
-   capture(renderer,scene,camera);
+   try{capture(renderer,scene,camera);}catch(error){enableLegacyWater(error);}
+  };
+  mesh.onAfterRender=function(renderer){
+   const program=renderer.properties.get(mesh.material).currentProgram;
+   if(program?.diagnostics?.runnable===false)enableLegacyWater('Falha na compilação do shader de água');
   };
   mesh.userData.water2=true;
   return mesh;
@@ -2837,14 +2797,25 @@ function updateRiverVolume(){
 }
 
 // Render target da câmera espelhada; preserva os cubemaps existentes como fallback.
-const planarRT=new T.WebGLRenderTarget(mobile?640:1024,mobile?512:768,{
- generateMipmaps:false,minFilter:T.LinearFilter,magFilter:T.LinearFilter,
- format:T.RGBAFormat,depthBuffer:true
-});
-const mirrorCamera=new T.PerspectiveCamera(camera.fov,camera.aspect,camera.near,camera.far);
+let planarRT=null,mirrorCamera=null;
 const mirrorLook=new T.Vector3(),mirrorDirection=new T.Vector3();
 const mirrorPlane=new T.Plane(new T.Vector3(0,1,0),0);
-waterM.uniforms.uPlanar.value=planarRT.texture;
+function ensureLegacyReflections(){
+ if(planarRT)return;
+ reflectionRT=new T.WebGLCubeRenderTarget(mobile?128:192,{generateMipmaps:false,minFilter:T.LinearFilter,magFilter:T.LinearFilter,format:T.RGBAFormat});
+ reflectionCamera=new T.CubeCamera(.15,85,reflectionRT);reflectionCamera.position.set(basins[1].x,.65,basins[1].z);scene.add(reflectionCamera);
+ if(!mobile){reflectionRT2=new T.WebGLCubeRenderTarget(192,{generateMipmaps:false,minFilter:T.LinearFilter,magFilter:T.LinearFilter,format:T.RGBAFormat});
+  reflectionCamera2=new T.CubeCamera(.15,85,reflectionRT2);reflectionCamera2.position.set(basins[0].x,.65,basins[0].z);scene.add(reflectionCamera2);}
+ waterM.uniforms.uEnv.value=reflectionRT.texture;waterM.uniforms.uEnv2.value=reflectionRT2?.texture||reflectionRT.texture;
+ planarRT=new T.WebGLRenderTarget(mobile?640:1024,mobile?512:768,{generateMipmaps:false,minFilter:T.LinearFilter,magFilter:T.LinearFilter,format:T.RGBAFormat,depthBuffer:true});
+ mirrorCamera=new T.PerspectiveCamera(camera.fov,camera.aspect,camera.near,camera.far);
+ waterM.uniforms.uPlanar.value=planarRT.texture;
+}
+function enableLegacyWater(error){
+ console.warn('[Arcano] Material atual falhou; ativando reflexos de reserva.',error);
+ ensureLegacyReflections();water.material=waterM;water.visible=true;
+ water.userData.water2=false;water.onBeforeRender=()=>{};water.onAfterRender=()=>{};
+}
 const foamLimit=mobile?120:220,foamObj=new T.Object3D();
 const foamMesh=new T.InstancedMesh(new T.PlaneGeometry(.060,.027),
  new T.MeshBasicMaterial({color:'#e2d5bb',transparent:true,opacity:.60,side:T.DoubleSide,depthWrite:false}),foamLimit);
@@ -2878,6 +2849,7 @@ function anyVisibleReflectiveWater(){
  return false;
 }
 function updateReflections(dt){
+ ensureLegacyReflections();
  if(!reflectionsOn){waterM.uniforms.uReflect.value=0;return;}
  reflectionAge+=dt;
  const interval=mobile?(graphicsQuality==='low'?.42:.22):(graphicsQuality==='high'?.095:.18);
@@ -4535,6 +4507,7 @@ function hudText(id,value){
  if(node&&node.textContent!==value)node.textContent=value;
 }
 function updateInfo(force){
+ if(!window.arcanoLaboratoryVisible?.())return;
  const now=performance.now();if(!force&&now-lastUI<420)return;lastUI=now;
  // A régua visual é não linear, acompanhando a força crescente da precipitação.
  const pct=Math.round(Math.pow(rainMeters[level]/rainMeters[5],.62)*100),name=rainNames[level];
@@ -4590,7 +4563,7 @@ function updateInfo(force){
   ' gotas pós-chuva · '+foamCount+' manchas de espuma');
   hudText('reflectionStats','Superfície '+VIS_NX+'×'+VIS_NZ+
   ' · espelho da câmera '+(reflectionsOn?(reflectionReady?'ativo':'preparando'):'desligado')+
-  ' · '+planarRT.width+'×'+planarRT.height+' · '+reflectionFrames+' capturas');
+  ' · '+(planarRT?planarRT.width+'×'+planarRT.height:'Water2')+' · '+reflectionFrames+' capturas');
  hudText('climateStats','Céu: '+(weatherCfg?weatherCfg.name:'preparando')+
   (climateChoice==='auto'?' (automático)':'')+
   ' · '+Math.round((weatherCfg?weatherCfg.coverage:0)*100)+'% nuvens · sol e reflexos climáticos');
@@ -4683,7 +4656,7 @@ function loop(now){
 window.addEventListener('resize',resize);
 window.addEventListener('error',e=>{if((e.filename||'').includes('agua-v1226'))fail(e.error||e.message);});
 if($('ecoDistanceLOD')){$('ecoDistanceLOD').addEventListener('change',updateDistanceLOD);$('ecoLODRange')?.addEventListener('input',updateDistanceLOD);refreshLODControls();}
-window.arcanoWaterV1226={scene,renderer,getMainCamera:()=>camera,getGrassPlayer:()=>game.active?game:null,setGraphicsQuality,getGraphicsQuality:()=>graphicsQuality,getViewDistance:()=>viewDistance,getViewFov:()=>viewFov,setViewSettings,biomeField,QUALITY_PRESETS,snapForestToGround,setForestCollection,leafWindUniforms,leafWindMaterials,getFog:()=>({strength:fogStrength,target:fogTarget,rainMemory:fogRainMemory,age:fogRainAge,dewGap:fogDewGap,wind:atmWindMean,reason:fogCause}),forestGroup,forestModels,forestInstances,setFloraVisible,seed,setMode,add,setSoilType,addSoilOrganic,addSoilNutrients,terrain:land,water,stones,grass,sprouts:sproutGroup,soilProfiles:SOIL_PROFILES,soilKeyIndex,soilOrganic,soilLitter,soilN,soilP,soilK,soilCa,soilPH,soilSalinity,soilBiota,soilPlant,soilHealth,soilLimiting,soilCapacity,permeability,ecologyStep,soilMoisture,deepWater,canopy,depth,soil,turbidity,stats,impactHeightAt,rockHeightAt,rockSolids,setRainLevel,getRainLevel:()=>level,applyClimate,skyDome,atmosphere:{temp:atmTemp,humidity:atmHumidity,pressure:atmPressure,cloud:atmCloud,rain:atmRain,rainField,getDayClock:()=>dayClock,getGrassWindHeading:()=>atmWindHeading,getGrassWindPower:()=>windUserPower,getGrassStorm:()=>stormActive()||climate==='storm',getMetrics:()=>({temperature:atmTempMean,humidity:atmHumMean,pressure:atmPressureMean,wind:atmWindMean,clouds:atmCloudMean,rain:atmRainMean,daySeconds:dayClock})},reflectionCamera,reflectionCamera2,getMode:()=>mode,getWetArea:()=>wetted,getImpacts:()=>totalImpacts};
+window.arcanoWaterV1226={scene,renderer,getMainCamera:()=>camera,getGrassPlayer:()=>game.active?game:null,setGraphicsQuality,getGraphicsQuality:()=>graphicsQuality,getViewDistance:()=>viewDistance,getViewFov:()=>viewFov,setViewSettings,biomeField,QUALITY_PRESETS,snapForestToGround,setForestCollection,leafWindUniforms,leafWindMaterials,getFog:()=>({strength:fogStrength,target:fogTarget,rainMemory:fogRainMemory,age:fogRainAge,dewGap:fogDewGap,wind:atmWindMean,reason:fogCause}),forestGroup,forestModels,forestInstances,setFloraVisible,seed,setMode,add,setSoilType,addSoilOrganic,addSoilNutrients,terrain:land,water,stones,grass,sprouts:sproutGroup,soilProfiles:SOIL_PROFILES,soilKeyIndex,soilOrganic,soilLitter,soilN,soilP,soilK,soilCa,soilPH,soilSalinity,soilBiota,soilPlant,soilHealth,soilLimiting,soilCapacity,permeability,ensureLegacyStoneVisuals,ecologyStep,soilMoisture,deepWater,canopy,depth,soil,turbidity,stats,impactHeightAt,rockHeightAt,rockSolids,setRainLevel,getRainLevel:()=>level,applyClimate,skyDome,atmosphere:{temp:atmTemp,humidity:atmHumidity,pressure:atmPressure,cloud:atmCloud,rain:atmRain,rainField,getDayClock:()=>dayClock,getGrassWindHeading:()=>atmWindHeading,getGrassWindPower:()=>windUserPower,getGrassStorm:()=>stormActive()||climate==='storm',getMetrics:()=>({temperature:atmTempMean,humidity:atmHumMean,pressure:atmPressureMean,wind:atmWindMean,clouds:atmCloudMean,rain:atmRainMean,daySeconds:dayClock})},get reflectionCamera(){return reflectionCamera;},get reflectionCamera2(){return reflectionCamera2;},getMode:()=>mode,getWetArea:()=>wetted,getImpacts:()=>totalImpacts};
 try{resize();setMode('puddle');setGraphicsQuality(graphicsQuality);setViewSettings(viewFov,viewDistance);requestAnimationFrame(loop);}catch(e){fail(e);}
 })();
 
