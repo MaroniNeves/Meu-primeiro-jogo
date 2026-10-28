@@ -1198,7 +1198,22 @@ function excavateNest(c,days,safe){
 }
 function initialColonies(){
  recordEcoEvent('Três colônias fixas: dez formigas coletoras em cada uma.');
- for(const [x,z] of [[-6,2.5],[4.5,2.9],[-2,-4.1]]){
+ for(const [originalX,originalZ] of [[-6,2.5],[4.5,2.9],[-2,-4.1]]){
+  // Mover qualquer ninho em agua para solo seco, distante da beira do rio.
+  let x=originalX,z=originalZ;
+  const safe=(px,pz)=>Math.abs(px-riverX(pz))>3.85&&
+   api.depth[idx(px,pz)]<.015&&riverMask[idx(px,pz)]<.02;
+  if(!safe(x,z)){
+   let chosen=false;
+   for(let radius=1;radius<=12&&!chosen;radius+=.5)
+    for(let n=0;n<24;n++){
+     const angle=n*Math.PI/12+radius*.2;
+     const px=originalX+Math.cos(angle)*radius,pz=originalZ+Math.sin(angle)*radius;
+     if(Math.abs(px)>W*.43||Math.abs(pz)>L*.43||!safe(px,pz))continue;
+     x=px;z=pz;chosen=true;break;
+    }
+   if(!chosen)continue;
+  }
   const c=newColony(x,z,10,15,false);
   c.brood=[];c.queenFertile=false;
   colonies.push(c);nestSurface(c);
