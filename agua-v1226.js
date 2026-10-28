@@ -213,9 +213,9 @@ function elevation(x,z){
  let y=.32-.073*z+.16*Math.sin(x*.83+z*.26)+.115*Math.cos(z*1.22-x*.34)+.055*Math.sin(x*2.25+z*1.92);
  // Canal escavado com margens em encosta e trechos de diferentes profundidades.
  const lateral=Math.abs(x-center(z)),width=riverWidth(z);
- // Perfil central fixo abaixo da lamina: sem ressaltos nem subidas no leito.
- // Apenas a largura da secao varia; a altitude do fundo acompanha o fluxo.
+ const deep=.39+.09*(.5+.5*Math.sin(z*.37+Math.sin(z*.12)*2))+.04*Math.sin(z*.91)**2;
  const bed=1-clamp(lateral/width,0,1);
+ y-=deep*bed*bed*(3-2*bed);
  // Encostas sobem na direção da margem, sem criar saída lateral do rio.
  // Margem e prado compartilham a mesma cota: sem lombada artificial na borda.
  // O gradiente molhado continua sendo apenas de cor, nao altera a altura.
@@ -227,15 +227,9 @@ function elevation(x,z){
  const waterline=riverLevelAt(z);
  // Erosao em rampa larga: o mesmo terreno continua ate a beira d'agua.
  // A escavacao nunca eleva a encosta acima do gramado.
- // Transicao longa e sem paredes verticais entre grama e leito do rio.
- // A base preserva o relevo do mapa; a erosao e limitada e esmaece
- // ao longo de toda a encosta, sem criar degrau na borda da grama.
- const bankDistance=Math.max(0,lateral-width);
- const slope=smooth(clamp((width+5.2-lateral)/5.8,0,1));
- const bedLevel=waterline-.26;
- // Centro sempre na mesma profundidade, com perfil estritamente descendente.
- // Na encosta, misturar gradualmente com o relevo exterior do mapa.
- y=y*(1-slope)+bedLevel*slope;
+ const slope=smooth(clamp((width+1.55-lateral)/2.05,0,1));
+ const bedLevel=Math.min(y,waterline-.14-.12*bed);
+ y-=Math.max(0,y-bedLevel)*slope;
  // Fora do canal o relevo e continuo: a margem e a grama usam o mesmo solo.
  return y;
 }
@@ -2653,18 +2647,16 @@ const flowXField=new Float32Array(size),flowZField=new Float32Array(size);
 // Faixa estreita dedicada ao rio: nenhuma malha de agua espalhada sobre o mapa.
 const VIS_NX=mobile?17:23,VIS_NZ=mobile?130:220,VIS_SIZE=VIS_NX*VIS_NZ;
 const waterPositions=new Float32Array(VIS_SIZE*3),waterDepths=new Float32Array(VIS_SIZE);
-const waterMud=new Float32Array(VIS_SIZE),waterFlow=new Float32Array(VIS_SIZE*2),waterEdge=new Float32Array(VIS_SIZE);
+const waterMud=new Float32Array(VIS_SIZE),waterFlow=new Float32Array(VIS_SIZE*2);
 const waterG=new T.BufferGeometry(),triangles=[];
 const wz=j=>-L*.5+j*L/(VIS_NZ-1);
-const wx=(i,z)=>center(z)+(i/(VIS_NX-1)*2-1)*riverWidth(z)*(.85+.035*Math.sin(z*.86));
+const wx=(i,z)=>center(z)+(i/(VIS_NX-1)*2-1)*riverWidth(z)*.82;
 for(let j=0;j<VIS_NZ;j++)for(let i=0;i<VIS_NX;i++){
  const k=j*VIS_NX+i,z=wz(j);waterPositions[k*3]=wx(i,z);waterPositions[k*3+2]=z;
- waterEdge[k]=i/(VIS_NX-1)*2-1;
  if(j<VIS_NZ-1&&i<VIS_NX-1){const a=k,b=k+1,c=k+VIS_NX,d=c+1;triangles.push(a,c,b,b,c,d);}
 }
 waterG.setAttribute('position',new T.BufferAttribute(waterPositions,3).setUsage(T.DynamicDrawUsage));
 waterG.setAttribute('waterDepth',new T.BufferAttribute(waterDepths,1).setUsage(T.DynamicDrawUsage));
-waterG.setAttribute('waterEdge',new T.BufferAttribute(waterEdge,1));
 waterG.setAttribute('mudAmount',new T.BufferAttribute(waterMud,1).setUsage(T.DynamicDrawUsage));
 waterG.setAttribute('waterFlow',new T.BufferAttribute(waterFlow,2).setUsage(T.DynamicDrawUsage));
 waterG.setIndex(triangles);waterG.boundingSphere=new T.Sphere(new T.Vector3(),Math.hypot(W,L)+5);
@@ -2694,7 +2686,7 @@ const waterM=new T.ShaderMaterial({
   uSunPower:{value:.8},uCloudiness:{value:.43},uWind:{value:.35},
   uWeatherReflect:{value:.92},uWeatherTint:{value:new T.Color('#a1c7d0')}
  },
- vertexShader:"precision highp float;\nattribute float waterDepth;attribute float mudAmount;attribute vec2 waterFlow;attribute float waterEdge;uniform float uTime,uWind;\nvarying vec3 vWorld;varying float vDepth;varying float vMud;varying vec2 vSlope;varying float vMovement;varying float vEdge;\nvoid main(){\n vec3 p=position;vDepth=waterDepth;vMud=mudAmount;vEdge=abs(waterEdge);\n float motion=clamp(length(waterFlow)*2.0+uWind*.22,0.0,1.0);vMovement=motion;\n float amp=(.0025+.024*motion)*smoothstep(.006,.065,waterDepth);\n float a=p.x*3.5+p.z*1.4-uTime*(.8+3.7*motion);\n float b=p.z*5.1-p.x*1.7-uTime*(.5+2.1*motion);\n p.y+=(sin(a)*.64+cos(b)*.36)*amp;\n float bank=smoothstep(.67,.99,abs(waterEdge));\n float lap=sin(uTime*(1.8+motion*2.1)-p.z*3.0+abs(waterEdge)*8.0);\n p.x+=sign(waterEdge)*bank*.050*lap;\n p.y+=bank*.011*lap;\n vSlope=vec2((cos(a)*3.5*.64+sin(b)*1.7*.36)*amp,(cos(a)*1.4*.64-sin(b)*5.1*.36)*amp);\n vec4 w=modelMatrix*vec4(p,1.0);vWorld=w.xyz;gl_Position=projectionMatrix*viewMatrix*w;\n}",fragmentShader:"precision highp float;\nuniform float uTime;uniform samplerCube uEnv;uniform samplerCube uEnv2;\nuniform sampler2D uPlanar;\nuniform mat4 uPlanarMatrix;\nuniform float uPlanarReady,uMirrorY;\nuniform float uReflect,uDualProbes,uSunPower,uCloudiness,uWind,uWeatherReflect;\nuniform vec2 uProbeA,uProbeB;\nuniform vec3 uSun,uWeatherTint;\nvarying vec3 vWorld;varying float vDepth;varying float vMud;varying vec2 vSlope;varying float vMovement;varying float vEdge;\nvoid main(){\n float irregular=.0018*sin(vWorld.x*4.2+vWorld.z*3.7)+.0011*sin(vWorld.x*10.3-vWorld.z*7.4);\n float alpha=smoothstep(.002,.032,vDepth-.004+irregular);if(alpha<.025)discard;\n float shallow=clamp((vDepth-.006)/.054,0.,1.),deep=clamp((vDepth-.055)/.175,0.,1.);\n float abyss=clamp((vDepth-.21)/.28,0.,1.);\n vec3 color=mix(vec3(.40,.64,.56),vec3(.12,.53,.60),shallow);\n color=mix(color,vec3(.04,.35,.51),deep);\n color=mix(color,vec3(.012,.17,.35),abyss*.85);\n float dirty=clamp(vMud*.86,0.,.90);\n color=mix(color,vec3(.48,.29,.14),dirty);\n float rim=(1.-smoothstep(.004,.027,vDepth))*(1.-dirty*.85);\n color=mix(color,vec3(.71,.96,.91),rim*.28);\n vec2 tiny=vec2(sin(vWorld.x*6.1+vWorld.z*3.8-uTime*(1.3+uWind))+\n cos(vWorld.z*11.2-uTime*(1.6+uWind)),\n cos(vWorld.z*6.8-vWorld.x*3.4+uTime*(1.+uWind))+\n sin(vWorld.x*10.5+uTime*(1.4+uWind)));\n float fine=sin(vWorld.x*21.0+vWorld.z*12.0-uTime*(2.4+vMovement*3.2));\n float small=cos(vWorld.z*32.0-vWorld.x*8.0-uTime*(1.7+vMovement*4.4));\n float slow=sin(vWorld.x*2.4-vWorld.z*3.7-uTime*(.4+vMovement*1.5));\n tiny+=vec2(fine*.32+slow*.4,small*.30-slow*.25);\n float breeze=.022+.075*vMovement+.024*uWind;\n vec3 n=normalize(vec3(-vSlope.x-tiny.x*breeze,1.,-vSlope.y-tiny.y*breeze));\n vec3 viewDir=normalize(cameraPosition-vWorld);\n float fresnel=pow(1.-clamp(dot(n,viewDir),0.,1.),2.1);\n vec3 ray=reflect(-viewDir,n);\n vec3 reflected=textureCube(uEnv,ray).rgb;\n // Segunda sonda posicionada numa depressão diferente: melhora a parallax aproximada.\n vec3 second=textureCube(uEnv2,ray).rgb;\n float d1=length(vWorld.xz-uProbeA),d2=length(vWorld.xz-uProbeB);\n float blend=uDualProbes*smoothstep(-1.4,1.4,d1-d2);\n reflected=mix(reflected,second,blend);\n // Espelho planar projetado do ponto de vista real.\n vec4 projected=uPlanarMatrix*vec4(vWorld,1.0);\n vec2 projUV=projected.xy/max(projected.w,.0001)*.5+.5;\n projUV+=tiny*(.00065+.0016*uWind);\n float valid=step(.005,projUV.x)*step(projUV.x,.995)*step(.005,projUV.y)*step(projUV.y,.995)*step(.01,projected.w);\n float heightMatch=exp(-abs(vWorld.y-uMirrorY)*.38);\n vec3 mirrored=texture2D(uPlanar,clamp(projUV,vec2(.005),vec2(.995))).rgb;\n reflected=mix(reflected,mirrored,clamp(uPlanarReady*valid*heightMatch,0.,1.));\n reflected=mix(reflected,uWeatherTint,.045+.065*uCloudiness);\n float roughness=clamp(vMovement*.75+uWind*.16,0.,1.);\n float reflectMix=uReflect*uWeatherReflect*(.14+.53*fresnel)*\n                  (1.-dirty*.72)*(1.-roughness*.22);\n color=mix(color,reflected,clamp(reflectMix,0.,.63));\n float sun=pow(max(dot(reflect(-normalize(uSun),n),viewDir),0.),52.);\n float waveA=sin(vWorld.x*13.7+vWorld.z*9.2-uTime*2.6);\n float waveB=sin(vWorld.z*17.3-vWorld.x*6.9+uTime*2.2);\n float crest=smoothstep(.24,.78,waveA*.60+waveB*.40);\n float sparkle=(.035*crest+.36*sun*uSunPower*(1.-uCloudiness*.60))*\n               (.75+.25*shallow)*(1.-dirty*.70);\n float travel=sin(dot(vWorld.xz,normalize(vec2(.08,1.0)+vSlope*.14))*4.4-uTime*(.55+vMovement*3.8));\n float micro=sin(vWorld.x*27.0+vWorld.z*19.0-uTime*(2.6+vMovement*4.1));\n float streak=sin(vWorld.z*7.3+sin(vWorld.x*3.1+vWorld.z*2.4)*1.2-uTime*(.8+vMovement*3.3));\n float broad=(.5+.5*travel)*(.04+.085*vMovement)+\n  (.5+.5*streak)*(.025+.060*vMovement)+\n  (.5+.5*micro)*(.008+.025*vMovement);\n color=mix(color,vec3(.36,.72,.76),clamp(broad,0.,.19));\n color=mix(color,vec3(.81,1.,.97),clamp(sparkle,0.,.30));\n float trans=.21+.58*smoothstep(.025,.39,vDepth);\n float shoreLap=.5+.5*sin(uTime*(1.8+vMovement*2.0)-vWorld.z*3.0+vEdge*8.0);\n float edgeWash=smoothstep(.70,.98,vEdge)*shoreLap;\n color=mix(color,vec3(.67,.78,.70),edgeWash*.085);\n gl_FragColor=vec4(color,alpha*clamp(trans+edgeWash*.08,.18,.84));\n}"
+ vertexShader:"precision highp float;\nattribute float waterDepth;attribute float mudAmount;attribute vec2 waterFlow;uniform float uTime,uWind;\nvarying vec3 vWorld;varying float vDepth;varying float vMud;varying vec2 vSlope;varying float vMovement;\nvoid main(){\n vec3 p=position;vDepth=waterDepth;vMud=mudAmount;\n float motion=clamp(length(waterFlow)*3.0+uWind*.38,0.0,1.0);vMovement=motion;\n float amp=(.0018+.018*motion)*smoothstep(.006,.065,waterDepth);\n float a=p.x*3.5+p.z*1.4-uTime*(1.2+1.9*motion);\n float b=p.z*5.1-p.x*1.7+uTime*(1.5+1.6*motion);\n p.y+=(sin(a)*.64+cos(b)*.36)*amp;\n vSlope=vec2((cos(a)*3.5*.64+sin(b)*1.7*.36)*amp,(cos(a)*1.4*.64-sin(b)*5.1*.36)*amp);\n vec4 w=modelMatrix*vec4(p,1.0);vWorld=w.xyz;gl_Position=projectionMatrix*viewMatrix*w;\n}",fragmentShader:"precision highp float;\nuniform float uTime;uniform samplerCube uEnv;uniform samplerCube uEnv2;\nuniform sampler2D uPlanar;\nuniform mat4 uPlanarMatrix;\nuniform float uPlanarReady,uMirrorY;\nuniform float uReflect,uDualProbes,uSunPower,uCloudiness,uWind,uWeatherReflect;\nuniform vec2 uProbeA,uProbeB;\nuniform vec3 uSun,uWeatherTint;\nvarying vec3 vWorld;varying float vDepth;varying float vMud;varying vec2 vSlope;varying float vMovement;\nvoid main(){\n float irregular=.0018*sin(vWorld.x*4.2+vWorld.z*3.7)+.0011*sin(vWorld.x*10.3-vWorld.z*7.4);\n float alpha=smoothstep(.002,.017,vDepth-.0045+irregular);if(alpha<.025)discard;\n float shallow=clamp((vDepth-.006)/.054,0.,1.),deep=clamp((vDepth-.055)/.175,0.,1.);\n float abyss=clamp((vDepth-.21)/.28,0.,1.);\n vec3 color=mix(vec3(.40,.89,.85),vec3(.12,.73,.80),shallow);\n color=mix(color,vec3(.025,.40,.62),deep);\n color=mix(color,vec3(.012,.17,.35),abyss*.85);\n float dirty=clamp(vMud*.86,0.,.90);\n color=mix(color,vec3(.48,.29,.14),dirty);\n float rim=(1.-smoothstep(.004,.027,vDepth))*(1.-dirty*.85);\n color=mix(color,vec3(.71,.96,.91),rim*.28);\n vec2 tiny=vec2(sin(vWorld.x*6.1+vWorld.z*3.8-uTime*(1.3+uWind))+\n cos(vWorld.z*11.2-uTime*(1.6+uWind)),\n cos(vWorld.z*6.8-vWorld.x*3.4+uTime*(1.+uWind))+\n sin(vWorld.x*10.5+uTime*(1.4+uWind)));\n float breeze=.020+.055*vMovement+.026*uWind;\n vec3 n=normalize(vec3(-vSlope.x-tiny.x*breeze,1.,-vSlope.y-tiny.y*breeze));\n vec3 viewDir=normalize(cameraPosition-vWorld);\n float fresnel=pow(1.-clamp(dot(n,viewDir),0.,1.),2.1);\n vec3 ray=reflect(-viewDir,n);\n vec3 reflected=textureCube(uEnv,ray).rgb;\n // Segunda sonda posicionada numa depressão diferente: melhora a parallax aproximada.\n vec3 second=textureCube(uEnv2,ray).rgb;\n float d1=length(vWorld.xz-uProbeA),d2=length(vWorld.xz-uProbeB);\n float blend=uDualProbes*smoothstep(-1.4,1.4,d1-d2);\n reflected=mix(reflected,second,blend);\n // Espelho planar projetado do ponto de vista real.\n vec4 projected=uPlanarMatrix*vec4(vWorld,1.0);\n vec2 projUV=projected.xy/max(projected.w,.0001)*.5+.5;\n projUV+=tiny*(.00065+.0016*uWind);\n float valid=step(.005,projUV.x)*step(projUV.x,.995)*step(.005,projUV.y)*step(projUV.y,.995)*step(.01,projected.w);\n float heightMatch=exp(-abs(vWorld.y-uMirrorY)*.38);\n vec3 mirrored=texture2D(uPlanar,clamp(projUV,vec2(.005),vec2(.995))).rgb;\n reflected=mix(reflected,mirrored,clamp(uPlanarReady*valid*heightMatch,0.,1.));\n reflected=mix(reflected,uWeatherTint,.045+.065*uCloudiness);\n float roughness=clamp(vMovement*.75+uWind*.16,0.,1.);\n float reflectMix=uReflect*uWeatherReflect*(.14+.53*fresnel)*\n                  (1.-dirty*.72)*(1.-roughness*.22);\n color=mix(color,reflected,clamp(reflectMix,0.,.63));\n float sun=pow(max(dot(reflect(-normalize(uSun),n),viewDir),0.),52.);\n float waveA=sin(vWorld.x*13.7+vWorld.z*9.2-uTime*2.6);\n float waveB=sin(vWorld.z*17.3-vWorld.x*6.9+uTime*2.2);\n float crest=smoothstep(.24,.78,waveA*.60+waveB*.40);\n float sparkle=(.035*crest+.36*sun*uSunPower*(1.-uCloudiness*.60))*\n               (.75+.25*shallow)*(1.-dirty*.70);\n float travel=sin(dot(vWorld.xz,normalize(vec2(.81,.59)+vSlope*.20))*4.4-uTime*(.65+uWind*1.6));\n float broad=(.5+.5*travel)*(.07+.12*vMovement);\n color=mix(color,vec3(.36,.72,.76),clamp(broad,0.,.19));\n color=mix(color,vec3(.81,1.,.97),clamp(sparkle,0.,.30));\n gl_FragColor=vec4(color,alpha*(.83+.14*deep));\n}"
 });
 const water=new T.Mesh(waterG,waterM);water.frustumCulled=false;water.renderOrder=3;
 water.name='Água V12.27 · reflexos alinhados ao cenário';scene.add(water);
@@ -3288,12 +3280,8 @@ function rebuild(){
   waterPositions[k*3+1]=level+.003;
   waterDepths[k]=Math.max(0,clearance);
   waterMud[k]=0;
-  const grade=Math.abs((riverLevelAt(z+.28)-riverLevelAt(z-.28))/.56);
-  const current=clamp(.10+grade*2.8,.12,.90);
-  const bend=(center(z+.22)-center(z-.22))/.44;
-  const norm=Math.hypot(bend,1);
-  waterFlow[k*2]=bend/norm*current;
-  waterFlow[k*2+1]=current/norm;
+  waterFlow[k*2]=0;
+  waterFlow[k*2+1]=.11;
  }
  waterG.attributes.position.needsUpdate=true;
  waterG.attributes.waterDepth.needsUpdate=true;
@@ -3303,13 +3291,13 @@ function rebuild(){
  // Espuma localizada apenas em alguns trechos calmos da margem.
  if(showFoam)for(let j=1;j<NZ-1&&foamCount<foamLimit;j++)
  for(let i=1;i<NX-1&&foamCount<foamLimit;i++){
-  const k=idx(i,j),x=nx(i),z=nz(j),v=depth[k];
-  const margin=Math.abs(x-center(z))-riverWidth(z);
-  if(margin<-.23||margin>-.035||v<.045)continue;
-  // Espuma pequena e bolhas discretas apenas junto as margens do rio.
-  const variation=.5+.5*Math.sin(x*8.13+z*6.7);
-  if(variation<.68)continue;
-  foamObj.position.set(x,riverLevelAt(z)+.023,z);
+  const k=idx(i,j),v=depth[k];if(v<SURFACE_VISIBLE+.002||v>.071)continue;
+  const edge=Math.min(shoreField[k-1],shoreField[k+1],shoreField[k-NX],shoreField[k+NX]);
+  if(edge>.003)continue;
+  const x=nx(i),z=nz(j),variation=.5+.5*Math.sin(x*8.13+z*6.7);
+  if(variation<.66||Math.hypot(flow[k*2],flow[k*2+1])>.38)continue;
+  if(turbidity[k]<.09&&cover[k]<.42)continue;
+  foamObj.position.set(x,soil[k]+v+.025,z);
   foamObj.rotation.set(-Math.PI/2,0,.8*Math.sin(x*5.5-z*3.1));
   const scale=.48+.6*variation;foamObj.scale.set(scale,scale*.75,1);
   foamObj.updateMatrix();foamMesh.setMatrixAt(foamCount,foamObj.matrix);
@@ -3757,37 +3745,19 @@ function updateGame(dt){
   const canMoveTo=(tx,tz)=>{
    const deck=bridge?.surfaceAt(tx,tz);
    const footY=deck==null?terrainContact(tx,tz):deck;
-   if(Math.abs(footY-oldY)>1.05||bridge?.blocksSegment(game.position.x,game.position.z,tx,tz))return false;
+   if(Math.abs(footY-oldY)>.65||bridge?.blocksSegment(game.position.x,game.position.z,tx,tz))return false;
    for(const [rx,rz,r] of rocks){
     const radius=r*.86;
     const before=(game.position.x-rx)**2+(game.position.z-rz)**2;
     const after=(tx-rx)**2+(tz-rz)**2;
     if(after<radius*radius&&after<before-1e-7)return false;
    }
-   return (deck!=null||sample(depth,tx,tz)<.34)&&!treesNearGame(tx,tz);
+   return (deck!=null||sample(depth,tx,tz)<.18)&&!treesNearGame(tx,tz);
   };
-  // Deslize orientado: testar desvios crescentes da direcao solicitada.
-  // O primeiro caminho livre mantem o maximo possivel da intencao do jogador.
+  // Se bloquear na diagonal, deslizar pelo eixo livre sem grudar na rocha.
   if(canMoveTo(nx,nz)){game.position.x=nx;game.position.z=nz;}
-  else{
-   const step=dt*speed*length;
-   const heading=Math.atan2(dirZ,dirX);
-   let moved=false;
-   for(const offset of [.22,-.22,.46,-.46,.72,-.72,1.02,-1.02,1.42,-1.42]){
-    const tx=clamp(game.position.x+Math.cos(heading+offset)*step,-W*.48,W*.48);
-    const tz=clamp(game.position.z+Math.sin(heading+offset)*step,-L*.48,L*.48);
-    if(canMoveTo(tx,tz)){game.position.x=tx;game.position.z=tz;moved=true;break;}
-   }
-   if(!moved){
-    if(Math.abs(dirX)>=Math.abs(dirZ)){
-     if(canMoveTo(nx,game.position.z))game.position.x=nx;
-     else if(canMoveTo(game.position.x,nz))game.position.z=nz;
-    }else{
-     if(canMoveTo(game.position.x,nz))game.position.z=nz;
-     else if(canMoveTo(nx,game.position.z))game.position.x=nx;
-    }
-   }
-  }
+  else if(canMoveTo(nx,game.position.z))game.position.x=nx;
+  else if(canMoveTo(game.position.x,nz))game.position.z=nz;
   const newHeading=Math.atan2(dirX,dirZ);
   game.heading+=Math.atan2(Math.sin(newHeading-game.heading),
    Math.cos(newHeading-game.heading))*Math.min(1,dt*8);
