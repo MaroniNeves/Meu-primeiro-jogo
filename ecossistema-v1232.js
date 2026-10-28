@@ -680,6 +680,8 @@ async function grassShape(){
    const geo=meshLibrary[name],out=groups.get(name);
    if(!geo||planted>=grassBudgets.high)return false;
    const k=suitable(x,z);if(k<0)return false;
+   // Moitas mais altas so aparecem longe da margem e nunca na agua.
+   if(multiplier>1.5&&Math.abs(x-riverX(z))<5.0)return false;
    const growth=clamp(cover[k]*(1-traffic[k])*
      (.55+.45*clamp(api.soilPlant[k],0,1)),0,1);
    if(growth<.02)return false;
@@ -687,7 +689,7 @@ async function grassShape(){
      (.73+random()*.58)*multiplier;
    obj.position.set(x,height(x,z)-.018,z);
    obj.rotation.set((random()-.5)*.08,random()*Math.PI*2,(random()-.5)*.08);
-   obj.scale.set(scale*(.74+random()*.50),Math.min(.30,scale*(.78+random()*.28)),
+   obj.scale.set(scale*(.74+random()*.50),Math.min(multiplier>1.5?.85:.30,scale*(.78+random()*.28)),
      scale*(.78+random()*.44));
    obj.updateMatrix();
    const color=api.biomeField?.(x,z)||0;
@@ -737,6 +739,9 @@ async function grassShape(){
       const other=random(),secondary=other<.45?'grassTall1':
        other<.82?'grassMixed1':'grassMixed2';
       if(plant(secondary,px,pz,1.04+growth*.30))clumps++;
+      // Uma minoria das moitas recebe gramíneas bem mais altas, longe do rio.
+      if(random()<.085&&Math.abs(px-riverX(pz))>5.0)
+       if(plant('grassTall1',px+.10,pz+.08,2.35+growth*.40))clumps++;
      }
     }
    }
