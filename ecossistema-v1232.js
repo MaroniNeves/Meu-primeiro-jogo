@@ -88,7 +88,7 @@ function grassAliveScale(k){
  const hydro=riverMask[k]>.01?0:1;
  const alive=fixedRoadMask[k]>.06?0:
   clamp(c*(1-wear)*hydro*(1-Math.pow(nestBareMask[k]/255,4)),0,1);
- return alive>.11?(.47+.53*alive):.0001;
+ return alive>.11?(wear<.15?.90+.10*alive:.65+.35*alive):.0001;
 }
 function applyGrassQuality(){
  const quality=api.getGraphicsQuality()||'balanced';
@@ -253,6 +253,10 @@ vArcBurn=0.0;
    arcCompression=max(arcCompression,.025*uArcTrail1.w*pressure);
   }
   // Deslocamento mundo XZ -> coordenadas do tufo, que pode estar rotacionado.
+  float arcWorldHeight=length(instanceMatrix[1].xyz)/max(uArcGrassInvHeight,.001);
+  float arcMaxBend=arcWorldHeight*(.42+.48*uArcStorm);
+  float arcMoveLength=length(arcMove);
+  if(arcMoveLength>arcMaxBend)arcMove*=arcMaxBend/max(arcMoveLength,.001);
   vec2 arcAxisX=instanceMatrix[0].xz,arcAxisZ=instanceMatrix[2].xz;
   transformed.x+=dot(arcMove,arcAxisX)/
    max(dot(arcAxisX,arcAxisX),.0001)*arcBlade;
@@ -652,6 +656,7 @@ async function grassShape(){
  // Estrada, rio e pequenas clareiras dos formigueiros continuam descobertos.
  const names=['grassShort1','grassMixed1','grassTall1','grassMixed2'];
  const materials=new Map(),obj=new T.Object3D();
+ const tallClumpGrid=new Map();
  for(const name of names){
   const kind=name.startsWith('grassMixed')?'grassMixed':
    name==='grassTall1'?'grassTall':'grassShort';
@@ -696,7 +701,16 @@ async function grassShape(){
    if(!geo||planted>=grassBudgets.high)return false;
    const k=suitable(x,z);if(k<0)return false;
    // Moitas mais altas so aparecem longe da margem e nunca na agua.
-   if(multiplier>1.5&&Math.abs(x-riverX(z))<riverGrassEdge(z)+1.2)return false;
+   if(multiplier>2.0&&Math.abs(x-riverX(z))<riverGrassEdge(z)+1.2)return false;
+   if(multiplier>2.0){
+    const cx=Math.floor(x/1.1),cz=Math.floor(z/1.1);let crowded=false;
+    for(let ox=-1;ox<=1;ox++)for(let oz=-1;oz<=1;oz++)
+     for(const point of tallClumpGrid.get((cx+ox)+','+(cz+oz))||[])
+      if(Math.hypot(point.x-x,point.z-z)<1.05)crowded=true;
+    if(crowded)return false;
+    const key=cx+','+cz;if(!tallClumpGrid.has(key))tallClumpGrid.set(key,[]);
+    tallClumpGrid.get(key).push({x,z});
+   }
    const growth=clamp(cover[k]*(1-traffic[k])*
      (.55+.45*clamp(api.soilPlant[k],0,1)),0,1);
    if(growth<.02)return false;
@@ -704,8 +718,9 @@ async function grassShape(){
      (.73+random()*.58)*multiplier;
    obj.position.set(x,height(x,z)-.018,z);
    obj.rotation.set((random()-.5)*.08,random()*Math.PI*2,(random()-.5)*.08);
-   obj.scale.set(scale*(.74+random()*.50),Math.min(multiplier>1.5?.85:.30,scale*(.78+random()*.28)),
-     scale*(.78+random()*.44));
+   const uniformScale=Math.min(multiplier>2.0?.85:.30,scale);
+   obj.scale.set(uniformScale*(.88+random()*.24),uniformScale*(.95+random()*.10),
+     uniformScale*(.88+random()*.24));
    obj.updateMatrix();
    const color=api.biomeField?.(x,z)||0;
    if(out.count===out.keys.length){
