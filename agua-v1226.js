@@ -2051,6 +2051,13 @@ function snapForestToGround(anchor){
 }
 // Alternância espacial evita monoculturas nas duas margens. Todos estes
 // modelos 3D foram conferidos no diretório assets/ do próprio repositório.
+function forestBoxInvadesRoad(box,padding){
+ for(let x=box.min.x-padding;x<=box.max.x+padding+.3;x+=.30){
+  const z=.92-.70*Math.sin(x*.47+.6)+.17*Math.sin(x*1.34);
+  if(box.min.z-padding<z+1.25&&box.max.z+padding>z-1.25)return true;
+ }
+ return false;
+}
 const roadsideTreeSpecies=[
  'CommonTree_1','BirchTree_1','CommonTree_3','MapleTree_3',
  'Pine_2','CommonTree_2','NormalTree_2','CommonTree_4',
@@ -2166,10 +2173,10 @@ function placeForestModel(item,root){
   correction.add(visualRoot);
   if(item.type==='grass'){
    // Cada instância é uma moita de quatro peças GLTF/FBX originais.
-   for(let stem=0;stem<3;stem++){
+   for(let stem=0;stem<1;stem++){
     const tuft=root.clone(true),a=stem*2.39996;
-    tuft.position.x+=Math.cos(a)*.16;
-    tuft.position.z+=Math.sin(a)*.16;
+    tuft.position.x+=Math.cos(a)*.32;
+    tuft.position.z+=Math.sin(a)*.32;
     tuft.rotation.y+=a;
     tuft.scale.multiplyScalar(.72+randomForest()*.24);
     correction.add(tuft);
@@ -2200,6 +2207,16 @@ function placeForestModel(item,root){
    if(Math.abs(z-leftCenter)<margin+radius*.72||
       Math.abs(z-rightCenter)<margin+radius*.72)continue;
   }
+  // Reserve the entire road corridor against the scaled model, not only its trunk.
+  if(['tree','pine','bush','fern','grass'].includes(item.type)){
+   const padding=(item.type==='tree'||item.type==='pine')?.55:.28;
+   if(forestBoxInvadesRoad(worldBox,padding))continue;
+  }
+  if(item.type==='bush'||item.type==='grass'){
+   const radius=projected*.52+.20;
+   if(forestInstances.some(a=>['bush','grass'].includes(a.type)&&
+    Math.hypot(a.x-x,a.z-z)<radius+(a.crownWidth||1)*.52+.25))continue;
+  }
   // Importações com conversão de eixo inadequada geram toras horizontais
   // gigantes no lugar de árvores: não as espalhar pela cena.
   if((item.type==='tree'||item.type==='pine')&&projected>desired*2.35)continue;
@@ -2227,6 +2244,12 @@ function placeForestModel(item,root){
    pack:item.pack||'mega',type:item.type,phase:randomForest()*Math.PI*2,
    qualityRank:randomForest(),modelName:item.name,crownWidth:projected};
   snapForestToGround(anchor);
+  // Anchoring can shift the visual trunk in XZ. Recheck the final world bounds.
+  if(['tree','pine','bush','grass'].includes(item.type)){
+   obj.updateMatrixWorld(true);const finalBox=new T.Box3().setFromObject(obj);
+   const pad=(item.type==='tree'||item.type==='pine')?.55:.28;
+   if(forestBoxInvadesRoad(finalBox,pad))continue;
+  }
   if(item.type==='tree'||item.type==='pine'||item.type==='bush'){
    obj.updateMatrixWorld(true);
    const crown=new T.Box3().setFromObject(obj);
@@ -2762,6 +2785,11 @@ function createInteractiveRiver(){
   shader.fragmentShader=shader.fragmentShader.replace('normal.xz * 0.05','normal.xz * 0.11');
   shader.fragmentShader=shader.fragmentShader.replace('gl_FragColor = vec4( color, 1.0 ) * mix( refractColor, reflectColor, reflectance );',
    'vec3 absorption=exp(-vec3(.85,.25,.16)*max(vDepth,0.0)); vec3 bed=refractColor.rgb*absorption; gl_FragColor=vec4(color*mix(bed,reflectColor.rgb,reflectance),smoothstep(.006,.045,vDepth));');
+  shader.uniforms.uRiverSun=waterM.uniforms.uSun;
+  shader.uniforms.uRiverSunPower=waterM.uniforms.uSunPower;
+  shader.fragmentShader='uniform vec3 uRiverSun; uniform float uRiverSunPower;\n'+shader.fragmentShader;
+  shader.fragmentShader=shader.fragmentShader.replace('#include <tonemapping_fragment>',
+   'float riverGlint=pow(max(dot(reflect(-normalize(uRiverSun),normal),toEye),0.0),90.0); gl_FragColor.rgb+=vec3(.92,.96,.90)*riverGlint*uRiverSunPower*.28;\n#include <tonemapping_fragment>');
   shader.side=T.DoubleSide;shader.depthWrite=false;
   // Capture at the visible section height; the channel itself keeps its descending profile.
   const capture=mesh.onBeforeRender;
@@ -2929,7 +2957,7 @@ function displayWaterHeightAt(x,z){
  return h+(d>=SURFACE_VISIBLE?d+.015:.010);
 }
 // Gotas físicas visuais: cilindro alongado, brilho em pixels e halos suaves.
-const MAX_DROPS=mobile?490:950,MAX_SPLASH=mobile?205:340,MAX_RIPPLES=mobile?38:64;
+const MAX_DROPS=mobile?1800:3400,MAX_SPLASH=mobile?205:340,MAX_RIPPLES=mobile?38:64;
 const drops=[],splashes=[],ripples=[],dropPos=new Float32Array(MAX_DROPS*3);
 const dropG=new T.BufferGeometry();dropG.setAttribute('position',new T.BufferAttribute(dropPos,3));
 const dropTexture=(()=>{const c=document.createElement('canvas');c.width=c.height=64;
@@ -3105,11 +3133,11 @@ const RAIN_SCALE=[
  {rate:.00042,  dropsM:64,  dropsD:100, speed:4.2, speedVar:2.0,length:.53,  thick:.68},
  {rate:.00140,  dropsM:130, dropsD:210, speed:5.5, speedVar:2.5,length:.75,  thick:.82},
  {rate:.00330,  dropsM:235, dropsD:380, speed:7.5, speedVar:3.3,length:1.05, thick:.91},
- {rate:.00610,  dropsM:440, dropsD:690, speed:9.5, speedVar:4.6,length:1.75, thick:.94}
+ {rate:.01220,  dropsM:2100,dropsD:3800,speed:13.5,speedVar:5.5,length:2.15,thick:1.08}
 ];
 const rainLevels=[0,.18,.38,.66,.87,1];
 const rainMeters=RAIN_SCALE.map(p=>p.rate);
-const MIN_RAIN_VISUAL=[0,.26,.32,.14,.08,.05];
+const MIN_RAIN_VISUAL=[0,.26,.32,.30,.55,.85];
 // A atmosfera decide ONDE chove; a escala decide QUANTO cai naquele local.
 function rainRateFromAtmos(source,selected=level){
  if(selected===0||source<=.0000001)return 0;
@@ -3500,7 +3528,7 @@ function emitGameWaterFootstep(x,z,heading,running,side){
  const fx=x+Math.cos(heading)*side*.075+Math.sin(heading)*.035;
  const fz=z-Math.sin(heading)*side*.075+Math.cos(heading)*.035;
  if(riverDepthAt(fx,fz)<.05)return;
- riverSimulation.disturb(fx,fz,running?.085:.055,.42);
+ riverSimulation.disturb(fx,fz,running?.10:.075,.48);
  const top=riverLevelAt(fz);
  // Surface height and normals carry the wave; no ring mesh is drawn on the river.
  const count=running?10:6,power=running?.66:.42;
@@ -3530,13 +3558,18 @@ function dropStep(dt){
  const dropsPerSecond=(mobile?profile.dropsM:profile.dropsD)*availability;
  if(dropsPerSecond===0)spawnAcc=0;
  else spawnAcc=Math.min(MAX_DROPS,spawnAcc+Math.max(level>0?8:0,dropsPerSecond)*dt);
- const toSpawn=Math.min(severe?(mobile?95:145):65,Math.floor(spawnAcc));
+ const toSpawn=Math.min(severe?(mobile?160:260):65,Math.floor(spawnAcc));
  spawnAcc-=toSpawn;
  for(let k=0;k<toSpawn&&drops.length<MAX_DROPS;k++){
   let x=0,z=0,accepted=!physicalWeather;
   // Amostragem espacial favorece regiões de precipitação sem fabricar gotas onde está seco.
   for(let attempt=0;attempt<(physicalWeather?4:1);attempt++){
-   x=(random()-.5)*(W-.8);z=(random()-.5)*(L-.8);
+   if(level>=4&&random()<.88){
+    const focus=game.active?game.position:target;
+    const radius=level===5?13:18;
+    x=clamp(focus.x+(random()-.5)*radius*2,-W*.49,W*.49);
+    z=clamp(focus.z+(random()-.5)*radius*2,-L*.49,L*.49);
+   }else{x=(random()-.5)*(W-.8);z=(random()-.5)*(L-.8);}
    if(!physicalWeather){accepted=true;break;}
    const local=atmosphereRainAt(x,z);
    if(local>0&&random()<clamp(local/Math.max(.0000001,atmRainPeak),0,1)){
@@ -3547,7 +3580,7 @@ function dropStep(dt){
   // controlada pelo campo de precipitação da atmosfera.
   if(!accepted&&level<=2)accepted=true;
   if(!accepted)continue;
-  drops.push({x,z,y:2.5+random()*4.8,
+  drops.push({x,z,y:terrainContact(x,z)+3.0+random()*6.5,
    speed:profile.speed+random()*profile.speedVar,
    stretch:profile.length*(.79+random()*.44)});
  }
@@ -3573,9 +3606,9 @@ function dropStep(dt){
   }
  }
  const enhanced=rainStyle==='enhanced';
- streak.material.opacity=Math.max((enhanced?1:.75)*[0,.31,.43,.56,.67,.73][level],drops.some(d=>d.fromLeaf)?.42:0);
+ streak.material.opacity=Math.max((enhanced?1:.75)*[0,.31,.43,.56,.73,.92][level],drops.some(d=>d.fromLeaf)?.42:0);
  halo.material.size=(mobile?8.0:7.3)*Math.max(.56,profile.thick);
- halo.material.opacity=Math.max([0,.19,.25,.32,.35,.39][level],drops.some(d=>d.fromLeaf)?.18:0);
+ halo.material.opacity=Math.max([0,.19,.25,.32,.38,.48][level],drops.some(d=>d.fromLeaf)?.18:0);
  for(let i=0;i<drops.length;i++){
   const d=drops[i],o=i*3;dropPos[o]=d.x;dropPos[o+1]=d.y-.1;dropPos[o+2]=d.z;
   dropObj.position.set(d.x,d.y,d.z);const windSlant=physicalWeather?clamp(atmWindMean*(severe?.15:.055),0,severe?.42:.20):.07;
@@ -3931,6 +3964,11 @@ function updateGame(dt){
  const footWater=!onBridge&&
    riverDepthAt(game.position.x,game.position.z)>.055;
  if(walked>.0002&&footWater){
+  game.waterWakeDistance=(game.waterWakeDistance||0)+walked;
+  if(game.waterWakeDistance>=.14){
+   game.waterWakeDistance%=.14;
+   riverSimulation.disturb(game.position.x,game.position.z,control.run?.035:.024,.32);
+  }
   const stride=control.run?.37:.49;
   game.waterStride+=walked;
   if(!game.wasInWater){
@@ -4281,6 +4319,7 @@ function tapAdd(event){
    window.arcanoEcoV1232.trample(p.x,p.z,.32);
    return;
   }
+  if(riverDepthAt(p.x,p.z)>.025){riverSimulation.disturb(p.x,p.z,.095,.45);return;}
   for(let i=0;i<25;i++){const a=random()*Math.PI*2,r=random()*.6;add(p.x+Math.cos(a)*r,p.z+Math.sin(a)*r,.105);}
  rebuild();updateInfo(true);}
 }
@@ -4610,7 +4649,7 @@ function loop(now){
   animateClimate(dt);
   animateForest(dt);
   setView();
-  riverSimulation.step(dt);updateRiverVolume();
+  riverSimulation.step(Math.min(rawDt,.12));updateRiverVolume();
   if(!water.userData.water2)updateReflections(dt);
   updateInfo(false);
  }
