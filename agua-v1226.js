@@ -3249,7 +3249,14 @@ function rebuild(){
     const sandTone=(riverbed?sand[c]:dryBank[c])*(1-streamDamp*.33);
     const bankTone=dryBank[c]*(1-.34*wetBank);
     const naturalBank=bankTone*(wetBank)+sandTone*(1-wetBank);
-    colors[ix]=approachDry?terrainDryPath[c]:sandBank?(riverbed?sandTone:naturalBank):green*(1-dirtAmount)+soilTone*dirtAmount;
+    const terrainBase=green*(1-dirtAmount)+soilTone*dirtAmount;
+    const bankBlend=riverbed?1:1-smooth(clamp((shoreDistance-1.15)/.95,0,1));
+    // Terra da estrada prevalece no seu eixo; nas bordas se mistura com a areia.
+    const roadBlend=smooth(clamp((Math.abs(z-roadAt(x))-.54)/1.00,0,1));
+    const shoreBlend=riverbed?1:bankBlend*(bridgeApproach?roadBlend:1);
+    const blended=terrainBase*(1-shoreBlend)+naturalBank*shoreBlend;
+    colors[ix]=riverbed?sandTone:approachDry?
+      terrainDryPath[c]*(1-shoreBlend)+naturalBank*shoreBlend:blended;
    }
   }
  }
