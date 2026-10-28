@@ -196,9 +196,9 @@ const rocks=rocksRaw.map(([x,z,r])=>{
  return [x,z,r];
 });
 const center=z=>-2.3+.67*Math.sin(z*.69)+.60*Math.sin(z*.29+1.3);
-const RIVER_BANK_WIDTH=3.2;
+const RIVER_BANK_WIDTH=7.0;
 const riverWidth=z=>clamp(2.65+.60*Math.sin(z*.105+.6)+.42*Math.sin(z*.34+1.7)+.20*Math.sin(z*.69),2.50,3.85);
-window.arcanoRiverProfile={center,halfWidth:riverWidth,bankWidth:RIVER_BANK_WIDTH};
+window.arcanoRiverProfile={center,halfWidth:riverWidth,bankWidth:RIVER_BANK_WIDTH,levelAt:riverLevelAt,depthAt:riverDepthAt};
 const riverShore=(x,z)=>Math.abs(x-center(z))-riverWidth(z);
 // O rio acompanha a descida longitudinal do relevo, sem variar o volume com chuva.
 // Queda de agua em um trecho curto, com patamares mais suaves fora dela.
@@ -3375,7 +3375,7 @@ function rebuild(){
     const bankTone=dryBank[c]*(1-.34*wetBank);
     const naturalBank=bankTone*(wetBank)+sandTone*(1-wetBank);
     const terrainBase=green*(1-dirtAmount)+soilTone*dirtAmount;
-    const bankBlend=riverbed?1:1-smooth(clamp((shoreDistance-1.8)/1.4,0,1));
+    const bankBlend=riverbed?1:1-smooth(clamp((shoreDistance-(RIVER_BANK_WIDTH-1.4))/1.4,0,1));
     // Terra da estrada prevalece no seu eixo; nas bordas se mistura com a areia.
     const roadBlend=smooth(clamp((Math.abs(z-roadAt(x))-.54)/1.00,0,1));
     const shoreBlend=riverbed?1:bankBlend*(bridgeApproach?roadBlend:1);
