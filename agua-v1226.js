@@ -196,7 +196,7 @@ const rocks=rocksRaw.map(([x,z,r])=>{
  return [x,z,r];
 });
 const center=z=>-2.3+.67*Math.sin(z*.69)+.60*Math.sin(z*.29+1.3);
-const riverWidth=z=>.95+.23*Math.sin(z*.24+1.4)**2+.15*Math.sin(z*.71)**2;
+const riverWidth=z=>.95+.38*Math.sin(z*.105+.6)+.30*Math.sin(z*.34+1.7)+.16*Math.sin(z*.69);
 const riverShore=(x,z)=>Math.abs(x-center(z))-riverWidth(z);
 // O rio acompanha a descida longitudinal do relevo, sem variar o volume com chuva.
 // Queda de agua em um trecho curto, com patamares mais suaves fora dela.
@@ -227,13 +227,11 @@ function elevation(x,z){
  const waterline=riverLevelAt(z);
  if(lateral<width-.055){
   const blend=smooth(clamp((width-.055-lateral)/.42,0,1));
-  const bedLevel=Math.min(y,waterline-.17);
+  // O leito escava a geografia original, sem erguer barrancos artificiais.
+  const bedLevel=Math.min(y,waterline-.12-.14*bed);
   y=y*(1-blend)+bedLevel*blend;
- }else if(lateral<width+3.30){
-  const distance=lateral-width;
-  const influence=1-smooth(clamp((distance-.35)/2.95,0,1));
-  y+=Math.max(0,waterline+.16-y)*influence;
  }
+ // Fora do canal o relevo e continuo: a margem e a grama usam o mesmo solo.
  return y;
 }
 function rockAt(x,z){return rocks.some(([rx,rz,r])=>((x-rx)**2+(z-rz)**2)<(r*.86)**2);}
