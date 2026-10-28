@@ -3300,13 +3300,13 @@ function rebuild(){
  // Espuma localizada apenas em alguns trechos calmos da margem.
  if(showFoam)for(let j=1;j<NZ-1&&foamCount<foamLimit;j++)
  for(let i=1;i<NX-1&&foamCount<foamLimit;i++){
-  const k=idx(i,j),v=depth[k];if(v<SURFACE_VISIBLE+.002||v>.071)continue;
-  const edge=Math.min(shoreField[k-1],shoreField[k+1],shoreField[k-NX],shoreField[k+NX]);
-  if(edge>.003)continue;
-  const x=nx(i),z=nz(j),variation=.5+.5*Math.sin(x*8.13+z*6.7);
-  if(variation<.66||Math.hypot(flow[k*2],flow[k*2+1])>.38)continue;
-  if(turbidity[k]<.09&&cover[k]<.42)continue;
-  foamObj.position.set(x,soil[k]+v+.025,z);
+  const k=idx(i,j),x=nx(i),z=nz(j),v=depth[k];
+  const margin=Math.abs(x-center(z))-riverWidth(z);
+  if(margin<-.23||margin>-.035||v<.045)continue;
+  // Espuma pequena e bolhas discretas apenas junto as margens do rio.
+  const variation=.5+.5*Math.sin(x*8.13+z*6.7);
+  if(variation<.68)continue;
+  foamObj.position.set(x,riverLevelAt(z)+.023,z);
   foamObj.rotation.set(-Math.PI/2,0,.8*Math.sin(x*5.5-z*3.1));
   const scale=.48+.6*variation;foamObj.scale.set(scale,scale*.75,1);
   foamObj.updateMatrix();foamMesh.setMatrixAt(foamCount,foamObj.matrix);
