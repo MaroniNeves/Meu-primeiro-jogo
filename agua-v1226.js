@@ -198,10 +198,13 @@ const rocks=rocksRaw.map(([x,z,r])=>{
 const center=z=>-2.3+.67*Math.sin(z*.69)+.60*Math.sin(z*.29+1.3);
 const riverWidth=z=>.95+.23*Math.sin(z*.24+1.4)**2+.15*Math.sin(z*.71)**2;
 const riverShore=(x,z)=>Math.abs(x-center(z))-riverWidth(z);
-// Canal permanente, raso (no maximo 0,52 unidade): bordas secas e agua fixa.
-// Rio sem cachoeiras: uma cota global, calculada uma unica vez.
-const RIVER_SURFACE_LEVEL=.16;
-function riverLevelAt(z){return RIVER_SURFACE_LEVEL;}
+// O rio acompanha a descida longitudinal do relevo, sem variar o volume com chuva.
+// Queda de agua em um trecho curto, com patamares mais suaves fora dela.
+const RIVER_SURFACE_LEVEL=.22;
+function riverLevelAt(z){
+ const drop=smooth(clamp((z-18.8)/1.25,0,1));
+ return RIVER_SURFACE_LEVEL-.055*z-.46*drop;
+}
 function riverDepthAt(x,z){
  if(riverShore(x,z)>=-.055)return 0;
  return Math.max(.001,riverLevelAt(z)-elevation(x,z));
@@ -224,7 +227,7 @@ function elevation(x,z){
  const waterline=riverLevelAt(z);
  if(lateral<width-.055){
   const blend=smooth(clamp((width-.055-lateral)/.42,0,1));
-  const bedLevel=clamp(y,waterline-.52,waterline-.12);
+  const bedLevel=Math.min(y,waterline-.17);
   y=y*(1-blend)+bedLevel*blend;
  }else if(lateral<width+3.30){
   const distance=lateral-width;
