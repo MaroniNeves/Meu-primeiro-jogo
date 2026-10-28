@@ -23,7 +23,7 @@ const foodResources=new Float32Array(cells);
 // mas não eliminam cobertura verde nas outras áreas do mapa.
 const nestBareMask=new Uint8Array(cells);
 function paintNestBareSoil(x,z){
- const radius=.43,inner=.18;
+ const radius=.24,inner=.09;
  const i0=Math.max(0,Math.floor((x-radius+W*.5)/dx));
  const i1=Math.min(NX-1,Math.ceil((x+radius+W*.5)/dx));
  const j0=Math.max(0,Math.floor((z-radius+L*.5)/dz));
