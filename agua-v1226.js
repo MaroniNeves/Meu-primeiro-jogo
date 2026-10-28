@@ -3365,9 +3365,8 @@ const gameFootstepRng=rand(202658),gameFootWaterTint=new T.Color('#b9dce5');
 function emitGameWaterFootstep(x,z,heading,running,side){
  const fx=x+Math.cos(heading)*side*.115+Math.sin(heading)*.085;
  const fz=z-Math.sin(heading)*side*.115+Math.cos(heading)*.085;
- if(sample(depth,fx,fz)<SURFACE_RIPPLE)return;
- const top=waterHeight(fx,fz);
- if(rockHeightAt(fx,fz)>=top-.005)return;
+ if(riverShore(fx,fz)>-.08||riverDepthAt(fx,fz)<.05)return;
+ const top=riverLevelAt(fz);
  const ripple=ripplePool.find(mesh=>!mesh.visible&&!ripples.some(r=>r.mesh===mesh));
  if(ripple&&ripples.length<MAX_RIPPLES){
   ripple.material=rippleMaterial;ripple.visible=true;
@@ -3749,14 +3748,14 @@ function updateGame(dt){
   const canMoveTo=(tx,tz)=>{
    const deck=bridge?.surfaceAt(tx,tz);
    const footY=deck==null?terrainContact(tx,tz):deck;
-   if(Math.abs(footY-oldY)>.65||bridge?.blocksSegment(game.position.x,game.position.z,tx,tz))return false;
+   if(Math.abs(footY-oldY)>1.05||bridge?.blocksSegment(game.position.x,game.position.z,tx,tz))return false;
    for(const [rx,rz,r] of rocks){
     const radius=r*.86;
     const before=(game.position.x-rx)**2+(game.position.z-rz)**2;
     const after=(tx-rx)**2+(tz-rz)**2;
     if(after<radius*radius&&after<before-1e-7)return false;
    }
-   return (deck!=null||sample(depth,tx,tz)<.18)&&!treesNearGame(tx,tz);
+   return !treesNearGame(tx,tz);
   };
   // Se bloquear na diagonal, deslizar pelo eixo livre sem grudar na rocha.
   if(canMoveTo(nx,nz)){game.position.x=nx;game.position.z=nz;}
@@ -3780,8 +3779,8 @@ function updateGame(dt){
  game.grassSpeed=walked/Math.max(dt,.001);
  const onBridge=window.arcanoBridgeSolid?.surfaceAt(game.position.x,game.position.z)!=null;
  game.grassOnGround=!onBridge;
- const footWater=!onBridge&&sample(depth,game.position.x,game.position.z)>=SURFACE_RIPPLE&&
-   rockHeightAt(game.position.x,game.position.z)<waterHeight(game.position.x,game.position.z)-.005;
+ const footWater=!onBridge&&riverShore(game.position.x,game.position.z)<-.10&&
+   riverDepthAt(game.position.x,game.position.z)>.055;
  if(walked>.0002&&footWater){
   const stride=control.run?.37:.49;
   game.waterStride+=walked;
