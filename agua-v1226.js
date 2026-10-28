@@ -3755,10 +3755,23 @@ function updateGame(dt){
    const deck=bridge?.surfaceAt(tx,tz);
    const footY=deck==null?terrainContact(tx,tz):deck;
    if((Math.abs(footY-oldY)>1.05&&riverShore(tx,tz)>.20)||bridge?.blocksSegment(game.position.x,game.position.z,tx,tz))return false;
-   for(const [rx,rz,r] of rocks){
-    const radius=r*.86;
-    const before=(game.position.x-rx)**2+(game.position.z-rz)**2;
-    const after=(tx-rx)**2+(tz-rz)**2;
+   // Colisao em elipses baseada nas pedras realmente desenhadas.
+   // A altura do personagem conta apenas quando a pedra surge do piso.
+   for(const stone of rockSolids){
+    const centerY=terrainContact(stone.x,stone.z);
+    if(stone.top<centerY+.055)continue;
+    const rx=Math.max(.105,stone.rx+.13),rz=Math.max(.105,stone.rz+.13);
+    const before=((game.position.x-stone.x)/rx)**2+
+     ((game.position.z-stone.z)/rz)**2;
+    const after=((tx-stone.x)/rx)**2+((tz-stone.z)/rz)**2;
+    if(after<1&&after<before-1e-7)return false;
+   }
+   // A posicao real das colonias e o tamanho visual do monte.
+   const eco=window.arcanoEcoV1232;
+   if(eco?.active&&eco.colonies)for(const nest of eco.colonies){
+    const radius=Math.min(.40,Math.max(.18,.18*(.55+nest.spoil*1.4)+.11));
+    const before=(game.position.x-nest.x)**2+(game.position.z-nest.z)**2;
+    const after=(tx-nest.x)**2+(tz-nest.z)**2;
     if(after<radius*radius&&after<before-1e-7)return false;
    }
    return !treesNearGame(tx,tz);
