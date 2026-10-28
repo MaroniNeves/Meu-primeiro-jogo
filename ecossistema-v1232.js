@@ -565,7 +565,7 @@ function makeRoad(){
     const surfaceAt=(x,z)=>{
      if(!realm.visible)return null;
      const p=local(x,z);
-     return Math.abs(p.along)<=halfSpan+.085&&Math.abs(p.side)<=.53?deckY+.0325:null;
+     return Math.abs(p.along)<=halfSpan+.20&&Math.abs(p.side)<=.54?deckY+.0325:null;
     };
     const blocksSegment=(x0,z0,x1,z1)=>{
      if(!realm.visible)return false;
