@@ -50,7 +50,7 @@
    for(const [k,v] of affected)this.height[k]+=strength*(v-mean);
   }
   step(dt){
-   this.time+=Math.min(.05,dt);this.acc+=Math.min(.05,dt);
+   this.time+=Math.min(.12,dt);this.acc+=Math.min(.12,dt);
    const n=this.nx,m=this.nz,h=this.height,v=this.velocity;
    const p=this.geometry.attributes.position.array,d=this.geometry.attributes.waterDepth.array;
    const dz=this.length/(m-1),fixed=1/120;
