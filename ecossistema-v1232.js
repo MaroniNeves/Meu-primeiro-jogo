@@ -223,30 +223,30 @@ vArcBurn=0.0;
   // Um pequeno desvio lateral evita que d=0 deixe as lâminas imóveis.
   if(uArcPlayer.w>.001){
    vec2 d=arcRoot-uArcPlayer.xy;
-   float reach=max(0.0,1.0-length(d)/1.38);
+   float reach=max(0.0,1.0-length(d)/.52);
    float pressure=reach*reach*(3.0-2.0*reach);
    if(pressure>.001){
     vec2 across=vec2(cos(uArcPlayer.z),-sin(uArcPlayer.z));
     vec2 away=normalize(d+across*.075);
-    arcMove+=away*(.83*uArcPlayer.w*pressure);
-    arcCompression=max(arcCompression,.32*uArcPlayer.w*pressure);
+    arcMove+=away*(.20*uArcPlayer.w*pressure);
+    arcCompression=max(arcCompression,.045*uArcPlayer.w*pressure);
    }
   }
   // Marcas passageiras continuam a ceder por cerca de um segundo,
   // recuperando altura sem reduzir a quantidade de plantas.
   if(uArcTrail0.w>.001){
    vec2 d=arcRoot-uArcTrail0.xy;
-   float reach=max(0.0,1.0-length(d)/1.12);
+   float reach=max(0.0,1.0-length(d)/.37);
    float pressure=reach*reach*(3.0-2.0*reach);
-   arcMove+=normalize(d+vec2(.015,.019))*(.34*uArcTrail0.w*pressure);
-   arcCompression=max(arcCompression,.16*uArcTrail0.w*pressure);
+   arcMove+=normalize(d+vec2(.015,.019))*(.09*uArcTrail0.w*pressure);
+   arcCompression=max(arcCompression,.025*uArcTrail0.w*pressure);
   }
   if(uArcTrail1.w>.001){
    vec2 d=arcRoot-uArcTrail1.xy;
-   float reach=max(0.0,1.0-length(d)/1.12);
+   float reach=max(0.0,1.0-length(d)/.37);
    float pressure=reach*reach*(3.0-2.0*reach);
-   arcMove+=normalize(d+vec2(-.017,.013))*(.34*uArcTrail1.w*pressure);
-   arcCompression=max(arcCompression,.16*uArcTrail1.w*pressure);
+   arcMove+=normalize(d+vec2(-.017,.013))*(.09*uArcTrail1.w*pressure);
+   arcCompression=max(arcCompression,.025*uArcTrail1.w*pressure);
   }
   // Deslocamento mundo XZ -> coordenadas do tufo, que pode estar rotacionado.
   vec2 arcAxisX=instanceMatrix[0].xz,arcAxisZ=instanceMatrix[2].xz;
@@ -312,7 +312,7 @@ function animateGrassVisuals(dt){
   return;
  }
  const x=p.position.x,z=p.position.z,speed=p.grassSpeed||0;
- current.set(x,z,p.heading||0,clamp(.67+speed*.20,.67,1.3));
+ current.set(x,z,p.heading||0,clamp(.34+speed*.07,.34,.56));
  if(Number.isFinite(grassVisual.lastPlayerX)){
   const moved=Math.hypot(x-grassVisual.lastPlayerX,z-grassVisual.lastPlayerZ);
   if(moved>.001&&moved<1.5&&speed>.12){
@@ -320,7 +320,7 @@ function animateGrassVisuals(dt){
    const step=speed>2.4?.31:.43;
    if(grassVisual.stepDistance>=step){
     grassVisual.stepDistance%=step;
-    trail[grassVisual.trailIndex].set(x,z,0,1);
+    trail[grassVisual.trailIndex].set(x,z,0,.38);
     grassVisual.trailIndex=1-grassVisual.trailIndex;
    }
   }
