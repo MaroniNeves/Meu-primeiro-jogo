@@ -197,8 +197,10 @@ const rocks=rocksRaw.map(([x,z,r])=>{
 });
 const center=z=>-2.3+.67*Math.sin(z*.69)+.60*Math.sin(z*.29+1.3);
 const RIVER_BANK_WIDTH=7.0;
+// A ampla encosta pode receber grama; apenas a faixa de areia fica descoberta.
+const RIVER_BARE_BANK_WIDTH=3.2;
 const riverWidth=z=>clamp(2.65+.60*Math.sin(z*.105+.6)+.42*Math.sin(z*.34+1.7)+.20*Math.sin(z*.69),2.50,3.85);
-window.arcanoRiverProfile={center,halfWidth:riverWidth,bankWidth:RIVER_BANK_WIDTH,levelAt:riverLevelAt,depthAt:riverDepthAt};
+window.arcanoRiverProfile={center,halfWidth:riverWidth,bankWidth:RIVER_BANK_WIDTH,bareBankWidth:RIVER_BARE_BANK_WIDTH,levelAt:riverLevelAt,depthAt:riverDepthAt};
 const riverShore=(x,z)=>Math.abs(x-center(z))-riverWidth(z);
 // O rio acompanha a descida longitudinal do relevo, sem variar o volume com chuva.
 // Queda de agua em um trecho curto, com patamares mais suaves fora dela.
@@ -775,7 +777,7 @@ for(let j=0;j<NZ;j++)for(let i=0;i<NX;i++){
  const k=idx(i,j),x=nx(i),z=nz(j),h=elevation(x,z);soil[k]=h;landP[k*3+1]=h;
  blocked[k]=rockAt(x,z)?1:0;
  const moss=.5+.5*Math.sin(x*1.4-z*.88),v=clamp(.48+.29*Math.sin(x*.43+z*.3)+.15*moss,.14,.9);
- cover[k]=riverShore(x,z)<RIVER_BANK_WIDTH?0:clamp(.05+.60*moss+.24*Math.sin(z*.55+x*1.33),0,.82);
+ cover[k]=riverShore(x,z)<RIVER_BARE_BANK_WIDTH?0:clamp(.05+.60*moss+.24*Math.sin(z*.55+x*1.33),0,.82);
  soilCapacity[k]=.060+.085*cover[k]+.023*(.5+.5*Math.cos(x*1.7-z*.8));
  permeability[k]=0;
   let basinFactor=0;
@@ -3359,10 +3361,10 @@ function rebuild(){
    const distanceToRiver=Math.abs(x-center(z));
    const riverbed=distanceToRiver<=riverWidth(z);
    const bridgeApproach=Math.abs(z-roadAt(x))<1.70&&distanceToRiver<riverWidth(z)+RIVER_BANK_WIDTH+2.0;
-   const sandBank=distanceToRiver<riverWidth(z)+RIVER_BANK_WIDTH&&!bridgeApproach;
+   const sandBank=distanceToRiver<riverWidth(z)+RIVER_BARE_BANK_WIDTH&&!bridgeApproach;
    // Faixa de umidade da encosta: intensa na agua e transicao suave ate a terra seca.
    const shoreDistance=Math.max(0,distanceToRiver-riverWidth(z));
-   const wetBank=bridgeApproach||approachDry?0:1-smooth(clamp(shoreDistance/RIVER_BANK_WIDTH,0,1));
+   const wetBank=bridgeApproach||approachDry?0:1-smooth(clamp(shoreDistance/RIVER_BARE_BANK_WIDTH,0,1));
    const dirtAmount=bridgeApproach?1:clamp(Math.max(road*(.99+.08*abrasion),nestDirt*.995),0,.995);
    for(let c=0;c<3;c++){
     const ix=o+c;
@@ -3379,7 +3381,7 @@ function rebuild(){
     const bankTone=dryBank[c]*(1-.34*wetBank);
     const naturalBank=bankTone*(wetBank)+sandTone*(1-wetBank);
     const terrainBase=green*(1-dirtAmount)+soilTone*dirtAmount;
-    const bankBlend=riverbed?1:1-smooth(clamp((shoreDistance-(RIVER_BANK_WIDTH-1.4))/1.4,0,1));
+    const bankBlend=riverbed?1:1-smooth(clamp((shoreDistance-(RIVER_BARE_BANK_WIDTH-1.4))/1.4,0,1));
     // Terra da estrada prevalece no seu eixo; nas bordas se mistura com a areia.
     const roadBlend=smooth(clamp((Math.abs(z-roadAt(x))-.54)/1.00,0,1));
     const shoreBlend=riverbed?1:bankBlend*(bridgeApproach?roadBlend:1);
