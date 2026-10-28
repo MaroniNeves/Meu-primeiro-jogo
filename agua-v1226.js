@@ -213,9 +213,9 @@ function elevation(x,z){
  let y=.32-.073*z+.16*Math.sin(x*.83+z*.26)+.115*Math.cos(z*1.22-x*.34)+.055*Math.sin(x*2.25+z*1.92);
  // Canal escavado com margens em encosta e trechos de diferentes profundidades.
  const lateral=Math.abs(x-center(z)),width=riverWidth(z);
- const deep=.39+.09*(.5+.5*Math.sin(z*.37+Math.sin(z*.12)*2))+.04*Math.sin(z*.91)**2;
+ // Perfil central fixo abaixo da lamina: sem ressaltos nem subidas no leito.
+ // Apenas a largura da secao varia; a altitude do fundo acompanha o fluxo.
  const bed=1-clamp(lateral/width,0,1);
- y-=deep*bed*bed*(3-2*bed);
  // Encostas sobem na direção da margem, sem criar saída lateral do rio.
  // Margem e prado compartilham a mesma cota: sem lombada artificial na borda.
  // O gradiente molhado continua sendo apenas de cor, nao altera a altura.
@@ -232,9 +232,10 @@ function elevation(x,z){
  // ao longo de toda a encosta, sem criar degrau na borda da grama.
  const bankDistance=Math.max(0,lateral-width);
  const slope=smooth(clamp((width+5.2-lateral)/5.8,0,1));
- const bedLevel=Math.min(y,waterline-.12-.10*bed);
- const erosion=Math.min(.65,Math.max(0,y-bedLevel));
- y-=erosion*slope;
+ const bedLevel=waterline-.26;
+ // Centro sempre na mesma profundidade, com perfil estritamente descendente.
+ // Na encosta, misturar gradualmente com o relevo exterior do mapa.
+ y=y*(1-slope)+bedLevel*slope;
  // Fora do canal o relevo e continuo: a margem e a grama usam o mesmo solo.
  return y;
 }
