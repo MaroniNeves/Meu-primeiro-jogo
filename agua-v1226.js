@@ -3704,9 +3704,23 @@ function gameInput(){
  return {x:x/norm,y:y/norm,run:game.input.run||game.keys.has('shift')};
 }
 // V12.58: a altura dos pés usa o tablado real da ponte, não a terra sob ele.
+// Uma única regra para liberar a passagem e apoiar os pés em pedras baixas.
+function gameCanStepOverStone(stone){
+ return stone.top-terrainContact(stone.x,stone.z)<=.24||
+  Math.max(stone.rx,stone.rz)<.16;
+}
 function solidGameFootHeight(x,z){
  const bridgeY=window.arcanoBridgeSolid?.surfaceAt(x,z);
- return bridgeY==null?terrainContact(x,z):bridgeY;
+ if(bridgeY!=null)return bridgeY;
+ let support=terrainContact(x,z);
+ for(const stone of rockSolids){
+  if(!gameCanStepOverStone(stone))continue;
+  const q=((x-stone.x)/stone.rx)**2+((z-stone.z)/stone.rz)**2;
+  if(q>=1)continue;
+  const top=stone.bottom+(stone.top-stone.bottom)*Math.sqrt(1-q);
+  if(top-support<=.24)support=Math.max(support,top);
+ }
+ return support;
 }
 // Árvore espacial por blocos de 3 unidades; evita percorrer milhares
 // de modelos a cada passo do jogador.
@@ -3758,10 +3772,8 @@ function updateGame(dt){
    // Colisao em elipses baseada nas pedras realmente desenhadas.
    // A altura do personagem conta apenas quando a pedra surge do piso.
    for(const stone of rockSolids){
-    const centerY=terrainContact(stone.x,stone.z);
-    // Pedras baixas e cascalhos sao transponiveis; somente blocos altos barram.
-    const exposedHeight=stone.top-Math.max(centerY,footY);
-    if(exposedHeight<=.24||Math.max(stone.rx,stone.rz)<.16)continue;
+    // Cascalhos e pedras baixas recebem apoio dos pés, sem bloquear o movimento.
+    if(gameCanStepOverStone(stone))continue;
     const rx=Math.max(.105,stone.rx+.13),rz=Math.max(.105,stone.rz+.13);
     const before=((game.position.x-stone.x)/rx)**2+
      ((game.position.z-stone.z)/rz)**2;
