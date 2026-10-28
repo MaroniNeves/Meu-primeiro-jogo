@@ -226,9 +226,10 @@ function elevation(x,z){
   const blend=smooth(clamp((width-.055-lateral)/.42,0,1));
   const bedLevel=clamp(y,waterline-.52,waterline-.12);
   y=y*(1-blend)+bedLevel*blend;
- }else if(lateral<width+1.70){
-  const bankBlend=smooth(clamp((width+1.70-lateral)/1.70,0,1));
-  y=Math.max(y,waterline+.14*bankBlend);
+ }else if(lateral<width+3.30){
+  const distance=lateral-width;
+  const influence=1-smooth(clamp((distance-.35)/2.95,0,1));
+  y+=Math.max(0,waterline+.16-y)*influence;
  }
  return y;
 }
@@ -3740,14 +3741,23 @@ function updateGame(dt){
   const nx=clamp(game.position.x+dirX*dt*speed*length,-W*.48,W*.48);
   const nz=clamp(game.position.z+dirZ*dt*speed*length,-L*.48,L*.48);
   const bridge=window.arcanoBridgeSolid;
-  const deck=bridge?.surfaceAt(nx,nz);
-  const y=deck==null?terrainContact(nx,nz):deck;
   const oldY=solidGameFootHeight(game.position.x,game.position.z);
-  const blockedByBridge=bridge?.blocksSegment(game.position.x,game.position.z,nx,nz);
-  if(Math.abs(y-oldY)<.43&&!blockedByBridge&&!rockAt(nx,nz)&&
-     (deck!=null||sample(depth,nx,nz)<.18)&&!treesNearGame(nx,nz)){
-    game.position.x=nx;game.position.z=nz;
-  }
+  const canMoveTo=(tx,tz)=>{
+   const deck=bridge?.surfaceAt(tx,tz);
+   const footY=deck==null?terrainContact(tx,tz):deck;
+   if(Math.abs(footY-oldY)>.65||bridge?.blocksSegment(game.position.x,game.position.z,tx,tz))return false;
+   for(const [rx,rz,r] of rocks){
+    const radius=r*.86;
+    const before=(game.position.x-rx)**2+(game.position.z-rz)**2;
+    const after=(tx-rx)**2+(tz-rz)**2;
+    if(after<radius*radius&&after<before-1e-7)return false;
+   }
+   return (deck!=null||sample(depth,tx,tz)<.18)&&!treesNearGame(tx,tz);
+  };
+  // Se bloquear na diagonal, deslizar pelo eixo livre sem grudar na rocha.
+  if(canMoveTo(nx,nz)){game.position.x=nx;game.position.z=nz;}
+  else if(canMoveTo(nx,game.position.z))game.position.x=nx;
+  else if(canMoveTo(game.position.x,nz))game.position.z=nz;
   const newHeading=Math.atan2(dirX,dirZ);
   game.heading+=Math.atan2(Math.sin(newHeading-game.heading),
    Math.cos(newHeading-game.heading))*Math.min(1,dt*8);
