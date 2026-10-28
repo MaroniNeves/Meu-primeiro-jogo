@@ -62,6 +62,7 @@ const roadZ=x=>.92-.70*Math.sin(x*.47+.6)+.17*Math.sin(x*1.34);
 const riverX=z=>-2.3+.67*Math.sin(z*.69)+.60*Math.sin(z*.29+1.3);
 const riverHalfWidth=z=>window.arcanoRiverProfile?.halfWidth(z)||2.65;
 const riverBankEdge=z=>riverHalfWidth(z)+(window.arcanoRiverProfile?.bankWidth||7.0);
+const riverGrassEdge=z=>riverHalfWidth(z)+(window.arcanoRiverProfile?.bareBankWidth||3.2);
 
 function idx(x,z){const i=clamp(Math.round((x+W*.5)/dx),0,NX-1),j=clamp(Math.round((z+L*.5)/dz),0,NZ-1);return j*NX+i;}
 function position(k){const i=k%NX,j=(k-i)/NX;return {x:-W*.5+i*dx,z:-L*.5+j*dz};}
@@ -632,7 +633,7 @@ function initializeLandscape(){
   const shade=.5+.5*Math.sin(x*.85+z*.34)*Math.cos(z*.6);
   const moist=api.soilMoisture[k]/Math.max(.001,api.soilCapacity[k]);
   lightField[k]=clamp(.45+.35*shade,0,1);
-  cover[k]=distRiver<riverBankEdge(z)||fixedRoadMask[k]>.06?0:
+  cover[k]=distRiver<riverGrassEdge(z)||fixedRoadMask[k]>.06?0:
    clamp(.89+.08*shade+.12*moist-roadMask[k]*1.06-riverMask[k]*.90,0,1);
   foodResources[k]=Math.max(0,cover[k]*(1-roadMask[k])*.12);
  }
@@ -665,7 +666,7 @@ async function grassShape(){
   if(Math.abs(x)>W*.49||Math.abs(z)>L*.49)return -1;
   const k=idx(x,z);
   if(fixedRoadMask[k]>.045||Math.abs(z-roadZ(x))<1.11||
-    nestBareMask[k]>190||Math.abs(x-riverX(z))<riverBankEdge(z)+1.1||api.depth[k]>.068||
+    nestBareMask[k]>190||Math.abs(x-riverX(z))<riverGrassEdge(z)+.25||api.depth[k]>.068||
     cover[k]<.025)return -1;
   return k;
  }
@@ -695,7 +696,7 @@ async function grassShape(){
    if(!geo||planted>=grassBudgets.high)return false;
    const k=suitable(x,z);if(k<0)return false;
    // Moitas mais altas so aparecem longe da margem e nunca na agua.
-   if(multiplier>1.5&&Math.abs(x-riverX(z))<riverBankEdge(z)+1.2)return false;
+   if(multiplier>1.5&&Math.abs(x-riverX(z))<riverGrassEdge(z)+1.2)return false;
    const growth=clamp(cover[k]*(1-traffic[k])*
      (.55+.45*clamp(api.soilPlant[k],0,1)),0,1);
    if(growth<.02)return false;
@@ -754,7 +755,7 @@ async function grassShape(){
        other<.82?'grassMixed1':'grassMixed2';
       if(plant(secondary,px,pz,1.04+growth*.30))clumps++;
       // Uma minoria das moitas recebe gramíneas bem mais altas, longe do rio.
-      if(random()<.085&&Math.abs(px-riverX(pz))>riverBankEdge(pz)+1.2)
+      if(random()<.085&&Math.abs(px-riverX(pz))>riverGrassEdge(pz)+1.2)
        if(plant('grassTall1',px+.10,pz+.08,2.35+growth*.40))clumps++;
      }
     }
@@ -1695,7 +1696,7 @@ function update(dt){
    const normalized=clamp((wear-.18)/.65,0,1);
    roadMask[cell]=Math.max(fixedRoadMask[cell],normalized*normalized*(3-2*normalized));
    const p=position(cell);
-   const permanent=fixedRoadMask[cell]>.06||nestBareMask[cell]>190||Math.abs(p.x-riverX(p.z))<riverBankEdge(p.z);
+   const permanent=fixedRoadMask[cell]>.06||nestBareMask[cell]>190||Math.abs(p.x-riverX(p.z))<riverGrassEdge(p.z);
    const desired=permanent?0:clamp(1-roadMask[cell]*1.1,0,1);
    cover[cell]=permanent?0:clamp(cover[cell]+(desired-cover[cell])*.008,0,1);
   }
