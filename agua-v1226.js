@@ -211,8 +211,8 @@ function riverLevelAt(z){
  return RIVER_SURFACE_LEVEL+riverManualFill-.055*z-.46*drop;
 }
 function riverDepthAt(x,z){
- if(riverShore(x,z)>=-.055)return 0;
- return Math.max(.001,riverLevelAt(z)-elevation(x,z));
+ if(riverShore(x,z)>3.0)return 0;
+ return Math.max(0,riverLevelAt(z)-terrainContact(x,z));
 }
 function elevation(x,z){
  let y=.32-.073*z+.16*Math.sin(x*.83+z*.26)+.115*Math.cos(z*1.22-x*.34)+.055*Math.sin(x*2.25+z*1.92);
@@ -229,7 +229,7 @@ function elevation(x,z){
  const protectedRoad=(1-smooth(clamp((roadDist-1.10)/2.15,0,1)))*(1-smooth(clamp((crossDist-6.1)/2.3,0,1)));
  for(const basin of basins){const d=((x-basin.x)/basin.sx)**2+((z-basin.z)/basin.sz)**2;y-=basin.deep*Math.exp(-1.5*d)*(1-protectedRoad);}
  // Leito e margens acima/abaixo de um nivel UNICO; declives enchem ate a mesma linha.
- const waterline=riverLevelAt(z);
+ const waterline=riverLevelAt(z)-riverManualFill;
  // Erosao em rampa larga: o mesmo terreno continua ate a beira d'agua.
  // A escavacao nunca eleva a encosta acima do gramado.
  const slope=smooth(clamp((width+1.55-lateral)/2.05,0,1));
@@ -2650,12 +2650,32 @@ const SURFACE_VISIBLE=.006,SURFACE_RIPPLE=.012,SURFACE_POND=.018;
 const wet=new Float32Array(size),flow=new Float32Array(size*2);
 const flowXField=new Float32Array(size),flowZField=new Float32Array(size);
 // Faixa estreita dedicada ao rio: nenhuma malha de agua espalhada sobre o mapa.
-const VIS_NX=mobile?17:23,VIS_NZ=mobile?130:220,VIS_SIZE=VIS_NX*VIS_NZ;
+const VIS_NX=mobile?25:33,VIS_NZ=mobile?180:260,VIS_SIZE=VIS_NX*VIS_NZ;
 const waterPositions=new Float32Array(VIS_SIZE*3),waterDepths=new Float32Array(VIS_SIZE);
 const waterMud=new Float32Array(VIS_SIZE),waterFlow=new Float32Array(VIS_SIZE*2);
 const waterG=new T.BufferGeometry(),triangles=[];
 const wz=j=>-L*.5+j*L/(VIS_NZ-1);
-const wx=(i,z)=>center(z)+(i/(VIS_NX-1)*2-1)*riverWidth(z)*.82;
+const riverEdges=new Float32Array(VIS_NZ*2);let riverEdgesFill=NaN;
+function updateRiverEdges(){
+ if(riverEdgesFill===riverManualFill)return;
+ riverEdgesFill=riverManualFill;
+ for(let j=0;j<VIS_NZ;j++){
+  const z=wz(j),cx=center(z),level=riverLevelAt(z);
+  for(let side=0;side<2;side++){
+   const dir=side?1:-1;let wet=cx,dry=cx;
+   for(let offset=.12;offset<=riverWidth(z)+3.0;offset+=.12){
+    dry=cx+dir*offset;
+    if(terrainContact(dry,z)>=level)break;
+    wet=dry;
+   }
+   for(let q=0;q<10;q++){const mid=(wet+dry)*.5;if(terrainContact(mid,z)<level)wet=mid;else dry=mid;}
+   riverEdges[j*2+side]=(wet+dry)*.5;
+  }
+ }
+}
+updateRiverEdges();
+const wx=(i,z)=>{const j=clamp(Math.round((z/L+.5)*(VIS_NZ-1)),0,VIS_NZ-1);
+ return riverEdges[j*2]+i/(VIS_NX-1)*(riverEdges[j*2+1]-riverEdges[j*2]);};
 for(let j=0;j<VIS_NZ;j++)for(let i=0;i<VIS_NX;i++){
  const k=j*VIS_NX+i,z=wz(j);waterPositions[k*3]=wx(i,z);waterPositions[k*3+2]=z;
  if(j<VIS_NZ-1&&i<VIS_NX-1){const a=k,b=k+1,c=k+VIS_NX,d=c+1;triangles.push(a,c,b,b,c,d);}
@@ -2699,24 +2719,31 @@ for(let j=0;j<VIS_NZ;j++)for(let i=0;i<VIS_NX;i++){
  const k=j*VIS_NX+i;waterUV[k*2]=i/(VIS_NX-1);waterUV[k*2+1]=j/(VIS_NZ-1);
 }
 waterG.setAttribute('uv',new T.BufferAttribute(waterUV,2));
-function createRiverWater2(){
+function initRiverSimulation(){
+ if(window.ArcanoInteractiveRiver)return new window.ArcanoInteractiveRiver(waterG,VIS_NX,VIS_NZ,L);
+ const wave=new Float32Array(VIS_SIZE);
+ waterG.setAttribute('waveHeight',new T.BufferAttribute(wave,1));
+ const normal=new T.DataTexture(new Uint8Array([128,128,255,255]),1,1);normal.needsUpdate=true;
+ console.warn('[Arcano] Interactive waves unavailable; keeping calm water.');
+ return {normal,wave,step(){},disturb(){}};
+}
+const riverSimulation=initRiverSimulation();
+function createInteractiveRiver(){
  if(!window.ArcanoWater2)return new T.Mesh(waterG,waterM);
  try{
-  const loader=new T.TextureLoader();
-  const base='https://cdn.jsdelivr.net/npm/three@0.152.2/examples/textures/water/';
-  const normals=['Water_1_M_Normal.jpg','Water_2_M_Normal.jpg'].map(name=>loader.load(base+name,undefined,undefined,()=>{
-   console.warn('[Arcano] Water2 normal texture unavailable; using previous material.');
-   water.material=waterM;water.onBeforeRender=()=>{};
-  }));
+  const normals=[riverSimulation.normal,riverSimulation.normal];
   const mesh=new window.ArcanoWater2(waterG,{
    color:0xc6ded3,scale:1,flowDirection:new T.Vector2(0,-1),flowSpeed:.035,
    reflectivity:.055,textureWidth:mobile?256:512,textureHeight:mobile?256:512,
    normalMap0:normals[0],normalMap1:normals[1]
   });
+  riverSimulation.normal.wrapS=riverSimulation.normal.wrapT=T.ClampToEdgeWrapping;
   // Flow in channel UVs follows the meanders; world coordinates keep ripples at a natural scale.
   const shader=mesh.material;
   shader.vertexShader=shader.vertexShader.replace('varying vec2 vUv;',
-   'attribute float waterDepth; attribute vec2 waterFlow; varying float vDepth; varying float vSpeed; varying vec2 vCurrent; varying vec2 vUv; varying vec2 vWaveUv;');
+   'attribute float waveHeight; attribute float waterDepth; attribute vec2 waterFlow; varying float vDepth; varying float vSpeed; varying vec2 vCurrent; varying vec2 vUv; varying vec2 vWaveUv;');
+  shader.vertexShader=shader.vertexShader.replaceAll('vec4( position, 1.0 )','vec4( position + vec3(0.0,waveHeight,0.0), 1.0 )');
+  shader.vertexShader=shader.vertexShader.replaceAll('modelViewMatrix * vec4( position, 1.0 )','modelViewMatrix * vec4( position + vec3(0.0,waveHeight,0.0), 1.0 )');
   shader.vertexShader=shader.vertexShader.replace('vUv = uv;',
    'vUv = uv; vWaveUv=position.xz*.55; vDepth=waterDepth; vSpeed=length(waterFlow); vCurrent=waterFlow;');
   shader.fragmentShader=shader.fragmentShader.replace('varying vec2 vUv;',
@@ -2725,7 +2752,8 @@ function createRiverWater2(){
    'if(vDepth<.006)discard; vec2 flow;');
   shader.fragmentShader=shader.fragmentShader.replace('flow = flowDirection;',
    'flow = vec2(vCurrent.x,-vCurrent.y)*2.0;');
-  shader.fragmentShader=shader.fragmentShader.replaceAll('( vUv * scale )','( vWaveUv * scale )');
+  shader.fragmentShader=shader.fragmentShader.replace('( vUv * scale ) + flow * flowMapOffset0','vUv');
+  shader.fragmentShader=shader.fragmentShader.replace('( vUv * scale ) + flow * flowMapOffset1','vUv');
   shader.fragmentShader=shader.fragmentShader.replace('gl_FragColor = vec4( color, 1.0 ) * mix( refractColor, reflectColor, reflectance );',
    'vec3 absorption=exp(-vec3(.85,.25,.16)*max(vDepth,0.0)); vec3 bed=refractColor.rgb*absorption; gl_FragColor=vec4(color*mix(bed,reflectColor.rgb,reflectance),smoothstep(.006,.045,vDepth));');
   shader.side=T.DoubleSide;shader.depthWrite=false;
@@ -2741,8 +2769,39 @@ function createRiverWater2(){
   return mesh;
  }catch(error){console.warn('[Arcano] Water2 fallback:',error);return new T.Mesh(waterG,waterM);}
 }
-const water=createRiverWater2();water.frustumCulled=false;water.renderOrder=3;
-water.name='Água V12.27 · reflexos alinhados ao cenário';scene.add(water);
+const water=createInteractiveRiver();water.frustumCulled=false;water.renderOrder=3;
+water.name='Rio interativo · ondas por campo de alturas e volume até o leito';scene.add(water);
+// Closed water envelope: surface above, bed below, joined at banks and map ends.
+// The land occludes the bottom; the space between bed and surface is underwater.
+const riverVolumeG=new T.BufferGeometry();
+const riverVolumePositions=new Float32Array(VIS_SIZE*6),riverVolumeIndices=[];
+for(let k=0;k<triangles.length;k+=3)riverVolumeIndices.push(
+ triangles[k+2]+VIS_SIZE,triangles[k+1]+VIS_SIZE,triangles[k]+VIS_SIZE);
+function joinWaterBoundary(a,b){riverVolumeIndices.push(a,b,b+VIS_SIZE,a,b+VIS_SIZE,a+VIS_SIZE);}
+for(let j=0;j<VIS_NZ-1;j++){
+ joinWaterBoundary(j*VIS_NX,(j+1)*VIS_NX);
+ joinWaterBoundary((j+1)*VIS_NX+VIS_NX-1,j*VIS_NX+VIS_NX-1);
+}
+for(let i=0;i<VIS_NX-1;i++){
+ joinWaterBoundary(i+1,i);joinWaterBoundary((VIS_NZ-1)*VIS_NX+i,(VIS_NZ-1)*VIS_NX+i+1);
+}
+riverVolumeG.setAttribute('position',new T.BufferAttribute(riverVolumePositions,3).setUsage(T.DynamicDrawUsage));
+riverVolumeG.setIndex(riverVolumeIndices);
+const riverVolume=new T.Mesh(riverVolumeG,new T.MeshBasicMaterial({
+ color:'#386e67',transparent:true,opacity:.20,side:T.DoubleSide,depthWrite:false}));
+riverVolume.name='Volume fechado entre o leito e a superfície';riverVolume.frustumCulled=false;
+riverVolume.renderOrder=2;water.add(riverVolume);
+function updateRiverVolume(){
+ for(let k=0;k<VIS_SIZE;k++){
+  const o=k*3,b=(k+VIS_SIZE)*3,x=waterPositions[o],z=waterPositions[o+2];
+  riverVolumePositions[o]=riverVolumePositions[b]=x;
+  riverVolumePositions[o+2]=riverVolumePositions[b+2]=z;
+  riverVolumePositions[o+1]=waterPositions[o+1]+riverSimulation.wave[k];
+  riverVolumePositions[b+1]=Math.min(waterPositions[o+1],terrainContact(x,z)-.025);
+ }
+ riverVolumeG.attributes.position.needsUpdate=true;
+}
+
 // Render target da câmera espelhada; preserva os cubemaps existentes como fallback.
 const planarRT=new T.WebGLRenderTarget(mobile?640:1024,mobile?512:768,{
  generateMipmaps:false,minFilter:T.LinearFilter,magFilter:T.LinearFilter,
@@ -3324,13 +3383,15 @@ function rebuild(){
   attr.needsUpdate=true;
  }
  wetted=count*area;
- // A malha visual 2-3× mais densa interpola os dados; não gera quadrados da grade antiga.
+ updateRiverEdges();
+ // A malha cobre a largura inundada real, até o encontro com o terreno.
  for(let j=0;j<VIS_NZ;j++)for(let i=0;i<VIS_NX;i++){
   const k=j*VIS_NX+i,z=wz(j),x=wx(i,z),level=riverLevelAt(z);
   // Todas as seções compartilham a mesma lamina, inclusive onde o leito e mais baixo.
   // A superficie so aparece onde o leito esta abaixo da agua;
   // nunca elevar artificialmente a agua sobre solo/grama.
-  const clearance=level-elevation(x,z);
+  const clearance=level-terrainContact(x,z);
+  waterPositions[k*3]=x;
   waterPositions[k*3+1]=level+.003;
   waterDepths[k]=Math.max(0,clearance);
   waterMud[k]=0;
@@ -3419,7 +3480,8 @@ const gameFootstepRng=rand(202658),gameFootWaterTint=new T.Color('#b9dce5');
 function emitGameWaterFootstep(x,z,heading,running,side){
  const fx=x+Math.cos(heading)*side*.075+Math.sin(heading)*.035;
  const fz=z-Math.sin(heading)*side*.075+Math.cos(heading)*.035;
- if(riverShore(fx,fz)>-.08||riverDepthAt(fx,fz)<.05)return;
+ if(riverDepthAt(fx,fz)<.05)return;
+ riverSimulation.disturb(fx,fz,running?.026:.017,.55);
  const top=riverLevelAt(fz);
  const ripple=ripplePool.find(mesh=>!mesh.visible&&!ripples.some(r=>r.mesh===mesh));
  if(ripple&&ripples.length<MAX_RIPPLES){
@@ -3852,7 +3914,7 @@ function updateGame(dt){
  game.grassSpeed=walked/Math.max(dt,.001);
  const onBridge=window.arcanoBridgeSolid?.surfaceAt(game.position.x,game.position.z)!=null;
  game.grassOnGround=!onBridge;
- const footWater=!onBridge&&riverShore(game.position.x,game.position.z)<-.20&&
+ const footWater=!onBridge&&
    riverDepthAt(game.position.x,game.position.z)>.055;
  if(walked>.0002&&footWater){
   const stride=control.run?.37:.49;
@@ -4534,7 +4596,8 @@ function loop(now){
   animateClimate(dt);
   animateForest(dt);
   setView();
-  updateReflections(dt);
+  riverSimulation.step(dt);updateRiverVolume();
+  if(!water.userData.water2)updateReflections(dt);
   updateInfo(false);
  }
  // A câmera já foi atualizada antes dos reflexos. Evitar a segunda
@@ -4545,7 +4608,12 @@ function loop(now){
   if(!lodState.active&&(moved||lodState.lastDistance!==viewDistance))requestDistanceLOD();
   processDistanceLODBatch();
  }
- renderer.render(scene,camera);
+ const underwater=riverDepthAt(camera.position.x,camera.position.z)>.02&&
+  camera.position.y<riverLevelAt(camera.position.z)-.015&&
+  camera.position.y>terrainContact(camera.position.x,camera.position.z)-.08;
+ const savedFog=scene.fog;
+ if(underwater)scene.fog=new T.Fog('#315c59',.05,5.5);
+ try{renderer.render(scene,camera);}finally{scene.fog=savedFog;}
  gamePerf.elapsed+=rawDt;gamePerf.frames++;
  if(gamePerf.elapsed>=1.25){
   gamePerf.lastFps=Math.round(gamePerf.frames/gamePerf.elapsed);
