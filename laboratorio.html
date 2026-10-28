@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="pt-BR" data-arcano-mode="laboratory"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0b141b"><title>Ateliê Arcano — Floresta V12.68 · ancoragem, reflexos e vento físico</title>
+<style>
+:root{color-scheme:dark;--bg:#101d29;--edge:#45606b;--font:#eaf1ed;--muted:#aabfc7;--accent:#80c0bf}*{box-sizing:border-box}
+body{margin:0;background:#0b131b;color:var(--font);font:14px/1.35 system-ui,Segoe UI,sans-serif;overflow:hidden}
+canvas{position:fixed;inset:0;width:100vw;height:100dvh;display:block;touch-action:none}
+.top{position:fixed;z-index:10;top:calc(8px + env(safe-area-inset-top));left:9px;right:9px;padding:10px 11px;background:#10202de8;border:1px solid #46606c;border-radius:13px;box-shadow:0 6px 24px #0008}
+.top .row{display:flex;align-items:center;gap:10px}.name{flex:1;min-width:0}.name strong{display:block;font-size:14px;color:#f6dfad}.name small{display:block;font-size:11px;color:#bdd1d7}a.home{border:1px solid #6a8b97;color:#d6eef2;text-decoration:none;padding:8px 10px;border-radius:8px;white-space:nowrap;font-size:12px}
+.pills{display:flex;gap:5px;margin-top:8px}.pills button{flex:1;background:#243849;border:1px solid #54707e;color:#edf7f8;border-radius:9px;padding:9px 4px;font:600 12px system-ui}.pills button.active{background:#7cb9c0;color:#0a2330;border-color:#c9eff0}
+.hint{position:fixed;top:calc(120px + env(safe-area-inset-top));left:9px;right:9px;z-index:8;background:#0e1c28cc;border:1px solid #46606c;color:#b4d4dc;border-radius:10px;padding:7px 9px;font-size:12px;pointer-events:none}
+.bottom{position:fixed;z-index:11;left:9px;right:9px;bottom:calc(9px + env(safe-area-inset-bottom));padding:11px;background:#0e1d2aef;border:1px solid #46606c;border-radius:14px;box-shadow:0 6px 20px #0008}
+.bottom .row{display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap}.bottom button{border:1px solid #547587;background:#273d52;color:#e9f7fb;border-radius:10px;font:700 12px system-ui;padding:10px 13px;min-height:42px;white-space:nowrap}.bottom button.primary{background:#c4a478;color:#171a1c;border-color:#eed2a0}.bottom label{display:flex;align-items:center;gap:7px;color:#c2d9de;font-size:12px}.bottom select{background:#213a4b;color:#e8f5f7;border:1px solid #80aebb;border-radius:9px;padding:9px;font:700 13px system-ui;min-height:43px;max-width:100%}
+.rain-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px}
+.rain-row label{flex:1;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap}
+#intensityName{font:700 12px system-ui;color:#cce9ec}
+#rainMeter{height:5px;margin-top:7px;background:linear-gradient(to right,#9ed7e0 var(--rain-fill,60%),#344957 var(--rain-fill,60%));border-radius:5px}
+#rainDetail{font-size:11px;color:#b5d4dc;margin:4px 0}
+@media(max-width:440px){.rain-row{flex-wrap:wrap}}
+#info{margin-top:5px;color:#b7cbd2;font-size:11px}#diag{position:fixed;z-index:30;top:50%;left:12px;right:12px;padding:16px;background:#4d2222ef;color:#fff;border-radius:12px;font-weight:600}#diag:empty{display:none}
+.ar-legacy{font-size:10px!important;padding:7px!important;opacity:.75}@media(max-width:390px){.name strong{font-size:12px}.name small{font-size:10px}.pills button{font-size:11px;padding:9px 2px}.bottom button{padding:9px 8px}.bottom input{max-width:65px}}
+
+/* V12.6: painel compacto e rolável, adequado ao Android */
+.top{max-width:780px;margin-inline:auto}.bottom{max-width:780px;margin-inline:auto;max-height:55dvh;overflow-y:auto;overscroll-behavior:contain}
+.sim-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(110px,.43fr);gap:8px;margin:9px 0}
+.sim-row label,.rain-appearance{font:600 11px system-ui;color:#d2e2df;display:flex;flex-direction:column;align-items:stretch;gap:5px}
+.sim-row select,.rain-appearance select{width:100%;min-height:38px;padding:7px 9px;border:1px solid #5d7a7d;background:#1b3038;color:#eef5eb;border-radius:9px;font:600 12px system-ui}
+.hydro-options{border-top:1px solid #56707870;margin:4px 0;padding-top:6px}
+.hydro-options summary{font:600 11px system-ui;color:#dae6dc;padding:6px 2px;cursor:pointer;list-style:inside}
+.hydro-flags{display:flex;flex-wrap:wrap;gap:4px 15px;margin:6px 0}
+.hydro-flags label{display:inline-flex;align-items:center;justify-content:flex-start;gap:7px;white-space:normal;font:11px system-ui;color:#e0e8dd}
+.hydro-flags input{accent-color:#8ec4ac;width:17px;height:17px}
+.rain-appearance{margin:7px 0}
+.hydro-metrics{display:grid;gap:3px;padding:7px 8px;border-radius:9px;background:#132932b0;border:1px solid #3a5859;color:#c8ded7;font:11px/1.35 system-ui}
+#simClock{color:#edd3a9;font-weight:750}
+#info{padding:5px 0}
+@media(max-width:390px){.sim-row{grid-template-columns:minmax(0,1fr) minmax(95px,.45fr)}.sim-row select{font-size:11px;padding:6px}.hydro-metrics{font-size:10px}}
+
+#showControls{display:none;position:fixed;z-index:25;bottom:calc(14px + env(safe-area-inset-bottom));right:12px;padding:11px 14px;
+ background:#192e37ee;color:#eef7f3;border:1px solid #a2c5bc;border-radius:12px;font:700 13px system-ui;
+ box-shadow:0 6px 25px #000b;touch-action:manipulation}
+body.ui-hidden .top,body.ui-hidden .bottom,body.ui-hidden .hint{display:none!important}
+body.ui-hidden #showControls{display:block}
+.bottom .row>#collapseControls{background:#29473e;border-color:#87ad98;color:#f1f8f1}
+.bottom .row{flex-wrap:nowrap!important}.bottom .row button{flex:1;min-width:0;padding:8px 5px;font-size:11px}
+.bottom .row button.primary{flex:1.5}
+@media(min-width:680px){.bottom .row button{font-size:12px;padding:10px 14px}}
+
+#stopRain{flex:0 0 auto;min-height:39px;background:#355244;border-color:#89ae90;color:#edf7eb;padding:7px 10px;font-size:11px}
+#stopRain[aria-pressed="true"]{background:#2f4857;border-color:#94b4c4}
+.rain-row{flex-wrap:wrap;gap:5px}
+#wetGroundStats{color:#c6d9ba}
+@media(max-width:400px){#stopRain{min-height:36px;font-size:10px}.rain-row #intensityName{display:none}}
+#dayCycleStats{color:#f5dfaa;font-weight:750;font-variant-numeric:tabular-nums}
+#atmosStats{color:#c5e7ea}
+.day-timeline{height:7px;margin:5px 0 7px;border-radius:7px;overflow:hidden;border:1px solid #55737a;background:linear-gradient(90deg,#233451 0%,#f3ac65 24%,#c8ecb6 43%,#e4bd76 73%,#273451 90%)}
+#dayCycleBar{height:100%;width:0%;border-right:3px solid white;box-shadow:0 0 5px white;transition:width .25s linear}
+
+/* V12.68 — jogar: HUD exclusiva, joystick móvel, orientação horizontal. */
+#gameDownload{position:fixed;z-index:32;right:12px;top:calc(58px + env(safe-area-inset-top));
+ padding:9px 12px;border:1px solid #93a995;border-radius:10px;background:#233b33;
+ color:#f1f5eb;text-decoration:none;font:700 12px system-ui;cursor:pointer;text-align:center;
+ max-width:min(92vw,260px)}
+#playEntry{position:fixed;z-index:32;right:12px;top:calc(10px + env(safe-area-inset-top));padding:10px 15px;
+ border:1px solid #c6d7b2;border-radius:10px;background:#355743;color:#f7f7e4;font:700 13px system-ui;cursor:pointer}
+#gameHUD{display:none;position:fixed;inset:0;z-index:40;pointer-events:none;color:#f5f6ed}
+body.play-active .top,body.play-active .bottom,body.play-active .hint,
+body.play-active #showControls,body.play-active #playEntry,
+body.play-active #gameDownload{display:none!important}
+body.play-active #gameHUD{display:block}
+.game-top{display:flex;justify-content:space-between;align-items:center;gap:9px;
+ padding:calc(10px + env(safe-area-inset-top)) 14px 0}
+.game-top button,.game-top a,.game-action{pointer-events:auto;border:1px solid #98ac99;background:#152826db;
+ color:#fff;border-radius:11px;min-height:43px;padding:9px 14px;font:700 13px system-ui;touch-action:none}
+.game-top a{text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+.game-top output{padding:7px 10px;border-radius:8px;background:#152826a8;font:600 12px system-ui}
+.game-bottom{position:absolute;bottom:calc(10px + env(safe-area-inset-bottom));left:18px;right:18px;
+ display:flex;align-items:end;justify-content:space-between;pointer-events:none;gap:12px}
+.game-joystick{position:relative;pointer-events:auto;touch-action:none;width:130px;height:130px;border-radius:50%;
+ border:2px solid #d1dbc38a;background:#102a246e;display:grid;place-items:center}
+#gameStick{position:absolute;width:53px;height:53px;border-radius:50%;border:2px solid #e0e7d5;
+ background:#84a98a99;transform:translate(0,0);pointer-events:none;box-shadow:0 2px 12px #0008}
+.game-legend{position:absolute;left:150px;bottom:13px;font:12px system-ui;color:#e9f0e1;
+ background:#10251ba0;padding:6px 8px;border-radius:7px}
+body.play-active #gameHUD #gameRun{min-width:85px;height:70px;background:#4d4937cf}
+.game-zoom{position:absolute;right:13px;bottom:calc(93px + env(safe-area-inset-bottom));
+ display:flex;align-items:center;gap:5px;pointer-events:auto;
+ background:#10251ac7;border:1px solid #789888;border-radius:11px;padding:5px}
+.game-zoom button{pointer-events:auto;touch-action:manipulation;min-width:42px;height:42px;
+ border-radius:9px;border:1px solid #a4c1a9;background:#273e35e9;color:#fff;
+ font:700 23px system-ui;cursor:pointer}
+#gameZoomLevel{font:600 12px system-ui;color:#e0ece1;min-width:39px;text-align:center}
+.game-spells{position:absolute;right:12px;bottom:calc(163px + env(safe-area-inset-bottom));
+ display:flex;gap:6px;align-items:center;justify-content:flex-end;pointer-events:auto;
+ max-width:calc(100vw - 16px)}
+.game-spells button{pointer-events:auto;touch-action:manipulation;width:61px;min-height:54px;
+ display:flex;flex-direction:column;align-items:center;justify-content:center;
+ gap:2px;padding:5px 4px;border-radius:11px;background:#17252fdc;
+ border:1px solid #789496;color:#e9eff0;box-shadow:0 3px 12px #0009;
+ font:600 10px system-ui;cursor:pointer}
+.game-spells button b{font:700 18px system-ui;color:#c1cbd0}
+#gameSpellStatus{position:absolute;right:12px;bottom:calc(224px + env(safe-area-inset-bottom));
+ font:600 11px system-ui;color:#c9dedb;background:#14252dcc;
+ padding:5px 9px;border-radius:8px;pointer-events:none}
+@media(max-width:440px){.game-spells button{width:55px;min-height:48px;font-size:9px}
+ .game-spells{bottom:calc(158px + env(safe-area-inset-bottom))}}
+#gameRotateHint{display:none;position:absolute;top:40%;left:12%;right:12%;padding:18px;
+ text-align:center;background:#10251bea;border:1px solid #9dbfa7;border-radius:14px;font:600 15px system-ui}
+@media(orientation:portrait) {body.play-active #gameRotateHint{display:block}}
+@media(max-width:650px){.game-joystick{width:112px;height:112px}
+ .game-legend{display:none}.game-bottom{left:12px;right:12px}}
+body.play-active #gameFPS{font:700 12px system-ui;color:#bcecc6;white-space:nowrap}
+body.play-active .game-top{flex-wrap:wrap}
+
+/* Portal dark fantasy — menu de entrada isolado das cenas. */
+#arcanoModeMenu{position:fixed;inset:0;z-index:60;display:grid;place-items:center;overflow:auto;padding:clamp(14px,4vw,32px);background:radial-gradient(ellipse at 50% 15%,#52635135,transparent 57%),linear-gradient(145deg,#050d13ed,#081215f4);backdrop-filter:blur(13px)}
+#arcanoModeMenu[hidden]{display:none!important}
+.arcano-mode-card{position:relative;isolation:isolate;width:min(730px,100%);padding:clamp(22px,5vw,43px);overflow:hidden;border:1px solid #b4a07868;border-radius:22px;background:linear-gradient(145deg,#182a30f5,#0d191ff7 70%);box-shadow:0 28px 90px #000b,inset 0 1px #d7caa421;color:#e9efe8;text-align:left}
+.arcano-mode-card:before{content:"";position:absolute;z-index:-1;inset:0;background:radial-gradient(ellipse at 0 0,#a58b5230,transparent 50%),radial-gradient(ellipse at 100% 100%,#56837820,transparent 48%);pointer-events:none}
+.arcano-kicker{display:inline-block;margin-bottom:13px;color:#c6ac76;letter-spacing:.21em;font:700 10px system-ui;text-transform:uppercase}
+.arcano-mode-card h2{font:400 clamp(35px,6vw,58px)/1.02 Georgia,serif;color:#f0ddb1;margin:0 0 15px;letter-spacing:.015em}
+.arcano-mode-card p{max-width:530px;font:13px/1.6 system-ui;color:#b7c7c3;margin:0 0 26px}
+.arcano-mode-options{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.arcano-mode-options a,.arcano-mode-options button{appearance:none;display:flex;align-items:center;text-align:left;gap:15px;min-height:104px;width:100%;padding:16px;border:1px solid #77908856;border-radius:14px;background:linear-gradient(155deg,#29403fdd,#182c32e6);color:#f2f1e9;text-decoration:none;font:600 15px system-ui;cursor:pointer;transition:transform .18s,border-color .18s,background .18s,box-shadow .18s}
+.arcano-mode-options a:hover,.arcano-mode-options button:hover,.arcano-mode-options a:focus-visible,.arcano-mode-options button:focus-visible{transform:translateY(-2px);border-color:#c9ac77;box-shadow:0 10px 25px #0005;outline:2px solid #c5ab7855;outline-offset:2px}
+.arcano-mode-options button.arcano-main-play{grid-column:1/-1;background:linear-gradient(120deg,#62583fdc,#303a31);border-color:#b49c6975}
+.arcano-icon{flex:0 0 47px;height:47px;display:grid;place-items:center;border-radius:11px;background:#bca47218;border:1px solid #cfbc8e36;font-size:23px}
+.arcano-mode-text{display:flex;flex-direction:column;gap:5px}.arcano-mode-text strong{font:650 17px system-ui}.arcano-mode-text small{font:12px/1.4 system-ui;color:#b8c9c3}
+.arcano-foot{margin-top:22px;border-top:1px solid #a6b2a422;padding-top:15px;color:#98ada6;font:11px/1.6 system-ui}
+#arcanoOpenModes{position:fixed;z-index:33;top:calc(10px + env(safe-area-inset-top));left:12px;border:1px solid #b3a27b99;border-radius:10px;padding:10px 13px;background:#192b2bee;color:#e3d4b1;font:700 12px system-ui;cursor:pointer;box-shadow:0 4px 20px #0008}
+body.play-active #arcanoOpenModes{display:none}
+@media(max-width:570px){.arcano-mode-card{padding:23px 17px;border-radius:17px}.arcano-mode-options{grid-template-columns:1fr;gap:9px}.arcano-mode-options button.arcano-main-play{grid-column:auto}.arcano-mode-options a,.arcano-mode-options button{min-height:78px;padding:12px 13px}.arcano-icon{flex-basis:44px;height:44px}.arcano-mode-card p{margin-bottom:19px}.arcano-mode-card h2{font-size:38px}}
+@media(prefers-reduced-motion:reduce){.arcano-mode-options a,.arcano-mode-options button{transition:none}}
+
+/* V12.70: console flutuante para ajustes de mundo também durante o jogo */
+#rainControls.bottom{position:fixed;left:auto;right:clamp(10px,2vw,26px);top:clamp(72px,12vh,120px);bottom:auto;margin:0;width:min(410px,calc(100vw - 20px));max-width:none;max-height:min(72dvh,680px);z-index:52;border:1px solid #9d927080;border-radius:17px;background:linear-gradient(160deg,#172a30f7,#0c181ff7);box-shadow:0 18px 48px #000a,inset 0 1px #e2c9911e;padding:0 14px 14px;overflow-y:auto;overscroll-behavior:contain;scrollbar-color:#8d9274 #16252b}
+#rainControls .arcano-panel-heading{position:sticky;top:0;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 -14px 12px;padding:13px 14px;background:#182c32f9;border-bottom:1px solid #8f98733e;cursor:grab;touch-action:none;user-select:none}
+#rainControls .arcano-panel-heading:active{cursor:grabbing}
+.arcano-panel-heading strong{color:#e9d5a9;font:600 17px Georgia,serif}
+.arcano-panel-heading small{display:block;font:11px system-ui;color:#b4c9c2;margin-top:3px}
+#arcanoCloseSettings{min-width:38px;height:38px;border:1px solid #9b9e8177;border-radius:9px;background:#263d3f;color:#f1e9d5;font-size:19px;cursor:pointer}
+#rainControls .row{flex-wrap:wrap!important}
+#rainControls .row button{flex:1 1 92px;min-width:0}
+#rainControls select,#rainControls input[type=number]{border:1px solid #83988866;border-radius:9px;background:#22383e;color:#f1f3e9}
+#rainControls summary{color:#e3d0aa}
+#showControls{display:block;position:fixed;z-index:51;right:14px;top:calc(12px + env(safe-area-inset-top));bottom:auto;padding:11px 14px;border:1px solid #c0aa78a8;border-radius:11px;background:#1f3738f4;color:#f1e0b6;box-shadow:0 7px 25px #0008;font-weight:700;cursor:pointer}
+body:not(.ui-hidden) #showControls{display:none}
+body.ui-hidden #rainControls{display:none!important}
+body.play-active #rainControls.bottom:not(.arcano-closed){display:block!important}
+body.play-active.ui-hidden #rainControls.bottom{display:none!important}
+body.play-active #showControls{display:block!important;top:calc(67px + env(safe-area-inset-top));right:12px;bottom:auto;z-index:53;pointer-events:auto}
+body.play-active:not(.ui-hidden) #showControls{display:none!important}
+body.play-active #rainControls{pointer-events:auto}
+body.play-active #rainControls #collapseControls{display:none}
+@media(max-width:620px){#rainControls.bottom{top:calc(110px + env(safe-area-inset-top));right:8px;left:auto;width:min(360px,calc(100vw - 16px));max-height:57dvh;padding:0 11px 11px}#rainControls .arcano-panel-heading{margin:0 -11px 10px;padding:10px 11px}body.play-active #rainControls.bottom{top:calc(115px + env(safe-area-inset-top));max-height:52dvh}}
+
+/* Acesso permanente ao console e personalização do atalho. */
+#arcanoSettingsToggle{position:fixed;z-index:56;right:12px;top:calc(12px + env(safe-area-inset-top));display:flex;align-items:center;gap:8px;padding:10px 13px;min-height:42px;border:1px solid #c7ac7d;border-radius:12px;color:#f1ddb6;background:#182d30f2;box-shadow:0 7px 22px #0009;font:700 12px system-ui;cursor:pointer;pointer-events:auto}
+#arcanoSettingsToggle kbd{border:1px solid #7e927d;padding:3px 6px;border-radius:5px;background:#102022;font:700 11px system-ui}
+body.play-active #arcanoSettingsToggle{top:calc(65px + env(safe-area-inset-top));right:12px}
+body.play-active #showControls,#showControls{display:none!important}
+.arcano-shortcut-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px;padding:9px 10px;background:#20373b;border:1px solid #5d807657;border-radius:10px;color:#d8e4d8;font:12px system-ui}
+#arcanoShortcutCapture{padding:8px 11px;border:1px solid #bba277;border-radius:8px;background:#32473f;color:#f1dfb6;font:700 12px system-ui;cursor:pointer}
+@media(max-width:620px){#arcanoSettingsToggle{padding:9px 10px;min-height:38px;font-size:11px}body.play-active #arcanoSettingsToggle{top:calc(68px + env(safe-area-inset-top))}}
+
+/* Correção: acesso aos ajustes dentro do HUD real, evitando regras antigas de ocultação. */
+body.play-active #gameHUD .game-top #gameSettingsOpen{display:inline-flex!important;position:relative;z-index:65;pointer-events:auto!important;align-items:center;justify-content:center;min-height:43px;background:#564a34ef;border:1px solid #cbb17c;color:#fff0ce;cursor:pointer;touch-action:manipulation}
+body:not(.play-active) #gameSettingsOpen{display:none}
+body.play-active #rainControls.bottom{z-index:75;pointer-events:auto}
+body.play-active #rainControls.bottom:not(.arcano-closed):not(.force-hide){display:block!important}
+body.play-active.ui-hidden #rainControls.bottom{display:none!important}
+@media(max-width:550px){body.play-active #gameHUD .game-top #gameSettingsOpen{font-size:11px;padding:7px 9px;min-height:39px}}
+
+/* Console de Mundo V12.71 — aparência e hierarquia sem alterar IDs nem simulação */
+#rainControls.bottom{color:#e4eee8;border:1px solid #b9a2786b;border-radius:19px;background:linear-gradient(162deg,#172c31fc 0%,#0d1d24fc 100%);box-shadow:0 24px 65px #000b,inset 0 1px 0 #f4e0ae17;padding:0 16px 18px;scrollbar-color:#98876b #15282e}
+#rainControls .arcano-panel-heading{margin:0 -16px 14px;padding:16px;background:linear-gradient(150deg,#263b3b,#172b30);border-bottom:1px solid #c5ad7a38;border-radius:18px 18px 0 0}
+#rainControls .arcano-panel-heading strong{font:500 20px Georgia,serif;color:#eedab0;letter-spacing:.02em}
+#rainControls .arcano-panel-heading small{font:11px/1.5 system-ui;color:#aac4bb}
+#rainControls .arcano-shortcut-row{margin:0 0 13px;padding:11px 12px;background:#20373a;border:1px solid #81958a38;border-radius:12px}
+#rainControls .row{gap:7px!important;margin:8px 0 14px;flex-wrap:wrap!important}
+#rainControls .row button{border:1px solid #80958a6e;border-radius:10px;background:linear-gradient(#30464d,#21363d);color:#ebf1eb;min-height:40px;font-weight:650}
+#rainControls .row button.primary{background:linear-gradient(#c6ac7a,#aa8c59);border-color:#dbc696;color:#172322}
+#rainControls .row button:hover,#rainControls select:focus-visible,#arcanoShortcutCapture:hover{border-color:#d5b980;outline-color:#d5b980}
+#rainControls .arcano-section-name{display:flex;align-items:center;gap:8px;margin:16px 0 9px;padding:0 2px 8px;border-bottom:1px solid #bbab8040;font:600 15px Georgia,serif;color:#e9d1a0}
+#rainControls .rain-row,#rainControls .sim-row{margin:0 0 10px;padding:13px;border:1px solid #88a09635;background:#1f343b9c;border-radius:13px}
+#rainControls label{color:#d1e3dc;font-size:12px}
+#rainControls select,#rainControls input[type=number]{background:#152b34;color:#edf4ed;border:1px solid #809b9461;border-radius:9px;min-height:39px;padding:8px 9px}
+#rainControls input[type=range]{accent-color:#c3aa75}
+#rainControls .sim-row{grid-template-columns:1fr 1fr;gap:11px}
+#rainControls .sim-row label:first-child{grid-column:1/-1}
+#rainControls #rainMeter{height:7px;border-radius:9px;margin:9px 0;background:linear-gradient(to right,#93bec5 var(--rain-fill,60%),#30454d var(--rain-fill,60%))}
+#rainControls details.hydro-options,#rainControls details#modelTesting,#rainControls details#ecoPanel{border:1px solid #849c8b48!important;border-radius:13px!important;background:#182d33c9!important;margin:11px 0!important;padding:0 11px 9px!important}
+#rainControls details>summary{color:#e4d1ab!important;font-weight:650!important;cursor:pointer;padding:13px 3px!important;line-height:1.5}
+#rainControls details[open]>summary{border-bottom:1px solid #8a9b8350;margin-bottom:10px}
+#rainControls .wind-editor,#rainControls .hydro-metrics{border:1px solid #75938c40!important;border-radius:11px!important;background:#152b32b8!important}
+#rainControls .hydro-metrics{gap:7px;padding:10px!important}
+#rainControls .hydro-metrics>div:not(.day-timeline){padding:7px 9px;border-radius:8px;background:#ffffff07;border:1px solid #ffffff0b}
+#rainControls #arcanoCloseSettings{border:1px solid #bbab8270;background:#31413e;color:#f6e3b7;border-radius:10px;cursor:pointer}
+#rainControls #arcanoShortcutCapture{background:#33483f;color:#f5dfac;border:1px solid #b7a37a6b}
+#gameSettingsOpen{background:linear-gradient(#bfa374,#917951)!important;color:#182321!important;border-color:#e1c895!important;box-shadow:0 5px 18px #0007}
+@media(max-width:620px){#rainControls.bottom{padding:0 11px 13px}#rainControls .arcano-panel-heading{margin:0 -11px 12px;padding:12px 11px}#rainControls .arcano-panel-heading strong{font-size:18px}#rainControls .sim-row{gap:7px}#rainControls .rain-row{padding:10px}}
+
+/* Correção definitiva da visibilidade: [hidden] vence regras legadas !important. */
+#rainControls[hidden]{display:none!important}
+body.play-active #rainControls[hidden]{display:none!important}
+#arcanoWeatherForecast{padding:12px;margin:12px 0;border:1px solid #ac997363;border-radius:12px;background:#1a3037;color:#e8efe9}
+#arcanoWeatherForecast strong{color:#efdab0;font:600 15px Georgia,serif}
+#arcanoWeatherForecast p{font:12px/1.55 system-ui;color:#c7dad3;margin:8px 0 0}
+
+/* Prioridade de visibilidade do painel — evita conflito com HUD e regras anteriores */
+html body #rainControls[hidden],html body.play-active #rainControls[hidden],html body.ui-hidden #rainControls{display:none!important}
+
+/* PAINEL RECRIADO V12.73 — regras finais sem dependência das classes antigas */
+#rainControls.arcano-new-panel{position:fixed!important;z-index:90!important;inset:auto 14px 14px auto!important;top:72px!important;right:14px!important;left:auto!important;bottom:auto!important;width:min(420px,calc(100vw - 28px))!important;max-height:min(77dvh,710px)!important;overflow-y:auto!important;display:block!important;padding:0 14px 14px!important;border:1px solid #b5a17899!important;border-radius:16px!important;background:linear-gradient(160deg,#20353bf9,#101e27fd)!important;box-shadow:0 20px 65px #000a!important;pointer-events:auto!important}
+#rainControls.arcano-new-panel[hidden]{display:none!important}
+body.play-active #rainControls.arcano-new-panel[hidden],body.ui-hidden #rainControls.arcano-new-panel[hidden]{display:none!important}
+body.play-active #rainControls.arcano-new-panel:not([hidden]){display:block!important}
+#rainControls .arcano-panel-heading{cursor:default!important;touch-action:auto!important}
+#arcanoSettingsToggle,#showControls{display:none!important}
+body.play-active #gameHUD #gameSettingsOpen{display:inline-flex!important;pointer-events:auto!important}
+#arcanoFreshToggle{position:fixed;z-index:91;left:12px;top:calc(12px + env(safe-area-inset-top));padding:11px 14px;border:1px solid #d6bd83;border-radius:10px;background:#243a3c;color:#ffedc5;font:700 12px system-ui;cursor:pointer}
+body.play-active #arcanoFreshToggle{top:calc(68px + env(safe-area-inset-top))}
+#rainControls .arcano-panel-heading{position:sticky!important;top:0!important;z-index:5;background:#20353bf9!important}
+@media(max-width:600px){#rainControls.arcano-new-panel{top:115px!important;right:8px!important;width:calc(100vw - 16px)!important;max-height:63dvh!important}#arcanoFreshToggle{padding:9px 11px;font-size:11px}}
+
+/* Painel flutuante removido. Controles não visuais mantidos para simulação legada. */
+#rainControls,#rainControls[hidden],body.play-active #rainControls{display:none!important;visibility:hidden!important;pointer-events:none!important}
+
+/* Remoção permanente da UI: o formulário existe só como estado interno da simulação. */
+#rainControls,#rainControls[hidden],body.play-active #rainControls,body:not(.play-active) #rainControls{display:none!important;visibility:hidden!important;pointer-events:none!important}
+
+/* V12.74 — console compacto novo, independente da UI antiga removida. */
+#arcanoQuickToggle{position:fixed;z-index:85;top:calc(9px + env(safe-area-inset-top));left:11px;padding:10px 13px;border:1px solid #cfb684;border-radius:10px;background:#243838;color:#f4deb2;font:700 12px system-ui;cursor:pointer}
+body.play-active #arcanoQuickToggle{top:calc(65px + env(safe-area-inset-top))}
+#arcanoQuickPanel{position:fixed;z-index:86;top:calc(58px + env(safe-area-inset-top));left:11px;width:min(350px,calc(100vw - 22px));max-height:72dvh;overflow:auto;border:1px solid #bca77d;border-radius:15px;background:#172a31f8;color:#edf1e9;padding:14px;box-shadow:0 15px 40px #000b;font:12px system-ui}
+#arcanoQuickPanel[hidden]{display:none!important}
+body.play-active #arcanoQuickPanel{top:calc(114px + env(safe-area-inset-top))}
+#arcanoQuickPanel header{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px}
+#arcanoQuickPanel header strong{color:#e8d4a8;font:600 20px Georgia,serif}
+#arcanoQuickPanel button,#arcanoQuickPanel select{border:1px solid #829888;border-radius:8px;background:#263e42;color:#edf2e9;padding:9px;min-height:38px;cursor:pointer}
+#arcanoQuickPanel label{display:grid;gap:6px;margin:12px 0;color:#d4e3d9}
+#arcanoQuickPanel select{width:100%}
+#arcanoQuickPanel .arcano-quick-row{display:flex;align-items:center;justify-content:space-between;gap:7px}
+#arcanoQuickPanel #arcanoQuickForecast{line-height:1.5;color:#c4d7ce;margin:12px 0;padding:10px;border:1px solid #61776c;border-radius:9px}
+#arcanoQuickPanel{width:min(530px,calc(100vw - 22px));max-height:80dvh}#arcanoQuickPanel #hydroOptions{display:block!important;position:static!important;margin:12px 0;overflow:visible}#arcanoQuickPanel #hydroOptions input,#arcanoQuickPanel #hydroOptions select{max-width:100%}#arcanoQuickPanel #hydroOptions summary{cursor:pointer}</style>  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js","fflate":"https://cdn.jsdelivr.net/npm/fflate@0.8.2/esm/browser.js"}}</script>
+<script type="module" src="./arcano-runtime.js?v=1"></script>
+<style id="arcano-home-style">#arcanoHomeLink{position:fixed!important;top:calc(12px + env(safe-area-inset-top,0px))!important;right:12px!important;bottom:auto!important;left:auto!important;z-index:2147483000!important;display:inline-flex!important;align-items:center;justify-content:center;min-height:40px;padding:9px 13px;background:#172e2aea!important;border:1px solid #b5ba91!important;border-radius:11px!important;box-shadow:0 5px 16px #0009;color:#f8eed3!important;text-decoration:none!important;font:700 12px/1.2 system-ui,sans-serif!important;white-space:nowrap;touch-action:manipulation}@media(max-width:600px){#arcanoHomeLink{top:calc(8px + env(safe-area-inset-top,0px))!important;right:8px!important;padding:8px 10px!important;font-size:11px!important}}</style><style>
+html[data-arcano-mode="laboratory"] #rainControls{display:block!important;visibility:visible!important;pointer-events:auto!important;position:fixed!important;left:auto!important;right:12px!important;top:80px!important;bottom:12px!important;width:min(480px,calc(100vw - 24px))!important;max-height:calc(100vh - 92px)!important;overflow:auto!important;z-index:85!important}
+html[data-arcano-mode="laboratory"] #rainControls[hidden]{display:none!important}
+html[data-arcano-mode="laboratory"] #arcanoModeMenu{display:none!important}
+</style></head>
+<body><a id="arcanoHomeLink" href="index.html" aria-label="Voltar à página principal do Ateliê Arcano">⌂ Página principal</a><canvas id="stage" aria-label="Cena tridimensional de chuva, poças e lagoas"></canvas>
+<header class="top"><div class="row"><div class="name"><strong>✦ Ateliê Arcano · Floresta V12.68 · solo em camadas · chuva, aquífero e vegetação</strong><small>Grama em tufos originais · pedras texturizadas · solo granular · gotejamento das folhas</small></div><a class="home" href="./jogabilidade/index.html" title="Abrir jogo de teste 2D">🎮 Jogo 2D</a><a class="home" href="./magias/index.html" title="Abrir as 100 magias">✨ Magias</a><a class="home ar-legacy" href="./magias/espadas.html" title="Abrir efeitos 3D em ambiente independente">⚔️ Efeitos 3D</a></div>
+<nav class="pills" aria-label="Escolher efeito"><button type="button" data-mode="rain">🌧 Chuva</button><button type="button" data-mode="puddle">💧 Poças</button><button type="button" data-mode="lagoon">🌊 Lagoa</button><button type="button" data-mode="storm">⛈ Temporal</button></nav></header>
+<button type="button" id="playEntry" aria-label="Jogar e controlar o personagem">🎮 Jogar</button>
+<a id="gameDownload"
+ href="https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Xbot.glb"
+ download="Atelie_Arcano_Xbot_Animado.glb"
+ aria-label="Baixar boneco 3D Xbot com esqueleto e animações parado, andar e correr"
+ title="GLB com malha, rig e animações Idle, Walk e Run; compatível com Blender e Three.js">⬇ Boneco 3D + animações</a>
+<div id="gameHUD" aria-label="Controle do personagem" aria-hidden="true">
+ <div class="game-top"><button type="button" id="gameExit">← Sair do jogo</button>  <a href="./magias/index.html" aria-label="Abrir biblioteca de 100 magias">✨ Magias</a>
+ <a id="gameDownloadHUD"
+ href="https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Xbot.glb"
+ download="Atelie_Arcano_Xbot_Animado.glb"
+ aria-label="Baixar Xbot GLB com malha, esqueleto e animações">⬇ Xbot GLB</a>
+ <output id="gameStatus" aria-live="polite">Preparando personagem…</output><output id="gameFPS">FPS —</output></div>
+ <div id="gameRotateHint">↻ Gire o aparelho para a horizontal. O jogo continuará funcionando se o navegador não permitir girar automaticamente.</div>
+ <div class="game-bottom">
+  <div class="game-joystick" id="gameJoystick" role="group" aria-label="Direcional de movimento">
+   <div id="gameStick"></div></div>
+  <div class="game-legend">Deslize: câmera · pinça/±: zoom · teclas 1/2/3: magias · WASD: andar · Shift: correr</div>
+  <div class="game-spells" role="group" aria-label="Três magias do feiticeiro">
+   <button type="button" id="gameSpell1" aria-label="Magia 1: Arcane Volley original"><b>✦ 1</b>Arcane</button>
+   <button type="button" id="gameSpell2" aria-label="Magia 2: Dragonbreath original"><b>✹ 2</b>Dragon</button>
+   <button type="button" id="gameSpell3" aria-label="Magia 3: Glacier original"><b>❄ 3</b>Glacier</button>
+  </div>
+  <output id="gameSpellStatus" aria-live="polite">✦ Magias prontas</output>
+  <div class="game-zoom" role="group" aria-label="Zoom manual da câmera">
+   <button type="button" id="gameZoomIn" aria-label="Aproximar câmera" title="Aproximar câmera">+</button>
+   <output id="gameZoomLevel" aria-live="off">4.8 m</output>
+   <button type="button" id="gameZoomOut" aria-label="Afastar câmera" title="Afastar câmera">−</button>
+  </div>
+  <button type="button" id="gameRun" class="game-action" aria-label="Segure para correr">Correr</button>
+ </div>
+</div>
+<div class="hint" id="hint">Chuva começa no solo seco. Observe a formação das poças. Pode recolher os controles para ver a cena.</div>
+
+
+<div id="rainControls"><p><strong>Laboratório do mundo</strong> · <a href="./agua.html">Voltar ao jogo</a> <button type="button" onclick="this.closest('#rainControls').hidden=true">Fechar laboratório</button></p><div class="row"><button class="primary" id="replay">↻ Recomeçar</button><button id="pause">⏸ Pausar</button><button id="cam">◎ Câmera</button><button type="button" id="collapseControls" aria-controls="rainControls">⛶ Ver cena</button></div><div class="rain-row"><label for="intensity">🌧 Intensidade <select id="intensity" aria-label="Nível da chuva"><option value="0">0 · Sem chuva</option><option value="1">1 · Garoa</option><option value="2">2 · Chuva fraca</option><option selected value="3">3 · Chuva moderada</option><option value="4">4 · Chuva forte</option><option value="5">5 · Temporal intenso</option></select></label><output id="intensityName" for="intensity">Chuva moderada</output><button type="button" id="stopRain" aria-pressed="false">☀ Parar chuva</button></div><div id="rainMeter" aria-hidden="true"></div><div id="rainDetail" aria-live="polite"></div>
+<div class="sim-row" role="group" aria-label="Simulação hidrológica">
+  <label for="process">Processo
+    <select id="process" aria-label="Processo hidrológico">
+      <option value="combined" selected>Combinado</option>
+      <option value="runoff">Escoamento superficial</option>
+      <option value="retention">Retenção / evaporação</option>
+    </select>
+  </label>
+  <label for="timelapse">⏩ Time-lapse
+    <select id="timelapse" aria-label="Velocidade da simulação">
+      <option value="1">1×</option><option value="4" selected>4×</option>
+      <option value="16">16×</option><option value="64">64×</option>
+    </select>
+  </label>
+  <label for="graphicsQuality">🎨 Qualidade gráfica
+    <select id="graphicsQuality" aria-label="Qualidade gráfica do laboratório">
+      <option value="high">Alta · máxima fidelidade</option>
+      <option value="balanced" selected>Equilibrada</option>
+      <option value="low">Econômica · melhor desempenho</option>
+    </select>
+  </label>
+</div>
+<details class="hydro-options" id="hydroOptions">
+ <summary>⚙️ Gráficos, campo de visão, biomas, vento, neblina e solo</summary>
+ <div class="wind-editor" style="padding:10px;margin:8px 0;background:#162b32;border:1px solid #506b6a;border-radius:9px">
+  <label for="ecoFov" style="display:flex;justify-content:space-between;gap:10px">📐 Campo de visão (FOV) <strong id="ecoFovVal">52°</strong></label>
+  <input id="ecoFov" type="range" min="35" max="75" step="1" value="52" style="width:100%;accent-color:#91ceb0">
+  <label for="ecoViewDistance" style="display:flex;justify-content:space-between;gap:10px;margin-top:8px">🌄 Distância de renderização <strong id="ecoViewDistanceVal">98 u</strong></label>
+  <input id="ecoViewDistance" type="range" min="55" max="240" step="5" value="98" style="width:100%;accent-color:#91ceb0">
+  <small style="display:block;color:#aec8c5;font-size:11px;line-height:1.45">Para aumentar FPS sem reduzir texturas ou modelos, diminua a distância visível: árvores e grama fora da câmera não são desenhadas. O FOV altera o enquadramento, mas sozinho não garante mais FPS. A floresta continua em transição para campo aberto.</small>
+ </div>
+  <div class="hydro-flags">
+    <label for="physicalWeather"><input id="physicalWeather" type="checkbox" checked> Chuva gerada por temperatura, umidade, pressão e vento (por regiões)</label>
+  </div>
+  <p style="font:11px/1.45 system-ui;color:#aecacb;margin:5px 0">Ciclo completo: 24 minutos reais. Os níveis 0–5 ajustam chuva regional, quantidade, tamanho e velocidade das gotas. Com a física desligada, cada nível usa sua taxa manual. O clima manual altera a aparência, não inventa chuva.</p>
+  <label for="climate" class="rain-appearance">☁ Clima e iluminação
+    <select id="climate" aria-label="Clima visual e reflexos da água">
+      <option value="auto" selected>Automático · acompanha nuvens e chuva real da simulação</option>
+      <option value="sunny">☀ Ensolarado</option>
+      <option value="partlyCloudy">⛅ Parcialmente nublado</option>
+      <option value="overcast">☁ Nublado</option>
+      <option value="storm">⛈ Tempestade</option>
+    </select>
+  </label>
+ <div class="hydro-flags">
+   <label for="wetVisual"><input id="wetVisual" type="checkbox" checked> Escurecer terra molhada</label>
+   <label for="foamToggle"><input id="foamToggle" type="checkbox" checked> Espuma e detritos nas margens</label>
+    <div class="wind-editor" style="padding:8px 10px;margin:7px 0;border:1px solid #456572;border-radius:9px;background:#132c38">
+    <label for="windIntensity" style="display:flex;gap:8px;justify-content:space-between;align-items:center">🍃 Intensidade do vento <strong id="windValue">70%</strong></label>
+    <input id="windIntensity" type="range" min="0" max="100" step="1" value="70" style="width:100%;accent-color:#9fd2aa">
+    <small style="color:#accabd;font-size:10px">Gradientes de aquecimento entre solo e água, subida do ar quente, baixa pressão, Coriolis (hemisfério sul), relevo e rajadas variáveis.</small>
+   </div>
+   <label for="reflectionToggle"><input id="reflectionToggle" type="checkbox" checked> Reflexos das árvores e do ambiente com câmera espelhada (mais pesado)</label>
+    <label for="floraToggle"><input id="floraToggle" type="checkbox" checked> Modelos 3D Quaternius (desmarcar: vegetação clássica)</label>
+    <p style="font:11px/1.45 system-ui;color:#bdd6c4;margin:5px 0">Folhas e flores preservam as imagens originais. Troncos usam cascas locais do pacote Quaternius em 1024 px, compartilhadas entre árvores e disponíveis em todas as qualidades. O acabamento é fosco. A iluminação e os demais sistemas permanecem iguais.</p>
+    <label for="forestPack" class="rain-appearance">🌲 Pacote de modelos
+      <select id="forestPack" aria-label="Selecionar modelos da floresta">
+        <option value="mixed" selected>Combinado: MegaKit + Ultimate</option>
+        <option value="mega">Apenas Stylized Nature MegaKit</option>
+        <option value="ultimate">Apenas Ultimate Stylized Nature</option>
+      </select>
+    </label>
+    <details id="modelTesting" style="margin:9px 0;padding:8px;border:1px solid #56757b;border-radius:9px;background:#142b32">
+      <summary style="cursor:pointer;font-weight:600">🧪 Bancada de teste — árvores, arbustos, flores e gramíneas</summary>
+      <p style="font:11px/1.45 system-ui;color:#bdd6d7;margin:8px 0">Selecione qualquer espécie dos pacotes e coloque uma cópia temporária na cena, em posição padrão ou por toque no terreno. A câmera será direcionada à amostra; o círculo verde/laranja indica o contato do tronco com o solo. Nenhum modelo será alterado ou salvo permanentemente.</p>
+      <label for="assetTestSelect">Espécie / modelo
+        <select id="assetTestSelect" style="width:100%;padding:8px;background:#203c45;color:#eff9f6;border-radius:6px"></select>
+      </label>
+      <div class="row" style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0">
+        <button type="button" id="assetTestPlace">🌱 Colocar no terreno</button>
+        <button type="button" id="assetTestChoosePosition">📍 Escolher lugar por toque</button>
+        <button type="button" id="assetTestNext">Próximo modelo →</button>
+        <button type="button" id="assetTestRemove">Remover teste</button>
+      </div>
+      <label for="assetTestIsolate"><input type="checkbox" id="assetTestIsolate" checked> Isolar a espécie durante o teste</label>
+      <output id="assetTestStatus" style="display:block;padding:5px 0;color:#c3dfd4;font:11px/1.5 system-ui">Aguardando carregamento da biblioteca de modelos.</output>
+    </details>
+    <label for="fogToggle"><input id="fogToggle" type="checkbox" checked> Neblina física apenas sob condições de formação (não nas tempestades)</label>
+ </div>
+ <details id="ecoPanel" class="ecology-panel" style="padding:10px;margin:8px 0;border:1px solid #4c706c;border-radius:10px;background:#12272c">
+ <summary style="font-weight:600;cursor:pointer">🌿 V12.68 · Rio, estrada, gramado e vida do solo</summary>
+ <p style="font-size:11px;color:#abc9bd;line-height:1.5">
+  Mapa ampliado para 128 × 100 unidades (10× a área de 40 × 32), com floresta volumosa à beira da estrada, grama 3D Quaternius em TRÊS camadas por todo solo vegetado: forração curta, tufos de preenchimento e grupos altos; desempenho otimizado com atualização localizada de grama e solo, envio parcial à GPU, cache de vento, vizinhos do solo e água pré-calculados, indicadores com menos processamento e reutilização de objetos temporários; reflexos recalculados apenas quando há água visível; troncos das 12 espécies com cascas locais Quaternius de 1024 px, preservando mapas de folhas e casca painterly de reserva; sem trazer de volta modelos antigos em cone ou triângulo; pequenas clareiras de terra nos formigueiros, arbustos fora da estrada e caminho fixo sem grama. Pedrinhas, minerais e gravetos completam o chão. As qualidades Alta e Equilibrada exibem o gramado fechado completo, mesmo custando FPS; a Econômica reduz. O solo fica verde sob o gramado, e a estrada de terra compactada atravessa a clareira central. Ponte de madeira com piso e corrimãos sólidos conecta as margens; ao caminhar ou correr na água, o personagem produz respingos e ondulações. A grama 3D mantém o movimento do vento em tempo real mesmo com FPS baixo; durante os temporais, dobra com rajadas fortes e cede e se afasta ao redor das pernas do boneco, recuperando a posição depois da passagem sem perder densidade. A câmera mantém a distância escolhida, sem aproximações automáticas por árvores; copas obstrutivas ficam temporariamente translúcidas. Zoom manual restaurado por pinça de dois dedos, roda do mouse e botões +/− durante o jogo. O modo Jogar volta a usar o Xbot original; as teclas 1/2/3 e os botões acionam diretamente as classes Arcane Volley, Dragonbreath e Glacier da biblioteca de 100 Magias, sem efeitos reimaginados. A queimada utiliza fogo animado CC0 do OpenGameArt e altera a própria grama: brasas, cinzas, vento, chuva e regeneração lenta.
+  As colônias procuram alimento conforme o vigor das plantas e os resíduos no solo; os animais permanecem minúsculos em escala natural.
+  Minhocas hermafroditas acasalam, formam casulos e produzem húmus; formigas vivem em colônias com rainha fértil,
+  operárias forrageadoras, cuidadoras, construtoras, sentinelas e exploradoras.
+ </p>
+ <label><input id="ecoToggle" type="checkbox" checked> Exibir rio, estrada, pedras, novas gramíneas e animais</label>
+ <label><input id="ecoWalkMode" type="checkbox"> Modo pisoteio: arraste para formar caminhos pelo desgaste da grama e pela compactação</label>
+ <div class="row" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">
+  <button type="button" id="ecoTraffic">👣 Simular passadas humanas</button>
+  <button type="button" id="ecoAnimalTrailTest">🐾 Abrir trilha por passagem de animais</button>
+  <button type="button" id="ecoRegrowTest">🌱 Recuperar trilhas secundárias por 90 dias (estrada fixa permanece)</button>
+  <button type="button" id="ecoCarcass">🍂 Acrescentar matéria orgânica / restos</button>
+  <button type="button" id="ecoLeafTest">🍂 Soltar folhas para testar queda e decomposição</button>
+  <button type="button" id="ecoFruitTest">🍎 Gerar frutas para observar amadurecimento, queda e adubação</button>
+  <button type="button" id="ecoDryTest">☀ Parar chuva e observar infiltração / evaporação da poça</button>
+  <button type="button" id="fireIgnite" title="Acender amostra de grama próxima do personagem">🔥 Acender grama (teste)</button>
+  <button type="button" id="fireExtinguish" title="Interromper fogo sem apagar as marcas">💧 Apagar fogo</button>
+  <a href="https://poly.pizza/m/8DEKYKfH2h" target="_blank" rel="noopener noreferrer"
+    title="Flame Decal da Quaternius no Poly Pizza — CC0">🔥 Modelo de fogo Poly Pizza (CC0)</a>
+  <label for="fireGLBModel">Modelo de chama personalizado (.glb)
+   <input type="file" id="fireGLBModel" accept=".glb,model/gltf-binary"
+    title="Importar o GLB de fogo baixado do Poly Pizza" style="display:block;max-width:100%;font-size:12px">
+  </label>
+  <button type="button" id="fireGLBReset" title="Restaurar a chama animada padrão">↩ Fogo padrão</button>
+  <output id="fireGLBStatus" aria-live="polite" style="font-size:11px;color:#e2c8b0">
+   Para usar o modelo 3D: baixe o GLB CC0 e selecione acima
+  </output>
+  <output id="fireStatus" style="display:block;font-size:11px;flex-basis:100%;color:#d5bba3" aria-live="polite">Queimada: aguardando inicialização · sem chuva a grama seca queima melhor.</output>
+  <button type="button" id="ecoFeedColony">🐜 Deixar alimento para as forrageadoras</button>
+  <button type="button" id="ecoAdvance">⏩ Simular 30 dias ecológicos</button>
+ </div>
+ <label for="ecoSpeed" style="display:block;margin-top:10px">Velocidade do ciclo biológico: <strong id="ecoSpeedVal">4×</strong></label>
+ <input id="ecoSpeed" type="range" min="1" max="200" step="1" value="4" style="width:100%;accent-color:#86b98e">
+ <label><input id="ecoMagnify" type="checkbox"> Lupa didática: ampliar apenas a visualização de formigas e minhocas 4×</label>
+ <label><input id="ecoBurrows" type="checkbox"> Mostrar galerias e câmaras abaixo do solo (raio-X didático)</label>
+ <p style="font-size:11px;line-height:1.45;color:#a8c5b4">
+  As formigas têm tamanho natural muito pequeno (cerca de 1 cm), movimentam-se por rotas individuais e recolhem-se quando chove. Formigueiros possuem montinhos de terra, entrada escura e operárias em câmaras subterrâneas; use raio-X para acompanhar os deslocamentos. As operárias coletam resíduos, reforçam trilhas de feromônio, alimentam a rainha e as crias, escavam câmaras e devolvem dejetos ao solo. Minhocas rastejam por contrações do corpo, migram conforme a umidade, acasalam e produzem casulos. Folhas de árvores caem, apodrecem e podem ser carregadas pelas formigas. Na chuva, elas retornam ao ninho; pegadas aparecem na estrada úmida com o pisoteio.
+ </p>
+ <label for="ecoColonySelect" style="display:block;margin-top:9px">Inspecionar papéis na colônia:
+  <select id="ecoColonySelect" style="padding:6px;margin:4px 0;background:#20383b;color:#e7f5ef;border-radius:6px"><option value="0">Colônia 1</option></select>
+ </label>
+ <output id="ecoColonyDetails" style="display:block;padding:5px;font-size:11px;color:#bcd3c3"></output>
+ <output id="ecoStatus" style="display:block;font-size:11px;padding:9px;color:#d3e7dc;line-height:1.55" aria-live="polite">
+  Carregando fauna e gramado denso com contagem por qualidade...
+ </output>
+ <output id="ecoWaterStatus" style="display:block;font:11px/1.5 system-ui;color:#a5d5e5;padding:5px 0" aria-live="off">Absorção e evaporação serão mostradas aqui.</output>
+ <output id="ecoFruitStatus" style="display:block;font:11px/1.5 system-ui;color:#e8cba1;padding:5px 0" aria-live="off">Ciclo de frutas: aguardando...</output>
+ <output id="ecoLeafStatus" style="display:block;font:11px/1.5 system-ui;color:#b8d6a4;padding:5px 0" aria-live="off">Aguardando folhas, minhocas e formigas...</output>
+ <output id="ecoEvents" style="display:block;white-space:pre-line;font:11px/1.65 system-ui;color:#d2bda3;background:#1a2c2c;border-radius:6px;padding:8px;margin-top:8px" aria-live="off">Aguardando eventos ecológicos...</output>
+ <small style="font-size:10px;color:#a3bab7">Modelo demonstrativo, não calibrado em indivíduos/m² ou mm de infiltração. O modo de lupa não aumenta o tamanho biológico real.</small>
+</details>
+<label for="soilType" class="rain-appearance">🌱 Solo das plantas
+  <select id="soilType" aria-label="Perfil de solo para as plantas">
+   <option value="mosaico" selected>Mosaico ecológico (solos conforme relevo)</option>
+   <option value="franco">Franco / equilibrado</option>
+   <option value="arenoso">Arenoso</option>
+   <option value="argiloso">Argiloso</option>
+   <option value="siltoso">Siltoso</option>
+   <option value="humoso">Humoso / orgânico</option>
+   <option value="calcario">Calcário / alcalino</option>
+   <option value="aluvial">Aluvial / várzea</option>
+   <option value="lateritico">Laterítico / canga (fixa fósforo)</option>
+   <option value="pedregoso">Pedregoso / raso</option>
+   <option value="salino">Salino</option>
+   <option value="compactado">Compactado / pisoteado</option>
+  </select>
+ </label>
+ <p style="font:11px/1.45 system-ui;color:#bad0bd;margin:4px 0">Textura, matéria orgânica, minerais e salinidade são propriedades distintas. O mosaico distribui solos pelo relevo. Nutrientes são índices de jogo (não kg/ha).</p>
+ <div class="row" role="group" aria-label="Experimentos de fertilidade">
+  <button type="button" id="addOrganic" title="Adiciona serrapilheira e matéria orgânica">🍂 Adicionar folhas</button>
+  <button type="button" id="addNutrients" title="Repor nitrogênio, fósforo e potássio">🌿 Adubar N/P/K</button>
+ </div>
+ <label for="rainStyle" class="rain-appearance">Gotas de chuva
+   <select id="rainStyle"><option value="enhanced" selected>Destacadas + respingos</option><option value="natural">Mais discretas</option></select>
+ </label>
+<p style="font:11px system-ui;color:#b3c8bd">Modo Jogar: arraste o dedo sobre a área livre da cena para orbitar a câmera. Manequim Xbot do Three.js, animações Idle/Walk/Run. O arquivo é carregado sob demanda; há modelo simplificado offline. O botão Jogar oculta os controles do laboratório, com direcional no celular e WASD no teclado.</p>
+</details>
+<div class="hydro-metrics" aria-live="off">
+  <div id="dayCycleStats">☀ Dia 1 · 06:30 · 1 dia = 24 min reais</div>
+   <div class="day-timeline" role="progressbar" aria-label="Progresso do dia" aria-valuemin="0" aria-valuemax="100"><div id="dayCycleBar"></div></div>
+   <div id="atmosStats">Atmosfera: inicializando temperatura, umidade, pressão e vento</div>
+   <div id="simClock">Tempo simulado: 0 s</div>
+  <div id="soilStats">Terra: seca</div>
+  <div id="fertilityStats">Fertilidade: calculando matéria orgânica e nutrientes…</div>
+  <div id="plantStats">🌱 Plantas: preparando crescimento, água e fator limitante…</div>
+  <div id="floraStatus">🌳 Quaternius MegaKit e Ultimate: preparando 21 modelos (12 árvores; somente grama Quaternius)…</div>
+  <div id="qualityStats">🎨 Qualidade: preparando resolução, sombras e vegetação…</div>
+  <div id="viewFpsStats">FPS — · medindo desempenho e chamadas de renderização</div>
+  <div id="windStatus">🍃 Vento: folhas e copas acompanhando as rajadas…</div>
+  <div id="fogStatus">🌫 Neblina: aguardando condições após a chuva…</div>
+  <div id="waterStats">Poças: começando a se formar</div>
+  <div id="wetGroundStats">Terra molhada sem poça: aguardando a chuva</div>
+  <div id="cycleStats">Infiltração · escoamento · evapotranspiração</div>
+  <div id="splashStats">Respingos e espuma de sujeira nas bordas</div>
+   <div id="reflectionStats">Reflexos 3D do cenário: preparando</div>
+   <div id="climateStats">Clima: carregando sol e nuvens 3D…</div>
+  <div id="mudStats">Sedimentos em suspensão: 0%</div>
+  <div id="lakeStats">Poças e lagoa aparecendo sobre o relevo…</div>
+</div><div id="info">Arraste para girar • pinça para zoom • toque no terreno para criar água</div></div>
+<div id="diag" role="alert"></div>
+
+
+<button type="button" id="arcanoQuickToggle" aria-controls="arcanoQuickPanel" aria-expanded="false">⚙ Ajustes (P)</button>
+<section id="arcanoQuickPanel" hidden aria-label="Ajustes rápidos do mundo">
+ <header><strong>✦ Ajustes do mundo</strong><button type="button" id="arcanoQuickClose" aria-label="Fechar ajustes">✕</button></header>
+ <label><span><input id="leafEffectsToggle" type="checkbox"> Folhas caindo (ativar efeito)</span></label>
+ <label>🌧 Chuva <select id="arcanoQuickRain"><option value="0">Sem chuva</option><option value="1">Garoa</option><option value="2">Chuva fraca</option><option value="3">Moderada</option><option value="4">Forte</option><option value="5">Temporal</option></select></label>
+ <label>◷ Velocidade do tempo <select id="arcanoQuickTime"><option value="1">1×</option><option value="4">4×</option><option value="16">16×</option><option value="64">64×</option></select></label>
+ <label>💧 Volume do rio (sem chuva) <input id="arcanoRiverFill" type="range" min="0" max="0.36" step="0.02" value="0"/><output id="arcanoRiverFillValue">Nível normal</output></label>
+ <div id="arcanoQuickForecast" aria-live="off">Clima simulado: aguardando dados…</div>
+ <div class="arcano-quick-row"><span>Tecla de acesso: <b id="arcanoQuickKeyLabel">P</b></span><button type="button" id="arcanoQuickRebind">Trocar tecla</button></div>
+</section><div id="arcanoModeMenu" role="dialog" aria-modal="true" aria-label="Escolher ambiente do Ateliê Arcano">
+ <div class="arcano-mode-card">
+  <div class="arcano-kicker">✦ Portal de entrada · três caminhos</div>
+  <h2>Ateliê Arcano</h2>
+  <p>Entre no mundo da magia. Explore efeitos tridimensionais, experimente feitiços ou aventure-se pela floresta viva.</p>
+  <div class="arcano-mode-options">
+   <a href="./magias/espadas.html"><span class="arcano-icon" aria-hidden="true">⚔️</span><span class="arcano-mode-text"><strong>Efeitos 3D</strong><small>Espadas, cortes e experimentos visuais</small></span></a>
+   <a href="./magias/index.html"><span class="arcano-icon" aria-hidden="true">✦</span><span class="arcano-mode-text"><strong>Magias</strong><small>Biblioteca de 100 feitiços originais</small></span></a>
+   <button type="button" class="arcano-main-play" id="arcanoModePlay"><span class="arcano-icon" aria-hidden="true">🎮</span><span class="arcano-mode-text"><strong>Jogar</strong><small>Explore a floresta com seu personagem</small></span></button>
+  </div>
+  <div class="arcano-foot">Cada ambiente mantém seus modelos, cenário e controles originais.</div>
+ </div>
+</div>
+<button type="button" id="arcanoOpenModes" aria-controls="arcanoModeMenu" aria-label="Escolher entre Efeitos 3D, Magias e Jogar">☰ Modos</button>
+<script>
+(function(){
+ const menu=document.getElementById('arcanoModeMenu');
+ const open=document.getElementById('arcanoOpenModes');
+ const play=document.getElementById('arcanoModePlay');
+ menu.hidden=true;
+ const hide=()=>{menu.hidden=true;document.body.classList.remove('arcano-menu-open');};
+ open.addEventListener('click',()=>{menu.hidden=false;});
+ play.addEventListener('click',()=>{hide();document.getElementById('playEntry')?.click();});
+ document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!menu.hidden)hide();});
+})();
+</script>
+<script>
+(function(){
+ document.getElementById('arcanoOpenModes').addEventListener('click',()=>{document.getElementById('rainControls').hidden=false;});
+ const panel=document.getElementById('arcanoQuickPanel'),toggle=document.getElementById('arcanoQuickToggle');
+ const close=document.getElementById('arcanoQuickClose'),rebind=document.getElementById('arcanoQuickRebind');
+ const storage='arcano.settings.shortcut.v1';let key='KeyP',recording=false;
+ const valid=/^(Key[A-Z]|Digit[0-9]|F(?:[1-9]|1[0-2]))$/;
+ const reserved=new Set(['KeyW','KeyA','KeyS','KeyD','KeyR','Digit1','Digit2','Digit3']);
+ try{const saved=localStorage.getItem(storage);if(valid.test(saved)&&!reserved.has(saved))key=saved;}catch(e){}
+ const keyLabel=code=>code.replace(/^Key/,'').replace(/^Digit/,'');
+ function syncKey(){document.getElementById('arcanoQuickKeyLabel').textContent=keyLabel(key);toggle.textContent='⚙ Ajustes ('+keyLabel(key)+')';rebind.textContent='Trocar tecla';}
+ function show(open){panel.hidden=!open;toggle.setAttribute('aria-expanded',String(open));}
+ toggle.addEventListener('click',()=>show(panel.hidden));close.addEventListener('click',()=>show(false));
+ rebind.addEventListener('click',()=>{recording=true;rebind.textContent='Pressione uma tecla…';});
+ window.addEventListener('keydown',e=>{
+  if(recording){e.preventDefault();e.stopImmediatePropagation();if(e.code==='Escape'){recording=false;syncKey();return;}
+   if(!valid.test(e.code)||reserved.has(e.code)||e.ctrlKey||e.altKey||e.metaKey)return;
+   key=e.code;recording=false;try{localStorage.setItem(storage,key);}catch(err){}syncKey();return;}
+  if(e.code!==key||e.repeat||e.ctrlKey||e.altKey||e.metaKey||e.target?.closest?.('input,textarea,select,[contenteditable]'))return;
+  if(!document.getElementById('arcanoModeMenu')?.hidden)return;
+  e.preventDefault();e.stopImmediatePropagation();show(panel.hidden);
+ },true);
+ function bind(id,source){const ui=document.getElementById(id),original=document.getElementById(source);if(!ui||!original)return;
+  ui.value=original.value;ui.addEventListener('change',()=>{original.value=ui.value;original.dispatchEvent(new Event('change',{bubbles:true}));});
+ }
+ bind('arcanoQuickRain','intensity');bind('arcanoQuickTime','timelapse');
+ // Reutilizar controles reais do motor, que antes estavam presos num painel oculto.
+ const advanced=null;
+ if(advanced){
+  panel.insertBefore(advanced,document.getElementById('arcanoQuickForecast'));
+  advanced.open=true;
+  advanced.style.display='block';
+  advanced.style.visibility='visible';
+  advanced.removeAttribute('hidden');
+ }
+ const graphic=document.getElementById('graphicsQuality');
+ if(graphic){
+  const graphicLabel=graphic.closest('label');
+  if(graphicLabel){panel.insertBefore(graphicLabel,advanced||document.getElementById('arcanoQuickForecast'));}
+ }
+
+ const rain=document.getElementById('arcanoQuickRain'),time=document.getElementById('arcanoQuickTime');
+ function refresh(){if(panel.hidden)return;
+  for(const [ui,id] of [[rain,'intensity'],[time,'timelapse']]){const src=document.getElementById(id);if(src&&ui.value!==src.value)ui.value=src.value;}
+  const m=window.arcanoWaterV1226?.atmosphere?.getMetrics?.();
+  if(m)document.getElementById('arcanoQuickForecast').textContent='Clima simulado: '+m.temperature.toFixed(1)+' °C · umidade '+Math.round(m.humidity*100)+'% · vento '+m.wind.toFixed(1)+' · nuvens '+Math.round(m.clouds*100)+'%.';
+ }
+ setInterval(refresh,3000);syncKey();show(false);
+})();
+const arcanoFillInput=document.getElementById('arcanoRiverFill');
+if(arcanoFillInput)arcanoFillInput.addEventListener('input',()=>{
+ const amount=Number(arcanoFillInput.value);
+ document.getElementById('arcanoRiverFillValue').textContent=amount<=0?'Nível normal':'+'+amount.toFixed(2)+' de água';
+ window.arcanoSetRiverFillLevel?.(amount);
+});
+</script></body></html>
+
