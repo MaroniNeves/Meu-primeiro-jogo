@@ -2139,7 +2139,10 @@ function placeForestModel(item,root){
    });
    if(tooClose)continue;
   }
-  const factor=.78+randomForest()*.52;
+  const trees=item.type==='tree'||item.type==='pine';
+  const stature=randomForest();
+  // Mistura de arvores pequenas, adultas e emergentes altas, mantendo especies existentes.
+  const factor=trees?(stature<.22?.85+randomForest()*.34:stature<.78?1.35+randomForest()*.72:2.20+randomForest()*.85):.78+randomForest()*.52;
   const desired=item.height*factor;
   const scaleMultiplier=desired/h,rot=randomForest()*Math.PI*2;
   // O FBX já inclui sua conversão de eixo e sua escala no nó original.
