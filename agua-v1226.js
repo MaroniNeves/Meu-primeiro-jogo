@@ -3852,7 +3852,7 @@ function applyGameCamera(){
  const goal=game.position;
  const reach=Math.cos(game.camPitch)*game.camDistance;
  const bx=-Math.sin(game.camHeading)*reach,bz=-Math.cos(game.camHeading)*reach;
- gameCameraFocus.set(goal.x,goal.y+1.22,goal.z);
+ gameCameraFocus.set(goal.x,goal.y+1.03,goal.z);
  const cameraGround=terrainContact(goal.x+bx,goal.z+bz)+.45;
  gameCameraGoal.set(goal.x+bx,
   Math.max(cameraGround,gameCameraFocus.y+Math.sin(game.camPitch)*game.camDistance),
@@ -3999,6 +3999,8 @@ async function setPlayActive(active){
  if(active){
   if(!game.root){
    game.root=new T.Group();game.root.name='Personagem jogável';
+   // Ajuste de proporção com a floresta e a grama: reduz todos os modelos sem mudar colisão/piso.
+   game.root.scale.setScalar(.84);
    game.character=gameFallback();game.root.add(game.character);scene.add(game.root);
    game.position.set(0,terrainContact(0,.92),.92);
    game.heading=Math.PI;game.camHeading=Math.PI;game.camPitch=.35;
