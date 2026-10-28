@@ -196,7 +196,7 @@ const rocks=rocksRaw.map(([x,z,r])=>{
  return [x,z,r];
 });
 const center=z=>-2.3+.67*Math.sin(z*.69)+.60*Math.sin(z*.29+1.3);
-const riverWidth=z=>.95+.38*Math.sin(z*.105+.6)+.30*Math.sin(z*.34+1.7)+.16*Math.sin(z*.69);
+const riverWidth=z=>clamp(1.08+.35*Math.sin(z*.105+.6)+.24*Math.sin(z*.34+1.7)+.12*Math.sin(z*.69),.68,1.80);
 const riverShore=(x,z)=>Math.abs(x-center(z))-riverWidth(z);
 // O rio acompanha a descida longitudinal do relevo, sem variar o volume com chuva.
 // Queda de agua em um trecho curto, com patamares mais suaves fora dela.
@@ -221,7 +221,7 @@ function elevation(x,z){
  // O gradiente molhado continua sendo apenas de cor, nao altera a altura.
  const roadAxis=.92-.70*Math.sin(x*.47+.6)+.17*Math.sin(x*1.34);
  const roadDist=Math.abs(z-roadAxis),crossDist=Math.abs(x-center(z));
- const protectedRoad=(1-smooth(clamp((roadDist-1.7)/1.35,0,1)))*(1-smooth(clamp((crossDist-4.4)/1.8,0,1)));
+ const protectedRoad=(1-smooth(clamp((roadDist-1.10)/2.15,0,1)))*(1-smooth(clamp((crossDist-6.1)/2.3,0,1)));
  for(const basin of basins){const d=((x-basin.x)/basin.sx)**2+((z-basin.z)/basin.sz)**2;y-=basin.deep*Math.exp(-1.5*d)*(1-protectedRoad);}
  // Leito e margens acima/abaixo de um nivel UNICO; declives enchem ate a mesma linha.
  const waterline=riverLevelAt(z);
