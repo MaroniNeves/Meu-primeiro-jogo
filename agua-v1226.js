@@ -2909,7 +2909,8 @@ function updateRipples(dt){
      // Amostra topografia em todos os vértices, sem anel em plano horizontal.
      const y=liquid?displayWaterHeightAt(x,z):sample(soil,x,z);
      p[k*3]=x;p[k*3+1]=y+(liquid?.008:.004);p[k*3+2]=z;
-     const allowed=!edge&&(!liquid||waterHere>=SURFACE_RIPPLE)&&!(!liquid&&waterHere>=SURFACE_RIPPLE)&&y+.005>=rockHeightAt(x,z);
+     const inRiver=riverShore(x,z)<-.12&&riverDepthAt(x,z)>.055;
+     const allowed=!edge&&(liquid?inRiver:!inRiver&&waterHere<SURFACE_RIPPLE)&&y+.005>=rockHeightAt(x,z);
      fade[k]=(allowed&&e===1&&strength>.01)?strength:0;
      mud[k]=liquid?sample(turbidity,x,z):0;
      visible+=fade[k];
@@ -3363,8 +3364,8 @@ function spawnSplash(x,z,h){
 // nas gotas de chuva, sem adicionar chuva, turbidez ou impacto físico.
 const gameFootstepRng=rand(202658),gameFootWaterTint=new T.Color('#b9dce5');
 function emitGameWaterFootstep(x,z,heading,running,side){
- const fx=x+Math.cos(heading)*side*.115+Math.sin(heading)*.085;
- const fz=z-Math.sin(heading)*side*.115+Math.cos(heading)*.085;
+ const fx=x+Math.cos(heading)*side*.075+Math.sin(heading)*.035;
+ const fz=z-Math.sin(heading)*side*.075+Math.cos(heading)*.035;
  if(riverShore(fx,fz)>-.08||riverDepthAt(fx,fz)<.05)return;
  const top=riverLevelAt(fz);
  const ripple=ripplePool.find(mesh=>!mesh.visible&&!ripples.some(r=>r.mesh===mesh));
@@ -3748,7 +3749,7 @@ function updateGame(dt){
   const canMoveTo=(tx,tz)=>{
    const deck=bridge?.surfaceAt(tx,tz);
    const footY=deck==null?terrainContact(tx,tz):deck;
-   if(Math.abs(footY-oldY)>1.05||bridge?.blocksSegment(game.position.x,game.position.z,tx,tz))return false;
+   if((Math.abs(footY-oldY)>1.05&&riverShore(tx,tz)>.20)||bridge?.blocksSegment(game.position.x,game.position.z,tx,tz))return false;
    for(const [rx,rz,r] of rocks){
     const radius=r*.86;
     const before=(game.position.x-rx)**2+(game.position.z-rz)**2;
@@ -3779,7 +3780,7 @@ function updateGame(dt){
  game.grassSpeed=walked/Math.max(dt,.001);
  const onBridge=window.arcanoBridgeSolid?.surfaceAt(game.position.x,game.position.z)!=null;
  game.grassOnGround=!onBridge;
- const footWater=!onBridge&&riverShore(game.position.x,game.position.z)<-.10&&
+ const footWater=!onBridge&&riverShore(game.position.x,game.position.z)<-.20&&
    riverDepthAt(game.position.x,game.position.z)>.055;
  if(walked>.0002&&footWater){
   const stride=control.run?.37:.49;
