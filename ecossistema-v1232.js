@@ -537,9 +537,9 @@ function makeRoad(){
       const newY=api.soil[k]*(1-blend)+target*blend;
       if(Math.abs(newY-api.soil[k])>.0001){api.soil[k]=newY;excavated++;}
      }else if(beyond<0){
-      const longitudinal=clamp((span*.5-Math.abs(u)-.18)/.75,0,1);
+      const longitudinal=clamp((span*.5-Math.abs(u))/.75,0,1);
       const lateral=clamp((1.0-Math.abs(side))/.24,0,1);
-      const clearance=(.12+.30*longitudinal)*lateral;
+      const clearance=(.16+.25*longitudinal)*lateral;
       const maximum=deckY-clearance;
       if(api.soil[k]>maximum){api.soil[k]=maximum;excavated++;}
      }
@@ -565,7 +565,7 @@ function makeRoad(){
     const surfaceAt=(x,z)=>{
      if(!realm.visible)return null;
      const p=local(x,z);
-     return Math.abs(p.along)<=halfSpan+.24&&Math.abs(p.side)<=walkHalfWidth+.12?deckY+.0325:null;
+     return Math.abs(p.along)<=halfSpan+.085&&Math.abs(p.side)<=.53?deckY+.0325:null;
     };
     const blocksSegment=(x0,z0,x1,z1)=>{
      if(!realm.visible)return false;
@@ -578,7 +578,7 @@ function makeRoad(){
       const t=(side-p0.side)/d;
       if(t<0||t>1)continue;
       const along=p0.along+(p1.along-p0.along)*t;
-      if(Math.abs(along)<=halfSpan-.12)return true;
+      if(Math.abs(along)<=halfSpan+.035)return true;
      }
      return false;
     };
