@@ -3766,14 +3766,6 @@ function updateGame(dt){
     const after=((tx-stone.x)/rx)**2+((tz-stone.z)/rz)**2;
     if(after<1&&after<before-1e-7)return false;
    }
-   // A posicao real das colonias e o tamanho visual do monte.
-   const eco=window.arcanoEcoV1232;
-   if(eco?.active&&eco.colonies)for(const nest of eco.colonies){
-    const radius=Math.min(.40,Math.max(.18,.18*(.55+nest.spoil*1.4)+.11));
-    const before=(game.position.x-nest.x)**2+(game.position.z-nest.z)**2;
-    const after=(tx-nest.x)**2+(tz-nest.z)**2;
-    if(after<radius*radius&&after<before-1e-7)return false;
-   }
    return !treesNearGame(tx,tz);
   };
   // Se bloquear na diagonal, deslizar pelo eixo livre sem grudar na rocha.
