@@ -227,9 +227,14 @@ function elevation(x,z){
  const waterline=riverLevelAt(z);
  // Erosao em rampa larga: o mesmo terreno continua ate a beira d'agua.
  // A escavacao nunca eleva a encosta acima do gramado.
- const slope=smooth(clamp((width+1.55-lateral)/2.05,0,1));
- const bedLevel=Math.min(y,waterline-.14-.12*bed);
- y-=Math.max(0,y-bedLevel)*slope;
+ // Transicao longa e sem paredes verticais entre grama e leito do rio.
+ // A base preserva o relevo do mapa; a erosao e limitada e esmaece
+ // ao longo de toda a encosta, sem criar degrau na borda da grama.
+ const bankDistance=Math.max(0,lateral-width);
+ const slope=smooth(clamp((width+5.2-lateral)/5.8,0,1));
+ const bedLevel=Math.min(y,waterline-.12-.10*bed);
+ const erosion=Math.min(.65,Math.max(0,y-bedLevel));
+ y-=erosion*slope;
  // Fora do canal o relevo e continuo: a margem e a grama usam o mesmo solo.
  return y;
 }
