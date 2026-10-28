@@ -565,20 +565,32 @@ function makeRoad(){
     const surfaceAt=(x,z)=>{
      if(!realm.visible)return null;
      const p=local(x,z);
-     return Math.abs(p.along)<=halfSpan+.20&&Math.abs(p.side)<=.54?deckY+.0325:null;
+     // Piso caminhavel: o centro do jogador nao fica dentro das vigas.
+     return Math.abs(p.along)<=halfSpan+.08&&Math.abs(p.side)<=.39?deckY+.0325:null;
+    };
+    const railPenetration=p=>{
+     // Volume dos corrimaos, balustres e postes das cabeceiras com
+     // folga para o corpo do jogador: nao apenas uma linha infinitamente fina.
+     const alongOverlap=halfSpan+.12-Math.abs(p.along);
+     const sideOverlap=.78-Math.abs(p.side);
+     if(alongOverlap<=0||sideOverlap<=0||Math.abs(p.side)<.37)return 0;
+     return Math.min(alongOverlap,sideOverlap,Math.abs(p.side)-.37);
     };
     const blocksSegment=(x0,z0,x1,z1)=>{
      if(!realm.visible)return false;
-     const p0=local(x0,z0),p1=local(x1,z1);
-     // Uma colisão só existe quando se cruza um corrimão, não ao se
-     // aproximar da cabeceira ou caminhar paralelo pelo lado de fora.
-     for(const side of [-.57,.57]){
-      const d=p1.side-p0.side;
-      if(Math.abs(d)<1e-8)continue;
-      const t=(side-p0.side)/d;
-      if(t<0||t>1)continue;
-      const along=p0.along+(p1.along-p0.along)*t;
-      if(Math.abs(along)<=halfSpan+.035)return true;
+     const from=local(x0,z0),to=local(x1,z1);
+     const initial=railPenetration(from);
+     // Amostrar a trajetoria impede atravessar uma viga em um unico frame.
+     const samples=Math.max(2,Math.ceil(Math.hypot(x1-x0,z1-z0)/.075));
+     for(let j=1;j<=samples;j++){
+      const t=j/samples;
+      const p={along:from.along+(to.along-from.along)*t,
+       side:from.side+(to.side-from.side)*t};
+      const penetration=railPenetration(p);
+      if(penetration>.00001){
+       // Caso ja esteja preso dentro do volume, permitir somente sair dele.
+       if(initial<=.00001||penetration>initial+.00001)return true;
+      }
      }
      return false;
     };
