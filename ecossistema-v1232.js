@@ -61,7 +61,7 @@ const targetNativeGrass=api.forestInstances.filter(a=>a.type==='grass');
 const roadZ=x=>.92-.70*Math.sin(x*.47+.6)+.17*Math.sin(x*1.34);
 const riverX=z=>-2.3+.67*Math.sin(z*.69)+.60*Math.sin(z*.29+1.3);
 const riverHalfWidth=z=>window.arcanoRiverProfile?.halfWidth(z)||2.65;
-const riverBankEdge=z=>riverHalfWidth(z)+(window.arcanoRiverProfile?.bankWidth||3.2);
+const riverBankEdge=z=>riverHalfWidth(z)+(window.arcanoRiverProfile?.bankWidth||7.0);
 
 function idx(x,z){const i=clamp(Math.round((x+W*.5)/dx),0,NX-1),j=clamp(Math.round((z+L*.5)/dz),0,NZ-1);return j*NX+i;}
 function position(k){const i=k%NX,j=(k-i)/NX;return {x:-W*.5+i*dx,z:-L*.5+j*dz};}
@@ -472,7 +472,7 @@ function makeRoad(){
   function bank(direction){
    for(let d=1.15;d<11.5;d+=.04){
     const x=crossing+d*direction,z=roadZ(x),k=idx(x,z);
-    if(Math.abs(x-riverX(z))>riverBankEdge(z)+.15&&riverMask[k]<.075&&roadMask[k]>.32&&api.depth[k]<.02)
+    if(Math.abs(x-riverX(z))>riverHalfWidth(z)+3.35&&riverMask[k]<.075&&roadMask[k]>.32&&api.depth[k]<.02)
      return {x,z,y:height(x,z)};
    }
    return null;
@@ -665,7 +665,7 @@ async function grassShape(){
   if(Math.abs(x)>W*.49||Math.abs(z)>L*.49)return -1;
   const k=idx(x,z);
   if(fixedRoadMask[k]>.045||Math.abs(z-roadZ(x))<1.11||
-    nestBareMask[k]>190||Math.abs(x-riverX(z))<riverBankEdge(z)||api.depth[k]>.068||
+    nestBareMask[k]>190||Math.abs(x-riverX(z))<riverBankEdge(z)+1.1||api.depth[k]>.068||
     cover[k]<.025)return -1;
   return k;
  }
@@ -1076,6 +1076,91 @@ function createRiverbankPebbles(){
  }
  mesh.instanceMatrix.needsUpdate=true;rocks.add(mesh);
 }
+// Gravel bed and sparse sedge/rush colonies; separate from meadow grass.
+function createRiverbedHabitat(){
+ const profile=window.arcanoRiverProfile;if(!profile?.levelAt||!profile?.depthAt)return;
+ const rng=rand(2802026),o=new T.Object3D(),tint=new T.Color();
+ const mobile=innerWidth<680,perModel=mobile?100:180;
+ const stonesGroup=new T.Group();stonesGroup.name='Leito do rio · cascalho e seixos arredondados';rocks.add(stonesGroup);
+ let stoneCount=0,plantCount=0,blockedStones=0;
+ for(let model=0;model<5;model++){
+  const source=meshLibrary['rock'+(model+1)];if(!source)continue;
+  const geo=source.clone();geo.computeBoundingBox();const box=geo.boundingBox;
+  const extent=new T.Vector3();box.getSize(extent);
+  geo.translate(-(box.min.x+box.max.x)*.5,-box.min.y,-(box.min.z+box.max.z)*.5);
+  geo.scale(1/Math.max(.001,extent.x),1/Math.max(.001,extent.y),1/Math.max(.001,extent.z));
+  const mat=new T.MeshStandardMaterial({color:'#ffffff',roughness:.83,metalness:0});
+  const mesh=new T.InstancedMesh(geo,mat,perModel);mesh.name='Pedras do leito · forma '+(model+1);mesh.count=0;
+  mesh.receiveShadow=true;mesh.frustumCulled=false;
+  for(let attempt=0;attempt<perModel*8&&mesh.count<perModel;attempt++){
+   const z=(rng()-.5)*L*.94,side=rng()<.5?-1:1;
+   const x=riverX(z)+side*riverHalfWidth(z)*(.10+rng()*.76);
+   const bed=height(x,z),water=profile.levelAt(z),d=profile.depthAt(x,z);
+   if(d<.045||Math.abs(z-roadZ(x))<2.0)continue;
+   const big=rng()<.10&&Math.abs(x-riverX(z))>riverHalfWidth(z)*.38;
+   const width=big?.45+rng()*.45:.07+rng()*.20;
+   const tall=big?.16+rng()*.16:.025+rng()*.085;
+   o.position.set(x,bed-.015,z);o.rotation.set(0,rng()*Math.PI*2,0);
+   o.scale.set(width,tall,width*(.65+rng()*.40));o.updateMatrix();mesh.setMatrixAt(mesh.count,o.matrix);
+   tint.set(big?'#858b76':'#9a9484');tint.multiplyScalar(.65+rng()*.40);
+   if(bed+tall<water)tint.multiplyScalar(.76);
+   mesh.setColorAt(mesh.count++,tint);stoneCount++;
+   // Low gravel is walkable. Larger visible stones get matching collision bounds.
+   if(tall-.015>.24){api.rockSolids.push({x,z,rx:width*.5,rz:o.scale.z*.5,bottom:bed-.015,top:bed-.015+tall});blockedStones++;}
+  }
+  mesh.instanceMatrix.needsUpdate=true;if(mesh.instanceColor)mesh.instanceColor.needsUpdate=true;
+  stonesGroup.add(mesh);
+ }
+ // Curved tapering blades make identifiable sedge clumps, rather than more lawn.
+ const vertices=[],indices=[];
+ for(let blade=0;blade<9;blade++){
+  const angle=blade*2.399,ca=Math.cos(angle),sa=Math.sin(angle),height=.65+(blade%4)*.12;
+  const start=vertices.length/3;
+  for(let j=0;j<=5;j++){
+   const t=j/5,bend=.24*t*t,width=.032*(1-t)+.002;
+   const cx=ca*bend,cz=sa*bend;
+   vertices.push(cx-sa*width,height*t,cz+ca*width,cx+sa*width,height*t,cz-ca*width);
+   if(j<5){const a=start+j*2;indices.push(a,a+1,a+2,a+1,a+3,a+2);}
+  }
+ }
+ const plantGeo=new T.BufferGeometry();plantGeo.setAttribute('position',new T.Float32BufferAttribute(vertices,3));
+ plantGeo.setIndex(indices);plantGeo.computeVertexNormals();
+ const plantMat=new T.MeshStandardMaterial({color:'#6a8151',roughness:1,side:T.DoubleSide});
+ const waveUniform={value:0};
+ plantMat.onBeforeCompile=shader=>{
+  shader.uniforms.uRiverPlantTime=waveUniform;
+  shader.vertexShader='uniform float uRiverPlantTime;\n'+shader.vertexShader;
+  shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',
+   '#include <begin_vertex>\n transformed.x+=sin(uRiverPlantTime*1.7+instanceMatrix[3].z*1.4)*.035*position.y*position.y;');
+ };
+ const capacity=mobile?100:180,plants=new T.InstancedMesh(plantGeo,plantMat,capacity);
+ plants.name='Ciperáceas e juncos · grupos esparsos na margem úmida';plants.count=0;plants.frustumCulled=false;
+ const stems=new T.InstancedMesh(new T.CylinderGeometry(.008,.014,1,5),new T.MeshStandardMaterial({color:'#778553',roughness:1}),capacity*3);
+ stems.name='Hastes de juncos ribeirinhos';stems.count=0;stems.frustumCulled=false;
+ for(let attempt=0;attempt<capacity*30&&plants.count<capacity;attempt++){
+  const z=(rng()-.5)*L*.94,side=rng()<.5?-1:1;
+  const x=riverX(z)+side*riverHalfWidth(z)*(.58+rng()*.30);
+  const y=height(x,z),level=profile.levelAt(z),d=profile.depthAt(x,z);
+  if(Math.abs(z-roadZ(x))<2.2||d>.18||y>level+.38||y<level-.18)continue;
+  // Leave gaps between colonies; don't turn the new bank back into a grass carpet.
+  const scale=.45+rng()*.45;
+  o.position.set(x,y-.02,z);o.rotation.set(0,rng()*6.283,0);o.scale.set(scale,scale,scale);o.updateMatrix();
+  plants.setMatrixAt(plants.count++,o.matrix);plantCount++;
+  tint.set('#738b4f').multiplyScalar(.75+rng()*.40);plants.setColorAt(plants.count-1,tint);
+  if(rng()<.48)for(let j=0;j<3;j++){
+   const length=.35+rng()*.50;
+   o.position.set(x+(rng()-.5)*.13,y+length*.5-.01,z+(rng()-.5)*.13);
+   o.rotation.set((rng()-.5)*.12,rng()*6.28,(rng()-.5)*.12);o.scale.set(1,length,1);o.updateMatrix();stems.setMatrixAt(stems.count++,o.matrix);
+  }
+ }
+ plants.instanceMatrix.needsUpdate=true;if(plants.instanceColor)plants.instanceColor.needsUpdate=true;stems.instanceMatrix.needsUpdate=true;
+ plants.onBeforeRender=()=>{waveUniform.value=performance.now()/1000;};
+ const riparianPlants=new T.Group();riparianPlants.name="Vegetação ribeirinha separada do gramado";
+ riparianPlants.add(plants,stems);foliage.add(riparianPlants);
+ realm.userData.riverHabitat={stoneCount,plantCount,blockedStones,bankWidth:profile.bankWidth};
+ console.info('[Arcano] Leito e margem ribeirinha:',realm.userData.riverHabitat);
+}
+
 function ecologicalDayRate(dt){return dt*biologicalSpeed/1440;}
 // Trilha química discreta na malha: evapora/é lavada pela chuva e é reforçada
 // quando a forrageadora retorna com alimento.
@@ -1773,7 +1858,7 @@ async function setup(){
   else animateGrassVisuals(dt);
  }
  requestAnimationFrame(frame);
- await grassShape();rockShape();createRiverbankPebbles();setupLeafVisuals();setupFruits();visualizeAnimals();initializeLargeAnimalRoutes();
+ await grassShape();rockShape();createRiverbankPebbles();createRiverbedHabitat();setupLeafVisuals();setupFruits();visualizeAnimals();initializeLargeAnimalRoutes();
  drawNestCutaway();hideDetachedAntModels();
  const board=$('ecoStatus');if(board)board.textContent='Pacotes enviados integrados: '+Object.keys(meshLibrary).length+' malhas · '+colonies.length+' colônias.';
  const s=$('ecoSpeed');if(s){s.oninput=e=>{biologicalSpeed=clamp(+e.target.value,1,200);$('ecoSpeedVal').textContent=biologicalSpeed+'×';};}
