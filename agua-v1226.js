@@ -3759,7 +3759,9 @@ function updateGame(dt){
    // A altura do personagem conta apenas quando a pedra surge do piso.
    for(const stone of rockSolids){
     const centerY=terrainContact(stone.x,stone.z);
-    if(stone.top<centerY+.055)continue;
+    // Pedras baixas e cascalhos sao transponiveis; somente blocos altos barram.
+    const exposedHeight=stone.top-Math.max(centerY,footY);
+    if(exposedHeight<=.24||Math.max(stone.rx,stone.rz)<.16)continue;
     const rx=Math.max(.105,stone.rx+.13),rz=Math.max(.105,stone.rz+.13);
     const before=((game.position.x-stone.x)/rx)**2+
      ((game.position.z-stone.z)/rz)**2;
