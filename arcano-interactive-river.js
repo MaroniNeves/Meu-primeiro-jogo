@@ -34,13 +34,16 @@
   disturb(x,z,strength=.018,radius=.5){
    const p=this.geometry.attributes.position.array,d=this.geometry.attributes.waterDepth.array;
    const row=Math.round((z/this.length+.5)*(this.nz-1));const affected=[];let total=0;
-   const reach=Math.ceil(radius/(this.length/(this.nz-1)))+1;
+   const reach=Math.ceil(radius*2/(this.length/(this.nz-1)))+1;
    for(let j=Math.max(0,row-reach);j<=Math.min(this.nz-1,row+reach);j++)
    for(let i=0;i<this.nx;i++){
     const k=j*this.nx+i;if(d[k]<.015)continue;
-    const q=((p[k*3]-x)**2+(p[k*3+2]-z)**2)/(radius*radius);
-    if(q>4)continue;
-    const value=(1-q)*Math.exp(-q*2);affected.push([k,value]);total+=value;
+    const distance=Math.hypot(p[k*3]-x,p[k*3+2]-z)/radius;
+    if(distance>2)continue;
+    // The same smooth cosine drop profile as Evan Wallace's demo.
+    const drop=Math.max(0,1-distance);
+    const value=.5-Math.cos(drop*Math.PI)*.5;
+    affected.push([k,value]);total+=value;
    }
    // Balanced impulse changes the shape, not the river's stored water level.
    const mean=total/Math.max(1,affected.length);
@@ -67,9 +70,9 @@
      const courant=Math.min(.4,Math.max(0,current?current[k*2+1]:.35)*fixed/dz);
      const upstreamHeight=d[up]>.006?h[up]:h[k];
      const upstreamVelocity=d[up]>.006?v[up]:v[k];
-     const velocity=(v[k]-courant*(v[k]-upstreamVelocity)+lap*.45*fixed)*.993;
+     const velocity=(v[k]-courant*(v[k]-upstreamVelocity)+lap*.90*fixed)*.9975;
      this.nextVelocity[k]=velocity;
-     this.next[k]=Math.max(-.035,Math.min(.035,h[k]-courant*(h[k]-upstreamHeight)+velocity*fixed));
+     this.next[k]=Math.max(-.10,Math.min(.10,h[k]-courant*(h[k]-upstreamHeight)+velocity*fixed));
     }
     h.set(this.next);v.set(this.nextVelocity);this.acc-=fixed;
    }
