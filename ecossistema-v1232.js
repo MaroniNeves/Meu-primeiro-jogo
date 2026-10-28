@@ -568,28 +568,28 @@ function makeRoad(){
      // Piso caminhavel: o centro do jogador nao fica dentro das vigas.
      return Math.abs(p.along)<=halfSpan+.08&&Math.abs(p.side)<=.39?deckY+.0325:null;
     };
-    const railPenetration=p=>{
-     // Volume dos corrimaos, balustres e postes das cabeceiras com
-     // folga para o corpo do jogador: nao apenas uma linha infinitamente fina.
-     const alongOverlap=halfSpan+.12-Math.abs(p.along);
-     const sideOverlap=.78-Math.abs(p.side);
-     if(alongOverlap<=0||sideOverlap<=0||Math.abs(p.side)<.37)return 0;
-     return Math.min(alongOverlap,sideOverlap,Math.abs(p.side)-.37);
-    };
     const blocksSegment=(x0,z0,x1,z1)=>{
      if(!realm.visible)return false;
-     const from=local(x0,z0),to=local(x1,z1);
-     const initial=railPenetration(from);
-     // Amostrar a trajetoria impede atravessar uma viga em um unico frame.
-     const samples=Math.max(2,Math.ceil(Math.hypot(x1-x0,z1-z0)/.075));
-     for(let j=1;j<=samples;j++){
-      const t=j/samples;
-      const p={along:from.along+(to.along-from.along)*t,
-       side:from.side+(to.side-from.side)*t};
-      const penetration=railPenetration(p);
-      if(penetration>.00001){
-       // Caso ja esteja preso dentro do volume, permitir somente sair dele.
-       if(initial<=.00001||penetration>initial+.00001)return true;
+     const p0=local(x0,z0),p1=local(x1,z1);
+     // A lateral tem espessura: o centro do jogador fica dentro de +/- .39.
+     // Teste varrido das duas faces, sem atravessar em passos grandes.
+     const halfBodyLane=.40;
+     const samples=Math.max(2,Math.ceil(Math.hypot(x1-x0,z1-z0)/.045));
+     const beganInside=Math.abs(p0.along)<halfSpan+.10&&
+      Math.abs(p0.side)>halfBodyLane&&Math.abs(p0.side)<.81;
+     for(let n=1;n<=samples;n++){
+      const t=n/samples;
+      const along=p0.along+(p1.along-p0.along)*t;
+      const side=p0.side+(p1.side-p0.side)*t;
+      if(Math.abs(along)>halfSpan+.08)continue;
+      if(Math.abs(side)>halfBodyLane&&Math.abs(side)<.81){
+       // Desenroscar quem iniciou preso, indo para dentro OU para fora
+       // da viga, mas sem permitir cruzar sua espessura inteira.
+       if(beganInside&&Math.sign(side)===Math.sign(p0.side)&&
+          (Math.abs(side)<=Math.abs(p0.side)||
+           Math.abs(side)>=Math.abs(p0.side))&&
+          Math.abs(p1.side-p0.side)<.18)continue;
+       return true;
       }
      }
      return false;
