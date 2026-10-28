@@ -586,9 +586,8 @@ function makeRoad(){
        // Desenroscar quem iniciou preso, indo para dentro OU para fora
        // da viga, mas sem permitir cruzar sua espessura inteira.
        if(beganInside&&Math.sign(side)===Math.sign(p0.side)&&
-          (Math.abs(side)<=Math.abs(p0.side)||
-           Math.abs(side)>=Math.abs(p0.side))&&
-          Math.abs(p1.side-p0.side)<.18)continue;
+          Math.abs(p1.side-p0.side)<.12&&
+          Math.abs(p1.side) >= .39)continue;
        return true;
       }
      }
