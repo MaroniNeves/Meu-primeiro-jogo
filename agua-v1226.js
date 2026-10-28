@@ -197,12 +197,12 @@ const rocks=rocksRaw.map(([x,z,r])=>{
 });
 const center=z=>-2.3+.67*Math.sin(z*.69)+.60*Math.sin(z*.29+1.3);
 const RIVER_BANK_WIDTH=3.2;
-const riverWidth=z=>clamp(2.65+.60*Math.sin(z*.105+.6)+.42*Math.sin(z*.34+1.7)+.20*Math.sin(z*.69),1.65,3.85);
+const riverWidth=z=>clamp(2.65+.60*Math.sin(z*.105+.6)+.42*Math.sin(z*.34+1.7)+.20*Math.sin(z*.69),2.50,3.85);
 window.arcanoRiverProfile={center,halfWidth:riverWidth,bankWidth:RIVER_BANK_WIDTH};
 const riverShore=(x,z)=>Math.abs(x-center(z))-riverWidth(z);
 // O rio acompanha a descida longitudinal do relevo, sem variar o volume com chuva.
 // Queda de agua em um trecho curto, com patamares mais suaves fora dela.
-const RIVER_SURFACE_LEVEL=.22;
+const RIVER_SURFACE_LEVEL=-.55;
 let riverManualFill=0;
 window.arcanoSetRiverFillLevel=value=>{
  riverManualFill=clamp(Number(value)||0,0,.36);
@@ -210,10 +210,10 @@ window.arcanoSetRiverFillLevel=value=>{
 };
 function riverLevelAt(z){
  const drop=smooth(clamp((z-18.8)/1.25,0,1));
- return RIVER_SURFACE_LEVEL+riverManualFill-.055*z-.46*drop;
+ return RIVER_SURFACE_LEVEL+riverManualFill-.073*z-.46*drop;
 }
 function riverDepthAt(x,z){
- if(riverShore(x,z)>RIVER_BANK_WIDTH+.8)return 0;
+ if(riverShore(x,z)>=0)return 0;
  return Math.max(0,riverLevelAt(z)-terrainContact(x,z));
 }
 function elevation(x,z){
@@ -233,7 +233,9 @@ function elevation(x,z){
  // Erosao em rampa larga: o mesmo terreno continua ate a beira d'agua.
  // O perfil continuo substitui depressões antigas dentro do canal.
  const bankT=smooth(clamp((width+RIVER_BANK_WIDTH-lateral)/RIVER_BANK_WIDTH,0,1));
- const channelDepth=.18+.77*smooth(bed);
+ // The worn channel rises to a dry rim before the meadow begins.
+ // The rim stays above the highest manual level, including small waves.
+ const channelDepth=.95-1.65*smooth(clamp((lateral/width-.30)/.55,0,1));
  const bedLevel=waterline-channelDepth;
  y+=(bedLevel-y)*bankT;
  // Fora do canal o relevo e continuo: a margem e a grama usam o mesmo solo.
@@ -2664,8 +2666,8 @@ function updateRiverEdges(){
   const z=wz(j),cx=center(z),level=riverLevelAt(z);
   for(let side=0;side<2;side++){
    const dir=side?1:-1;let wet=cx,dry=cx;
-   for(let offset=.12;offset<=riverWidth(z)+RIVER_BANK_WIDTH+1;offset+=.12){
-    dry=cx+dir*offset;
+   for(let offset=.08;offset<=riverWidth(z)+.08;offset+=.08){
+    dry=cx+dir*Math.min(offset,riverWidth(z));
     if(terrainContact(dry,z)>=level)break;
     wet=dry;
    }
@@ -3273,6 +3275,14 @@ function rebuild(){
   const up=gridNeighbors[base+2],down=gridNeighbors[base+3];
   flow[k*2]=flowXField[k]=(soil[left]+depth[left]-soil[right]-depth[right])*.6;
   flow[k*2+1]=flowZField[k]=(soil[up]+depth[up]-soil[down]-depth[down])*.6;
+  if(riverDepthAt(gridX[k],gridZ[k])>.006){
+   const z=gridZ[k],turn=(center(z+.25)-center(z-.25))/.5;
+   const fall=Math.max(0,(riverLevelAt(z-.25)-riverLevelAt(z+.25))/.5);
+   const speed=clamp(.26+fall*3.6,.30,1.25),norm=Math.hypot(turn,1);
+   flow[k*2]=flowXField[k]=speed*turn/norm;
+   flow[k*2+1]=flowZField[k]=speed/norm;
+  }
+
   const road=ecoActive?(eco.roadMask[k]||0):0;
   const abrasion=ecoActive?(eco.traffic[k]||0):0;
   const ec=ecoActive?eco.cover[k]:0;
@@ -3394,10 +3404,10 @@ function rebuild(){
   const clearance=level-terrainContact(x,z);
   waterPositions[k*3]=x;
   waterPositions[k*3+1]=level+.003;
-  waterDepths[k]=Math.max(0,clearance);
+  waterDepths[k]=riverShore(x,z)<0?Math.max(0,clearance):0;
   waterMud[k]=0;
   const gradient=Math.abs((riverLevelAt(z+.25)-riverLevelAt(z-.25))/.5);
-  const speed=clamp(.12+gradient*2.3,.14,.78);
+  const speed=clamp(.26+gradient*3.6,.30,1.25);
   const turn=(center(z+.25)-center(z-.25))/.5;
   const normalizer=Math.hypot(turn,1);
   waterFlow[k*2]=speed*turn/normalizer;
