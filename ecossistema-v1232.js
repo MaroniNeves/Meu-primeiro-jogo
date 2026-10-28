@@ -565,7 +565,7 @@ function makeRoad(){
     const surfaceAt=(x,z)=>{
      if(!realm.visible)return null;
      const p=local(x,z);
-     return Math.abs(p.along)<=halfSpan+.045&&Math.abs(p.side)<=walkHalfWidth?deckY+.0325:null;
+     return Math.abs(p.along)<=halfSpan+.24&&Math.abs(p.side)<=walkHalfWidth+.12?deckY+.0325:null;
     };
     const blocksSegment=(x0,z0,x1,z1)=>{
      if(!realm.visible)return false;
@@ -578,7 +578,7 @@ function makeRoad(){
       const t=(side-p0.side)/d;
       if(t<0||t>1)continue;
       const along=p0.along+(p1.along-p0.along)*t;
-      if(Math.abs(along)<=halfSpan+.025)return true;
+      if(Math.abs(along)<=halfSpan-.12)return true;
      }
      return false;
     };
