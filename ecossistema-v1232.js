@@ -74,7 +74,7 @@ function height(x,z){
 }
 const mobileDevice=innerWidth<680;
 // Orçamento alto igual no modo Equilibrado: vegetação fechada por TODO o mapa.
-const grassBudgets=mobileDevice?{high:1900000,balanced:1900000,low:800000}:{high:2400000,balanced:2400000,low:1000000};
+const grassBudgets=mobileDevice?{high:450000,balanced:450000,low:220000}:{high:800000,balanced:800000,low:350000};
 let grassDrawn=0,lastGrassQuality='';
 const grassChunkMeshes=new Map();
 // Cada célula do solo é avaliada UMA vez por atualização, mesmo quando
@@ -1487,7 +1487,7 @@ function visualizeAnimals(){
    originX:c.x,originZ:c.z,retreatDuration:1,x:c.x,z:c.z,phase:random()*2,
    targetX:c.x,targetZ:c.z,goalAt:0,lastTick:0,walkPhase:random()*6.283
   }));
-  antDraws.push({m,c,max,agents,cargo});
+  antDraws.push({m:mesh,c,max,agents,cargo});
  }
 
 }let lastAntImpactReport=-999,antsDrowned=0,antsCrushed=0;
