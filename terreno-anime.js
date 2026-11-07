@@ -75,10 +75,10 @@ function patchLand(material){
  const previous=material.onBeforeCompile;
  material.onBeforeCompile=function(shader,r){
   if(previous)previous.call(this,shader,r);
-  shader.vertexShader='varying vec3 vAnimeWorld;\n'+shader.vertexShader.replace(
+  shader.vertexShader='attribute float animeGreen;\nvarying float vAnimeGreen;\nvarying vec3 vAnimeWorld;\n'+shader.vertexShader.replace(
    '#include <begin_vertex>',
-   '#include <begin_vertex>\n vAnimeWorld=(modelMatrix*vec4(transformed,1.0)).xyz;');
-  shader.fragmentShader='varying vec3 vAnimeWorld;\n'+NOISE+shader.fragmentShader.replace(
+   '#include <begin_vertex>\n vAnimeWorld=(modelMatrix*vec4(transformed,1.0)).xyz;\n vAnimeGreen=animeGreen;');
+  shader.fragmentShader='varying float vAnimeGreen;\nvarying vec3 vAnimeWorld;\n'+NOISE+shader.fragmentShader.replace(
    '#include <color_fragment>',
    `#include <color_fragment>
    {
@@ -88,7 +88,9 @@ function patchLand(material){
     float big=animeFbm(w*.06);
     float small=animeNoise(w*.9);
     // Quanto do pixel é gramado (o mapa original pinta o verde nas cores do vértice).
-    float green=smoothstep(.01,.08,c.g-max(c.r,c.b));
+    // Faixa larga + ruído: o gramado vai sumindo em degradê irregular na terra.
+    // Verde suavizado na CPU (~2 m): o gramado some aos poucos na terra.
+    float green=smoothstep(.12,.88,vAnimeGreen+(animeFbm(w*.45)-.5)*.30);
     // Terra: rampa de 3 tons quentes, suavizada como pintura.
     float t=clamp(lum*3.2+(big-.5)*.55+(small-.5)*.10,0.,1.);
     vec3 dirtDark=animeLin(vec3(.58,.44,.33));
@@ -96,14 +98,15 @@ function patchLand(material){
     vec3 dirtLight=animeLin(vec3(.92,.85,.68));
     vec3 dirt=mix(dirtDark,dirtMid,smoothstep(.18,.42,t));
     dirt=mix(dirt,dirtLight,smoothstep(.62,.86,t));
-    // Gramado do chão: verde vivo com manchas, combinando com os tufos.
-    vec3 lawnA=animeLin(vec3(.36,.66,.27)),lawnB=animeLin(vec3(.55,.79,.33));
-    vec3 lawn=mix(lawnA,lawnB,smoothstep(.35,.75,big));
-    lawn=mix(lawn,animeLin(vec3(.27,.53,.25)),smoothstep(.6,.9,small)*.35);
-    // Faixa de transição clara entre a grama e a terra (borda pintada).
-    float border=smoothstep(.15,.45,green)*(1.-smoothstep(.45,.85,green));
-    vec3 outC=mix(dirt,lawn,smoothstep(.25,.7,green));
-    outC=mix(outC,animeLin(vec3(.72,.84,.42)),border*.35);
+    // Gramado do chão: verde suave e um pouco dessaturado, perto da base dos tufos.
+    vec3 lawnA=animeLin(vec3(.42,.60,.31)),lawnB=animeLin(vec3(.52,.68,.36));
+    vec3 lawn=mix(lawnA,lawnB,smoothstep(.3,.8,big));
+    lawn=mix(lawn,animeLin(vec3(.36,.54,.30)),smoothstep(.6,.9,small)*.2);
+    // Na transição o verde se mistura à terra (tom oliva) antes de sumir.
+    vec3 edgeTone=mix(dirtMid,lawnA,.45);
+    float g1=smoothstep(.0,.55,green),g2=smoothstep(.45,1.,green);
+    vec3 outC=mix(dirt,edgeTone,g1);
+    outC=mix(outC,lawn,g2);
     // Partes úmidas/escuras (barro do rio) continuam mais escuras.
     float wet=1.-smoothstep(.05,.16,lum);
     outC*=mix(1.,.72,wet*(1.-green));
@@ -115,10 +118,167 @@ function patchLand(material){
  material.needsUpdate=true;
 }
 
+/* ---------- Pedras ---------- */
+// Cinza-azulado nas laterais, topo claro com musgo e contorno escuro.
+const ROCK_KEY='anime-rock-v1';
+const ROCK_NAME=/pedra|pedrinha|rock|seixo|stone/i;
+// Grupos cujos filhos (às vezes sem nome) são pedras.
+const ROCK_GROUP=/pedra original|rochas|rocks.fbx|pedras do leito|leito do rio/i;
+const rockOutline=new T.MeshBasicMaterial({color:'#2b2140',side:T.BackSide});
+function patchRock(material){
+ if(material.userData.animeRock)return;
+ if(!material.isMeshStandardMaterial&&!material.isMeshToonMaterial&&!material.isMeshLambertMaterial)return;
+ material.userData.animeRock=true;
+ const previous=material.onBeforeCompile;
+ material.onBeforeCompile=function(shader,r){
+  if(previous)previous.call(this,shader,r);
+  if(!shader.vertexShader.includes('#include <defaultnormal_vertex>'))return;
+  shader.vertexShader='varying float vAnimeUp;\nvarying vec3 vAnimeWorld;\n'+shader.vertexShader
+   .replace('#include <defaultnormal_vertex>',
+    `#include <defaultnormal_vertex>
+    {
+     vec3 animeN=objectNormal;
+     #ifdef USE_INSTANCING
+      animeN=mat3(instanceMatrix)*animeN;
+     #endif
+     vAnimeUp=normalize(mat3(modelMatrix)*animeN).y;
+    }`)
+   .replace('#include <begin_vertex>',
+    `#include <begin_vertex>
+    {
+     vec4 animeW=vec4(transformed,1.0);
+     #ifdef USE_INSTANCING
+      animeW=instanceMatrix*animeW;
+     #endif
+     vAnimeWorld=(modelMatrix*animeW).xyz;
+    }`);
+  shader.fragmentShader='varying float vAnimeUp;\nvarying vec3 vAnimeWorld;\n'+NOISE+shader.fragmentShader.replace(
+   '#include <color_fragment>',
+   `#include <color_fragment>
+   {
+    float tex=dot(diffuseColor.rgb,vec3(.299,.587,.114));
+    float n=animeFbm(vAnimeWorld.xz*1.3+vAnimeWorld.y*.7);
+    float up=vAnimeUp+(n-.5)*.35;
+    vec3 darkC=animeLin(vec3(.36,.39,.47)),sideC=animeLin(vec3(.55,.58,.63));
+    vec3 topC=animeLin(vec3(.74,.76,.74)),moss=animeLin(vec3(.46,.60,.31));
+    vec3 rock=mix(darkC,sideC,smoothstep(-.35,.15,up));
+    rock=mix(rock,topC,smoothstep(.45,.70,up));
+    rock=mix(rock,moss,smoothstep(.72,.92,up)*.65);
+    rock*=mix(1.,clamp(tex*2.,.8,1.15),.3);
+    diffuseColor.rgb=rock*.85;
+   }`);
+ };
+ const baseKey=material.customProgramCacheKey;
+ material.customProgramCacheKey=function(){return (baseKey?baseKey.call(this):'')+ROCK_KEY;};
+ material.needsUpdate=true;
+}
+function isRock(o){
+ if(o.name&&ROCK_NAME.test(o.name))return true;
+ for(let p=o.parent;p&&!p.isScene;p=p.parent)if(p.name&&ROCK_GROUP.test(p.name))return true;
+ return false;
+}
+function addRockOutline(mesh){
+ if(mesh.isInstancedMesh||mesh.isSkinnedMesh||mesh.userData.animeRockOutline||mesh.userData.animeOutline)return;
+ mesh.userData.animeRockOutline=true;
+ const g=mesh.geometry;if(!g.boundingSphere)g.computeBoundingSphere();
+ const s=1.045,shell=new T.Mesh(g,rockOutline);
+ shell.scale.setScalar(s);
+ shell.position.copy(g.boundingSphere.center).multiplyScalar(1-s);
+ shell.userData.animeOutline=true;shell.castShadow=false;shell.receiveShadow=false;
+ mesh.add(shell);
+}
+
+/* ---------- Altura e tipo de chão (para a casa e as árvores) ---------- */
+function makeGroundHelper(land){
+ const pos=land.geometry.attributes.position,col=land.geometry.attributes.color;
+ const n=pos.count,z0=pos.getZ(0);
+ let nxCount=1;while(nxCount<n&&Math.abs(pos.getZ(nxCount)-z0)<1e-6)nxCount++;
+ const nzCount=Math.round(n/nxCount);
+ const x0=pos.getX(0),x1=pos.getX(nxCount-1),zA=z0,zB=pos.getZ((nzCount-1)*nxCount);
+ const cell=(x,z)=>{
+  const fi=(x-x0)/(x1-x0)*(nxCount-1),fj=(z-zA)/(zB-zA)*(nzCount-1);
+  return [Math.max(0,Math.min(nxCount-2,Math.floor(fi))),Math.max(0,Math.min(nzCount-2,Math.floor(fj))),fi,fj];
+ };
+ function bilinear(get,x,z){
+  const [i,j,fi,fj]=cell(x,z),u=Math.min(1,Math.max(0,fi-i)),v=Math.min(1,Math.max(0,fj-j));
+  const k=j*nxCount+i;
+  return get(k)*(1-u)*(1-v)+get(k+1)*u*(1-v)+get(k+nxCount)*(1-u)*v+get(k+nxCount+1)*u*v;
+ }
+ return {
+  bounds:{x0:Math.min(x0,x1),x1:Math.max(x0,x1),z0:Math.min(zA,zB),z1:Math.max(zA,zB)},
+  heightAt:(x,z)=>bilinear(k=>pos.getY(k),x,z),
+  // >0 onde o chão é gramado (verde predominante nas cores do terreno).
+  greenAt:(x,z)=>col?bilinear(k=>col.getY(k)-Math.max(col.getX(k),col.getZ(k)),x,z):0,
+  // Longe do rio e da estrada de terra.
+  isOpen(x,z,margin=0){
+   const river=window.arcanoRiverProfile;
+   if(river&&river.center){
+    const half=(typeof river.halfWidth==='function'?river.halfWidth(z):river.halfWidth)||3;
+    const bank=(typeof river.bankWidth==='function'?river.bankWidth(z):river.bankWidth)||2;
+    if(Math.abs(x-river.center(z))<half+bank+2.5+margin)return false;
+   }
+   const roadZ=.92-.70*Math.sin(x*.47+.6)+.17*Math.sin(x*1.34);
+   if(Math.abs(z-roadZ)<2.4+margin)return false;
+   return true;
+  }
+ };
+}
+
+/* ---------- Verde suavizado do chão ---------- */
+// As cores do terreno mudam de uma vez entre pontos vizinhos da malha (~45 cm).
+// Aqui o "quanto é gramado" é borrado por ~2 m e guardado num atributo,
+// para o gramado se dissolver em degradê largo na terra.
+function updateGreenAttribute(land){
+ const geo=land.geometry,pos=geo.attributes.position,col=geo.attributes.color;
+ if(!col)return;
+ if(geo.userData.animeGreenVersion===col.version&&geo.attributes.animeGreen)return;
+ const n=pos.count,z0=pos.getZ(0);
+ let nx=1;while(nx<n&&Math.abs(pos.getZ(nx)-z0)<1e-6)nx++;
+ const nz=Math.round(n/nx);
+ let a=new Float32Array(n),b=new Float32Array(n);
+ for(let k=0;k<n;k++){
+  const g=col.getY(k)-Math.max(col.getX(k),col.getZ(k));
+  a[k]=Math.min(1,Math.max(0,(g+.01)/.09));
+ }
+ const R=4;
+ for(let pass=0;pass<2;pass++){
+  for(let j=0;j<nz;j++){ // horizontal
+   let sum=0,cnt=0;const row=j*nx;
+   for(let i=-R;i<nx;i++){
+    const add=i+R,rem=i-R-1;
+    if(add<nx){sum+=a[row+add];cnt++;}
+    if(rem>=0){sum-=a[row+rem];cnt--;}
+    if(i>=0)b[row+i]=sum/cnt;
+   }
+  }
+  for(let i=0;i<nx;i++){ // vertical
+   let sum=0,cnt=0;
+   for(let j=-R;j<nz;j++){
+    const add=j+R,rem=j-R-1;
+    if(add<nz){sum+=b[add*nx+i];cnt++;}
+    if(rem>=0){sum-=b[rem*nx+i];cnt--;}
+    if(j>=0)a[j*nx+i]=sum/cnt;
+   }
+  }
+ }
+ if(geo.attributes.animeGreen&&geo.attributes.animeGreen.count===n){
+  geo.attributes.animeGreen.array.set(a);geo.attributes.animeGreen.needsUpdate=true;
+ }else geo.setAttribute('animeGreen',new T.BufferAttribute(a,1));
+ geo.userData.animeGreenVersion=col.version;
+}
+
 /* ---------- Busca dos materiais ---------- */
 function scan(api){
  const land=api.terrain;
+ if(land)updateGreenAttribute(land);
  if(land&&land.material&&!Array.isArray(land.material))patchLand(land.material);
+ if(land&&!window.arcanoAnimeGround)window.arcanoAnimeGround=makeGroundHelper(land);
+ api.scene.traverse(o=>{
+  if(!o.isMesh||o===land||o.userData.animeOutline||!isRock(o))return;
+  const list=Array.isArray(o.material)?o.material:[o.material];
+  for(const m of list)if(m)patchRock(m);
+  addRockOutline(o);
+ });
  api.scene.traverse(o=>{
   if(!o.isMesh||!o.name||!o.name.startsWith('Tapete de grama'))return;
   const list=Array.isArray(o.material)?o.material:[o.material];
