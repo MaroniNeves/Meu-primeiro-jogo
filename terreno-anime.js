@@ -67,7 +67,23 @@ function patchGrass(material){
 }
 
 /* ---------- Terra ---------- */
-const LAND_KEY='anime-land-v1';
+const LAND_KEY='anime-land-v2';
+// Relógio das cáusticas no fundo do rio.
+const landTime={value:0};
+(function tick(t){landTime.value=t/1000;requestAnimationFrame(tick);})(0);
+const CAUSTIC=`
+uniform float uAnimeTime;
+vec2 animeHash2(vec2 p){p=vec2(dot(p,vec2(127.1,311.7)),dot(p,vec2(269.5,183.3)));return fract(sin(p)*43758.5453);}
+float animeCaustic(vec2 p,float t){
+ vec2 n=floor(p),f=fract(p);float d1=8.,d2=8.;
+ for(int j=-1;j<=1;j++)for(int i=-1;i<=1;i++){
+  vec2 g=vec2(float(i),float(j));vec2 o=animeHash2(n+g);o=.5+.45*sin(t+6.2831*o);
+  float d=length(g+o-f);
+  if(d<d1){d2=d1;d1=d;}else if(d<d2)d2=d;
+ }
+ return 1.-smoothstep(.0,.12,d2-d1);
+}
+`;
 function patchLand(material){
  if(material.userData.animeLand)return;
  material.userData.animeLand=true;
@@ -78,7 +94,8 @@ function patchLand(material){
   shader.vertexShader='attribute float animeGreen;\nattribute vec2 animeShore;\nvarying vec2 vAnimeShore;\nvarying float vAnimeGreen;\nvarying float vAnimeUpN;\nvarying vec3 vAnimeWorld;\n'+shader.vertexShader.replace(
    '#include <begin_vertex>',
    '#include <begin_vertex>\n vAnimeWorld=(modelMatrix*vec4(transformed,1.0)).xyz;\n vAnimeGreen=animeGreen;\n vAnimeShore=animeShore;\n vAnimeUpN=normalize(normal).y;');
-  shader.fragmentShader='varying float vAnimeUpN;\nvarying vec2 vAnimeShore;\nvarying float vAnimeGreen;\nvarying vec3 vAnimeWorld;\n'+NOISE+shader.fragmentShader.replace(
+  shader.uniforms.uAnimeTime=landTime;
+  shader.fragmentShader='varying float vAnimeUpN;\nvarying vec2 vAnimeShore;\nvarying float vAnimeGreen;\nvarying vec3 vAnimeWorld;\n'+NOISE+CAUSTIC+shader.fragmentShader.replace(
    '#include <color_fragment>',
    `#include <color_fragment>
    {
@@ -115,9 +132,12 @@ function patchLand(material){
     float sd=vAnimeShore.x,hw=vAnimeShore.y;
     if(sd<9.){
      // Leito submerso: tons frios e escuros, com manchas.
-     float under=1.-smoothstep(-.1,.15,sd);
+     float under=(1.-smoothstep(-.04,.02,hw))*(1.-smoothstep(.3,.8,sd));
      vec3 bed=mix(animeLin(vec3(.50,.46,.36)),animeLin(vec3(.32,.38,.34)),smoothstep(.0,1.2,-hw));
      outC=mix(outC,bed*(.85+.3*big),under);
+     // Cáusticas: redes de luz dançando no leito, só debaixo d'água.
+     float caus=animeCaustic(w*1.3+vec2(0.,uAnimeTime*.15),uAnimeTime*.9)*.7+animeCaustic(w*2.1+3.3,uAnimeTime*1.2)*.4;
+     outC+=animeLin(vec3(.80,1.,.92))*caus*under*.30*(1.-smoothstep(.6,2.8,-hw));
      // Areia molhada logo acima da linha d'água.
      float wetSand=(1.-smoothstep(.0,.55,sd))*(1.-smoothstep(.06,.30,hw))*(1.-under);
      outC=mix(outC,animeLin(vec3(.66,.55,.42)),wetSand*.6);
@@ -340,6 +360,13 @@ function start(){
  const api=window.arcanoWaterV1226;
  if(!api||!api.scene){setTimeout(start,200);return;}
  scan(api);
+ // Grama e pedras novas recebem o estilo no instante em que entram na cena.
+ (window.__animeAddHooks=window.__animeAddHooks||[]).push(o=>o.traverse(obj=>{
+  if(!obj.isMesh||obj.userData.animeOutline)return;
+  const list=Array.isArray(obj.material)?obj.material:[obj.material];
+  if(obj.name&&obj.name.startsWith('Tapete de grama')){for(const m of list)if(m&&m.isMeshStandardMaterial)patchGrass(m);}
+  else if(isRock(obj)){for(const m of list)if(m)patchRock(m);}
+ }));
  // A grama é criada em setores ao longo do carregamento.
  setInterval(()=>{if(!document.hidden)scan(api);},2500);
  window.arcanoAnimeTerrain={rescan:()=>scan(api)};

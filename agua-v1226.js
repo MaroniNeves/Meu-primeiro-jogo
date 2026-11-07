@@ -2066,7 +2066,7 @@ function placeForestModel(item,root){
  // Florestas em manchas densas, mas com seleção de qualidade no render.
  // Crescimento do número de árvores fica separado de pedras e flores.
  const count=(item.type==='tree'||item.type==='pine')?
-  Math.ceil((mobile?item.mobile:item.desktop)*2.18):
+  Math.ceil((mobile?item.mobile:item.desktop)*3.2):
   (mobile?item.mobile:item.desktop);
  let created=0;
  for(let attempt=0;attempt<count*26&&created<count;attempt++){

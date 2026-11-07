@@ -121,73 +121,6 @@ function lightenPresets(api){
  Object.assign(q.balanced,{mobilePixel:1,desktopPixel:1.2,shadowsMobile:512,shadowsDesktop:1024,anisotropy:2});
  Object.assign(q.low,{mobilePixel:.8,desktopPixel:.95,shadowsMobile:256,shadowsDesktop:512,anisotropy:1});
 }
-// Resolução escolhida pelo jogador. "auto" adapta ao FPS; as demais são fixas,
-// em relação à densidade de pixels da tela (100% = nítida, nativa).
-const RES_MODES=[
- {id:'auto',label:'Auto'},
- {id:'.75',label:'75%'},
- {id:'1',label:'100%'},
- {id:'1.5',label:'150%'},
- {id:'2',label:'200%'}
-];
-function adaptiveResolution(api){
- const q=api.QUALITY_PRESETS;
- let mode='auto';try{const s=localStorage.getItem('arcano.animeResolution');if(RES_MODES.some(m=>m.id===s))mode=s;}catch(_){}
- let frames=0,last=performance.now(),scale=1,lowRuns=0,highRuns=0,lastChange=0;
- const dpr=()=>devicePixelRatio||1;
- const base=()=>{const p=q[api.getGraphicsQuality()]||q.balanced;return Math.min(dpr(),mobile?p.mobilePixel:p.desktopPixel);};
- const target=()=>mode==='auto'?clamp(base()*scale,.6,2):clamp(dpr()*Number(mode),.5,4);
- function apply(){
-  const want=target();
-  if(Math.abs(api.renderer.getPixelRatio()-want)<.01)return;
-  api.renderer.setPixelRatio(want);
-  window.dispatchEvent(new Event('resize'));
- }
- function tick(now){
-  requestAnimationFrame(tick);
-  frames++;
-  if(now-last<2000)return;
-  const fps=frames*1000/(now-last);frames=0;last=now;
-  if(document.hidden)return;
-  if(mode==='auto'){
-   // Cada troca de resolução recria a imagem (um quadro "pisca"), então só
-   // muda depois de 3 medições seguidas (6 s) e no máximo a cada 15 s.
-   lowRuns=fps<36?lowRuns+1:0;
-   highRuns=fps>58?highRuns+1:0;
-   if(now-lastChange>15000){
-    if(lowRuns>=3&&scale>.62){scale=Math.max(.62,scale-.15);lastChange=now;lowRuns=highRuns=0;}
-    else if(highRuns>=3&&scale<1){scale=Math.min(1,scale+.1);lastChange=now;lowRuns=highRuns=0;}
-   }
-  }
-  // Reaplica também quando o menu de qualidade do jogo mexe na resolução.
-  apply();
- }
- requestAnimationFrame(tick);
-
- // Botão na tela: cada toque passa para a próxima resolução.
- const button=document.createElement('button');
- button.type='button';button.id='animeResolution';
- const css=document.createElement('style');
- css.textContent=`#animeResolution{position:fixed;top:52px;right:12px;z-index:40;
-  font:600 12px system-ui,Segoe UI,sans-serif;color:#eaf1ed;cursor:pointer;
-  background:rgba(16,29,41,.82);border:1px solid #45606b;border-radius:10px;padding:7px 11px;}
-  #animeResolution:hover{border-color:#80c0bf}`;
- document.head.appendChild(css);
- const label=()=>{
-  const m=RES_MODES.find(x=>x.id===mode);
-  button.textContent='🖥 Resolução: '+m.label;
-  button.title='Toque para mudar a resolução. Mais alta = mais nítida e mais pesada.';
- };
- button.addEventListener('click',()=>{
-  const i=RES_MODES.findIndex(x=>x.id===mode);
-  mode=RES_MODES[(i+1)%RES_MODES.length].id;scale=1;
-  try{localStorage.setItem('arcano.animeResolution',mode);}catch(_){}
-  label();apply();
- });
- label();document.body.appendChild(button);
- apply();
-}
-
 /* ---------- Inicialização ---------- */
 function start(){
  const api=window.arcanoWaterV1226;
@@ -202,9 +135,15 @@ function start(){
  // Aplica nos materiais já existentes e continua monitorando os que chegam depois
  // (árvores, rochas e modelos são carregados aos poucos).
  scan(scene);
+ // Pinta cada objeto no instante em que entra na cena (sem trocar de cor depois).
+ (window.__animeAddHooks=window.__animeAddHooks||[]).push(o=>o.traverse(obj=>{
+  if(!obj.isMesh||obj.userData.animeOutline)return;
+  const list=Array.isArray(obj.material)?obj.material:[obj.material];
+  for(const m of list)if(m&&!m.userData.animeStyled&&m.isMeshStandardMaterial)stylize(m);
+ }));
  /* continua ativo: o personagem e novos modelos aparecem depois */
  setInterval(()=>{if(!document.hidden)scan(scene);},2500);
- adaptiveResolution(api);
+ // Resolução: controlada por resolucao-anime.js (carregado antes do jogo).
  window.arcanoAnimeStyle={rescan:()=>scan(scene),setOutline:v=>{outlineMaterial.visible=!!v;}};
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
