@@ -142,7 +142,8 @@ function start(){
   for(const m of list)if(m&&!m.userData.animeStyled&&m.isMeshStandardMaterial)stylize(m);
  }));
  /* continua ativo: o personagem e novos modelos aparecem depois */
- setInterval(()=>{if(!document.hidden)scan(scene);},2500);
+ // Os objetos novos já são pintados ao entrar na cena; esta varredura é só reserva.
+ setInterval(()=>{if(!document.hidden)scan(scene);},9000);
  // Resolução: controlada por resolucao-anime.js (carregado antes do jogo).
  window.arcanoAnimeStyle={rescan:()=>scan(scene),setOutline:v=>{outlineMaterial.visible=!!v;}};
 }

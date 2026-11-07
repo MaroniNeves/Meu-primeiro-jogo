@@ -281,7 +281,9 @@ function makeGroundHelper(land){
 function updateGreenAttribute(land){
  const geo=land.geometry,pos=geo.attributes.position,col=geo.attributes.color;
  if(!col)return;
- if(geo.userData.animeGreenVersion===col.version&&geo.attributes.animeGreen)return;
+ // Calculado UMA vez. O jogo repinta o chão a cada passo (marcas na estrada);
+ // recalcular aqui travava o jogo a cada 2,5 s e o personagem "teleportava".
+ if(geo.attributes.animeGreen)return;
  const n=pos.count,z0=pos.getZ(0);
  let nx=1;while(nx<n&&Math.abs(pos.getZ(nx)-z0)<1e-6)nx++;
  const nz=Math.round(n/nx);
@@ -332,6 +334,12 @@ function updateGreenAttribute(land){
    }
   }
  }
+ // A estrada fica sempre de terra: o verde some antes de chegar nela.
+ for(let k=0;k<n;k++){
+  const x=pos.getX(k),z=pos.getZ(k);
+  const road=.92-.70*Math.sin(x*.47+.6)+.17*Math.sin(x*1.34);
+  a[k]*=sm(.7,2.3,Math.abs(z-road));
+ }
  if(geo.attributes.animeGreen&&geo.attributes.animeGreen.count===n){
   geo.attributes.animeGreen.array.set(a);geo.attributes.animeGreen.needsUpdate=true;
  }else geo.setAttribute('animeGreen',new T.BufferAttribute(a,1));
@@ -368,7 +376,7 @@ function start(){
   else if(isRock(obj)){for(const m of list)if(m)patchRock(m);}
  }));
  // A grama é criada em setores ao longo do carregamento.
- setInterval(()=>{if(!document.hidden)scan(api);},2500);
+ setInterval(()=>{if(!document.hidden)scan(api);},9000);
  window.arcanoAnimeTerrain={rescan:()=>scan(api)};
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();

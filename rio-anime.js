@@ -231,7 +231,7 @@ function install(){
  const u=material.uniforms;
 
  // ---------- Reflexo planar próprio ----------
- const rtScale=mobile?.35:.5;
+ const rtScale=mobile?.25:.35;
  const rt=new T.WebGLRenderTarget(256,256,{minFilter:T.LinearFilter,magFilter:T.LinearFilter,generateMipmaps:false});
  u.uRefl.value=rt.texture;
  const mirror=new T.PerspectiveCamera();
@@ -259,7 +259,7 @@ function install(){
   look.copy(camera.position).add(tmp);look.y=2*y-look.y;
   mirror.up.set(camera.up.x,-camera.up.y,camera.up.z);
   mirror.lookAt(look);
-  mirror.far=Math.min(camera.far,70);
+  mirror.far=Math.min(camera.far,48);
   mirror.updateProjectionMatrix();mirror.updateMatrixWorld(true);
   u.uReflMatrix.value.copy(bias).multiply(mirror.projectionMatrix).multiply(mirror.matrixWorldInverse);
   plane.constant=-y+.02;
@@ -293,8 +293,9 @@ function install(){
   if(rendering)return;
   const main=api.getMainCamera&&api.getMainCamera();
   if(camera!==main)return;
-  // Reflexo a cada 2 quadros (metade do custo, sem saltos visíveis).
-  if((frame++&1)===0||u.uReflReady.value<.5){
+  // Reflexo em TODO quadro, em resolução baixa: alternar quadros pesados e
+  // leves deixava o movimento do personagem irregular (pequenos saltos).
+  {
    rendering=true;
    try{renderReflection(camera);}finally{rendering=false;}
   }
