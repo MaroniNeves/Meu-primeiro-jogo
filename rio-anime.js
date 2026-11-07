@@ -52,6 +52,7 @@ uniform float uTime,uWind,uSunPower,uCloudiness;
 uniform vec3 uSun;
 uniform vec3 uShallow,uMid,uDeep,uSky,uFoam;
 uniform vec3 uPlayer;
+uniform float uFallZ,uFallX;
 uniform float uPlayerWet;
 uniform vec3 fogColor;
 uniform float fogNear,fogFar;
@@ -158,6 +159,23 @@ void main(){
  float wake=smoothstep(.55,.18,pd)*uPlayerWet;
  col=mix(col,uFoam,clamp(ring*.75+wake*.5,0.,1.));
 
+ // ---------- Cachoeira ----------
+ // Inclinação real da superfície (derivadas da tela): onde a água despenca,
+ // listras de espuma descem; no pé da queda, espuma revolta.
+ vec3 fdx=dFdx(vWorld),fdy=dFdy(vWorld);
+ vec3 fn=normalize(cross(fdx,fdy));
+ float steep=1.-abs(fn.y);
+ float fallMask=smoothstep(.30,.65,steep)*step(abs(vWorld.z-uFallZ),2.);
+ float fallStreak=noise(vec2(across*6.5,vWorld.y*1.6+uTime*6.));
+ fallStreak=max(fallStreak,noise(vec2(across*13.,vWorld.y*3.+uTime*9.))*.9);
+ vec3 fallCol=mix(uMid*1.15,uFoam,smoothstep(.40,.62,fallStreak));
+ col=mix(col,fallCol,fallMask);
+ float pz=vWorld.z-(uFallZ+.55);
+ float plunge=exp(-pz*pz*.55)*smoothstep(-.9,-.2,pz)*(1.-fallMask);
+ float churn=noise(vWorld.xz*2.6+vec2(0.,uTime*1.4))*.6+noise(vWorld.xz*6.5-uTime*1.1)*.4;
+ col=mix(col,uFoam,smoothstep(.42,.58,churn)*plunge);
+ col=mix(col,mix(col,uFoam,.35),plunge*.6);
+
  // ---------- Brilho do sol em degraus + cintilância ----------
  vec3 sunDir=normalize(uSun);
  vec3 h=normalize(sunDir+viewDir);
@@ -173,6 +191,8 @@ void main(){
  a=mix(a,.96,d2);
  a=max(a,foam*.97);
  a=max(a,fres*.85);
+ a=max(a,fallMask*.93);
+ a=max(a,plunge*.9);
  gl_FragColor=vec4(col,a*alpha);
 
  float fogF=smoothstep(fogNear,fogFar,vFogDepth);
@@ -200,6 +220,7 @@ function install(){
    uSky:{value:srgb('#c9ecff')},
    uFoam:{value:srgb('#f4fffd')},
    uPlayer:{value:new T.Vector3(0,-999,0)},uPlayerWet:{value:0},
+   uFallZ:{value:(window.arcanoRiverProfile&&window.arcanoRiverProfile.fall)?window.arcanoRiverProfile.fall.z:-999},uFallX:{value:0},
    fogColor:{value:srgb('#b6c6bc')},fogNear:{value:45},fogFar:{value:120}
   },
   vertexShader,fragmentShader
@@ -232,6 +253,35 @@ function install(){
   wet+=(target-wet)*.08;
   u.uPlayerWet.value=wet;
  };
+ // Névoa da cachoeira: partículas brancas e macias que sobem do pé da queda.
+ const profile=window.arcanoRiverProfile;
+ if(profile&&profile.fall){
+  const fz=profile.fall.z+.6,count=/Mobile|Android|iPhone/i.test(navigator.userAgent)?90:180;
+  const seeds=new Float32Array(count*4);
+  for(let i=0;i<count;i++){seeds[i*4]=Math.random()*2-1;seeds[i*4+1]=Math.random();seeds[i*4+2]=Math.random()*2-1;seeds[i*4+3]=Math.random();}
+  const g=new T.BufferGeometry();
+  g.setAttribute('position',new T.BufferAttribute(new Float32Array(count*3),3));
+  g.setAttribute('seed',new T.BufferAttribute(seeds,4));
+  const halfW=(typeof profile.halfWidth==='function'?profile.halfWidth(fz):profile.halfWidth)||3;
+  const mist=new T.Points(g,new T.ShaderMaterial({
+   transparent:true,depthWrite:false,
+   uniforms:{uTime:u.uTime,uBase:{value:new T.Vector3(profile.center(fz),profile.levelAt(fz),fz)},uWidth:{value:halfW*.8},
+    uScale:{value:innerHeight*.5}},
+   vertexShader:`attribute vec4 seed;uniform float uTime,uWidth,uScale;uniform vec3 uBase;varying float vA;
+    void main(){
+     float p=fract(uTime*(.18+.12*seed.w)+seed.y);
+     vec3 pos=uBase+vec3(seed.x*uWidth,p*2.6,seed.z*.9+p*1.4);
+     vA=sin(p*3.14159)*.45;
+     vec4 mv=modelViewMatrix*vec4(pos,1.);
+     gl_PointSize=(.55+p*1.3)*uScale/max(.1,-mv.z);
+     gl_Position=projectionMatrix*mv;
+    }`,
+   fragmentShader:`varying float vA;
+    void main(){float d=length(gl_PointCoord-.5);if(d>.5)discard;gl_FragColor=vec4(1.,1.,1.,vA*smoothstep(.5,.0,d));}`
+  }));
+  mist.name='Névoa da cachoeira';mist.frustumCulled=false;mist.renderOrder=4;
+  scene.add(mist);
+ }
  window.arcanoAnimeRiver={material,restore(){water.material=old;water.userData.water2=false;water.userData.animeRiver=false;water.onBeforeRender=()=>{};}};
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install();

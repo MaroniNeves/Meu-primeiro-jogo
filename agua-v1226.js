@@ -199,8 +199,12 @@ const center=z=>-2.3+.67*Math.sin(z*.69)+.60*Math.sin(z*.29+1.3);
 const RIVER_BANK_WIDTH=7.0;
 // A ampla encosta pode receber grama; apenas a faixa de areia fica descoberta.
 const RIVER_BARE_BANK_WIDTH=3.2;
-const riverWidth=z=>clamp(2.65+.60*Math.sin(z*.105+.6)+.42*Math.sin(z*.34+1.7)+.20*Math.sin(z*.69),2.50,3.85);
-window.arcanoRiverProfile={center,halfWidth:riverWidth,bankWidth:RIVER_BANK_WIDTH,bareBankWidth:RIVER_BARE_BANK_WIDTH,levelAt:riverLevelAt,depthAt:riverDepthAt};
+// Cachoeira: o vale inteiro desce FALL_DROP em FALL_Z; logo abaixo, um poço fundo e mais largo para mergulhar.
+const FALL_Z=16,FALL_DROP=2.6,POOL_Z0=16.2,POOL_Z1=24,POOL_DEPTH=2.2;
+const fallStep=z=>smooth(clamp((z-(FALL_Z-.35))/.7,0,1));
+const poolMask=z=>smooth(clamp((z-POOL_Z0)/1.4,0,1))*(1-smooth(clamp((z-(POOL_Z1-3))/3,0,1)));
+const riverWidth=z=>clamp(2.65+.60*Math.sin(z*.105+.6)+.42*Math.sin(z*.34+1.7)+.20*Math.sin(z*.69),2.50,3.85)+2.1*poolMask(z);
+window.arcanoRiverProfile={center,halfWidth:riverWidth,bankWidth:RIVER_BANK_WIDTH,bareBankWidth:RIVER_BARE_BANK_WIDTH,levelAt:riverLevelAt,depthAt:riverDepthAt,fall:{z:FALL_Z,drop:FALL_DROP,pool0:POOL_Z0,pool1:POOL_Z1}};
 const riverShore=(x,z)=>Math.abs(x-center(z))-riverWidth(z);
 // O rio acompanha a descida longitudinal do relevo, sem variar o volume com chuva.
 // Queda de agua em um trecho curto, com patamares mais suaves fora dela.
@@ -211,8 +215,7 @@ window.arcanoSetRiverFillLevel=value=>{
  hydrologyStep(0);rebuild();
 };
 function riverLevelAt(z){
- const drop=smooth(clamp((z-18.8)/1.25,0,1));
- return RIVER_SURFACE_LEVEL+riverManualFill-.073*z-.46*drop;
+ return RIVER_SURFACE_LEVEL+riverManualFill-.073*z-FALL_DROP*fallStep(z);
 }
 function riverDepthAt(x,z){
  if(riverShore(x,z)>=0)return 0;
@@ -230,6 +233,17 @@ function elevation(x,z){
  const roadDist=Math.abs(z-roadAxis),crossDist=Math.abs(x-center(z));
  const protectedRoad=(1-smooth(clamp((roadDist-1.10)/2.15,0,1)))*(1-smooth(clamp((crossDist-6.1)/2.3,0,1)));
  for(const basin of basins){const d=((x-basin.x)/basin.sx)**2+((z-basin.z)/basin.sz)**2;y-=basin.deep*Math.exp(-1.5*d)*(1-protectedRoad);}
+ // Relevo anime: colinas longe do rio (a estrada continua plana) e a escarpa da cachoeira.
+ {
+  const valley=smooth(clamp((lateral-(width+RIVER_BANK_WIDTH+2))/14,0,1));
+  const roadFlat=1-smooth(clamp((roadDist-2.2)/4.5,0,1));
+  const hill=Math.sin(x*.11+z*.07)*.5+Math.sin(x*.23-z*.17+1.3)*.3+Math.sin(x*.05+z*.21+2.1)*.2;
+  y+=valley*(1-roadFlat)*(.9+2.8*Math.pow(Math.max(0,hill),1.3));
+  const nearRiver=smooth(clamp((lateral-3)/8,0,1));
+  const cliffZ=FALL_Z+(1.3*Math.sin(x*.13)+.6*Math.sin(x*.41))*nearRiver;
+  const cliffW=.8+3.2*nearRiver;
+  y-=FALL_DROP*smooth(clamp((z-cliffZ+cliffW*.5)/cliffW,0,1));
+ }
  // Leito e margens acima/abaixo de um nivel UNICO; declives enchem ate a mesma linha.
  const waterline=riverLevelAt(z)-riverManualFill;
  // Erosao em rampa larga: o mesmo terreno continua ate a beira d'agua.
@@ -237,7 +251,8 @@ function elevation(x,z){
  const bankT=smooth(clamp((width+RIVER_BANK_WIDTH-lateral)/RIVER_BANK_WIDTH,0,1));
  // The worn channel rises to a dry rim before the meadow begins.
  // The rim stays above the highest manual level, including small waves.
- const channelDepth=.95-1.65*smooth(clamp((lateral/width-.30)/.55,0,1));
+ const channelDepth=.95-1.65*smooth(clamp((lateral/width-.30)/.55,0,1))+
+  POOL_DEPTH*poolMask(z)*(1-smooth(clamp((lateral/width-.15)/.6,0,1)));
  const bedLevel=waterline-channelDepth;
  y+=(bedLevel-y)*bankT;
  // Fora do canal o relevo e continuo: a margem e a grama usam o mesmo solo.
@@ -530,7 +545,14 @@ function updateAtmosphere(dt){
  skyM.uniforms.uNight.value=1-dayLight;
  skyM.uniforms.uSunDir.value.copy(skySunDir);
  skyM.uniforms.uSunVisible.value=weatherCfg?weatherCfg.sunVisible*dayLight:dayLight;
- light.position.set(sunX*22,Math.max(.08,sunY)*22,sunZ*22);
+ // Mover a luz um pouquinho a cada quadro fazia todas as bordas de sombra
+ // tremerem (piscar). A direção só é atualizada a cada ~0,4°.
+ {
+  const lx=sunX*22,ly=Math.max(.08,sunY)*22,lz=sunZ*22,p=light.position;
+  const lenA=Math.hypot(lx,ly,lz),lenB=p.length()||1;
+  const cos=(lx*p.x+ly*p.y+lz*p.z)/(lenA*lenB);
+  if(cos<.99997||!light.userData.sunSnapped){light.position.set(lx,ly,lz);light.userData.sunSnapped=true;}
+ }
  const shade=Math.max(.72,1-atmCloudMean*.12*(.5+.5*Math.sin(weatherTime*.16+
     Math.sin(weatherTime*.065)*1.4)));
  light.intensity=Math.min(1.70,(weatherCfg?weatherCfg.sunPower:2.0)*.67)*dayLight*shade;
@@ -3956,7 +3978,24 @@ function updateGame(dt){
   game.waterStride=0;
  }
  game.wasInWater=footWater;
- game.position.y=solidGameFootHeight(game.position.x,game.position.z);
+ // Natação: em água funda o personagem boia com a cabeça para fora.
+ // Espaço/C (ou o botão Mergulhar) afunda até o leito; soltando, volta à tona.
+ const swimDepth=onBridge?0:riverDepthAt(game.position.x,game.position.z);
+ const groundY=solidGameFootHeight(game.position.x,game.position.z);
+ if(swimDepth>1.15){
+  const floatY=riverLevelAt(game.position.z)-1.2;
+  if(game.swimY==null)game.swimY=Math.max(groundY,game.position.y);
+  const dive=game.keys.has(' ')||game.keys.has('c')||game.input.dive;
+  const target=dive?groundY+.05:floatY;
+  game.swimY+=clamp(target-game.swimY,-1.7*dt,1.3*dt);
+  game.position.y=Math.max(groundY,game.swimY);
+  game.swimming=true;
+ }else{
+  game.swimY=null;game.swimming=false;
+  game.position.y=groundY;
+ }
+ const diveButton=$('gameDive');
+ if(diveButton)diveButton.style.display=game.swimming&&game.active?'':'none';
  game.root.position.copy(game.position);
  game.root.rotation.y=game.heading;
  const anim=length>.1?(control.run?'run':'walk'):'idle';
@@ -4098,6 +4137,10 @@ function setGameCameraTreeFade(a,fade){
    const clones=sources.map(mat=>{
     if(!mat)return mat;
     const copy=mat.clone();
+    // clone() não copia os shaders personalizados (vento, estilo anime):
+    // sem isso a árvore mudava de aparência e "piscava" ao ficar translúcida.
+    copy.onBeforeCompile=mat.onBeforeCompile;
+    copy.customProgramCacheKey=mat.customProgramCacheKey;
     copy.transparent=true;
     copy.depthWrite=false;
     // Mantém os PNG/FBX/GLTF e o movimento do vento, mas deixa a copa
@@ -4175,6 +4218,7 @@ async function setPlayActive(active){
  if($('gameHUD'))$('gameHUD').setAttribute('aria-hidden',String(!active));
  game.keys.clear();game.input.x=0;game.input.y=0;game.input.run=false;game.orbitPointer=null;
  game.waterStride=0;game.wasInWater=false;game.grassSpeed=0;game.grassOnGround=true;
+ game.swimming=false;game.swimY=null;game.input.dive=false;if($('gameDive'))$('gameDive').style.display='none';
  gameCameraActualDistance=0;
  gamePointerLocations.clear();gamePinchDistance=0;
  setGameZoom(game.camDistance);
@@ -4217,7 +4261,7 @@ window.addEventListener('keydown',ev=>{
  const key=ev.key.toLowerCase();
  if(key==='escape'){setPlayActive(false);ev.preventDefault();return;}
  if(['1','2','3'].includes(key)){castMageSpell(Number(key)-1);ev.preventDefault();return;}
- if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright','shift',' '].includes(key)){
+ if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright','shift',' ','c'].includes(key)){
   game.keys.add(key);ev.preventDefault();
  }
 });
@@ -4250,6 +4294,17 @@ if($('gameJoystick')){
 for(let spell=0;spell<3;spell++){
  const button=$('gameSpell'+(spell+1));
  if(button)button.addEventListener('click',()=>castMageSpell(spell));
+}
+// Botão Mergulhar (aparece só quando o personagem está nadando).
+if($('gameRun')&&!$('gameDive')){
+ const run=$('gameRun'),d=document.createElement('button');
+ d.type='button';d.id='gameDive';d.className=run.className;
+ d.textContent='Mergulhar';d.setAttribute('aria-label','Segure para mergulhar');
+ d.style.cssText='display:none;position:fixed;right:16px;bottom:200px;z-index:30;pointer-events:auto;min-width:85px;height:56px;background:#2f6f8fcf';
+ (document.getElementById('gameHUD')||document.body).appendChild(d);
+ d.addEventListener('pointerdown',ev=>{d.setPointerCapture(ev.pointerId);game.input.dive=true;});
+ d.addEventListener('pointerup',()=>game.input.dive=false);
+ d.addEventListener('pointercancel',()=>game.input.dive=false);
 }
 if($('gameRun')){
  const b=$('gameRun');

@@ -133,7 +133,7 @@ const RES_MODES=[
 function adaptiveResolution(api){
  const q=api.QUALITY_PRESETS;
  let mode='auto';try{const s=localStorage.getItem('arcano.animeResolution');if(RES_MODES.some(m=>m.id===s))mode=s;}catch(_){}
- let frames=0,last=performance.now(),scale=1;
+ let frames=0,last=performance.now(),scale=1,lowRuns=0,highRuns=0,lastChange=0;
  const dpr=()=>devicePixelRatio||1;
  const base=()=>{const p=q[api.getGraphicsQuality()]||q.balanced;return Math.min(dpr(),mobile?p.mobilePixel:p.desktopPixel);};
  const target=()=>mode==='auto'?clamp(base()*scale,.6,2):clamp(dpr()*Number(mode),.5,4);
@@ -150,8 +150,14 @@ function adaptiveResolution(api){
   const fps=frames*1000/(now-last);frames=0;last=now;
   if(document.hidden)return;
   if(mode==='auto'){
-   if(fps<38&&scale>.62)scale=Math.max(.62,scale-.12);
-   else if(fps>57&&scale<1)scale=Math.min(1,scale+.08);
+   // Cada troca de resolução recria a imagem (um quadro "pisca"), então só
+   // muda depois de 3 medições seguidas (6 s) e no máximo a cada 15 s.
+   lowRuns=fps<36?lowRuns+1:0;
+   highRuns=fps>58?highRuns+1:0;
+   if(now-lastChange>15000){
+    if(lowRuns>=3&&scale>.62){scale=Math.max(.62,scale-.15);lastChange=now;lowRuns=highRuns=0;}
+    else if(highRuns>=3&&scale<1){scale=Math.min(1,scale+.1);lastChange=now;lowRuns=highRuns=0;}
+   }
   }
   // Reaplica também quando o menu de qualidade do jogo mexe na resolução.
   apply();

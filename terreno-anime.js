@@ -75,10 +75,10 @@ function patchLand(material){
  const previous=material.onBeforeCompile;
  material.onBeforeCompile=function(shader,r){
   if(previous)previous.call(this,shader,r);
-  shader.vertexShader='attribute float animeGreen;\nvarying float vAnimeGreen;\nvarying vec3 vAnimeWorld;\n'+shader.vertexShader.replace(
+  shader.vertexShader='attribute float animeGreen;\nattribute vec2 animeShore;\nvarying vec2 vAnimeShore;\nvarying float vAnimeGreen;\nvarying float vAnimeUpN;\nvarying vec3 vAnimeWorld;\n'+shader.vertexShader.replace(
    '#include <begin_vertex>',
-   '#include <begin_vertex>\n vAnimeWorld=(modelMatrix*vec4(transformed,1.0)).xyz;\n vAnimeGreen=animeGreen;');
-  shader.fragmentShader='varying float vAnimeGreen;\nvarying vec3 vAnimeWorld;\n'+NOISE+shader.fragmentShader.replace(
+   '#include <begin_vertex>\n vAnimeWorld=(modelMatrix*vec4(transformed,1.0)).xyz;\n vAnimeGreen=animeGreen;\n vAnimeShore=animeShore;\n vAnimeUpN=normalize(normal).y;');
+  shader.fragmentShader='varying float vAnimeUpN;\nvarying vec2 vAnimeShore;\nvarying float vAnimeGreen;\nvarying vec3 vAnimeWorld;\n'+NOISE+shader.fragmentShader.replace(
    '#include <color_fragment>',
    `#include <color_fragment>
    {
@@ -109,7 +109,37 @@ function patchLand(material){
     outC=mix(outC,lawn,g2);
     // Partes úmidas/escuras (barro do rio) continuam mais escuras.
     float wet=1.-smoothstep(.05,.16,lum);
-    outC*=mix(1.,.72,wet*(1.-green));
+    outC*=mix(1.,.80,wet*(1.-green));
+    // ---------- Margens do rio ----------
+    // x = distância até a borda da água (m, negativo = dentro), y = altura acima da água.
+    float sd=vAnimeShore.x,hw=vAnimeShore.y;
+    if(sd<9.){
+     // Leito submerso: tons frios e escuros, com manchas.
+     float under=1.-smoothstep(-.1,.15,sd);
+     vec3 bed=mix(animeLin(vec3(.50,.46,.36)),animeLin(vec3(.32,.38,.34)),smoothstep(.0,1.2,-hw));
+     outC=mix(outC,bed*(.85+.3*big),under);
+     // Areia molhada logo acima da linha d'água.
+     float wetSand=(1.-smoothstep(.0,.55,sd))*(1.-smoothstep(.06,.30,hw))*(1.-under);
+     outC=mix(outC,animeLin(vec3(.66,.55,.42)),wetSand*.6);
+     // Faixa de cascalho e seixos arredondados.
+     float gravel=smoothstep(.1,.6,sd)*(1.-smoothstep(1.8,3.2,sd))*(1.-smoothstep(.9,1.6,hw));
+     vec2 gp=w*4.2;vec2 cellId=floor(gp);vec2 o=vec2(animeHash(cellId+3.1),animeHash(cellId+7.7))*.5+.25;
+     float rad=.18+.16*animeHash(cellId+1.9);
+     float pebble=step(.35,animeHash(cellId))*smoothstep(rad,rad-.07,length(fract(gp)-o));
+     vec3 pebC=mix(animeLin(vec3(.60,.63,.66)),animeLin(vec3(.76,.74,.68)),animeHash(cellId+5.));
+     outC=mix(outC,mix(animeLin(vec3(.70,.62,.50)),outC,.4),gravel*.6);
+     outC=mix(outC,pebC*(.9+.2*small),pebble*gravel);
+    }
+    // ---------- Penhascos: encostas íngremes viram rocha em camadas ----------
+    float cliff=1.-smoothstep(.50,.78,vAnimeUpN+(small-.5)*.12);
+    if(cliff>.001){
+     float layer=fract(vAnimeWorld.y*1.6+animeNoise(w*.8)*.6);
+     vec3 rockA=animeLin(vec3(.60,.58,.56)),rockB=animeLin(vec3(.47,.46,.48)),rockC=animeLin(vec3(.70,.67,.62));
+     vec3 cliffC=mix(rockB,rockA,smoothstep(.15,.35,layer));
+     cliffC=mix(cliffC,rockC,smoothstep(.75,.9,layer)*.7);
+     cliffC*=.85+.3*animeNoise(vec2(w.x+w.y,vAnimeWorld.y)*2.3);
+     outC=mix(outC,cliffC,cliff);
+    }
     diffuseColor.rgb=outC*.78;
    }`);
  };
@@ -236,9 +266,30 @@ function updateGreenAttribute(land){
  let nx=1;while(nx<n&&Math.abs(pos.getZ(nx)-z0)<1e-6)nx++;
  const nz=Math.round(n/nx);
  let a=new Float32Array(n),b=new Float32Array(n);
+ // Distância até a água e altura acima dela (para areia molhada, cascalho e
+ // grama nas encostas). Calculado uma vez: o rio não muda de lugar.
+ const river=window.arcanoRiverProfile;
+ let shore=geo.attributes.animeShore;
+ if(!shore||shore.count!==n){
+  const arr=new Float32Array(n*2);
+  for(let k=0;k<n;k++){
+   const x=pos.getX(k),z=pos.getZ(k),y=pos.getY(k);
+   if(river&&river.center){
+    const half=typeof river.halfWidth==='function'?river.halfWidth(z):river.halfWidth;
+    arr[k*2]=Math.abs(x-river.center(z))-half;
+    arr[k*2+1]=y-river.levelAt(z);
+   }else{arr[k*2]=99;arr[k*2+1]=9;}
+  }
+  shore=new T.BufferAttribute(arr,2);
+  geo.setAttribute('animeShore',shore);
+ }
+ const sm=(e0,e1,v)=>{const t=Math.min(1,Math.max(0,(v-e0)/(e1-e0)));return t*t*(3-2*t);};
  for(let k=0;k<n;k++){
   const g=col.getY(k)-Math.max(col.getX(k),col.getZ(k));
   a[k]=Math.min(1,Math.max(0,(g+.01)/.09));
+  // Encostas altas das margens ficam gramadas (rio de verdade, não um canal de areia).
+  const sd=shore.getX(k),hw=shore.getY(k);
+  if(sd<14)a[k]=Math.max(a[k],sm(2.6,4.6,sd)*sm(.55,1.1,hw));
  }
  const R=4;
  for(let pass=0;pass<2;pass++){
