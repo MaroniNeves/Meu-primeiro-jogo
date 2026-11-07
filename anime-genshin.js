@@ -36,11 +36,11 @@ function stylize(material){
     // Realce quente nas luzes e sombras levemente arroxeadas/azuladas.
     outgoingLight=mix(outgoingLight,outgoingLight*vec3(1.05,1.02,.96),smoothstep(.55,.95,animeL));
     outgoingLight=mix(outgoingLight*vec3(.90,.92,1.08),outgoingLight,smoothstep(.10,.45,animeL));
-    #ifndef FLAT_SHADED
+    #if !defined(FLAT_SHADED) && !defined(ANIME_NO_RIM)
      float animeRim=pow(1.-clamp(dot(normalize(vNormal),normalize(vViewPosition)),0.,1.),3.2);
-     outgoingLight+=animeRim*vec3(.30,.36,.42)*.38;
+     outgoingLight+=animeRim*vec3(.30,.36,.42)*.20;
     #endif
-    outgoingLight=pow(outgoingLight,vec3(.94));
+    outgoingLight*=.97;
    }
   `;
   shader.fragmentShader=frag.replace(hook,toon+hook);
@@ -98,7 +98,7 @@ function scan(scene){
 function installGrade(stage){
  const css=document.createElement('style');
  css.textContent=`
-  #stage{filter:saturate(1.22) contrast(1.05) brightness(1.04) hue-rotate(-3deg);}
+  #stage{filter:saturate(1.12) contrast(1.06) brightness(.98) hue-rotate(-3deg);}
   #animeGlow{position:fixed;inset:0;pointer-events:none;z-index:1;
    background:
     radial-gradient(120% 90% at 50% 0%,rgba(255,236,190,.20),transparent 55%),
@@ -121,12 +121,26 @@ function lightenPresets(api){
  Object.assign(q.balanced,{mobilePixel:1,desktopPixel:1.2,shadowsMobile:512,shadowsDesktop:1024,anisotropy:2});
  Object.assign(q.low,{mobilePixel:.8,desktopPixel:.95,shadowsMobile:256,shadowsDesktop:512,anisotropy:1});
 }
+// Resolução escolhida pelo jogador. "auto" adapta ao FPS; as demais são fixas,
+// em relação à densidade de pixels da tela (100% = nítida, nativa).
+const RES_MODES=[
+ {id:'auto',label:'Auto'},
+ {id:'.75',label:'75%'},
+ {id:'1',label:'100%'},
+ {id:'1.5',label:'150%'},
+ {id:'2',label:'200%'}
+];
 function adaptiveResolution(api){
  const q=api.QUALITY_PRESETS;
+ let mode='auto';try{const s=localStorage.getItem('arcano.animeResolution');if(RES_MODES.some(m=>m.id===s))mode=s;}catch(_){}
  let frames=0,last=performance.now(),scale=1;
- const base=()=>{const p=q[api.getGraphicsQuality()]||q.balanced;return mobile?p.mobilePixel:p.desktopPixel;};
+ const dpr=()=>devicePixelRatio||1;
+ const base=()=>{const p=q[api.getGraphicsQuality()]||q.balanced;return Math.min(dpr(),mobile?p.mobilePixel:p.desktopPixel);};
+ const target=()=>mode==='auto'?clamp(base()*scale,.6,2):clamp(dpr()*Number(mode),.5,4);
  function apply(){
-  api.renderer.setPixelRatio(clamp(Math.min(devicePixelRatio||1,base())*scale,.6,2));
+  const want=target();
+  if(Math.abs(api.renderer.getPixelRatio()-want)<.01)return;
+  api.renderer.setPixelRatio(want);
   window.dispatchEvent(new Event('resize'));
  }
  function tick(now){
@@ -135,10 +149,37 @@ function adaptiveResolution(api){
   if(now-last<2000)return;
   const fps=frames*1000/(now-last);frames=0;last=now;
   if(document.hidden)return;
-  if(fps<38&&scale>.62){scale=Math.max(.62,scale-.12);apply();}
-  else if(fps>57&&scale<1){scale=Math.min(1,scale+.08);apply();}
+  if(mode==='auto'){
+   if(fps<38&&scale>.62)scale=Math.max(.62,scale-.12);
+   else if(fps>57&&scale<1)scale=Math.min(1,scale+.08);
+  }
+  // Reaplica também quando o menu de qualidade do jogo mexe na resolução.
+  apply();
  }
  requestAnimationFrame(tick);
+
+ // Botão na tela: cada toque passa para a próxima resolução.
+ const button=document.createElement('button');
+ button.type='button';button.id='animeResolution';
+ const css=document.createElement('style');
+ css.textContent=`#animeResolution{position:fixed;top:52px;right:12px;z-index:40;
+  font:600 12px system-ui,Segoe UI,sans-serif;color:#eaf1ed;cursor:pointer;
+  background:rgba(16,29,41,.82);border:1px solid #45606b;border-radius:10px;padding:7px 11px;}
+  #animeResolution:hover{border-color:#80c0bf}`;
+ document.head.appendChild(css);
+ const label=()=>{
+  const m=RES_MODES.find(x=>x.id===mode);
+  button.textContent='🖥 Resolução: '+m.label;
+  button.title='Toque para mudar a resolução. Mais alta = mais nítida e mais pesada.';
+ };
+ button.addEventListener('click',()=>{
+  const i=RES_MODES.findIndex(x=>x.id===mode);
+  mode=RES_MODES[(i+1)%RES_MODES.length].id;scale=1;
+  try{localStorage.setItem('arcano.animeResolution',mode);}catch(_){}
+  label();apply();
+ });
+ label();document.body.appendChild(button);
+ apply();
 }
 
 /* ---------- Inicialização ---------- */

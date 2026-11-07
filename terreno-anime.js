@@ -26,6 +26,7 @@ const GRASS_KEY='anime-grass-v1';
 function patchGrass(material){
  if(material.userData.animeGrass)return;
  material.userData.animeGrass=true;
+ material.defines=Object.assign({},material.defines,{ANIME_NO_RIM:""});
  const previous=material.onBeforeCompile;
  material.onBeforeCompile=function(shader,r){
   if(previous)previous.call(this,shader,r);
@@ -57,7 +58,7 @@ function patchGrass(material){
     grass=mix(grass,animeLin(vec3(.86,.88,.42)),smoothstep(.68,.86,patchA)*h*.45);
     // Mantém só um pouco do detalhe da textura original.
     grass*=mix(1.,clamp(tex*2.2,.75,1.2),.25);
-    diffuseColor.rgb=grass;
+    diffuseColor.rgb=grass*.80;
    }`);
  };
  const baseKey=material.customProgramCacheKey;
@@ -70,6 +71,7 @@ const LAND_KEY='anime-land-v1';
 function patchLand(material){
  if(material.userData.animeLand)return;
  material.userData.animeLand=true;
+ material.defines=Object.assign({},material.defines,{ANIME_NO_RIM:""});
  const previous=material.onBeforeCompile;
  material.onBeforeCompile=function(shader,r){
   if(previous)previous.call(this,shader,r);
@@ -105,7 +107,7 @@ function patchLand(material){
     // Partes úmidas/escuras (barro do rio) continuam mais escuras.
     float wet=1.-smoothstep(.05,.16,lum);
     outC*=mix(1.,.72,wet*(1.-green));
-    diffuseColor.rgb=outC;
+    diffuseColor.rgb=outC*.78;
    }`);
  };
  const baseKey=material.customProgramCacheKey;
