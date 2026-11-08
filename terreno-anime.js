@@ -143,12 +143,17 @@ function patchLand(material){
      outC=mix(outC,animeLin(vec3(.66,.55,.42)),wetSand*.6);
      // Faixa de cascalho e seixos arredondados.
      float gravel=smoothstep(.1,.6,sd)*(1.-smoothstep(1.8,3.2,sd))*(1.-smoothstep(.9,1.6,hw));
-     vec2 gp=w*4.2;vec2 cellId=floor(gp);vec2 o=vec2(animeHash(cellId+3.1),animeHash(cellId+7.7))*.5+.25;
-     float rad=.18+.16*animeHash(cellId+1.9);
-     float pebble=step(.35,animeHash(cellId))*smoothstep(rad,rad-.07,length(fract(gp)-o));
-     vec3 pebC=mix(animeLin(vec3(.60,.63,.66)),animeLin(vec3(.76,.74,.68)),animeHash(cellId+5.));
+     // Pedrinhas irregulares (forma deformada por ruído, tamanhos e tons variados).
+     vec2 gp=w*5.3+vec2(animeNoise(w*1.7),animeNoise(w*1.7+4.))*.6;vec2 cellId=floor(gp);
+     vec2 o=vec2(animeHash(cellId+3.1),animeHash(cellId+7.7))*.5+.25;
+     vec2 q=fract(gp)-o;float ang=animeHash(cellId+9.)*6.283;q=mat2(cos(ang),-sin(ang),sin(ang),cos(ang))*q;
+     q*=vec2(1.,1.3+animeHash(cellId+2.)*.9);
+     float rad=(.10+.13*animeHash(cellId+1.9))*(1.+.35*(animeNoise(q*9.+cellId)-.5));
+     float pebble=step(.58,animeHash(cellId))*smoothstep(rad,rad-.04,length(q));
+     vec3 pebC=mix(animeLin(vec3(.58,.55,.50)),animeLin(vec3(.72,.66,.56)),animeHash(cellId+5.));
+     pebC*=.85+.3*smoothstep(-.05,.08,q.y); // topo mais claro, base mais escura
      outC=mix(outC,mix(animeLin(vec3(.70,.62,.50)),outC,.4),gravel*.6);
-     outC=mix(outC,pebC*(.9+.2*small),pebble*gravel);
+     outC=mix(outC,pebC*(.9+.2*small),pebble*gravel*.85);
     }
     // ---------- Penhascos: encostas íngremes viram rocha em camadas ----------
     float cliff=1.-smoothstep(.50,.78,vAnimeUpN+(small-.5)*.12);

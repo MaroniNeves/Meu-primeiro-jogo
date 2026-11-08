@@ -20,7 +20,8 @@ const vertexShader=`
 precision highp float;
 attribute float waterDepth;
 attribute vec2 waterFlow;
-uniform float uTime,uWind,uFallZ;
+uniform float uTime,uWind,uFallZ,uFallTop,uFallDrop;
+varying float vFallS;
 varying vec3 vWorld;
 varying float vDepth;
 varying vec2 vFlow;
@@ -56,10 +57,14 @@ void main(){
  float scale=body*(.55+.8*speed+.5*uWind)+foot*2.2;
  p.y+=h*scale;
  // Lâmina da cachoeira: curva para fora e ondula enquanto cai.
- float fall=1.-smoothstep(.22,.5,abs(p.z-uFallZ));
- vFallV=fall;
- p.z+=fall*(.05+.035*sin(p.x*6.3+uTime*7.)+.025*sin(p.y*4.7-uTime*10.+p.x*2.));
- p.x+=fall*.02*sin(p.y*6.-uTime*8.);
+ // Queda: o PRÓPRIO rio dobra na borda e cai em arco (um elemento só).
+ float zone=1.-smoothstep(.36,.5,abs(p.z-uFallZ));
+ float fs=clamp((uFallTop-p.y)/max(uFallDrop,.01),0.,1.)*zone;
+ vFallS=fs;vFallV=step(.002,fs);
+ float throwZ=.22+.11*sqrt(uFallDrop);
+ p.z+=throwZ*sqrt(fs);
+ p.z+=fs*(.03*sin(p.x*6.3+uTime*7.)+.02*sin(p.y*4.7-uTime*10.+p.x*2.));
+ p.x+=fs*.02*sin(p.y*6.-uTime*8.);
  vWaveN=normalize(vec3(-g.x*scale,1.,-g.y*scale));
  vCrest=clamp(h*scale/.03,-1.,1.);
  vec4 w=modelMatrix*vec4(p,1.);
@@ -72,6 +77,7 @@ void main(){
 const fragmentShader=`
 precision highp float;
 uniform float uTime,uWind,uSunPower,uCloudiness,uFallZ;
+varying float vFallS;
 uniform vec3 uSun,uSunColor,uSkyTop,uSkyHorizon;
 uniform vec3 uShallow,uDeep,uFoam;
 uniform vec3 uPlayer;
@@ -177,7 +183,17 @@ void main(){
  // A parte vertical da superfície some: a queda é desenhada pela
  // "cortina" com volume (malha própria, ver makeWaterfall).
  float sheet=smoothstep(.30,.62,steep)*vFallV;
- if(sheet>.5)discard;
+ if(sheet>.001){
+  // Mesma água do rio (mesmas cores e reflexo), com listras de espuma descendo.
+  vec2 side=vec2(-flow.y,flow.x);float across=dot(vWorld.xz,side);
+  float s1=fbm(vec2(across*4.,vWorld.y*1.1+uTime*4.5));
+  float s2=fbm(vec2(across*10.+3.,vWorld.y*2.4+uTime*7.5));
+  float streak=smoothstep(.52,.82,s1*.6+s2*.5+vFallS*.3);
+  vec3 sheetC=mix(mix(uDeep,uShallow,.3+.35*s1),refl,fres*.45);
+  sheetC=mix(sheetC,uFoam,streak);
+  col=mix(col,sheetC,sheet);
+  a=mix(a,.86+.12*streak,sheet);
+ }
  float pz=vWorld.z-(uFallZ+.65);
  float plunge=exp(-pz*pz*.6)*smoothstep(-.9,-.15,pz)*(1.-sheet);
  float churn=fbm(vWorld.xz*2.4+vec2(0.,uTime*1.6))*.6+fbm(vWorld.xz*6.-uTime*1.3)*.4;
@@ -221,6 +237,8 @@ function install(){
    uPlayer:{value:new T.Vector3(0,-999,0)},uPlayerWet:{value:0},
    uRefl:{value:null},uReflMatrix:{value:new T.Matrix4()},uReflReady:{value:0},uMirrorY:{value:0},
    uFallZ:{value:profile&&profile.fall?profile.fall.z:-999},
+   uFallTop:{value:profile&&profile.fall?profile.levelAt(profile.fall.z-.6):-999},
+   uFallDrop:{value:profile&&profile.fall?profile.levelAt(profile.fall.z-.6)-profile.levelAt(profile.fall.z+.8):1},
    fogColor:{value:srgb('#b6c6bc')},fogNear:{value:45},fogFar:{value:120}
   },
   vertexShader,fragmentShader
@@ -411,13 +429,7 @@ function install(){
   return m;
  }
  window.arcanoMakeWaterfall=makeWaterfall;
- if(profile&&profile.fall){
-  const fz=profile.fall.z;
-  makeWaterfall({x:profile.center(fz),zLip:fz-.28,yTop:profile.levelAt(fz-.6)+.02,
-   drop:profile.levelAt(fz-.6)-profile.levelAt(fz+.8)+.15,
-   halfWidth:((typeof profile.halfWidth==='function'?profile.halfWidth(fz-.4):profile.halfWidth)||3)*.92,
-   name:'Cachoeira do rio'});
- }
+ // A cachoeira do rio é desenhada pelo próprio rio (ver vertexShader): sem malha separada.
 
  // ---------- Névoa e gotas da cachoeira ----------
  if(profile&&profile.fall){

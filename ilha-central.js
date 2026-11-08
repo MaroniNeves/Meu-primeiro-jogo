@@ -25,7 +25,9 @@ const CITY_R=130;               // cidade Aurora (~260 m de diâmetro)
 const CASTLE_R=42;              // colina do castelo
 const CITY_Y=16,CASTLE_Y=CITY_Y+12;
 const INNER={x0:-64,x1:64,z0:-50,z1:50};   // área detalhada já existente
-const STEP=mobile?4.5:3;        // resolução da malha da ilha
+// 2 m: as linhas da malha caem EXATAMENTE nas bordas da área detalhada
+// (x=±64, z=±50), sem triângulos atravessando o terreno detalhado.
+const STEP=2;
 
 let seed=4242;
 const rnd=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};
@@ -109,7 +111,7 @@ function install(){
  };
  function height(x,z){
   const od=outsideDist(x,z);
-  if(od<=0)return ground.heightAt(x,z)-.12;
+  if(od<=0)return ground.heightAt(x,z);
   // Emenda suave com a borda da área detalhada.
   const ex=clamp(x,INNER.x0+.3,INNER.x1-.3),ez=clamp(z,INNER.z0+.3,INNER.z1-.3);
   const edge=ground.heightAt(ex,ez);
@@ -147,12 +149,12 @@ function install(){
   else{col[k*3]=.58*v;col[k*3+1]=.46*v;col[k*3+2]=.33*v;}
  }
  const idx=[];
- const inside=(x,z)=>x>INNER.x0+2&&x<INNER.x1-2&&z>INNER.z0+2&&z<INNER.z1-2;
+ const inside=(x,z)=>x>INNER.x0&&x<INNER.x1&&z>INNER.z0&&z<INNER.z1;
  for(let j=0;j<n-1;j++)for(let i=0;i<n-1;i++){
   const a=j*n+i,b=a+1,c=a+n,d=c+1;
   const cx=x0+(i+.5)*STEP,cz=z0+(j+.5)*STEP;
   if(Math.hypot(cx-C.x,cz-C.z)>R+2)continue;
-  if(inside(cx-STEP,cz-STEP)&&inside(cx+STEP,cz+STEP))continue; // coberto pela área detalhada
+  if(inside(cx,cz))continue; // célula dentro da área detalhada: sem sobreposição
   idx.push(a,c,b,b,c,d);
  }
  const geo=new T.BufferGeometry();
@@ -166,6 +168,28 @@ function install(){
  const land=new T.Mesh(geo,api.terrain.material);
  land.name='Ilha Central · terreno';land.receiveShadow=true;
  scene.add(land);
+ // Saia de terra na borda da área detalhada: fecha frestas entre as duas malhas
+ // (a detalhada tem um ponto a cada 45 cm, a da ilha a cada 2 m).
+ {
+  const ig=api.terrain.geometry.attributes.position,count=ig.count,zA=ig.getZ(0);
+  let nxI=1;while(nxI<count&&Math.abs(ig.getZ(nxI)-zA)<1e-6)nxI++;
+  const nzI=Math.round(count/nxI);
+  const ring=[];
+  for(let i=0;i<nxI;i++)ring.push(i);
+  for(let j=1;j<nzI;j++)ring.push(j*nxI+nxI-1);
+  for(let i=nxI-2;i>=0;i--)ring.push((nzI-1)*nxI+i);
+  for(let j=nzI-2;j>0;j--)ring.push(j*nxI);
+  ring.push(0);
+  const sp=new Float32Array(ring.length*6),si=[];
+  ring.forEach((k,r)=>{
+   const x=ig.getX(k),y=ig.getY(k),z=ig.getZ(k);
+   sp.set([x,y-.02,z,x,y-2.5,z],r*6);
+   if(r<ring.length-1){const a=r*2,b=a+1,c=a+2,d=a+3;si.push(a,b,c,c,b,d);}
+  });
+  const sg=new T.BufferGeometry();sg.setAttribute('position',new T.BufferAttribute(sp,3));sg.setIndex(si);sg.computeVertexNormals();
+  const skirt=new T.Mesh(sg,new T.MeshStandardMaterial({color:'#7d6247',roughness:1,side:T.DoubleSide}));
+  skirt.name='Emenda da área detalhada';scene.add(skirt);
+ }
 
  // Altura para o personagem andar (mesma grade da malha).
  window.arcanoIslandHeight=(x,z)=>{
@@ -181,7 +205,9 @@ function install(){
 
  // As paredes de "horizontes do solo" nas bordas da área detalhada
  // apareciam como um corte no meio da ilha: ficam ocultas.
- scene.traverse(o=>{if(o.name&&o.name.startsWith('Horizontes O/A/B/C'))o.visible=false;});
+ // Também somem: as paredes translúcidas que fechavam o volume da água nas pontas
+ // do rio (pareciam um corte) e as pegadas de lama antigas (pontos pretos).
+ scene.traverse(o=>{if(o.name&&(o.name.startsWith('Horizontes O/A/B/C')||o.name.startsWith('Volume fechado entre o leito')||o.name.startsWith('Pegadas de lama')))o.visible=false;});
 
  // ---------- Base de rocha da ilha flutuante ----------
  {
@@ -235,10 +261,10 @@ function install(){
  const riverMat=window.arcanoAnimeRiver&&window.arcanoAnimeRiver.material;
  if(riverMat){
   const u=riverMat.uniforms;
-  const shareMat=fallZ=>{
+  const shareMat=(fallZ,fallTop=-999,fallDrop=1)=>{
    const m=riverMat.clone();
    for(const key of Object.keys(u))m.uniforms[key]=u[key];
-   m.uniforms.uFallZ={value:fallZ};
+   m.uniforms.uFallZ={value:fallZ};m.uniforms.uFallTop={value:fallTop};m.uniforms.uFallDrop={value:fallDrop};
    m.extensions.derivatives=true;
    return m;
   };
@@ -246,7 +272,7 @@ function install(){
   function ribbon(zA,zB,levelFn,centerFn,widthFn,fallDepth){
    const COLS=11,rows=[];
    for(let z=zA;z<=zB+.01;z+=.5)rows.push({z,fall:0});
-   if(fallDepth){for(let f=1;f<=40;f++)rows.push({z:zB+.25+f*.012,fall:f/40});}
+   if(fallDepth){for(let f=1;f<=60;f++)rows.push({z:zB+.25+f*.008,fall:Math.pow(f/60,1.6)});}
    const N=rows.length,p=new Float32Array(N*COLS*3),uvA=new Float32Array(N*COLS*2),
     dep=new Float32Array(N*COLS),flow=new Float32Array(N*COLS*2),ix=[];
    rows.forEach((row,r)=>{
@@ -270,9 +296,10 @@ function install(){
   // Rio ao sul até a borda, caindo da ilha.
   let zEdge=INNER.z1;
   while(Math.hypot(river.center(zEdge)-C.x,zEdge-C.z)<R-1&&zEdge<C.z+R)zEdge+=.5;
-  const south=new T.Mesh(ribbon(INNER.z1,zEdge,river.levelAt,river.center,half,0),shareMat(-9999));
+  // O próprio rio dobra na borda e cai (um elemento só com o rio).
+  const south=new T.Mesh(ribbon(INNER.z1,zEdge,river.levelAt,river.center,half,150),shareMat(zEdge+.45,river.levelAt(zEdge),150));
   // Queda da borda da ilha: cortina de água com volume (rio-anime.js).
-  if(window.arcanoMakeWaterfall)window.arcanoMakeWaterfall({x:river.center(zEdge),zLip:zEdge,yTop:river.levelAt(zEdge)+.02,drop:150,halfWidth:half(zEdge)*.95,rows:44,name:'Cachoeira da borda da ilha'});
+
   south.name='Rio da Ilha Central · até a borda';south.frustumCulled=false;south.renderOrder=3;
   scene.add(south);
   // Nascente: lago e canal até a área detalhada.
