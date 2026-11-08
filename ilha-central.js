@@ -86,23 +86,25 @@ function install(){
   return y;
  }
  // Rio ao sul (continua o rio da área detalhada) e lago da nascente ao norte.
+ // Canal do rio com a MESMA fórmula da área detalhada (agua-v1226.js, elevation):
+ // fundo e margens continuam iguais dos dois lados da emenda — um mapa só.
+ const sI=t=>t*t*(3-2*t);
+ function channel(x,z,y,waterline,width){
+  const lateral=Math.abs(x-river.center(z));
+  const depth=.95-1.65*sI(clamp((lateral/width-.30)/.55,0,1));
+  const bankT=sI(clamp((width+7-lateral)/7,0,1));
+  return y+(waterline-depth-y)*bankT;
+ }
  function carve(x,z,y){
-  if(z>INNER.z1-2){
-   const lat=Math.abs(x-river.center(z)),w=half(z),lvl=river.levelAt(z);
-   if(lat<w)y=Math.min(y,lvl-1.0*(1-(lat/w)**2)-.15);
-   else if(lat<w+9){const bank=lvl+.35+(lat-w)*.05;y=bank+(y-bank)*sm(w,w+9,lat);}
-  }
-  if(z<INNER.z0+2&&z>LAKE.z-LAKE.r-12){
+  if(z>INNER.z1-4)y=channel(x,z,y,river.levelAt(z),half(z));
+  if(z<INNER.z0+4&&z>LAKE.z-LAKE.r-14){
+   // Canal da nascente: mesmo perfil, com o nível do lago.
+   if(z>LAKE.z)y=channel(x,z,y,LAKE.y,half(z));
+   // Bacia do lago com margem suave.
    const dl=Math.hypot(x-LAKE.x,z-LAKE.z);
-   const cz=clamp(z,LAKE.z,INNER.z0+2),lat=Math.abs(x-river.center(cz)),w=half(cz);
-   const lake=dl<LAKE.r?LAKE.y-2.6*(1-(dl/LAKE.r)**2)-.2:Infinity;
-   const chan=z>LAKE.z&&lat<w?LAKE.y-.9*(1-(lat/w)**2)-.15:Infinity;
-   const bed=Math.min(lake,chan);
-   if(bed<Infinity)y=Math.min(y,bed);
-   else{
-    const dist=Math.min(Math.max(0,dl-LAKE.r),z>LAKE.z?Math.max(0,lat-w):1e9);
-    if(dist<9){const bank=LAKE.y+.35+dist*.05;y=bank+(y-bank)*sm(0,9,dist);}
-   }
+   const bankT=sI(clamp((LAKE.r+7-dl)/7,0,1));
+   const bed=LAKE.y-(.95+1.8*(1-clamp(dl/LAKE.r,0,1)**2))+1.65*sI(clamp((dl/LAKE.r-.3)/.7,0,1));
+   y=y+(bed-y)*bankT;
   }
   return y;
  }
@@ -116,8 +118,8 @@ function install(){
   // Emenda suave com a borda da área detalhada.
   const ex=clamp(x,INNER.x0+.3,INNER.x1-.3),ez=clamp(z,INNER.z0+.3,INNER.z1-.3);
   const edge=ground.heightAt(ex,ez);
-  let y=edge+(field(x,z)-edge)*sm(0,38,od);
-  return carve(x,z,y);
+  // O canal entra na mistura (antes era aplicado por cima e criava um degrau).
+  return edge+(carve(x,z,field(x,z))-edge)*sm(0,38,od);
  }
 
  // ---------- Malha do terreno da ilha ----------
@@ -215,7 +217,7 @@ function install(){
   const sp=new Float32Array(ring.length*6),si=[];
   ring.forEach((k,r)=>{
    const x=ig.getX(k),y=ig.getY(k),z=ig.getZ(k);
-   sp.set([x,y-.02,z,x,y-2.5,z],r*6);
+   sp.set([x,y-.03,z,x,y-1.0,z],r*6);
    if(r<ring.length-1){const a=r*2,b=a+1,c=a+2,d=a+3;si.push(a,b,c,c,b,d);}
   });
   const sg=new T.BufferGeometry();sg.setAttribute('position',new T.BufferAttribute(sp,3));sg.setIndex(si);sg.computeVertexNormals();
@@ -518,7 +520,17 @@ function install(){
   scene.add(group);
   window.arcanoIsland.forest={group,count:spots.length,templates:templates.length};
  }
- window.arcanoIsland={center:C,radius:R,cityRadius:CITY_R,castleRadius:CASTLE_R,height:window.arcanoIslandHeight,land};
+ window.arcanoIsland={center:C,radius:R,cityRadius:CITY_R,castleRadius:CASTLE_R,height:window.arcanoIslandHeight,land,roads,lake:LAKE,port:PORT,inner:INNER};
+ // Água fora da área detalhada (rio até a borda, canal e lago): nível e profundidade.
+ // Usado para nadar, mergulhar e fazer ondulações também nessas águas.
+ window.arcanoOuterWater=(x,z)=>{
+  let level=null;
+  if(z>INNER.z1&&Math.abs(x-river.center(z))<half(z)+.2)level=river.levelAt(z);
+  else if(z<INNER.z0&&(Math.hypot(x-LAKE.x,z-LAKE.z)<LAKE.r+3||(z>LAKE.z&&Math.abs(x-river.center(z))<half(z)+.2)))level=LAKE.y;
+  if(level==null)return null;
+  const depth=level-window.arcanoIslandHeight(x,z);
+  return depth>0?{level,depth}:null;
+ };
  buildForest();
 
  // ---------- Câmera, sombras e névoa para o mundo grande ----------

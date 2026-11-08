@@ -83,6 +83,17 @@ float animeCaustic(vec2 p,float t){
  }
  return 1.-smoothstep(.0,.12,d2-d1);
 }
+// Cáusticas orgânicas (padrão iterativo clássico, fios curvos sem cantos).
+float animeWaterCaustic(vec2 p,float t){
+ vec2 q=mod(p,6.2831853)-250.;vec2 i=q;float c=1.;float inten=.005;
+ for(int n=0;n<4;n++){
+  float tt=t*(1.-(3.5/float(n+1)));
+  i=q+vec2(cos(tt-i.x)+sin(tt+i.y),sin(tt-i.y)+cos(tt+i.x));
+  c+=1./length(vec2(q.x/(sin(i.x+tt)/inten),q.y/(cos(i.y+tt)/inten)));
+ }
+ c/=4.;c=1.17-pow(c,1.4);
+ return clamp(pow(abs(c),8.),0.,1.);
+}
 // Versão suave para a luz no fundo d'água (borda larga, sem "rachaduras").
 float animeCausticSoft(vec2 p,float t){
  vec2 n=floor(p),f=fract(p);float d1=8.,d2=8.;
@@ -151,11 +162,9 @@ function patchLand(material){
      outC*=mix(1.,.90+.14*rip,under);
      // Cáusticas suaves: duas camadas distorcidas, combinadas pelo mínimo
      // (a luz forma manchas e fios ondulando, não uma rede rígida).
-     vec2 cw=w+vec2(animeNoise(w*.8+uAnimeTime*.2),animeNoise(w*.8-uAnimeTime*.2))*.6;
-     float c1=animeCausticSoft(cw*1.15+vec2(0.,uAnimeTime*.12),uAnimeTime*.8);
-     float c2=animeCausticSoft(cw*1.15+vec2(2.7,-uAnimeTime*.09),uAnimeTime*.65+1.3);
-     float caus=min(c1,c2)*1.6+max(c1,c2)*.15;
-     outC+=animeLin(vec3(.85,1.,.95))*caus*under*.22*(1.-smoothstep(.8,3.5,-hw));
+     float caus=animeWaterCaustic(w*1.6,uAnimeTime*.55+23.);
+     caus=caus*.85+animeWaterCaustic(w*2.7+1.7,uAnimeTime*.4+11.)*.35;
+     outC+=animeLin(vec3(.85,1.,.95))*caus*under*.30*(1.-smoothstep(.8,3.5,-hw));
      // Areia molhada logo acima da linha d'água.
      float wetSand=(1.-smoothstep(.0,.55,sd))*(1.-smoothstep(.06,.30,hw))*(1.-under);
      outC=mix(outC,animeLin(vec3(.66,.55,.42)),wetSand*.6);
@@ -421,7 +430,9 @@ function start(){
  let lastCount=-1;
  const fixPlants=()=>{
   const list=api.forestInstances||[];
-  if(list.length!==lastCount){lastCount=list.length;setTimeout(fixPlants,3000);return;}
+  // Roda de novo de tempos em tempos: plantas também carregam depois que o jogo começa.
+  setTimeout(fixPlants,5000);
+  if(list.length!==lastCount){lastCount=list.length;return;}
   for(const a of list){
    if(!a||!a.obj||a.userData_animePlant||!['bush','flower','fern','grass'].includes(a.type))continue;
    a.userData_animePlant=true;
@@ -433,7 +444,7 @@ function start(){
    a.obj.updateMatrixWorld(true);box.setFromObject(a.obj);box.getSize(size);
    const wide=Math.max(size.x,size.z);
    // O arbusto "Bush_Large_Flowers" tem partes invisíveis no modelo: removido do jogo.
-   if((wide>.45&&size.y<wide*.28)||/Bush_Large_Flowers/i.test(a.modelName||"")){
+   if((wide>.45&&size.y<wide*.28)||/Bush_Large_Flowers|Flower_1_Clump|Fern_1|Plant_Flowers/i.test(a.modelName||"")){
     if(a.fullScale&&a.fullScale.setScalar)a.fullScale.setScalar(.0001);
     a.obj.scale.setScalar(.0001);a.obj.updateMatrixWorld(true);
    }

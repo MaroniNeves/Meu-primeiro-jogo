@@ -217,8 +217,15 @@ window.arcanoSetRiverFillLevel=value=>{
 function riverLevelAt(z){
  return RIVER_SURFACE_LEVEL+riverManualFill-.073*z-FALL_DROP*fallStep(z);
 }
+// Nível da água em qualquer ponto do mapa (rio detalhado, rio da ilha ou lago).
+function waterLevelAtXZ(x,z){
+ if(Math.abs(z)>L*.5||Math.abs(x)>W*.5){const o=window.arcanoOuterWater&&window.arcanoOuterWater(x,z);if(o)return o.level;}
+ return riverLevelAt(z);
+}
+window.arcanoWaterLevelAt=waterLevelAtXZ;
 function riverDepthAt(x,z){
- if(Math.abs(z)>L*.5||Math.abs(x)>W*.5)return 0; // fora da área detalhada (Ilha Central)
+ // Fora da área detalhada: água da Ilha Central (rio até a borda, canal e lago).
+ if(Math.abs(z)>L*.5||Math.abs(x)>W*.5){const o=window.arcanoOuterWater&&window.arcanoOuterWater(x,z);return o?o.depth:0;}
  if(riverShore(x,z)>=0)return 0;
  return Math.max(0,riverLevelAt(z)-terrainContact(x,z));
 }
@@ -4002,7 +4009,7 @@ function updateGame(dt){
  const swimDepth=onBridge?0:riverDepthAt(game.position.x,game.position.z);
  const groundY=solidGameFootHeight(game.position.x,game.position.z);
  if(swimDepth>1.15){
-  const floatY=riverLevelAt(game.position.z)-1.2;
+  const floatY=waterLevelAtXZ(game.position.x,game.position.z)-1.2;
   if(game.swimY==null)game.swimY=Math.max(groundY,game.position.y);
   const dive=game.keys.has(' ')||game.keys.has('c')||game.input.dive;
   const target=dive?groundY+.05:floatY;
@@ -4718,8 +4725,8 @@ function loop(now){
   processDistanceLODBatch();
  }
  const underwater=riverDepthAt(camera.position.x,camera.position.z)>.02&&
-  camera.position.y<riverLevelAt(camera.position.z)-.015&&
-  camera.position.y>terrainContact(camera.position.x,camera.position.z)-.08;
+  camera.position.y<waterLevelAtXZ(camera.position.x,camera.position.z)-.015&&
+  camera.position.y>worldGround(camera.position.x,camera.position.z)-.08;
  const savedFog=scene.fog;
  // Debaixo d'água: azul-esverdeado claro com visibilidade de ~18 m (fundo do rio visível).
  if(underwater)scene.fog=new T.Fog('#3f93a3',.6,18);

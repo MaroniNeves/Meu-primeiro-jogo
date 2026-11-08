@@ -213,7 +213,8 @@ void main(){
  float sheet=smoothstep(.30,.62,steep)*vFallV;
  if(sheet>.001){
   // Mesma água do rio (mesmas cores e reflexo), com listras de espuma descendo.
-  vec2 side=vec2(-flow.y,flow.x);float across=dot(vWorld.xz,side);
+  // Listras na vertical (ao longo de x): a água cai reta, não na diagonal.
+  float across=vWorld.x;
   float s1=fbm(vec2(across*4.,vWorld.y*1.1+uTime*4.5));
   float s2=fbm(vec2(across*10.+3.,vWorld.y*2.4+uTime*7.5));
   // A lâmina é a MESMA água (mesma cor e reflexo calculados acima);
@@ -225,8 +226,10 @@ void main(){
  float pz=vWorld.z-(uFallZ+.65);
  float plunge=exp(-pz*pz*.6)*smoothstep(-.9,-.15,pz)*(1.-sheet);
  float churn=fbm(vWorld.xz*2.4+vec2(0.,uTime*1.6))*.6+fbm(vWorld.xz*6.-uTime*1.3)*.4;
- float plungeFoam=smoothstep(.40,.62,churn)*plunge;
- col=mix(col,uFoam,plungeFoam*.9);a=max(a,plungeFoam*.9);
+ // Espuma densa onde a queda bate: quase branca colada à queda, se abrindo em manchas.
+ float near=exp(-pz*pz*2.2)*smoothstep(-.9,-.15,pz)*(1.-sheet);
+ float plungeFoam=clamp(smoothstep(.30,.55,churn)*plunge+near*(.75+.25*churn),0.,1.);
+ col=mix(col,uFoam*(.92+.08*churn),plungeFoam);a=max(a,plungeFoam*.95);
 
  // Vista de baixo (mergulhando): a superfície brilha, ondula e deixa
  // ver o céu só olhando quase para cima (janela de Snell).
@@ -305,7 +308,7 @@ function install(){
   // Altura do espelho: nível do rio perto de quem joga.
   const player=api.getGrassPlayer&&api.getGrassPlayer();
   const z=player?player.position.z:camera.position.z;
-  const y=profile?profile.levelAt(z):0;
+  const y=window.arcanoWaterLevelAt?window.arcanoWaterLevelAt(player?player.position.x:camera.position.x,z):(profile?profile.levelAt(z):0);
   u.uMirrorY.value=y;
   mirror.copy(camera,false);
   mirror.position.copy(camera.position);mirror.position.y=2*y-camera.position.y;
@@ -366,7 +369,7 @@ function install(){
    u.uPlayer.value.copy(player.position);
    if(profile&&profile.depthAt){
     const depth=profile.depthAt(player.position.x,player.position.z);
-    const level=profile.levelAt?profile.levelAt(player.position.z):player.position.y;
+    const level=window.arcanoWaterLevelAt?window.arcanoWaterLevelAt(player.position.x,player.position.z):profile.levelAt(player.position.z);
     target=depth>.01&&player.position.y<level+.35?1:0;
    }
   }
@@ -500,7 +503,28 @@ function install(){
     gl_PointSize=(.6+p*1.4)*uScale/max(.1,-mv.z);
     gl_Position=projectionMatrix*mv;
    }`,'','Névoa da cachoeira');
-  // (sem gotas: apareciam como pontos brancos sobre o rio)
+  // Respingos: gotas espirrando para cima e para fora na linha de impacto
+  // (nascem embaixo, nunca sobre o rio de cima).
+  makePoints(mobile?120:260,`attribute vec4 seed;uniform float uTime,uWidth,uScale,uBottom;uniform vec3 uCenter;varying float vA;
+   void main(){
+    float t=fract(uTime*(.9+.5*seed.w)+seed.y)*.95;
+    float up=1.3+1.9*seed.w,out_=.5+.9*abs(seed.z);
+    vec3 pos=vec3(uCenter.x+seed.x*uWidth+seed.x*.25*t,uBottom+up*t-4.9*t*t,uCenter.z+.75+out_*t);
+    vA=(pos.y>uBottom-.05?1.:0.)*(1.-smoothstep(.55,.95,t))*.9;
+    vec4 mv=modelViewMatrix*vec4(pos,1.);
+    gl_PointSize=(.06+.08*seed.w)*uScale/max(.1,-mv.z);
+    gl_Position=projectionMatrix*mv;
+   }`,'','Respingos da cachoeira');
+  // Nuvens de espuma branca, grandes e lentas, cobrindo o encontro com o poço.
+  makePoints(mobile?40:80,`attribute vec4 seed;uniform float uTime,uWidth,uScale,uBottom;uniform vec3 uCenter;varying float vA;
+   void main(){
+    float t=fract(uTime*(.25+.15*seed.w)+seed.y);
+    vec3 pos=vec3(uCenter.x+seed.x*uWidth*1.05,uBottom+.05+t*.45,uCenter.z+.6+abs(seed.z)*.9+t*.5);
+    vA=sin(t*3.14159)*.75;
+    vec4 mv=modelViewMatrix*vec4(pos,1.);
+    gl_PointSize=(.55+.6*seed.w)*uScale/max(.1,-mv.z);
+    gl_Position=projectionMatrix*mv;
+   }`,'','Espuma do pé da cachoeira');
  }
  // ---------- Debaixo d'água: tom azul, raios de luz e bolhas ----------
  const css=document.createElement('style');

@@ -273,7 +273,7 @@ body.play-active #forestMini{display:block}
 @media(max-width:660px){#forestMini{left:10px;bottom:calc(10px + env(safe-area-inset-bottom,0px));top:auto;right:auto;width:104px;height:104px}#forestMapCard{padding:12px}#forestMapCard h2{font-size:19px}#forestMapBig{aspect-ratio:1}#forestMapLegend{font-size:10px}}
 @media(max-height:490px) and (orientation:landscape){#forestMini{left:10px;bottom:calc(8px + env(safe-area-inset-bottom,0px));top:auto;right:auto;width:92px;height:92px}#forestMapBig{max-height:62dvh}}
 </style>  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js","fflate":"https://cdn.jsdelivr.net/npm/fflate@0.8.2/esm/browser.js"}}</script>
-  <script defer src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script><script defer src="./resolucao-anime.js?v=2"></script><script defer src="./agua-v1226.js?v=ilha-4"></script><script defer src="./arcano-assets-v1232.js"></script><script defer src="./nature-imported-v1239.js"></script><script defer src="./fogo-grama-v1267.js"></script><script defer src="./ecossistema-v1232.js?v=anime-1"></script><script defer src="./anime-genshin.js?v=5"></script><script defer src="./rio-anime.js?v=14"></script><script defer src="./terreno-anime.js?v=17"></script><script defer src="./ceu-anime.js?v=4"></script><script defer src="./casa-anime.js?v=6"></script><script defer src="./ponte-anime.js?v=1"></script><script defer src="./pedras-anime.js?v=3"></script><script defer src="./ilha-central.js?v=10"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script><script defer src="./resolucao-anime.js?v=2"></script><script defer src="./agua-v1226.js?v=ilha-5"></script><script defer src="./arcano-assets-v1232.js"></script><script defer src="./nature-imported-v1239.js"></script><script defer src="./fogo-grama-v1267.js"></script><script defer src="./ecossistema-v1232.js?v=anime-1"></script><script defer src="./anime-genshin.js?v=5"></script><script defer src="./rio-anime.js?v=15"></script><script defer src="./terreno-anime.js?v=18"></script><script defer src="./ceu-anime.js?v=4"></script><script defer src="./casa-anime.js?v=6"></script><script defer src="./ponte-anime.js?v=1"></script><script defer src="./pedras-anime.js?v=3"></script><script defer src="./ilha-central.js?v=11"></script>
 </head>
 <body><canvas id="stage" aria-label="Cena tridimensional de chuva, poças e lagoas"></canvas>
 <header class="top"><div class="row"><div class="name"><strong>✦ Ateliê Arcano · Floresta V12.68 · solo em camadas · chuva, aquífero e vegetação</strong><small>Grama em tufos originais · pedras texturizadas · solo granular · gotejamento das folhas</small></div><a class="home ar-legacy" href="./magias/espadas.html" title="Abrir laboratório dos demais efeitos 3D">✨ Efeitos 3D</a><a class="home" href="./magias/index.html" title="Abrir as 100 magias">✨ Magias</a>
@@ -615,38 +615,4 @@ body.play-active #forestMini{display:block}
  setInterval(refresh,1200);syncKey();show(false);
 })();
 </script>
-<script>
-/* Mapa 3D leve: usa a posição real exposta pelo motor de jogo. */
-(function(){
-'use strict';
-const small=document.getElementById('forestMapSmall'),big=document.getElementById('forestMapBig');
-const toggle=document.getElementById('forestMini'),dialog=document.getElementById('forestMapDialog'),close=document.getElementById('forestMapClose');
-function expanded(open){dialog.hidden=!open;toggle.setAttribute('aria-expanded',String(open));if(open)draw(big,true);}
-toggle.addEventListener('click',()=>expanded(true));
-close.addEventListener('click',()=>expanded(false));
-dialog.addEventListener('click',e=>{if(e.target===dialog)expanded(false)});
-addEventListener('keydown',e=>{if(e.key==='Escape'&&!dialog.hidden)expanded(false)});
-function game(){return window.arcanoWaterV1226?.getGrassPlayer?.()||null;}
-function draw(canvas,full){
-const ctx=canvas.getContext('2d'),w=canvas.width,h=canvas.height;
-const p=game(),cx=p?.position?.x||0,cz=p?.position?.z||0,heading=p?.heading||0;
-ctx.clearRect(0,0,w,h);ctx.fillStyle='#142c24';ctx.fillRect(0,0,w,h);
-const worldW=128,worldH=100,zoom=full?Math.min(w/worldW,h/worldH)*.84:3.9;
-const tx=full?w/2:w/2-cx*zoom,tz=full?h/2:h/2-cz*zoom;
-function at(x,z){return [tx+x*zoom,tz+z*zoom]}
-ctx.strokeStyle='#567e5d';ctx.lineWidth=full?2:1;
-for(let i=-64;i<=64;i+=8){ctx.beginPath();let a=at(i,-50),b=at(i,50);ctx.moveTo(...a);ctx.lineTo(...b);ctx.stroke();}
-for(let j=-48;j<=48;j+=8){ctx.beginPath();let a=at(-64,j),b=at(64,j);ctx.moveTo(...a);ctx.lineTo(...b);ctx.stroke();}
-const coast=(z)=>8*Math.sin(z*.054)+3*Math.sin(z*.19);
-ctx.beginPath();for(let z=-52;z<=52;z+=1.5){const a=at(coast(z),z);if(z===-52)ctx.moveTo(...a);else ctx.lineTo(...a);}
-ctx.lineWidth=full?18:12;ctx.strokeStyle='#317d8d';ctx.stroke();ctx.lineWidth=full?5:3;ctx.strokeStyle='#9adbe1';ctx.stroke();
-ctx.beginPath();for(let x=-66;x<=66;x+=1.5){const a=at(x,2.8*Math.sin(x*.065));if(x===-66)ctx.moveTo(...a);else ctx.lineTo(...a)}
-ctx.lineWidth=full?9:7;ctx.strokeStyle='#a78e63';ctx.stroke();ctx.lineWidth=full?3:2;ctx.strokeStyle='#dcc69b';ctx.stroke();
-for(let i=0;i<155;i++){let x=(Math.sin(i*36.97)*.5+.5)*120-60,z=(Math.cos(i*21.62)*.5+.5)*92-46;if(Math.abs(x-coast(z))<11||Math.abs(z-2.8*Math.sin(x*.065))<7)continue;const a=at(x,z);ctx.fillStyle=i%4?'#3e7653':'#5c9367';ctx.beginPath();ctx.arc(...a,full?2.8:2.1,0,Math.PI*2);ctx.fill()}
-const px=full?tx+cx*zoom:w/2,pz=full?tz+cz*zoom:h/2;
-ctx.save();ctx.translate(px,pz);ctx.rotate(Math.PI-heading);ctx.shadowColor='#fbe3a0';ctx.shadowBlur=full?18:12;ctx.fillStyle='#ffe098';ctx.strokeStyle='#352818';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,-11);ctx.lineTo(-8,8);ctx.lineTo(0,4);ctx.lineTo(8,8);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();
-if(full){ctx.font='bold 15px system-ui';ctx.textAlign='center';ctx.fillStyle='#e3e5ca';ctx.fillText('Floresta Viva · 128 × 100',w/2,30);}
-}
-let counter=0;function tick(){if(document.body.classList.contains('play-active')&&(counter++%6===0)){draw(small,false);if(!dialog.hidden)draw(big,true)}requestAnimationFrame(tick)}tick();
-})();
-</script></body></html>
+<script defer src="./minimapa-anime.js?v=1"></script></body></html>
