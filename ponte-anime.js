@@ -42,8 +42,8 @@ function install(){
  if(!api||!api.scene||!solid||!solid.center){setTimeout(install,300);return;}
  let old=null;api.scene.traverse(o=>{if(!old&&o.name&&o.name.startsWith('Ponte de madeira'))old=o;});
  if(!old){setTimeout(install,300);return;}
- // Esconde só o visual da ponte antiga (as funções de colisão continuam existindo).
- old.traverse(o=>{if(o.isMesh)o.visible=false;});
+ // Remove o visual da ponte antiga (as funções de colisão continuam existindo).
+ {const meshes=[];old.traverse(o=>{if(o.isMesh)meshes.push(o);});for(const m of meshes){m.parent.remove(m);m.geometry&&m.geometry.dispose();}}
 
  // Arco proporcional ao vão (ponte mais longa = arco mais alto).
  const half=solid.span/2,deck=solid.deckY,rot=solid.rotation||0,RISE=Math.max(.65,solid.span*.05),HW=1.25;

@@ -5,7 +5,7 @@ const root=path.resolve(__dirname,'..');
 const exists=p=>fs.existsSync(path.join(root,p));
 const modules=[
  ['magias/index.html','100 Magias 3D Anime'],
- ['magias/espadas.html','Cortes de Espada 3D'],
+ ['magias/espadas.html','Efeitos 3D'],
  ['magias/rollshade.html','Rollshade'],
  ['magias/lightning.html','Raios'],
  ['magias/catalogo.html','bibliotecas externas']
@@ -31,13 +31,11 @@ for(const p of [
 const assetCount=fs.readdirSync(path.join(root,'magias/assets')).length;
 assert.ok(assetCount>=95,'Coleção de magias incompleta');
 const main=fs.readFileSync(path.join(root,'index.html'),'utf8');
-const lab=fs.readFileSync(path.join(root,'agua.html'),'utf8');
-assert.equal(main,lab,'O jogo e laboratório devem ter menu idêntico');
-for(const html of [main,lab]){
+for(const html of [main]){
  assert.ok(html.includes('href="./magias/index.html"'),'Link de 100 magias ausente');
  assert.ok(html.includes('href="./magias/espadas.html"'),'Link de efeitos ausente');
 }
-assert.ok(fs.readFileSync(path.join(root,'magias/index.html'),'utf8').includes('href="../agua.html"'),'A biblioteca precisa voltar ao laboratório');
+assert.ok(fs.readFileSync(path.join(root,'magias/index.html'),'utf8').includes('href="../index.html"'),'A biblioteca precisa voltar ao jogo');
 const script=fs.readFileSync(path.join(root,'agua-v1226.js'),'utf8');
 const bridge=fs.readFileSync(path.join(root,'magias/originais-no-jogo.js'),'utf8');
 assert.match(script,/const GAME_CHARACTER_GLB_URL=/,'Xbot original precisa estar na cena');

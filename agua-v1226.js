@@ -1125,13 +1125,8 @@ const FOREST_MODELS=[
  {name:'CommonTree_5',type:'tree',pack:'mega',mobile:26,desktop:45,height:4.6},
  {name:'PineTree_2',type:'pine',pack:'ultimate',mobile:24,desktop:43,height:5.0},
  // Sub-bosque, flores e rochas dos mesmos pacotes existentes.
- {name:'Bush_Common_Flowers',type:'bush',pack:'mega',mobile:76,desktop:212,height:.95},
  {name:'Flower_3_Group',type:'flower',pack:'mega',mobile:83,desktop:200,height:.47},
- {name:'Fern_1',type:'fern',pack:'mega',mobile:13,desktop:28,height:.61},
  {name:'Rock_Medium_2',type:'rock',pack:'mega',mobile:5,desktop:8,height:.70},
- {name:'Bush_Large_Flowers',type:'bush',pack:'ultimate',mobile:76,desktop:188,height:1.10},
- {name:'Flower_1_Clump',type:'flower',pack:'ultimate',mobile:83,desktop:180,height:.46},
- {name:'Plant_Flowers',type:'flower',pack:'ultimate',mobile:62,desktop:140,height:.51},
  {name:'Rock_3',type:'rock',pack:'ultimate',mobile:3,desktop:7,height:.83},
  {name:'Rock_5',type:'rock',pack:'ultimate',mobile:3,desktop:6,height:.62}
 ];
@@ -1264,9 +1259,7 @@ function applyForestVisibility(){
 const arcanoLeafFiles={
  BirchTree_1:'BirchTree_Leaves.png',BirchTree_3:'BirchTree_Leaves.png',
  MapleTree_3:'MapleTree_Leaves.png',NormalTree_2:'NormalTree_Leaves.png',
- PineTree_2:'PineTree_Leaves.png',Bush_Large_Flowers:'Bush_Leaves.png',
- Plant_Flowers:'Bush_Leaves.png',Flower_1_Clump:'Flowers.png',
- Grass_Large_Extruded:'Grass.png'
+ PineTree_2:'PineTree_Leaves.png'
 };
 const arcanoFoliageTextureCache=new Map();
 async function arcanoFoliageTexture(filename){

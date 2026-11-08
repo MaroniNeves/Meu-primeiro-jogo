@@ -4,7 +4,7 @@
 const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),cp=require('node:child_process');
 const {chromium}=require('playwright-core');
 const root=path.resolve(__dirname,'..'),dir=fs.mkdtempSync(path.join(os.tmpdir(),'arcano-integracao-'));
-for(const file of ['index.html','agua.html','agua-v1226.js','arcano-assets-v1232.js','nature-imported-v1239.js']){
+for(const file of ['index.html','agua-v1226.js','arcano-assets-v1232.js','nature-imported-v1239.js']){
  fs.copyFileSync(path.join(root,file),path.join(dir,file));
 }
 fs.symlinkSync(path.join(root,'assets'),path.join(dir,'assets'),'dir');

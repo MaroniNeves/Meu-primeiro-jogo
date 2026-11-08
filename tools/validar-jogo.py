@@ -6,7 +6,7 @@ import re
 
 root = Path(__file__).resolve().parents[1]
 required = [
-    "index.html", "agua.html", "agua-v1226.js",
+    "index.html", "agua-v1226.js",
     "ecossistema-v1232.js", "arcano-assets-v1232.js",
     "nature-imported-v1239.js",
     "assets/quaternius/CommonTree_1.gltf",
@@ -16,11 +16,11 @@ required = [
 ]
 missing = [name for name in required if not (root / name).is_file()]
 assets = [p for p in (root / "assets").rglob("*") if p.is_file()]
-assert len(assets) >= 68, f"Assets incompletos: {len(assets)} arquivos"
+assert len(assets) >= 45, f"Assets incompletos: {len(assets)} arquivos"
 assert not missing, f"Arquivos essenciais ausentes: {missing}"
 
 html = (root / "index.html").read_bytes()
-assert html == (root / "agua.html").read_bytes(), "Index do jogo não equivale ao laboratório"
+
 html_text = html.decode("utf-8")
 for name in re.findall(r'<script[^>]+src="\./([^"]+)', html_text):
     assert (root / name).is_file(), f"Script referenciado mas ausente: {name}"
