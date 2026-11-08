@@ -203,7 +203,9 @@ const RIVER_BARE_BANK_WIDTH=3.2;
 const FALL_Z=16,FALL_DROP=2.6,POOL_Z0=16.2,POOL_Z1=24,POOL_DEPTH=2.2;
 const fallStep=z=>smooth(clamp((z-(FALL_Z-.35))/.7,0,1));
 const poolMask=z=>smooth(clamp((z-POOL_Z0)/1.4,0,1))*(1-smooth(clamp((z-(POOL_Z1-3))/3,0,1)));
-const riverWidth=z=>clamp(2.65+.60*Math.sin(z*.105+.6)+.42*Math.sin(z*.34+1.7)+.20*Math.sin(z*.69),2.50,3.85)+2.1*poolMask(z);
+// Rio largo: 2,6x a largura original (água com ~11 a 14 m).
+const RIVER_WIDTH_SCALE=2.6;
+const riverWidth=z=>RIVER_WIDTH_SCALE*clamp(2.65+.60*Math.sin(z*.105+.6)+.42*Math.sin(z*.34+1.7)+.20*Math.sin(z*.69),2.50,3.85)+2.6*poolMask(z);
 window.arcanoRiverProfile={center,halfWidth:riverWidth,bankWidth:RIVER_BANK_WIDTH,bareBankWidth:RIVER_BARE_BANK_WIDTH,levelAt:riverLevelAt,depthAt:riverDepthAt,fall:{z:FALL_Z,drop:FALL_DROP,pool0:POOL_Z0,pool1:POOL_Z1}};
 const riverShore=(x,z)=>Math.abs(x-center(z))-riverWidth(z);
 // O rio acompanha a descida longitudinal do relevo, sem variar o volume com chuva.
@@ -259,7 +261,7 @@ function elevation(x,z){
  const bankT=smooth(clamp((width+RIVER_BANK_WIDTH-lateral)/RIVER_BANK_WIDTH,0,1));
  // The worn channel rises to a dry rim before the meadow begins.
  // The rim stays above the highest manual level, including small waves.
- const channelDepth=.95-1.65*smooth(clamp((lateral/width-.30)/.55,0,1))+
+ const channelDepth=.95-1.65*smooth(clamp((lateral/width-.50)/.45,0,1))+
   POOL_DEPTH*poolMask(z)*(1-smooth(clamp((lateral/width-.15)/.6,0,1)));
  const bedLevel=waterline-channelDepth;
  y+=(bedLevel-y)*bankT;

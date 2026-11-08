@@ -45,7 +45,8 @@ function install(){
  // Esconde só o visual da ponte antiga (as funções de colisão continuam existindo).
  old.traverse(o=>{if(o.isMesh)o.visible=false;});
 
- const half=solid.span/2,deck=solid.deckY,rot=solid.rotation||0,RISE=.65,HW=1.1;
+ // Arco proporcional ao vão (ponte mais longa = arco mais alto).
+ const half=solid.span/2,deck=solid.deckY,rot=solid.rotation||0,RISE=Math.max(.65,solid.span*.05),HW=1.25;
  const arch=a=>RISE*Math.max(0,1-(a/half)**2);
  const slope=a=>-2*RISE*a/(half*half);
  const g=new T.Group();g.name='Ponte em arco anime';

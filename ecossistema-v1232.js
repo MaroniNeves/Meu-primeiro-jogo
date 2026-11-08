@@ -475,7 +475,7 @@ function makeRoad(){
  }
  if(crossing!==null){
   function bank(direction){
-   for(let d=1.15;d<11.5;d+=.04){
+   for(let d=1.15;d<24;d+=.04){ // rio mais largo: margens mais longe
     const x=crossing+d*direction,z=roadZ(x),k=idx(x,z);
     if(Math.abs(x-riverX(z))>riverHalfWidth(z)+3.35&&riverMask[k]<.075&&roadMask[k]>.32&&api.depth[k]<.02)
      return {x,z,y:height(x,z)};
@@ -485,7 +485,7 @@ function makeRoad(){
   const left=bank(-1),right=bank(1);
   if(left&&right){
    const span=Math.hypot(right.x-left.x,right.z-left.z);
-   if(span>3&&span<25){
+   if(span>3&&span<48){
     const mx=(left.x+right.x)*.5,mz=(left.z+right.z)*.5;
     const direction=Math.atan2(right.z-left.z,right.x-left.x);
     const deckY=Math.max(left.y,right.y)+.13;

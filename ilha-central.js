@@ -89,7 +89,7 @@ function install(){
  const sI=t=>t*t*(3-2*t);
  function channel(x,z,y,waterline,width){
   const lateral=Math.abs(x-river.center(z));
-  const depth=.95-1.65*sI(clamp((lateral/width-.30)/.55,0,1));
+  const depth=.95-1.65*sI(clamp((lateral/width-.50)/.45,0,1));
   const bankT=sI(clamp((width+7-lateral)/7,0,1));
   return y+(waterline-depth-y)*bankT;
  }
