@@ -24,6 +24,8 @@ const INFO={
  universal:{nome:'Universal',desc:'Uma galáxia dentro, com estrelas',cor:'#f3f0ff'}
 };
 const VERSION='1';
+// Esferas mostradas exatamente com os materiais do arquivo (só o halo é ajustado).
+const ORIGINAL=new Set();
 const base=(()=>{const s=document.currentScript&&document.currentScript.src;return s?s.replace(/[^/]*$/,''):'./';})();
 let libs=null;
 function getLibs(){return libs||(libs=Promise.all([import('three'),import('https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/loaders/FBXLoader.js')]).then(([THREE,F])=>({THREE,loader:new F.FBXLoader()})));}
@@ -32,7 +34,8 @@ function loadFile(id){
  if(!fileCache.has(id))fileCache.set(id,getLibs().then(({loader})=>loader.loadAsync(base+'assets/esferas/esfera_'+id+'.fbx?v='+VERSION)));
  return fileCache.get(id);
 }
-function prepare(THREE,fbx){
+// keep=true: corpo, texturas e efeitos ficam com os materiais do próprio arquivo (sem alterar).
+function prepare(THREE,fbx,keep){
  const halos=[];
  fbx.traverse(o=>{
   if(!o.isMesh&&!o.isPoints&&!o.isLine)return;
@@ -46,12 +49,18 @@ function prepare(THREE,fbx){
    // então o corpo cobre o halo na frente e o brilho fica só em volta (como no original).
    if(halo){const nm=new THREE.MeshBasicMaterial({vertexColors:true,transparent:false,blending:THREE.AdditiveBlending,depthWrite:false,fog:false,toneMapped:false,side:THREE.FrontSide});
     nm.userData.haloIndex=+halo[1];halos.push(nm);return nm;}
-   if(name==='vcadd')return new THREE.MeshBasicMaterial({vertexColors:true,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,fog:false,toneMapped:false,side:THREE.DoubleSide});
+   if(keep)return m;
+   if(name==='vcadd'){
+    // Raios: miolo branco + faixa de brilho azul. No desenho original a faixa tem
+    // 30% de força (o miolo, 100%); aplica isso às cores do próprio arquivo.
+    const g=o.geometry,c=g&&g.attributes.color;
+    if(c&&!g.userData.glowScaled){const nc=c.clone();for(let i=0;i<nc.count;i++){const r=nc.getX(i),gg=nc.getY(i),b=nc.getZ(i);if(Math.min(r,gg,b)<.9)nc.setXYZ(i,r*.3,gg*.3,b*.3);}o.geometry=g.clone();o.geometry.setAttribute('color',nc);o.geometry.userData.glowScaled=true;}
+    return new THREE.MeshBasicMaterial({vertexColors:true,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,depthTest:true,fog:false,toneMapped:false,side:THREE.DoubleSide});}
    if(name==='vc')return new THREE.MeshBasicMaterial({vertexColors:true,fog:false,toneMapped:false,side:THREE.DoubleSide});
    const transparent=!!(m.transparent||/^tex_|neb|gal/.test(name));
    return new THREE.MeshBasicMaterial({map,color:map?0xffffff:(m.color||0xffffff),vertexColors:!map&&!!(o.geometry&&o.geometry.attributes.color),transparent,depthWrite:!transparent,alphaTest:transparent?.02:0,fog:false,toneMapped:false,side:transparent?THREE.DoubleSide:THREE.FrontSide});
   });
-  for(const m of list)m.dispose&&m.dispose();
+  for(const m of list)if(!out.includes(m))m.dispose&&m.dispose();
   o.material=Array.isArray(o.material)?out:out[0];
   if(/^halo/i.test(o.name))o.renderOrder=1;else if(out.some(m=>m.transparent))o.renderOrder=3;else o.renderOrder=2;
  });
@@ -64,7 +73,7 @@ async function create(id){
  const [{THREE},src]=await Promise.all([getLibs(),loadFile(id)]);
  // Cada esfera ganha a sua cópia (o mesmo arquivo pode estar em uso na prévia e no jogo).
  const fbx=src.clone(true);
- prepare(THREE,fbx);
+ prepare(THREE,fbx,ORIGINAL.has(id)); 
  const body=fbx.getObjectByName('Corpo')||fbx.getObjectByName('Casca');
  fbx.updateMatrixWorld(true);
  const bb=new THREE.Box3();if(body)bb.setFromObject(body);
