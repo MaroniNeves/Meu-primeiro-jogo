@@ -170,7 +170,7 @@ function patchLand(material){
 
 /* ---------- Pedras ---------- */
 // Cinza-azulado nas laterais, topo claro com musgo e contorno escuro.
-const ROCK_KEY='anime-rock-v1';
+const ROCK_KEY='anime-rock-v2';
 const ROCK_NAME=/pedra|pedrinha|rock|seixo|stone/i;
 // Grupos cujos filhos (às vezes sem nome) são pedras.
 const ROCK_GROUP=/pedra original|rochas|rocks.fbx|pedras do leito|leito do rio/i;
@@ -202,19 +202,32 @@ function patchRock(material){
      #endif
      vAnimeWorld=(modelMatrix*animeW).xyz;
     }`);
-  shader.fragmentShader='varying float vAnimeUp;\nvarying vec3 vAnimeWorld;\n'+NOISE+shader.fragmentShader.replace(
+  shader.uniforms.uAnimeTime=landTime;
+  shader.fragmentShader='varying float vAnimeUp;\nvarying vec3 vAnimeWorld;\n'+NOISE+CAUSTIC+shader.fragmentShader.replace(
    '#include <color_fragment>',
    `#include <color_fragment>
    {
+    vec3 wp=vAnimeWorld;
     float tex=dot(diffuseColor.rgb,vec3(.299,.587,.114));
-    float n=animeFbm(vAnimeWorld.xz*1.3+vAnimeWorld.y*.7);
+    float n=animeFbm(wp.xz*1.3+wp.y*.7);
     float up=vAnimeUp+(n-.5)*.35;
     vec3 darkC=animeLin(vec3(.36,.39,.47)),sideC=animeLin(vec3(.55,.58,.63));
     vec3 topC=animeLin(vec3(.74,.76,.74)),moss=animeLin(vec3(.46,.60,.31));
     vec3 rock=mix(darkC,sideC,smoothstep(-.35,.15,up));
     rock=mix(rock,topC,smoothstep(.45,.70,up));
-    rock=mix(rock,moss,smoothstep(.72,.92,up)*.65);
-    rock*=mix(1.,clamp(tex*2.,.8,1.15),.3);
+    // Textura pintada: grão fino em 3 planos, camadas, rachaduras e líquen.
+    float grain=animeNoise(wp.xz*9.+wp.y*3.)*.4+animeNoise(wp.xy*12.)*.3+animeNoise(wp.zy*12.)*.3;
+    float coarse=animeFbm(wp.xz*3.1+wp.y*2.2);
+    rock*=.78+.32*grain+.18*(coarse-.5);
+    float strata=smoothstep(.42,.5,fract(wp.y*2.6+coarse*.9))*(1.-smoothstep(.5,.58,fract(wp.y*2.6+coarse*.9)));
+    rock*=1.-strata*.14*(1.-smoothstep(.4,.8,up));
+    float crack=animeCaustic(wp.xz*1.6+vec2(wp.y*.9,-wp.y*.5),0.);
+    crack*=smoothstep(.45,.65,animeFbm(wp.xz*.9+5.3));
+    rock=mix(rock,rock*.45,crack*.85);
+    float lichen=smoothstep(.62,.80,animeFbm(wp.xz*2.4+wp.y*1.1+9.1));
+    rock=mix(rock,mix(moss,animeLin(vec3(.80,.78,.55)),animeNoise(wp.xz*6.)),lichen*.35*smoothstep(-.2,.4,up));
+    rock=mix(rock,moss*(.85+.3*grain),smoothstep(.72,.92,up)*.65);
+    rock*=mix(1.,clamp(tex*2.,.8,1.15),.2);
     diffuseColor.rgb=rock*.85;
    }`);
  };
@@ -228,6 +241,7 @@ function isRock(o){
  return false;
 }
 function addRockOutline(mesh){
+ return; // Sem contorno nas pedras: parecia uma sombra errada. Só a sombra do sol.
  if(mesh.isInstancedMesh||mesh.isSkinnedMesh||mesh.userData.animeRockOutline||mesh.userData.animeOutline)return;
  mesh.userData.animeRockOutline=true;
  const g=mesh.geometry;if(!g.boundingSphere)g.computeBoundingSphere();

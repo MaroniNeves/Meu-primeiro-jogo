@@ -186,7 +186,7 @@ function install(){
   const sun=material.uniforms.uSunDir.value,cover=ou.uCoverage.value;
   const night=1-smooth(-.22,-.02,sun.y);
   // A névoa da paisagem passa a seguir o horizonte do céu (dia, pôr do sol, noite).
-  if(scene.fog&&scene.fog.isFog){
+  if(scene.fog&&scene.fog.isFog&&!window.arcanoUnderwater){
    fogBase.copy(scene.fog.color);
    horizonColor(sun.y,cover,horizon);
    scene.fog.color.copy(fogBase).lerp(horizon,.75);

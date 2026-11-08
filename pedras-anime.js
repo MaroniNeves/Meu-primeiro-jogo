@@ -16,7 +16,8 @@ const rnd=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};
 
 // Pedra facetada: icosaedro deformado e achatado (visual low-poly pintado).
 function rockGeometry(variant){
- const g=new T.IcosahedronGeometry(1,1);
+ // Esfera indexada: normais suaves depois da deformação (sem faces retas).
+ const g=new T.SphereGeometry(1,22,16);
  const p=g.attributes.position,v=new T.Vector3();
  const k1=1.7+variant*.9,k2=2.9+variant*.6;
  // O deslocamento depende só da posição: vértices repetidos continuam unidos.
@@ -92,16 +93,14 @@ function collectSpots(ground){
 function build(api,ground){
  const spots=collectSpots(ground);
  const geos=[0,1,2].map(rockGeometry);
- const material=new T.MeshStandardMaterial({color:'#b9bec6',roughness:1,metalness:0,flatShading:true});
- const outline=new T.MeshBasicMaterial({color:'#2b2140',side:T.BackSide});
+ const material=new T.MeshStandardMaterial({color:'#b9bec6',roughness:1,metalness:0});
  const group=new T.Group();group.name='Pedras anime';
  const m=new T.Matrix4(),q=new T.Quaternion(),e=new T.Euler(),pos=new T.Vector3(),sc=new T.Vector3();
  for(let v=0;v<3;v++){
   const list=spots.filter(s=>s.v===v);
   if(!list.length)continue;
   const mesh=new T.InstancedMesh(geos[v],material,list.length);
-  const shell=new T.InstancedMesh(geos[v],outline,list.length);
-  mesh.name='Pedras anime '+(v+1);shell.name='Contorno das pedras anime';
+  mesh.name='Pedras anime '+(v+1);
   list.forEach((s,i)=>{
    // Enterra a pedra: parte do ponto mais baixo sob ela.
    let lo=Infinity;
@@ -115,14 +114,12 @@ function build(api,ground){
    e.set(s.tilt,s.rot,s.tilt*.6);q.setFromEuler(e);
    m.compose(pos.set(s.x,y,s.z),q,sc.set(s.r,sy,s.r*(.85+rnd()*.3)));
    mesh.setMatrixAt(i,m);
-   m.compose(pos,q,sc.multiplyScalar(1.07));
-   shell.setMatrixAt(i,m);
   });
-  mesh.instanceMatrix.needsUpdate=shell.instanceMatrix.needsUpdate=true;
-  mesh.castShadow=!mobile;mesh.receiveShadow=true;
-  mesh.frustumCulled=shell.frustumCulled=false;
-  shell.userData.animeOutline=true;
-  group.add(mesh,shell);
+  mesh.instanceMatrix.needsUpdate=true;
+  // Sombra só a do sol (o contorno escuro parecia uma sombra errada).
+  mesh.castShadow=true;mesh.receiveShadow=true;
+  mesh.frustumCulled=false;
+  group.add(mesh);
  }
  api.scene.add(group);
  window.arcanoAnimeRocks={group,count:spots.length,spots};

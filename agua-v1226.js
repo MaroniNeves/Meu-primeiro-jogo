@@ -218,6 +218,7 @@ function riverLevelAt(z){
  return RIVER_SURFACE_LEVEL+riverManualFill-.073*z-FALL_DROP*fallStep(z);
 }
 function riverDepthAt(x,z){
+ if(Math.abs(z)>L*.5||Math.abs(x)>W*.5)return 0; // fora da área detalhada (Ilha Central)
  if(riverShore(x,z)>=0)return 0;
  return Math.max(0,riverLevelAt(z)-terrainContact(x,z));
 }
@@ -270,7 +271,7 @@ const ambientSky=new T.HemisphereLight('#fff5e4','#6c8378',1.45);scene.add(ambie
 const light=new T.DirectionalLight('#fff0c8',1.60);light.position.set(-8,13,7);
 light.castShadow=true;light.shadow.mapSize.set(mobile?512:1024,mobile?512:1024);
 Object.assign(light.shadow.camera,{left:-69,right:69,top:69,bottom:-69,near:.5,far:155});
-light.shadow.bias=-.00035;scene.add(light);
+light.shadow.bias=-.00035;scene.add(light);scene.add(light.target);
 // Atmosfera 3D: céu físico estilizado, disco solar e nuvens procedurais animadas.
 // O mesmo céu é visível à câmera do jogador e capturado pelos cubemaps da água.
 const skySunDir=light.position.clone().normalize();
@@ -548,10 +549,15 @@ function updateAtmosphere(dt){
  // Mover a luz um pouquinho a cada quadro fazia todas as bordas de sombra
  // tremerem (piscar). A direção só é atualizada a cada ~0,4°.
  {
-  const lx=sunX*22,ly=Math.max(.08,sunY)*22,lz=sunZ*22,p=light.position;
+  const lx=sunX*22,ly=Math.max(.08,sunY)*22,lz=sunZ*22;
+  // Compara com a última DIREÇÃO aplicada (a luz pode ter sido levada até o personagem).
+  const p=light.userData.sunVec||light.position;
   const lenA=Math.hypot(lx,ly,lz),lenB=p.length()||1;
   const cos=(lx*p.x+ly*p.y+lz*p.z)/(lenA*lenB);
-  if(cos<.99997||!light.userData.sunSnapped){light.position.set(lx,ly,lz);light.userData.sunSnapped=true;}
+  if(cos<.99997||!light.userData.sunSnapped){
+   light.userData.sunVec=new T.Vector3(lx,ly,lz);
+   light.position.copy(light.target.position).add(light.userData.sunVec);light.userData.sunSnapped=true;
+  }
  }
  const shade=Math.max(.72,1-atmCloudMean*.12*(.5+.5*Math.sin(weatherTime*.16+
     Math.sin(weatherTime*.065)*1.4)));
@@ -667,8 +673,9 @@ function updateGroundFog(dt){
  if(stormActive()||climate==='storm'||rainNow||!fogEnabled)fogStrength=0;
  else fogStrength+=(fogTarget-fogStrength)*clamp(dt*(fogTarget>fogStrength?.55:.78),0,1);
  const strength=clamp(fogStrength,0,1);
- scene.fog.near=36-27*strength;
- scene.fog.far=74-51*strength;
+ // Ilha grande: névoa distante (perspectiva aérea) em vez de fechar em 74 m.
+ scene.fog.near=90-81*strength;
+ scene.fog.far=430-405*strength;
  const base=weatherCfg?weatherCfg.bg:'#b6c6bc';
  scene.fog.color.set(base).lerp(fogDewTint,strength*.65);
  for(const patch of fogPatches){
@@ -3860,10 +3867,15 @@ function gameCanStepOverStone(stone){
  return stone.top-terrainContact(stone.x,stone.z)<=.24||
   Math.max(stone.rx,stone.rz)<.16;
 }
+// Chão do mundo: a área detalhada usa a malha do solo; fora dela, a ilha.
+function worldGround(x,z){
+ if((Math.abs(x)>W*.5-.35||Math.abs(z)>L*.5-.35)&&window.arcanoIslandHeight)return window.arcanoIslandHeight(x,z);
+ return terrainContact(x,z);
+}
 function solidGameFootHeight(x,z){
  const bridgeY=window.arcanoBridgeSolid?.surfaceAt(x,z);
  if(bridgeY!=null)return bridgeY;
- let support=terrainContact(x,z);
+ let support=worldGround(x,z);
  for(const stone of rockSolids){
   if(!gameCanStepOverStone(stone))continue;
   const q=((x-stone.x)/stone.rx)**2+((z-stone.z)/stone.rz)**2;
@@ -3912,13 +3924,15 @@ function updateGame(dt){
   const dirZ=Math.cos(game.camHeading)*forward+
    Math.sin(game.camHeading)*strafe;
   const speed=control.run?3.25:1.65;
-  const nx=clamp(game.position.x+dirX*dt*speed*length,-W*.48,W*.48);
-  const nz=clamp(game.position.z+dirZ*dt*speed*length,-L*.48,L*.48);
+  let nx=game.position.x+dirX*dt*speed*length,nz=game.position.z+dirZ*dt*speed*length;
+  // Fora da área detalhada vale o limite da Ilha Central (ilha-central.js).
+  if(window.arcanoIslandClamp){const c=window.arcanoIslandClamp(nx,nz);nx=c[0];nz=c[1];}
+  else{nx=clamp(nx,-W*.48,W*.48);nz=clamp(nz,-L*.48,L*.48);}
   const bridge=window.arcanoBridgeSolid;
   const oldY=solidGameFootHeight(game.position.x,game.position.z);
   const canMoveTo=(tx,tz)=>{
    const deck=bridge?.surfaceAt(tx,tz);
-   const footY=deck==null?terrainContact(tx,tz):deck;
+   const footY=deck==null?worldGround(tx,tz):deck;
    if((Math.abs(footY-oldY)>1.05&&riverShore(tx,tz)>.20)||bridge?.blocksSegment(game.position.x,game.position.z,tx,tz))return false;
    // Colisao em elipses baseada nas pedras realmente desenhadas.
    // A altura do personagem conta apenas quando a pedra surge do piso.
@@ -4693,7 +4707,9 @@ function loop(now){
   camera.position.y<riverLevelAt(camera.position.z)-.015&&
   camera.position.y>terrainContact(camera.position.x,camera.position.z)-.08;
  const savedFog=scene.fog;
- if(underwater)scene.fog=new T.Fog('#315c59',.05,5.5);
+ // Debaixo d'água: azul-esverdeado claro com visibilidade de ~18 m (fundo do rio visível).
+ if(underwater)scene.fog=new T.Fog('#3f93a3',.6,18);
+ window.arcanoUnderwater=underwater;
  try{renderer.render(scene,camera);}finally{scene.fog=savedFog;}
  gamePerf.elapsed+=rawDt;gamePerf.frames++;
  if(gamePerf.elapsed>=1.25){

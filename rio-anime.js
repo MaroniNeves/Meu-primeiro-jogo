@@ -191,6 +191,17 @@ void main(){
  float plungeFoam=smoothstep(.40,.62,churn)*plunge;
  col=mix(col,uFoam,plungeFoam*.9);a=max(a,plungeFoam*.9);
 
+ // Vista de baixo (mergulhando): a superfície brilha, ondula e deixa
+ // ver o céu só olhando quase para cima (janela de Snell).
+ if(!gl_FrontFacing){
+  vec3 nb=normalize(vec3(n.x,-n.y,n.z));
+  float up=max(dot(-viewDir,vec3(0.,1.,0.)),0.);
+  float window_=smoothstep(.55,.85,up+(gr.x+gr.y)*.08);
+  vec3 under=mix(vec3(.28,.62,.68),vec3(.62,.90,.92),.5+.5*sin((gr.x-gr.y)*3.));
+  col=mix(under,mix(uSkyHorizon,vec3(1.),.35),window_);
+  col+=uSunColor*pow(max(dot(-viewDir,normalize(uSun)),0.),40.)*.6;
+  a=.88;
+ }
  gl_FragColor=vec4(col,a*alpha);
  float fogF=smoothstep(fogNear,fogFar,vFogDepth);
  gl_FragColor.rgb=mix(gl_FragColor.rgb,fogColor,fogF);
@@ -367,6 +378,47 @@ function install(){
     gl_Position=projectionMatrix*mv;
    }`,'','Gotas da cachoeira');
  }
+ // ---------- Debaixo d'água: tom azul, raios de luz e bolhas ----------
+ const css=document.createElement('style');
+ css.textContent=`#animeUnderwater{position:fixed;inset:0;pointer-events:none;z-index:2;opacity:0;transition:opacity .35s;
+   background:linear-gradient(180deg,rgba(150,230,235,.30),rgba(30,110,130,.18) 45%,rgba(10,50,70,.38));}
+  #animeUnderwater.on{opacity:1}
+  #animeUnderwater::before{content:'';position:absolute;inset:-20% -10% 0;opacity:.35;mix-blend-mode:screen;
+   background:repeating-linear-gradient(100deg,rgba(255,255,255,0) 0 40px,rgba(220,255,250,.35) 55px,rgba(255,255,255,0) 80px 140px);
+   -webkit-mask-image:linear-gradient(180deg,#000,transparent 75%);mask-image:linear-gradient(180deg,#000,transparent 75%);
+   animation:animeRays 6s ease-in-out infinite alternate}
+  @keyframes animeRays{from{transform:translateX(-30px) skewX(-4deg)}to{transform:translateX(30px) skewX(4deg)}}`;
+ document.head.appendChild(css);
+ const overlay=document.createElement('div');overlay.id='animeUnderwater';document.body.appendChild(overlay);
+ const bubbleUniforms={uTime:u.uTime,uPlayer:u.uPlayer,uOn:{value:0},uScale:{value:innerHeight*.5}};
+ {
+  const count=60,seeds=new Float32Array(count*4);
+  for(let i=0;i<count;i++){seeds[i*4]=Math.random()*2-1;seeds[i*4+1]=Math.random();seeds[i*4+2]=Math.random()*2-1;seeds[i*4+3]=Math.random();}
+  const g=new T.BufferGeometry();
+  g.setAttribute('position',new T.BufferAttribute(new Float32Array(count*3),3));
+  g.setAttribute('seed',new T.BufferAttribute(seeds,4));
+  const bubbles=new T.Points(g,new T.ShaderMaterial({transparent:true,depthWrite:false,uniforms:bubbleUniforms,
+   vertexShader:`attribute vec4 seed;uniform float uTime,uOn,uScale;uniform vec3 uPlayer;varying float vA;
+    void main(){
+     float p=fract(uTime*(.35+.3*seed.w)+seed.y);
+     vec3 pos=uPlayer+vec3(seed.x*.35+sin(uTime*3.+seed.y*20.)*.05,1.4+p*2.2,seed.z*.35);
+     vA=uOn*(1.-p)*.8;
+     vec4 mv=modelViewMatrix*vec4(pos,1.);
+     gl_PointSize=(.04+.05*seed.w)*uScale/max(.1,-mv.z);
+     gl_Position=projectionMatrix*mv;
+    }`,
+   fragmentShader:`varying float vA;void main(){float d=length(gl_PointCoord-.5);if(d>.5)discard;
+    float ring=smoothstep(.5,.38,d)*(.35+.65*smoothstep(.25,.45,d));gl_FragColor=vec4(.9,1.,1.,vA*ring);}`}));
+  bubbles.name='Bolhas do mergulho';bubbles.frustumCulled=false;bubbles.renderOrder=5;scene.add(bubbles);
+ }
+ const baseBefore=water.onBeforeRender;
+ water.onBeforeRender=function(r,sc,camera){
+  baseBefore.call(this,r,sc,camera);
+  const under=!!window.arcanoUnderwater;
+  overlay.classList.toggle('on',under);
+  const player=api.getGrassPlayer&&api.getGrassPlayer();
+  bubbleUniforms.uOn.value=under&&player&&player.swimming?1:0;
+ };
  window.arcanoAnimeRiver={material,reflection:rt,restore(){water.material=old;water.userData.water2=false;water.userData.animeRiver=false;water.onBeforeRender=()=>{};}};
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install();
