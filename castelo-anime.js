@@ -64,6 +64,19 @@ const M={
  core:mat({color:'#e8fbff',emissive:new T.Color('#7fe2ff'),emissiveIntensity:2.6,roughness:.2}),
  leaf:mat({color:'#4f8f45'}),paint:[mat({color:'#3d6d8f'}),mat({color:'#8f6a3d'}),mat({color:'#5f8f4a'}),mat({color:'#8f3d5a'})]
 };
+// Quadros: paisagens e retratos pintados em canvas (estilo anime, cores suaves).
+function artTex(kind,seedHue){return canvasTex(128,96,(g,w,h)=>{
+ if(kind===0){const sky=g.createLinearGradient(0,0,0,h);sky.addColorStop(0,`hsl(${200+seedHue},60%,72%)`);sky.addColorStop(1,`hsl(${30+seedHue},70%,85%)`);g.fillStyle=sky;g.fillRect(0,0,w,h);
+  for(let l=0;l<3;l++){g.fillStyle=`hsl(${120+l*10+seedHue},${35+l*10}%,${55-l*12}%)`;g.beginPath();g.moveTo(0,h);for(let x=0;x<=w;x+=8)g.lineTo(x,h*(.45+l*.15)-Math.sin(x*.05+l*2+seedHue)*10);g.lineTo(w,h);g.fill();}
+  g.fillStyle='#fff8d8';g.beginPath();g.arc(w*.75,h*.25,8,0,6.3);g.fill();}
+ else if(kind===1){g.fillStyle=`hsl(${20+seedHue},30%,22%)`;g.fillRect(0,0,w,h);g.fillStyle=`hsl(${210+seedHue},40%,40%)`;g.beginPath();g.ellipse(w/2,h+10,34,44,0,0,6.3);g.fill();
+  g.fillStyle='#f2d2b6';g.beginPath();g.arc(w/2,h*.42,15,0,6.3);g.fill();g.fillStyle=`hsl(${40+seedHue*3},60%,${45+seedHue}%)`;g.beginPath();g.arc(w/2,h*.36,17,Math.PI,0);g.fill();g.fillRect(w/2-17,h*.36,6,22);g.fillRect(w/2+11,h*.36,6,22);}
+ else{g.fillStyle=`hsl(${260+seedHue},25%,30%)`;g.fillRect(0,0,w,h);g.fillStyle='#7a5a3a';g.fillRect(0,h*.72,w,h);
+  for(let i=0;i<5;i++){g.fillStyle=`hsl(${i*70+seedHue},65%,58%)`;g.beginPath();g.arc(30+i*16,h*.62-(i%2)*8,9,0,6.3);g.fill();}g.fillStyle='#dfe8f0';g.fillRect(w*.7,h*.3,14,30);}
+ g.strokeStyle='rgba(0,0,0,.25)';g.lineWidth=3;g.strokeRect(0,0,w,h);});}
+M.art=[];for(let i=0;i<9;i++)M.art.push(mat({color:'#ffffff',map:artTex(i%3,i*7)}));
+M.book=['#7a2a2a','#2a4a7a','#2f6a3a','#6a4a2a','#4a2a5a','#8a6a2a','#2a5a5a','#5a2a3a'].map(c=>mat({color:c}));
+M.velvetBlue=mat({color:'#2b3f73'});M.velvetGreen=mat({color:'#2f5a3f'});
 
 // ---------- Peças ----------
 function boxUV(geo,w,h,d,tile){const uv=geo.attributes.uv,F=[[d,h],[d,h],[w,d],[w,d],[w,h],[w,h]];for(let f=0;f<6;f++)for(let v=0;v<4;v++){const i=f*4+v;uv.setXY(i,uv.getX(i)*F[f][0]/tile,uv.getY(i)*F[f][1]/tile);}return geo;}
@@ -145,20 +158,53 @@ function build(api,site){
  // ===== Mobília de cada andar =====
  function furnish(g,k,y0,H){
   const Y=y=>y0+y;
-  const shelf=(x,z,w,h,rot=0)=>{box(g,w,h,.5,M.woodDark,x,Y(h/2),z,rot,2);for(let yy=.4;yy<h-.2;yy+=.9){box(g,w-.15,.7,.42,M.books,x+(rot?.04:0),Y(yy+.38),z+(rot?0:.04),rot,1.5);box(g,w-.1,.06,.48,M.wood,x,Y(yy),z,rot,2);}};
-  const table=(x,z,w,d,h=.85,m=M.wood)=>{box(g,w,.12,d,m,x,Y(h),z,0,2);for(const sx of [-1,1])for(const sz of [-1,1])box(g,.12,h,.12,M.woodDark,x+sx*(w/2-.15),Y(h/2),z+sz*(d/2-.15));};
-  const chair=(x,z,r=0)=>{box(g,.5,.08,.5,M.wood,x,Y(.48),z,r,2);box(g,.5,.7,.08,M.wood,x-Math.sin(r)*.22,Y(.85),z-Math.cos(r)*.22,r,2);for(const sx of [-1,1])for(const sz of [-1,1])box(g,.06,.46,.06,M.woodDark,x+sx*.2,Y(.23),z+sz*.2);};
+  const F=.4;   // altura do piso acima de y0
+  // Colisão dos móveis (só neste andar).
+  const solid=(x,z,w,d,rot=0)=>{const sw=Math.abs(Math.sin(rot))>.5;obsBox(x,z,(sw?d:w)/2+.05,(sw?w:d)/2+.05,k);};
+  // Estante com livros de verdade: lombadas de cores, alturas e larguras variadas, alguns inclinados.
+  const shelf=(x,z,w,h,rot=0)=>{
+   const c=Math.cos(rot),s=Math.sin(rot),P=(a,b)=>[x+a*c+b*s,z-a*s+b*c];
+   {const [px,pz]=P(0,-.22);box(g,w,h,.06,M.woodDark,px,Y(F+h/2),pz,rot,2);}
+   for(const e of [-1,1]){const [px,pz]=P(e*(w/2-.04),0);box(g,.08,h,.5,M.woodDark,px,Y(F+h/2),pz,rot,2);}
+   box(g,w+.1,.1,.55,M.woodDark,x,Y(F+h+.05),z,rot,2);
+   for(let yy=.1;yy<h-.3;yy+=.9){
+    box(g,w-.1,.06,.48,M.wood,x,Y(F+yy),z,rot,2);
+    let a=-w/2+.12;
+    while(a<w/2-.2){const bw=.07+rnd()*.09,bh=.48+rnd()*.28,lean=rnd()<.08;
+     if(rnd()<.06){a+=.15;continue;}
+     const [px,pz]=P(a+bw/2,.02);const b=box(g,bw,bh,.34,M.book[Math.floor(rnd()*M.book.length)],px,Y(F+yy+.03+bh/2),pz,rot,1);
+     if(lean)b.rotation.z=.25;
+     if(rnd()<.6){const [qx,qz]=P(a+bw/2,.192);box(g,bw+.005,.035,.005,M.gold,qx,Y(F+yy+.03+bh*.78),qz,rot,1);box(g,bw+.005,.035,.005,M.gold,qx,Y(F+yy+.03+bh*.22),qz,rot,1);}
+     a+=bw+.005;}
+   }
+   solid(x,z,w,.5,rot);
+  };
+  const table=(x,z,w,d,h=.85,m=M.wood)=>{box(g,w,.12,d,m,x,Y(F+h),z,0,2);for(const sx of [-1,1])for(const sz of [-1,1])box(g,.12,h,.12,M.woodDark,x+sx*(w/2-.15),Y(F+h/2),z+sz*(d/2-.15));solid(x,z,w,d);};
+  const chair=(x,z,r=0)=>{box(g,.5,.08,.5,M.wood,x,Y(F+.48),z,r,2);box(g,.5,.7,.08,M.wood,x-Math.sin(r)*.22,Y(F+.85),z-Math.cos(r)*.22,r,2);for(const sx of [-1,1])for(const sz of [-1,1])box(g,.06,.46,.06,M.woodDark,x+sx*.2,Y(F+.23),z+sz*.2);};
   const candle=(x,y,z)=>{box(g,.08,.25,.08,M.candle,x,Y(y+.12),z);box(g,.2,.05,.2,M.gold,x,Y(y),z);};
-  const rug=(x,z,w,d)=>box(g,w,.03,d,M.rug,x,Y(.43),z,0,w);
+  // Tapete com franjas, um pouco acima do piso (sem cortar nem piscar).
+  const rug=(x,z,w,d)=>{box(g,w,.035,d,M.rug,x,Y(F+.02),z,0,w);for(const e of [-1,1])for(let a=-w/2+.1;a<w/2;a+=.16)box(g,.04,.015,.16,M.cloth,x+a,Y(F+.012),z+e*(d/2+.07));};
   const bed=(x,z,rot=0,canopy=false)=>{box(g,2,.5,2.6,M.woodDark,x,Y(.65),z,rot,2);box(g,1.9,.25,2.5,M.cloth,x,Y(1),z,rot);box(g,1.9,.12,1.5,M.velvet,x,Y(1.18),z+.5,rot);box(g,1.4,.25,.45,M.cloth,x,Y(1.2),z-1,rot);box(g,2.1,1.8,.2,M.woodDark,x,Y(1.3),z-1.35,rot,2);
-   if(canopy){for(const sx of [-1,1])for(const sz of [-1,1])box(g,.15,3,.15,M.woodDark,x+sx*.95,Y(1.9),z+sz*1.25);box(g,2.2,.15,2.8,M.velvet,x,Y(3.4),z);}};
-  const fireplace=(x,z,rot=0)=>{box(g,3.2,3,1.2,M.base,x,Y(1.9),z,rot);box(g,2,1.4,.5,M.iron,x,Y(1.1),z+(rot?0:.4)*Math.cos(rot),rot);box(g,1.2,.6,.3,M.fire,x,Y(.9),z,rot);box(g,3.6,.3,1.4,M.trim,x,Y(3.45),z,rot);};
-  const paint=(x,z,rot,i)=>{box(g,1.6,1.1,.08,M.paint[i%4],x,Y(2.6),z,rot);box(g,1.8,1.3,.05,M.gold,x,Y(2.6),z+(rot?0:-.03),rot);};
+   if(canopy){for(const sx of [-1,1])for(const sz of [-1,1])box(g,.15,3,.15,M.woodDark,x+sx*.95,Y(1.9),z+sz*1.25);box(g,2.2,.15,2.8,M.velvet,x,Y(3.4),z);for(const sx of [-1,1])box(g,.06,2.6,2.7,M.red,x+sx*1.05,Y(2.1),z);}
+   solid(x,z,2.1,2.8,rot);};
+  const fireplace=(x,z,rot=0)=>{box(g,3.2,3,1.2,M.base,x,Y(1.9),z,rot);box(g,2,1.4,.5,M.iron,x,Y(1.1),z+(rot?0:.4)*Math.cos(rot),rot);box(g,1.2,.6,.3,M.fire,x,Y(.9),z,rot);box(g,3.6,.3,1.4,M.trim,x,Y(3.45),z,rot);solid(x,z,3.2,1.2,rot);};
+  // Quadro com moldura dourada (paisagens, retratos, natureza-morta).
+  const paint=(x,z,rot,i,w=1.6,h=1.1,y=2.9)=>{const c=Math.cos(rot),s=Math.sin(rot);box(g,w+.2,h+.2,.06,M.gold,x,Y(y),z,rot);box(g,w,h,.04,M.art[i%M.art.length],x+s*.035,Y(y),z+c*.035,rot);};
+  // Cortinas dos dois lados de cada janela, com sanefa.
+  const curtain=(x,z,rot,m)=>{const c=Math.cos(rot),s=Math.sin(rot);for(const e of [-1,1]){const dx=c*e*1.05,dz=-s*e*1.05;box(g,.55,3.4,.12,m,x+dx+s*.1,Y(F+2.9),z+dz+c*.1,rot);box(g,.6,.12,.16,M.gold,x+dx+s*.12,Y(F+2.1),z+dz+c*.12,rot);}
+   box(g,2.8,.45,.14,m,x+s*.12,Y(F+4.75),z+c*.12,rot);box(g,3,.06,.06,M.gold,x+s*.06,Y(F+4.95),z+c*.06,rot);};
+  const armor=(x,z,rot)=>{box(g,.6,.2,.6,M.base,x,Y(F+.1),z,rot);box(g,.5,.8,.3,M.steel,x,Y(F+1.6),z,rot);box(g,.4,.7,.25,M.steel,x,Y(F+.75),z,rot);const hh=new T.Mesh(new T.SphereGeometry(.2,10,8),M.steel);hh.position.set(x,Y(F+2.25),z);g.add(hh);box(g,.06,2.2,.06,M.woodDark,x+Math.cos(rot)*.45,Y(F+1.1),z-Math.sin(rot)*.45);solid(x,z,.6,.6);};
+  const plant=(x,z)=>{cyl(g,.3,.24,.6,M.base,x,Y(F),z,10);const p=new T.Mesh(new T.IcosahedronGeometry(.5,1),M.leaf);p.position.set(x,Y(F+1),z);g.add(p);solid(x,z,.6,.6);};
   const chandelier=(x,z)=>{const r=new T.Mesh(new T.TorusGeometry(1.2,.1,6,20),M.gold);r.rotation.x=Math.PI/2;r.position.set(x,Y(H-.8),z);g.add(r);for(let i=0;i<8;i++){const a=i/8*Math.PI*2;candle(x+Math.cos(a)*1.2,H-.8,z+Math.sin(a)*1.2);}box(g,.05,.8,.05,M.iron,x,Y(H-.4),z);};
+  // Cortinas em todas as janelas (cor do andar) e quadros nas paredes livres.
+  {const cm=[M.velvet,M.velvetBlue,M.velvetGreen,M.velvet][k];
+   for(const lx of [-12,-8,8,12]){curtain(lx,BZ1-.5,Math.PI,cm);curtain(lx,BZ0+.5,0,cm);}
+   if(k>0)for(const lx of [-3,0,3])curtain(lx,BZ1-.5,Math.PI,cm);
+   for(const lz of [-12,-6,0,5]){curtain(-BX+.5,lz,Math.PI/2,cm);curtain(BX-.5,lz,-Math.PI/2,cm);}}
   if(k===0){
    // ---- Salão Principal ----
-   box(g,3,.03,BZ1-BZ0-5,M.carpet,0,Y(.43),(BZ0+BZ1)/2+1.5,0,3);
-   for(const sx of [-1,1])for(let z=BZ0+5;z<BZ1-1;z+=4){cyl(g,.45,.55,H-.4,M.trim,sx*4.2,Y(.4),z,12);box(g,1.2,.6,1.2,M.base,sx*4.2,Y(.7),z);}
+   box(g,3,.035,BZ1-BZ0-5,M.carpet,0,Y(F+.02),(BZ0+BZ1)/2+1.5,0,3);
+   for(const sx of [-1,1])for(let z=BZ0+5;z<BZ1-1;z+=4){cyl(g,.45,.55,H-.4,M.trim,sx*4.2,Y(.4),z,12);box(g,1.2,.6,1.2,M.base,sx*4.2,Y(.7),z);solid(sx*4.2,z,1.2,1.2);}
    chandelier(0,-6);chandelier(0,1);
    // Trono imponente: 3 degraus, encosto alto pontudo dourado, braços com leões, baldaquino, braseiros.
    const tz=BZ0+2.2;
@@ -172,37 +218,73 @@ function build(api,site){
    for(const sx of [-1,1])for(const sz of [-1,1])box(g,.25,4.8,.25,M.gold,sx*2.8,Y(3.7),tz+sz*1.8);
    box(g,6,.45,4,M.velvet,0,Y(6.1),tz);for(const sx of [-1,1])box(g,.1,3,3.8,M.red,sx*2.95,Y(4.6),tz);
    box(g,6.2,.15,.1,M.gold,0,Y(5.85),tz+2.02);
-   for(const sx of [-1,1]){cyl(g,.35,.5,1.5,M.iron,sx*4.2,Y(.4),tz+1.6,10);box(g,.7,.5,.7,M.fire,sx*4.2,Y(2.1),tz+1.6);box(g,1.5,5,.08,sx>0?M.blue:M.red,sx*4.6,Y(3.4),BZ0+.6);}
+   solid(0,tz+.4,8,4.4);
+   for(const sx of [-1,1]){cyl(g,.35,.5,1.5,M.iron,sx*4.2,Y(.4),tz+1.6,10);box(g,.7,.5,.7,M.fire,sx*4.2,Y(2.1),tz+1.6);box(g,1.5,5,.08,sx>0?M.blue:M.red,sx*4.6,Y(3.4),BZ0+.6);solid(sx*4.2,tz+1.6,.9,.9);}
+   // Quadros grandes e armaduras ao longo do salão.
+   for(const sx of [-1,1]){paint(sx*5.7,-5.5,-sx*Math.PI/2,sx>0?1:4,2.2,1.6,3.2);paint(sx*5.7,5.6,-sx*Math.PI/2,sx>0?0:6,1.6,1.2,3);armor(sx*5.2,-2,-sx*Math.PI/2);}
    // ---- Biblioteca (oeste, fundo) ----
    for(let z=BZ0+1.8;z<-5;z+=3.2)shelf(-BX+.8,z,3,5.4,Math.PI/2);
    for(let x=-14;x<-7;x+=3.2)shelf(x,BZ0+.8,3,5.4);
-   shelf(-10.5,-10.2,4.5,3.4);shelf(-10.5,-7.2,4.5,3.4);
-   table(-9,-5.4,2.4,1.2);chair(-9.6,-4.8,Math.PI);chair(-8.4,-4.8,Math.PI);candle(-9,.9,-5.4);
-   {const gl=new T.Mesh(new T.SphereGeometry(.5,14,10),M.blue);gl.position.set(-13.5,Y(1.5),-6);g.add(gl);box(g,.12,1,.12,M.woodDark,-13.5,Y(.9),-6);}
+   shelf(-10.5,-10.2,4.5,3.4);shelf(-10.5,-7.2,4.5,3.4,Math.PI);
+   table(-9,-5.4,2.4,1.2);chair(-9.6,-4.8,Math.PI);chair(-8.4,-4.8,Math.PI);candle(-9,1.3,-5.4);
+   {const gl=new T.Mesh(new T.SphereGeometry(.5,14,10),M.blue);gl.position.set(-13.5,Y(1.5),-6);g.add(gl);box(g,.12,1,.12,M.woodDark,-13.5,Y(.9),-6);solid(-13.5,-6,1,1);}
    // ---- Sala de Estudos (oeste, frente) ----
-   rug(-11,2,5,4);table(-11,2,2.6,1.4);chair(-11,3.1,Math.PI);chair(-11,.9,0);candle(-11,.95,2);shelf(-BX+.8,5,3,3,Math.PI/2);fireplace(-11,BZ1-1.1,Math.PI);
+   rug(-11,2,5,4);table(-11,2,2.6,1.4);chair(-11,3.1,Math.PI);chair(-11,.9,0);candle(-11,1.35,2);shelf(-BX+.8,5,3,3,Math.PI/2);fireplace(-11,BZ1-1.1,Math.PI);
+   paint(-9.5,-3.7,0,2);paint(-13,-3.7,0,7,1.2,1);plant(-7,6.6);
    // ---- Hall da escada (leste, frente) ----
-   rug(7.6,5,2.4,3.6);box(g,.6,.8,.6,M.base,14.5,Y(.8),6.6);{const p=new T.Mesh(new T.IcosahedronGeometry(.55,1),M.leaf);p.position.set(14.5,Y(1.6),6.6);g.add(p);}
+   rug(7.6,5,2.2,3.4);plant(14.5,6.6);paint(6.3,-1.5,Math.PI/2,5,1.2,1.6);
    // ---- Refeitório (leste, fundo) ----
-   table(11,-10,2,8,.9);for(let z=-13;z<=-7;z+=1.5){chair(9.6,z,Math.PI/2);chair(12.4,z,-Math.PI/2);}for(let z=-13;z<=-7;z+=2)candle(11,.97,z);fireplace(BX-1.1,-10,-Math.PI/2);
+   table(11,-10,2,8,.9);for(let z=-13;z<=-7;z+=1.5){chair(9.6,z,Math.PI/2);chair(12.4,z,-Math.PI/2);}for(let z=-13;z<=-7;z+=2)candle(11,1.37,z);fireplace(BX-1.1,-10,-Math.PI/2);
+   paint(6.3,-10,Math.PI/2,8,2,1.3);paint(6.3,-6.2,Math.PI/2,3,1.1,.9);
   }else if(k===1){
-   rug(0,2,5,4);for(let i=0;i<4;i++)paint(-4+i*2.7,BZ1-.8,0,i);for(const sx of [-1,1])box(g,1.6,.45,.5,M.wood,sx*2.5,Y(.62),2,0,2);chandelier(0,2);
-   {const t=new T.Mesh(new T.CylinderGeometry(2.2,2.2,.15,24),M.wood);t.position.set(0,Y(1.3),-10);g.add(t);cyl(g,.35,.45,.9,M.woodDark,0,Y(.4),-10,8);for(let i=0;i<8;i++){const a=i/8*Math.PI*2;chair(Math.cos(a)*3,-10+Math.sin(a)*3,-a-Math.PI/2);}chandelier(0,-10);}
-   rug(-11,2,4,3);table(-11,2.4,2.4,1.2);chair(-11,1.4,0);shelf(-BX+.8,2,3,4,Math.PI/2);candle(-10.4,.95,2.4);
-   table(-11,-10,3.2,2.2);box(g,3,.02,2,M.cloth,-11,Y(.93),-10);{const gl=new T.Mesh(new T.SphereGeometry(.45,14,10),M.blue);gl.position.set(-13.8,Y(1.4),-13.8);g.add(gl);}
-   for(let z=-13.5;z<-6;z+=1.6){box(g,.15,2,.15,M.woodDark,BX-1,Y(1.4),z);box(g,.1,1.6,.6,M.steel,BX-1.3,Y(1.6),z);}for(const x of [8,10]){box(g,.5,1.8,.4,M.steel,x,Y(1.3),-13.5);const hh=new T.Mesh(new T.SphereGeometry(.25,10,8),M.steel);hh.position.set(x,Y(2.4),-13.5);g.add(hh);}
+   // ---- Galeria (centro, frente) ----
+   rug(0,2.5,3.2,5);chandelier(0,2);
+   for(const sx of [-1,1]){box(g,.5,.45,1.6,M.wood,sx*3.6,Y(.62),2.5,0,2);solid(sx*3.6,2.5,.5,1.6);
+    paint(sx*5.7,-1.6,-sx*Math.PI/2,sx>0?0:2,1.8,1.2);paint(sx*5.7,5.8,-sx*Math.PI/2,sx>0?6:4,1.4,1.8);}
+   for(const x of [-3.5,3.5]){box(g,.7,1.1,.7,M.trim,x,Y(F+.55),6.6);const bust=new T.Mesh(new T.SphereGeometry(.3,12,10),M.cloth);bust.position.set(x,Y(F+1.45),6.6);g.add(bust);solid(x,6.6,.7,.7);}
+   // ---- Sala do Conselho (centro, fundo) ----
+   {const t=new T.Mesh(new T.CylinderGeometry(2.2,2.2,.15,24),M.wood);t.position.set(0,Y(1.3),-10);g.add(t);cyl(g,.35,.45,.9,M.woodDark,0,Y(.4),-10,8);for(let i=0;i<8;i++){const a=i/8*Math.PI*2;chair(Math.cos(a)*3,-10+Math.sin(a)*3,-a-Math.PI/2);}chandelier(0,-10);solid(0,-10,4.4,4.4);}
+   paint(0,BZ0+.55,0,1,3,2,3.3);box(g,1.5,5,.08,M.blue,-4.2,Y(3.4),BZ0+.6);box(g,1.5,5,.08,M.red,4.2,Y(3.4),BZ0+.6);
+   // ---- Escritório (oeste, frente) ----
+   rug(-11,2,4,3);table(-11,2.4,2.4,1.2);chair(-11,1.4,0);shelf(-BX+.8,2,3,4,Math.PI/2);candle(-10.4,1.35,2.4);paint(-10,-3.7,0,3);plant(-7,6.6);
+   // ---- Sala de Mapas (oeste, fundo) ----
+   table(-11,-10,3.2,2.2);box(g,3,.02,2,M.cloth,-11,Y(1.33),-10);{const gl=new T.Mesh(new T.SphereGeometry(.45,14,10),M.blue);gl.position.set(-13.8,Y(1.4),-13.8);g.add(gl);solid(-13.8,-13.8,1,1);}
+   paint(-6.3,-8,-Math.PI/2,0,2.4,1.6);paint(-6.3,-12.5,-Math.PI/2,6,1.2,1);
+   // ---- Arsenal (leste, fundo) ----
+   for(let z=-13.5;z<-6;z+=1.6){box(g,.15,2,.15,M.woodDark,BX-1,Y(1.4),z);box(g,.1,1.6,.6,M.steel,BX-1.3,Y(1.6),z);}solid(BX-1.1,-9.8,.8,8);
+   for(const x of [8,10])armor(x,-13.5,0);armor(12.5,-6,-Math.PI/2);
+   plant(14.5,6.6);
   }else if(k===2){
-   box(g,2.2,1,1.2,M.woodDark,-1.5,Y(.9),3,0,2);box(g,2.2,.06,.4,M.cloth,-1.5,Y(1.42),3.5);chair(-1.5,4.3,Math.PI);box(g,.2,2.2,1.2,M.gold,2,Y(1.5),2);rug(0,2,5,4);chandelier(0,2);
-   box(g,3,1.1,1.2,M.trim,0,Y(.95),-14);for(const x of [-1,0,1])candle(x,1.5,-14);for(let z=-11;z<=-6;z+=1.6)for(const sx of [-1,1])box(g,2.6,.45,.6,M.wood,sx*2,Y(.62),z,0,2);
-   bed(-11,1.5,0,true);rug(-11,4.5,4,2.2);box(g,1.6,2.4,.7,M.wood,-14.2,Y(1.6),-1,Math.PI/2,2);candle(-13.6,1.2,4);
-   for(let z=-14;z<-6;z+=2.2)box(g,1.8,2.6,.8,M.wood,-BX+1,Y(1.7),z,Math.PI/2,2);box(g,1.2,2.4,.08,M.steel,-8,Y(1.8),BZ0+.6);
-   bed(11.5,-11);box(g,1.2,.6,.6,M.wood,9,Y(.7),-13.8,0,2);rug(11,-8,3,2);
+   // ---- Salão de Música (centro, frente) ----
+   box(g,2.2,1,1.2,M.woodDark,-1.5,Y(.9),3,0,2);box(g,2.2,.06,.4,M.cloth,-1.5,Y(1.42),3.5);chair(-1.5,4.3,Math.PI);solid(-1.5,3,2.2,1.2);
+   box(g,.2,2.2,1.2,M.gold,2,Y(1.5),2);solid(2,2,.4,1.2);rug(0,2,4.6,3.6);chandelier(0,2);
+   for(const sx of [-1,1])paint(sx*5.7,0,-sx*Math.PI/2,sx>0?2:5,1.6,1.2);
+   // ---- Capela (centro, fundo) ----
+   box(g,3,1.1,1.2,M.trim,0,Y(.95),-14);for(const x of [-1,0,1])candle(x,1.5,-14);solid(0,-14,3,1.2);
+   for(let z=-11;z<=-6;z+=1.6)for(const sx of [-1,1]){box(g,2.6,.45,.6,M.wood,sx*2,Y(.62),z,0,2);solid(sx*2,z,2.6,.6);}
+   box(g,2.4,3.2,.08,M.glass,0,Y(3.6),BZ0+.55);box(g,2.7,3.5,.06,M.gold,0,Y(3.6),BZ0+.52);
+   // ---- Quarto Real (oeste, frente) ----
+   bed(-11,1.5,0,true);rug(-11,4.6,3.6,1.8);box(g,1.6,2.4,.7,M.wood,-14.2,Y(1.6),-1,Math.PI/2,2);solid(-14.2,-1,1.6,.7,Math.PI/2);candle(-13.6,1.2,4);
+   paint(-6.3,4.5,-Math.PI/2,1,1.2,1.6);plant(-7,6.6);
+   // ---- Quarto de Vestir (oeste, fundo) ----
+   for(let z=-14;z<-6;z+=2.2){box(g,1.8,2.6,.8,M.wood,-BX+1,Y(1.7),z,Math.PI/2,2);solid(-BX+1,z,1.8,.8,Math.PI/2);}
+   box(g,1.2,2.4,.08,M.steel,-8,Y(1.8),BZ0+.6);box(g,1.4,2.6,.05,M.gold,-8,Y(1.8),BZ0+.57);
+   // ---- Quarto de Hóspedes (leste, fundo) ----
+   bed(11.5,-11);box(g,1.2,.6,.6,M.wood,9,Y(.7),-13.8,0,2);solid(9,-13.8,1.2,.6);rug(11,-7.6,3,1.8);paint(6.3,-10,Math.PI/2,7);
+   plant(14.5,6.6);
   }else{
-   {const tel=new T.Mesh(new T.CylinderGeometry(.18,.3,3,10),M.gold);tel.rotation.z=-.8;tel.position.set(0,Y(2.2),-5);g.add(tel);cyl(g,.15,.15,1.4,M.woodDark,0,Y(.4),-5,6);rug(0,-5,6,6);
+   // ---- Observatório ----
+   {const tel=new T.Mesh(new T.CylinderGeometry(.18,.3,3,10),M.gold);tel.rotation.z=-.8;tel.position.set(0,Y(2.2),-5);g.add(tel);cyl(g,.15,.15,1.4,M.woodDark,0,Y(.4),-5,6);rug(0,-5,5,5);solid(0,-5,1,1);
     for(let i=0;i<10;i++){const s=new T.Mesh(new T.SphereGeometry(.12,6,5),M.candle);s.position.set(-2.5+rnd()*5,Y(H-.8-rnd()*1.5),-8+rnd()*6);g.add(s);}}
-   for(let i=0;i<6;i++){box(g,1.1,.7,.7,M.wood,-14+i*1.3,Y(.75),-14.5,0,2);box(g,1.1,.25,.75,M.gold,-14+i*1.3,Y(1.2),-14.5);}{const pile=new T.Mesh(new T.ConeGeometry(1.2,.8,10),M.gold);pile.position.set(-11,Y(.8),-10);g.add(pile);}
-   for(let i=0;i<4;i++){const s=new T.Mesh(new T.CircleGeometry(.6,8),M.paint[i]);s.position.set(-15.4,Y(2.5),-1+i*2);s.rotation.y=Math.PI/2;g.add(s);}box(g,.5,1.9,.5,M.steel,-10,Y(1.35),3);
-   box(g,2,2,2,M.iron,11,Y(1.4),-10);box(g,.3,2,.3,M.woodDark,11,Y(3.4),-10);
+   for(const sx of [-1,1])paint(sx*5.7,3,-sx*Math.PI/2,sx>0?0:3,1.8,1.2);
+   // ---- Tesouro ----
+   for(let i=0;i<6;i++){box(g,1.1,.7,.7,M.wood,-14+i*1.3,Y(.75),-14.5,0,2);box(g,1.1,.25,.75,M.gold,-14+i*1.3,Y(1.2),-14.5);}solid(-10.75,-14.5,7.8,.75);
+   {const pile=new T.Mesh(new T.ConeGeometry(1.2,.8,10),M.gold);pile.position.set(-11,Y(.8),-10);g.add(pile);solid(-11,-10,2.2,2.2);}
+   // ---- Sala dos Troféus ----
+   for(let i=0;i<4;i++){const s=new T.Mesh(new T.CircleGeometry(.6,8),M.paint[i]);s.position.set(-15.4,Y(2.5),-1+i*2);s.rotation.y=Math.PI/2;g.add(s);}box(g,.5,1.9,.5,M.steel,-10,Y(1.35),3);solid(-10,3,.6,.6);
+   paint(-6.3,2,-Math.PI/2,4);armor(-8,6,Math.PI);
+   // ---- Acesso ao Campanário ----
+   box(g,2,2,2,M.iron,11,Y(1.4),-10);box(g,.3,2,.3,M.woodDark,11,Y(3.4),-10);solid(11,-10,2,2);
   }
   for(const [x,z] of [[-15.3,-10],[-15.3,3],[15.3,-10],[15.3,5.6],[-3,BZ0+.7],[3,BZ0+.7]])candle(x,2.6,z);
  }
@@ -347,6 +429,8 @@ const curtainMat=new T.ShaderMaterial({transparent:true,side:T.DoubleSide,depthW
 function buildPlaza(api,site){
  const scene=api.scene,h=window.arcanoIslandHeight,O=window.arcanoObstacles;
  const st=new T.Group();const z0=30.5,z1=74,STEP=.7;
+ // Sem grama na escadaria nem na praça do chafariz.
+ (window.arcanoNoGrass=window.arcanoNoGrass||[]).push((x,z)=>(Math.abs(x-site.x)<5.4&&z>site.z+z0-2&&z<site.z+z1+2)||Math.hypot(x-site.x,z-site.z-88)<10);
  for(let z=z0;z<z1;z+=STEP){const wz=site.z+z,y=h(site.x,wz);box(st,9,.5,STEP+.05,M.trim,site.x,y-.08,wz,0,2);for(const sx of [-1,1])box(st,.6,1.1,STEP+.05,M.wall,site.x+sx*4.8,y+.45,wz);}
  for(const sx of [-1,1])for(let z=z0;z<z1;z+=6){const wz=site.z+z,y=h(site.x,wz);box(st,.8,2.2,.8,M.wall,site.x+sx*4.8,y+1,wz);box(st,.45,.55,.45,M.glass,site.x+sx*4.8,y+2.4,wz);box(st,.6,.15,.6,M.iron,site.x+sx*4.8,y+2.75,wz);}
  mergeInto(st,scene,'Escadaria do castelo');
@@ -387,10 +471,85 @@ function buildPlaza(api,site){
  (function tick(){requestAnimationFrame(tick);const t=(performance.now()-start)/1000;fountainWaterMat.uniforms.uTime.value=t;curtainMat.uniforms.uTime.value=t;})();
 }
 
+// ---------- Jardim dentro do muro do castelo ----------
+// Gramado com a grama do jogo, caminhos de cascalho, sebes, canteiros de flores,
+// laguinhos, bancos, lampiões e árvores copiadas da floresta original.
+function buildGarden(api,site){
+ const scene=api.scene,O=window.arcanoObstacles,Y=site.y;
+ const g=new T.Group();
+ const W=(x,z)=>({x:site.x+x,z:site.z+z});
+ const solidW=(x,z,hw,hd)=>{if(!O)return;const w=W(x,z);O.addBox({x:w.x,z:w.z,hw,hd,rot:0,ymin:Y-1,ymax:Y+4});};
+ const RIN=27.4;
+ const building=(x,z)=>(Math.abs(x)<17.2&&z>-17.2&&z<13)||(Math.abs(x)<20&&((z>4.5&&z<11.8)||(z>-20&&z<-12.5)))||(Math.abs(x)<6.2&&z>-29&&z<-16.8);
+ const PONDS=[{x:-20.5,z:-5,r:1.8},{x:20.5,z:-5,r:1.8}];
+ const BEDS=[];for(const sx of [-1,1])for(const z of [16,24])BEDS.push({x:sx*9.5,z,hw:2.2,hd:1.3});
+ const onPath=(x,z)=>(Math.abs(x)<2.4&&z>11)||(Math.abs(z-20)<1.1&&Math.abs(x)<16)||(Math.abs(Math.abs(x)-24)<1.1&&z>-14&&z<6);
+ const lawn=(x,z)=>{const r=Math.hypot(x,z);if(r>RIN-.6||building(x,z)||onPath(x,z))return false;
+  for(const p of PONDS)if(Math.hypot(x-p.x,z-p.z)<p.r+.6)return false;for(const b of BEDS)if(Math.abs(x-b.x)<b.hw+.3&&Math.abs(z-b.z)<b.hd+.3)return false;
+  if(Math.abs(Math.abs(x)-2.9)<.6&&z>12.5&&z<27.5&&Math.abs(z-20)>1.6)return false;return true;};
+ // Gramado (disco verde) e caminhos de cascalho por cima.
+ const turfTex=canvasTex(128,128,(c,w,h)=>{c.fillStyle='#5f9a48';c.fillRect(0,0,w,h);for(let i=0;i<700;i++){c.fillStyle=`hsl(${95+rnd()*20},${40+rnd()*20}%,${32+rnd()*16}%)`;c.fillRect(rnd()*w,rnd()*h,2,3);}});
+ const turf=new T.Mesh(new T.CircleGeometry(RIN,64),mat({color:'#ffffff',map:turfTex}));turf.geometry.attributes.uv.array.forEach((v,i,a)=>{a[i]=v*12;});
+ turf.rotation.x=-Math.PI/2;turf.position.set(site.x,Y+.03,site.z);turf.receiveShadow=true;turf.name='Gramado do jardim do castelo';scene.add(turf);
+ const gravelTex=canvasTex(128,128,(c,w,h)=>{c.fillStyle='#cbbd9f';c.fillRect(0,0,w,h);for(let i=0;i<900;i++){c.fillStyle=`hsl(${30+rnd()*15},${10+rnd()*12}%,${60+rnd()*22}%)`;c.beginPath();c.arc(rnd()*w,rnd()*h,1+rnd()*1.6,0,6.3);c.fill();}});
+ const gravel=mat({color:'#ffffff',map:gravelTex});
+ box(g,4.6,.06,16,gravel,0,Y+.06,19.5,0,3);box(g,32,.06,2.2,gravel,0,Y+.065,20,0,3);
+ for(const sx of [-1,1])box(g,2.2,.06,20,gravel,sx*24,Y+.06,-4,0,3);
+ // Sebes baixas dos dois lados do caminho principal (aberturas no cruzamento).
+ const hedgeM=mat({color:'#3f7a3a'});
+ for(const sx of [-1,1])for(const [z0,z1] of [[12.6,18.4],[21.6,27.4]]){box(g,.8,1,z1-z0,hedgeM,sx*2.9,Y+.5,(z0+z1)/2);solidW(sx*2.9,(z0+z1)/2,.4,(z1-z0)/2);}
+ // Canteiros de flores com borda de pedra.
+ const flowerM=[mat({color:'#ff7aa8'}),mat({color:'#ffd35a'}),mat({color:'#a98bff'}),mat({color:'#ff8c5a'}),mat({color:'#ffffff'})];
+ for(const b of BEDS){
+  for(const sx of [-1,1]){box(g,b.hw*2+.4,.35,.2,M.trim,b.x,Y+.17,b.z+sx*(b.hd+.1));box(g,.2,.35,b.hd*2,M.trim,b.x+sx*(b.hw+.1),Y+.17,b.z);}
+  box(g,b.hw*2,.25,b.hd*2,mat({color:'#5a3f2a'}),b.x,Y+.12,b.z);
+  for(let i=0;i<46;i++){const f=new T.Mesh(new T.IcosahedronGeometry(.14+rnd()*.06,0),flowerM[i%5]);f.position.set(b.x+(rnd()*2-1)*(b.hw-.2),Y+.42+rnd()*.15,b.z+(rnd()*2-1)*(b.hd-.2));g.add(f);
+   const st=new T.Mesh(new T.IcosahedronGeometry(.16,0),hedgeM);st.position.set(f.position.x,Y+.28,f.position.z);g.add(st);}
+  solidW(b.x,b.z,b.hw+.2,b.hd+.2);
+ }
+ // Laguinhos com borda de pedra e água animada.
+ for(const p of PONDS){
+  const rim=new T.Mesh(new T.TorusGeometry(p.r,.28,8,28),M.trim);rim.rotation.x=Math.PI/2;rim.position.set(p.x,Y+.22,p.z);g.add(rim);
+  const w=new T.Mesh(new T.CircleGeometry(p.r,32),fountainWaterMat);w.rotation.x=-Math.PI/2;w.position.set(site.x+p.x,Y+.25,site.z+p.z);scene.add(w);
+  for(let i=0;i<3;i++){const lp=new T.Mesh(new T.CircleGeometry(.35,10),mat({color:'#4f9a4a'}));lp.rotation.x=-Math.PI/2;lp.position.set(site.x+p.x+(rnd()-.5)*2.4,Y+.27,site.z+p.z+(rnd()-.5)*2.4);scene.add(lp);}
+  if(O){const ww=W(p.x,p.z);O.addCircle(ww.x,ww.z,p.r+.25,{ymin:Y-1,ymax:Y+3});}
+ }
+ // Bancos e lampiões ao longo dos caminhos.
+ for(const sx of [-1,1])for(const z of [15.5,24.5]){const x=sx*4.1;box(g,.5,.12,1.8,M.wood,x,Y+.5,z,0,2);box(g,.1,.6,1.8,M.wood,x+sx*.25,Y+.85,z,0,2);for(const dz of [-.7,.7])box(g,.4,.45,.12,M.iron,x,Y+.23,z+dz);solidW(x,z,.35,.95);}
+ for(const [x,z] of [[-3.6,12.8],[3.6,12.8],[-3.6,27],[3.6,27],[-16,20],[16,20],[-24,6.5],[24,6.5],[-24,-13],[24,-13]]){
+  cyl(g,.08,.1,2.6,M.iron,x,Y,z,8);box(g,.38,.46,.38,M.glass,x,Y+2.85,z);box(g,.5,.1,.5,M.iron,x,Y+3.12,z);if(O){const w=W(x,z);O.addCircle(w.x,w.z,.2,{ymin:Y-1,ymax:Y+3});}}
+ g.position.set(site.x,0,site.z);
+ mergeInto(g,scene,'Jardim do castelo');
+ // Grama do jogo no gramado (mesma malha e material dos tufos).
+ (function grass(){
+  const kinds=new Map();scene.traverse(o=>{if(o.isInstancedMesh&&o.name&&o.name.startsWith('Tapete de grama')&&!o.name.includes('Ilha')&&!kinds.has(o.geometry.uuid))kinds.set(o.geometry.uuid,o);});
+  if(!kinds.size){setTimeout(grass,1500);return;}
+  const types=[...kinds.values()],lists=types.map(()=>[]);
+  for(let i=0;i<5200;i++){const a=rnd()*Math.PI*2,r=Math.sqrt(rnd())*RIN,x=Math.cos(a)*r,z=Math.sin(a)*r;if(!lawn(x,z))continue;lists[i%types.length].push([x,z,rnd()]);}
+  const m4=new T.Matrix4(),q=new T.Quaternion(),e=new T.Euler(),p=new T.Vector3(),s=new T.Vector3();
+  lists.forEach((l,t)=>{if(!l.length)return;const im=new T.InstancedMesh(types[t].geometry,types[t].material,l.length);im.name='Tapete de grama Jardim do castelo';
+   l.forEach(([x,z,r],i)=>{m4.compose(p.set(site.x+x,Y+.02,site.z+z),q.setFromEuler(e.set(0,r*6.28,0)),s.setScalar(.8+r*.35));im.setMatrixAt(i,m4);});
+   im.instanceMatrix.needsUpdate=true;im.receiveShadow=true;im.computeBoundingSphere&&im.computeBoundingSphere();scene.add(im);});
+ })();
+ // Árvores: cópias dos modelos originais da floresta (em pé).
+ (function trees(){
+  const anchors=(api.forestInstances||[]).filter(a=>(a.type==='tree'||a.type==='pine')&&a.obj&&a.obj.scale.x>.01);
+  if(anchors.length<8){setTimeout(trees,2500);return;}
+  const spots=[[-13.5,25],[13.5,25],[-12,14.5],[12,14.5],[-21,8.8],[21,8.8],[-20.5,-10.5],[20.5,-10.5],[-10,-23.5],[10,-23.5]];
+  const models=[];for(const a of anchors)if(a.type==='tree'&&!models.some(m=>m.modelName===a.modelName))models.push(a);
+  spots.forEach(([x,z],i)=>{const a=models[i%models.length]||anchors[0];
+   const rx=a.obj.rotation.x,rz=a.obj.rotation.z;a.obj.rotation.x=0;a.obj.rotation.z=0;
+   const t=a.obj.clone(true);a.obj.rotation.x=rx;a.obj.rotation.z=rz;
+   const off=a.obj.position.y-(a.contactY??a.y);
+   t.position.set(site.x+x,Y+off,site.z+z);t.rotation.set(0,rnd()*6.28,0);t.scale.multiplyScalar(.75);t.name='Árvore do jardim do castelo';
+   scene.add(t);if(O){const w=W(x,z);O.addCircle(w.x,w.z,.45,{ymin:Y-1,ymax:Y+6});}});
+ })();
+}
+
 function install(){
  const api=window.arcanoWaterV1226,site=window.arcanoCastleSite;
  if(!api||!api.scene||!site||!window.arcanoIslandHeight){setTimeout(install,300);return;}
- const c=build(api,site);buildPlaza(api,site);
+ const c=build(api,site);buildPlaza(api,site);buildGarden(api,site);
  window.arcanoCastle={site,root:c.root};
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install();

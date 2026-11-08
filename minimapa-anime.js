@@ -81,6 +81,12 @@ function build(){
      const [px,py]=toPx(p.x,p.z);g.beginPath();g.arc(px,py,1.4,0,6.3);g.fill();}
    });
   }
+  // Casas da vila e o mirante.
+  const V=isl.village;
+  if(V&&V.pads){
+   for(const p of V.pads){const [px,py]=toPx(p.x,p.z),s=Math.max(3,p.w/step);g.save();g.translate(px,py);g.rotate(-p.rot);g.fillStyle='#b5523e';g.fillRect(-s/2,-s/2,s,s*.8);g.strokeStyle='#4a2a1a';g.lineWidth=1;g.strokeRect(-s/2,-s/2,s,s*.8);g.restore();}
+   if(V.peakPad){const [px,py]=toPx(V.peakPad.x,V.peakPad.z);g.fillStyle='#3f9a7a';g.beginPath();g.arc(px,py,4,0,6.3);g.fill();}
+  }
   ready=true;
  }
  chunk();

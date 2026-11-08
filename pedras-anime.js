@@ -95,6 +95,7 @@ function build(api,ground){
  const geos=[0,1,2].map(rockGeometry);
  const material=new T.MeshStandardMaterial({color:'#b9bec6',roughness:1,metalness:0});
  const group=new T.Group();group.name='Pedras anime';
+ const lowRocks=[];
  const m=new T.Matrix4(),q=new T.Quaternion(),e=new T.Euler(),pos=new T.Vector3(),sc=new T.Vector3();
  for(let v=0;v<3;v++){
   const list=spots.filter(s=>s.v===v);
@@ -111,8 +112,10 @@ function build(api,ground){
    lo=Math.min(lo,ground.heightAt(s.x,s.z));
    const sy=s.r*(.75+rnd()*.35);
    const y=lo-sy*.68*.3;
-   // Pedras médias e grandes bloqueiam a passagem (as pequenas dá para pisar por cima).
-   if(s.r>.4&&window.arcanoObstacles)window.arcanoObstacles.addCircle(s.x,s.z,s.r*.8);
+   // Pedras altas bloqueiam; as baixas (até ~70 cm) viram chão: dá para subir nelas.
+   const topY=y+sy*.95;
+   if(topY-ground.heightAt(s.x,s.z)>.7){if(window.arcanoObstacles)window.arcanoObstacles.addCircle(s.x,s.z,s.r*.8);}
+   else lowRocks.push({x:s.x,z:s.z,r:s.r*.85,top:topY});
    e.set(s.tilt,s.rot,s.tilt*.6);q.setFromEuler(e);
    m.compose(pos.set(s.x,y,s.z),q,sc.set(s.r,sy,s.r*(.85+rnd()*.3)));
    mesh.setMatrixAt(i,m);
@@ -124,6 +127,15 @@ function build(api,ground){
   group.add(mesh);
  }
  api.scene.add(group);
+ // Pedras baixas: o chão sobe em cúpula por cima delas (o personagem passa por cima).
+ const cells=new Map(),key=(i,j)=>i+','+j;
+ for(const r of lowRocks){const i=Math.floor(r.x/4),j=Math.floor(r.z/4);for(let a=i-1;a<=i+1;a++)for(let b=j-1;b<=j+1;b++){const k=key(a,b);if(!cells.has(k))cells.set(k,[]);cells.get(k).push(r);}}
+ if(window.arcanoGroundOverrides)window.arcanoGroundOverrides.push((x,z)=>{
+  const list=cells.get(key(Math.floor(x/4),Math.floor(z/4)));if(!list)return null;
+  let best=null;
+  for(const r of list){const d=Math.hypot(x-r.x,z-r.z)/r.r;if(d<1){const y=r.top-(r.top-ground.heightAt(r.x,r.z))*d*d;if(best==null||y>best)best=y;}}
+  return best;
+ });
  window.arcanoAnimeRocks={group,count:spots.length,spots};
 }
 
