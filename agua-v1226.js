@@ -4092,6 +4092,8 @@ function safeGameCameraDistance(focus,desired){
 const gameCameraOffset=new T.Vector3();
 const gameCameraSmooth={focus:NaN,ground:NaN,floor:NaN};
 function applyGameCamera(){
+ // Primeira pessoa (primeira-pessoa.js): a câmera fica nos olhos do personagem.
+ if(typeof window!=="undefined"&&window.arcanoFirstPerson&&window.arcanoFirstPerson.active){window.arcanoFirstPerson.apply(camera,game,worldGround);return;}
  const goal=game.position;
  const reach=Math.cos(game.camPitch)*game.camDistance;
  const bx=-Math.sin(game.camHeading)*reach,bz=-Math.cos(game.camHeading)*reach;

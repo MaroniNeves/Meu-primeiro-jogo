@@ -928,7 +928,9 @@ function install(){
   const ruv=ring.attributes.uv,rp=ring.attributes.position;
   for(let i=0;i<rp.count;i++)ruv.setXY(i,rp.getX(i)/(2*CITY_R)+.5,rp.getZ(i)/(2*CITY_R)+.5);
   const pave=new T.Mesh(ring,new T.MeshStandardMaterial({map:tex,roughness:1,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}));
-  pave.position.set(C.x,CITY_Y+.04,C.z);pave.receiveShadow=true;pave.name='Piso da cidade Aurora (área a construir)';
+  pave.position.set(C.x,CITY_Y+.09,C.z); // 9 cm acima do terreno (antes 4: as duas superfícies brigavam)
+  if(window.arcanoGroundOverrides)window.arcanoGroundOverrides.push((px,pz)=>{const d=Math.hypot(px-C.x,pz-C.z);return d>CASTLE_R+27&&d<CITY_R-1.2?CITY_Y+.09:null;});
+  pave.receiveShadow=true;pave.name='Piso da cidade Aurora (área a construir)';
   scene.add(pave);
   // Meio-fio de pedra nas duas bordas do piso (sem fresta entre piso e chão).
   for(const r of [CASTLE_R+27,CITY_R-1.2]){
