@@ -39,18 +39,22 @@ function install(){
  const scene=api.scene;
  const half=z=>typeof river.halfWidth==='function'?river.halfWidth(z):river.halfWidth;
  const roadZ=x=>.92-.70*Math.sin(x*.47+.6)+.17*Math.sin(x*1.34);
- const LAKE={x:river.center(-50),z:-67,r:13,y:river.levelAt(-50)};
+ // Lago maior (elipse 60 x 30 m). lakeE = 1 na margem, <1 dentro.
+ const LAKE={x:river.center(-50),z:-71,rx:30,rz:15,r:15,y:river.levelAt(-50)};
+ const lakeE=(x,z)=>Math.hypot((x-LAKE.x)/LAKE.rx,(z-LAKE.z)/LAKE.rz);
+ // Montanha encostada na cidade (oeste) com a nascente do afluente na ponta.
+ const MT={x:-178,z:-186,h:44,sig:30};
 
  // ---------- Estradas (polilinhas) ----------
  const gate=(ang,extra=0)=>({x:C.x+Math.cos(ang)*(CITY_R+extra),z:C.z+Math.sin(ang)*(CITY_R+extra)});
  const PORT={x:C.x+R*.80,z:C.z+18};
  const roads=[
   // Portão sul da cidade até a borda norte da área detalhada (perto do lago).
-  [gate(Math.PI/2,2),{x:34,z:-84},{x:30,z:-52}],
+  [gate(Math.PI/2,2),{x:46,z:-92},{x:42,z:-52}],
   // Estrada da área detalhada, a leste, até o porto.
   [{x:INNER.x1,z:roadZ(INNER.x1)},{x:120,z:-20},{x:210,z:-110},{x:PORT.x-30,z:PORT.z},PORT],
   // Estrada da área detalhada, a oeste, contornando até o grande portão (sul).
-  [{x:INNER.x0,z:roadZ(INNER.x0)},{x:-110,z:-20},{x:-70,z:-80},{x:-14,z:-92},gate(Math.PI/2,6)],
+  [{x:INNER.x0,z:roadZ(INNER.x0)},{x:-110,z:-20},{x:-72,z:-82},{x:-38,z:-98},gate(Math.PI/2,6)],
   // Rua que atravessa o portão e entra na cidade.
   [gate(Math.PI/2,14),gate(Math.PI/2,-30)]
  ];
@@ -80,8 +84,39 @@ function install(){
   // (dentro da cidade o piso é plano: estradas não rebaixam o chão)
   y-=.25*(1-sm(2,6,rd))*sm(CITY_R+3,CITY_R+10,d);
   // Borda arredondada antes da queda para o céu.
+  // Montanha (não sobe dentro da cidade).
+  const md=Math.hypot(x-MT.x,z-MT.z);
+  y+=MT.h*Math.exp(-md*md/(2*MT.sig*MT.sig))*(1+.12*Math.sin(x*.21)*Math.sin(z*.17))*sm(CITY_R+4,CITY_R+24,d);
   const e=sm(R-45,R,d);y-=7*e*e;
   return y;
+ }
+ // ---------- Afluente: nasce na ponta da montanha e desce até o lago ----------
+ const STREAM_W=2.6;
+ const stream=(()=>{
+  const dir=Math.atan2(LAKE.z-MT.z,LAKE.x-MT.x);
+  const sp={x:MT.x+Math.cos(dir)*22,z:MT.z+Math.sin(dir)*22};
+  const way=[sp,{x:-136,z:-152},{x:-110,z:-126},{x:-82,z:-104},{x:-56,z:-86},{x:LAKE.x-LAKE.rx+3,z:LAKE.z-1}];
+  const pts=[];
+  for(let i=0;i<way.length-1;i++){const a=way[i],b=way[i+1],L=Math.hypot(b.x-a.x,b.z-a.z),k=Math.ceil(L/2);
+   for(let j=0;j<k;j++){const t=j/k;pts.push({x:a.x+(b.x-a.x)*t+Math.sin((i*k+j)*.35)*1.2,z:a.z+(b.z-a.z)*t});}}
+  pts.push(way[way.length-1]);
+  // Nível da água: sempre abaixo do terreno e só descendo (corredeiras na encosta).
+  let lvl=Infinity;
+  for(const p of pts){lvl=Math.min(lvl,field(p.x,p.z)-.6);p.level=Math.max(lvl,LAKE.y);}
+  let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;for(const p of pts){x0=Math.min(x0,p.x);x1=Math.max(x1,p.x);z0=Math.min(z0,p.z);z1=Math.max(z1,p.z);}
+  return {pts,box:[x0-12,x1+12,z0-12,z1+12],spring:pts[0]};
+ })();
+ // Distância ao afluente e nível da água no ponto mais próximo.
+ function streamInfo(x,z){
+  const b=stream.box;if(x<b[0]||x>b[1]||z<b[2]||z>b[3])return null;
+  let best=1e9,lev=0,t0=0;
+  const P=stream.pts;
+  for(let i=0;i<P.length-1;i++){
+   const a=P[i],c=P[i+1],vx=c.x-a.x,vz=c.z-a.z,wx=x-a.x,wz=z-a.z;
+   const t=clamp((wx*vx+wz*vz)/(vx*vx+vz*vz),0,1),dd=Math.hypot(wx-vx*t,wz-vz*t);
+   if(dd<best){best=dd;lev=a.level+(c.level-a.level)*t;t0=i+t;}
+  }
+  return {d:best,level:lev,s:t0};
  }
  // Rio ao sul (continua o rio da área detalhada) e lago da nascente ao norte.
  // Canal do rio com a MESMA fórmula da área detalhada (agua-v1226.js, elevation):
@@ -95,13 +130,24 @@ function install(){
  }
  function carve(x,z,y){
   if(z>INNER.z1-4)y=channel(x,z,y,river.levelAt(z),half(z));
-  if(z<INNER.z0+4&&z>LAKE.z-LAKE.r-14){
+  {
+   const si=streamInfo(x,z);
+   if(si&&si.d<STREAM_W+6){
+    const depth=.75-1.2*sI(clamp((si.d/STREAM_W-.45)/.5,0,1));
+    const bankT=sI(clamp((STREAM_W+6-si.d)/6,0,1));
+    y=y+(si.level-depth-y)*bankT;
+   }
+   // Poço da nascente.
+   const ds=Math.hypot(x-stream.spring.x,z-stream.spring.z);
+   if(ds<7){const bed=stream.spring.level-1.1*(1-ds/4.5);y=y+(Math.min(y,bed)-y)*sI(clamp((7-ds)/3,0,1));}
+  }
+  if(z<INNER.z0+4&&z>LAKE.z-LAKE.rz-14){
    // Canal da nascente: mesmo perfil, com o nível do lago.
    if(z>LAKE.z)y=channel(x,z,y,LAKE.y,half(z));
    // Bacia do lago com margem suave.
-   const dl=Math.hypot(x-LAKE.x,z-LAKE.z);
-   const bankT=sI(clamp((LAKE.r+7-dl)/7,0,1));
-   const bed=LAKE.y-(.95+1.8*(1-clamp(dl/LAKE.r,0,1)**2))+1.65*sI(clamp((dl/LAKE.r-.3)/.7,0,1));
+   const le=lakeE(x,z),bw=7/LAKE.rz;
+   const bankT=sI(clamp((1+bw-le)/bw,0,1));
+   const bed=LAKE.y-(.95+2.2*(1-clamp(le,0,1)**2))+1.65*sI(clamp((le-.45)/.55,0,1));
    y=y+(bed-y)*bankT;
   }
   return y;
@@ -150,8 +196,9 @@ function install(){
   // Margens do rio/lago (fora da área detalhada).
   let sd=99,hw=9;
   if(z>INNER.z1-2){sd=Math.abs(x-river.center(z))-half(z);hw=y-river.levelAt(z);}
-  const dl=Math.hypot(x-LAKE.x,z-LAKE.z)-LAKE.r;
+  const dl=(lakeE(x,z)-1)*LAKE.rz;
   if(dl<sd&&z<INNER.z0+2){sd=dl;hw=y-LAKE.y;}
+  {const si=streamInfo(x,z);if(si&&si.d-STREAM_W<sd){sd=si.d-STREAM_W;hw=y-si.level;}}
   if(sd<14)g*=sm(2.6,4.6,sd)*sm(.55,1.1,hw);
   const od=outsideDist(x,z),seam=sm(0,25,od);
   if(seam<1){
@@ -429,7 +476,7 @@ function install(){
   // Nascente: lago + canal numa ÚNICA superfície d'água (sem sobreposição,
   // que deixava uma cunha mais escura), terminando exatamente onde o rio começa.
   {
-   const xA=LAKE.x-LAKE.r-6,xB=LAKE.x+LAKE.r+6,zA=LAKE.z-LAKE.r-4,zB=INNER.z0,S=.5;
+   const xA=LAKE.x-LAKE.rx-6,xB=LAKE.x+LAKE.rx+6,zA=LAKE.z-LAKE.rz-4,zB=INNER.z0,S=.7;
    const nx=Math.round((xB-xA)/S)+1,nz=Math.round((zB-zA)/S)+1;
    const p=new Float32Array(nx*nz*3),uvA=new Float32Array(nx*nz*2),dep=new Float32Array(nx*nz),fl=new Float32Array(nx*nz*2),ix=[];
    for(let j=0;j<nz;j++)for(let i=0;i<nx;i++){
@@ -450,6 +497,43 @@ function install(){
    lg.setIndex(ix);
    const lake=new T.Mesh(lg,shareMat(-9999));lake.name='Lago da nascente';lake.frustumCulled=false;lake.renderOrder=3;
    scene.add(lake);
+  }
+  // Afluente: faixa de água seguindo o leito, da nascente até o lago.
+  {
+   const P=stream.pts,COLS=7,pos=[],uvs=[],dep=[],fl=[],ix=[];
+   P.forEach((p,i)=>{
+    const q=P[Math.min(P.length-1,i+1)],o=P[Math.max(0,i-1)];
+    let tx=q.x-o.x,tz=q.z-o.z;const tl=Math.hypot(tx,tz)||1;tx/=tl;tz/=tl;
+    const slope=Math.max(0,(o.level-q.level)/Math.max(.1,Math.hypot(q.x-o.x,q.z-o.z)));
+    const sp=.35+Math.min(.9,slope*4);
+    for(let c=0;c<COLS;c++){
+     const off=(c/(COLS-1)*2-1)*STREAM_W*.98,x=p.x-tz*off,z=p.z+tx*off;
+     pos.push(x,p.level+.003,z);uvs.push(c/(COLS-1),i/(P.length-1));
+     dep.push(Math.max(0,p.level-window.arcanoIslandHeight(x,z)));fl.push(tx*sp,tz*sp);
+     if(i<P.length-1&&c<COLS-1){const a=i*COLS+c,b=a+1,cc=a+COLS,d=cc+1;ix.push(a,cc,b,b,cc,d);}
+    }
+   });
+   const sg=new T.BufferGeometry();
+   sg.setAttribute('position',new T.Float32BufferAttribute(pos,3));sg.setAttribute('uv',new T.Float32BufferAttribute(uvs,2));
+   sg.setAttribute('waterDepth',new T.Float32BufferAttribute(dep,1));sg.setAttribute('waterFlow',new T.Float32BufferAttribute(fl,2));
+   sg.setIndex(ix);
+   const sm_=new T.Mesh(sg,shareMat(-9999));sm_.name='Afluente da nascente';sm_.frustumCulled=false;sm_.renderOrder=3;scene.add(sm_);
+   // Poço da nascente (água parada no alto da montanha).
+   const pg=new T.CircleGeometry(4.8,32);pg.rotateX(-Math.PI/2);
+   const pp=pg.attributes.position,pd=new Float32Array(pp.count),pf=new Float32Array(pp.count*2);
+   for(let i=0;i<pp.count;i++){const x=pp.getX(i)+stream.spring.x,z=pp.getZ(i)+stream.spring.z;pp.setXYZ(i,x,stream.spring.level+.01,z);pd[i]=Math.max(0,stream.spring.level-window.arcanoIslandHeight(x,z));pf[i*2]=.05;pf[i*2+1]=.05;}
+   pg.setAttribute('waterDepth',new T.BufferAttribute(pd,1));pg.setAttribute('waterFlow',new T.BufferAttribute(pf,2));
+   const pool=new T.Mesh(pg,shareMat(-9999));pool.name='Poço da nascente';pool.frustumCulled=false;pool.renderOrder=3;scene.add(pool);
+   // Rochas em volta da nascente.
+   const rg=new T.SphereGeometry(1,14,10);const rp=rg.attributes.position,vv=new T.Vector3();
+   for(let i=0;i<rp.count;i++){vv.fromBufferAttribute(rp,i);vv.multiplyScalar(1+.2*Math.sin(vv.x*4+vv.z*3));vv.y*=.75;rp.setXYZ(i,vv.x,vv.y,vv.z);}
+   rg.computeVertexNormals();
+   for(let k=0;k<9;k++){
+    const a=k/9*Math.PI*2+.3;if(Math.abs(Math.atan2(Math.sin(a-Math.atan2(P[3].z-P[0].z,P[3].x-P[0].x)),Math.cos(a-Math.atan2(P[3].z-P[0].z,P[3].x-P[0].x))))<.5)continue;
+    const r=new T.Mesh(rg,new T.MeshStandardMaterial({color:'#aaa59c',roughness:1}));
+    const x=stream.spring.x+Math.cos(a)*5.6,z=stream.spring.z+Math.sin(a)*5.6,s=1.2+rnd()*1.4;
+    r.position.set(x,window.arcanoIslandHeight(x,z)-.3,z);r.scale.set(s,s*(1+rnd()*.8),s);r.name='Pedra da nascente';scene.add(r);
+   }
   }
  }
 
@@ -636,7 +720,7 @@ function install(){
     const p=P[i],q=P[Math.min(P.length-1,i+1)],o=P[Math.max(0,i-1)];
     let tx=q.x-o.x,tz=q.z-o.z;const tl=Math.hypot(tx,tz)||1;tx/=tl;tz/=tl;
     if(prev)along+=Math.hypot(p.x-prev.x,p.z-prev.z);prev=p;
-    const onBridge=bridge&&bridge.center&&Math.abs(p.x-bridge.center.x)<bridge.span/2+1&&Math.abs(p.z-bridge.center.z)<3;
+    const onBridge=bridge&&bridge.center&&Math.abs(p.x-bridge.center.x)<bridge.span/2+1&&Math.abs(p.z-bridge.center.z)<3||((streamInfo(p.x,p.z)||{d:99}).d<STREAM_W+1.2); // vau do afluente: sem calçada
     const base=pos.length/3;
     for(let c=0;c<3;c++){
      const off=(c-1)*line.w,x=p.x-tz*off,z=p.z+tx*off;
@@ -697,7 +781,8 @@ function install(){
    if(outsideDist(x,z)<6)continue;
    if(roadDist(x,z)<6||Math.hypot(x-PORT.x,z-PORT.z)<30)continue;
    if(z>INNER.z1-4&&Math.abs(x-river.center(z))<half(z)+8)continue;
-   if(Math.hypot(x-LAKE.x,z-LAKE.z)<LAKE.r+8||(z<INNER.z0+2&&z>LAKE.z&&Math.abs(x-river.center(z))<half(z)+7))continue;
+   {const si=streamInfo(x,z);if(si&&si.d<STREAM_W+6)continue;}
+   if(lakeE(x,z)<1+8/LAKE.rz||(z<INNER.z0+2&&z>LAKE.z&&Math.abs(x-river.center(z))<half(z)+7))continue;
    const dens=Math.sin(x*.018+z*.011)*.5+Math.sin(x*.041-z*.027+2.)*.3+Math.sin(x*.07+z*.06)*.2;
    if(rnd()>.15+.85*sm(-.25,.35,dens))continue;
    const y=window.arcanoIslandHeight(x,z),yx=window.arcanoIslandHeight(x+2,z),yz=window.arcanoIslandHeight(x,z+2);
@@ -741,7 +826,8 @@ function install(){
  window.arcanoOuterWater=(x,z)=>{
   let level=null;
   if(z>INNER.z1&&Math.abs(x-river.center(z))<half(z)+.2)level=river.levelAt(z);
-  else if(z<INNER.z0&&(Math.hypot(x-LAKE.x,z-LAKE.z)<LAKE.r+3||(z>LAKE.z&&Math.abs(x-river.center(z))<half(z)+.2)))level=LAKE.y;
+  else if(z<INNER.z0&&(lakeE(x,z)<1+3/LAKE.rz||(z>LAKE.z&&Math.abs(x-river.center(z))<half(z)+.2)))level=LAKE.y;
+  if(level==null){const si=streamInfo(x,z);if(si&&si.d<STREAM_W)level=si.level;}
   if(level==null)return null;
   const depth=level-window.arcanoIslandHeight(x,z);
   return depth>0?{level,depth}:null;

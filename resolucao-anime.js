@@ -123,7 +123,7 @@ window.arcanoObstacles={
     const bx=Math.abs(lx(fx,fz)),bz=Math.abs(lz(fx,fz));
     // Bloqueia entrar na caixa ou ir mais para dentro dela.
     if(!(bx<hw&&bz<hd))return true;
-    if(Math.min(hw-ax,hd-az)<Math.min(hw-bx,hd-bz))return true;
+    if(Math.min(hw-ax,hd-az)>Math.min(hw-bx,hd-bz)+1e-6)return true; // só bloqueia ir mais para dentro
    }
   }
   return false;
