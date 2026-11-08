@@ -3,139 +3,115 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Esferas Elementais · Ateliê Arcano</title>
+<title>Esferas de Poder · Ateliê Arcano</title>
 <style>
-:root{--bg:#07131a;--card:#10242c;--line:#2d4d55;--text:#eef6ef;--muted:#a9c2bd;--gold:#e8c56a}
+:root{--bg:#0d0a1f;--card:#1a1536;--line:#34295f;--text:#e9e6ff;--muted:#9a95c7;--acc:#8f6bff;--gold:#e8c56a}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:15px/1.4 system-ui,"Segoe UI",sans-serif}
-body{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(320px,.75fr);min-height:100dvh}
-#view{position:relative;min-height:56dvh;background:radial-gradient(ellipse at 50% 70%,#163844 0%,#07131a 70%)}
+body{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(330px,.8fr);min-height:100dvh}
+#view{position:relative;min-height:56dvh}
 #view canvas{display:block;width:100%;height:100%}
-#hint{position:absolute;left:14px;bottom:12px;color:var(--muted);font-size:12px;background:#07131acc;padding:6px 10px;border-radius:9px}
-#loading{position:absolute;right:14px;top:14px;color:var(--gold);font-size:12px;background:#07131acc;padding:6px 10px;border-radius:9px;display:none}
-aside{padding:20px 18px 28px;overflow:auto;border-left:1px solid var(--line);background:linear-gradient(#0b1b22,#07131a)}
-h1{font:600 26px Georgia,serif;margin:0 0 4px;color:#f5e6c0}
-.sub{color:var(--muted);margin:0 0 16px}
-.cards{display:grid;gap:10px}
-.orb{display:grid;grid-template-columns:52px 1fr auto;gap:12px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 12px;cursor:pointer;transition:border-color .15s,transform .15s}
-.orb:hover{transform:translateY(-1px)}
-.orb.on{border-color:var(--c);box-shadow:0 0 0 1px var(--c) inset,0 0 22px -8px var(--c)}
-.dot{width:46px;height:46px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff 0 8%,var(--c) 40%,#0000 72%),radial-gradient(circle,var(--c) 0 55%,#0000 75%);box-shadow:0 0 18px var(--c)}
-.orb strong{display:block;font-size:16px}
-.orb small{color:var(--muted)}
-.tag{font:600 12px system-ui;border:1px solid var(--line);border-radius:999px;padding:5px 10px;color:var(--muted);white-space:nowrap}
-.orb.on .tag{color:#07131a;background:var(--c);border-color:var(--c)}
-fieldset{border:1px solid var(--line);border-radius:14px;margin:16px 0 0;padding:12px 14px 6px}
+#hint{position:absolute;left:14px;bottom:12px;color:var(--muted);font-size:12px;background:#0d0a1fcc;padding:6px 10px;border-radius:9px}
+aside{padding:20px 18px 28px;overflow:auto;border-left:1px solid var(--line);background:linear-gradient(#141030,#0d0a1f)}
+h1{font:600 26px Georgia,serif;margin:0 0 4px;color:#f2ecff}
+.sub{color:var(--muted);margin:0 0 14px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.orb{display:flex;flex-direction:column;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 6px 10px;cursor:pointer;text-align:center;transition:transform .15s,border-color .15s,box-shadow .15s}
+.orb:hover{transform:translateY(-2px)}
+.orb.on{border-color:var(--c);box-shadow:0 0 0 1px var(--c) inset,0 0 22px -6px var(--c)}
+.dot{width:44px;height:44px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff 0 7%,var(--c) 38%,#0000 72%),radial-gradient(circle,var(--c) 0 55%,#0000 76%);box-shadow:0 0 16px var(--c)}
+.orb strong{font-size:14px}
+.orb .tag{font:600 11px system-ui;color:var(--muted)}
+.orb.on .tag{color:var(--c)}
+#desc{min-height:2.6em;color:var(--muted);margin:10px 2px 0;font-size:13px}
+fieldset{border:1px solid var(--line);border-radius:14px;margin:14px 0 0;padding:12px 14px 6px}
 legend{color:var(--gold);font-weight:600;padding:0 6px}
-label.row{display:grid;grid-template-columns:110px 1fr 42px;gap:10px;align-items:center;margin:0 0 10px}
-input[type=range]{width:100%;accent-color:var(--gold)}
+label.row{display:grid;grid-template-columns:100px 1fr 42px;gap:10px;align-items:center;margin:0 0 10px}
+input[type=range]{width:100%;accent-color:var(--acc)}
 .val{color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
-.modes{display:flex;gap:8px;margin:2px 0 10px}
-.modes button{flex:1}
-button,.play{font:600 14px system-ui;border-radius:11px;padding:10px 14px;cursor:pointer;border:1px solid var(--line);background:#16323b;color:var(--text)}
-button.sel{background:var(--gold);color:#1d1408;border-color:var(--gold)}
-.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+.modes{display:flex;gap:8px;margin:2px 0 10px}.modes button{flex:1}
+button,.play{font:600 14px system-ui;border-radius:11px;padding:10px 14px;cursor:pointer;border:1px solid var(--line);background:#231c47;color:var(--text)}
+button.sel{background:var(--acc);border-color:var(--acc);color:#fff}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
 .play{background:linear-gradient(#f0cf7a,#d4a94a);color:#1d1408;border-color:#e8c56a;text-decoration:none;flex:1;text-align:center}
 #status{margin-top:12px;color:var(--muted);font-size:13px;min-height:1.2em}
-@media(max-width:820px){body{grid-template-columns:1fr;grid-template-rows:auto auto}#view{height:52dvh}aside{border-left:0;border-top:1px solid var(--line)}}
+@media(max-width:860px){body{grid-template-columns:1fr}#view{height:50dvh}aside{border-left:0;border-top:1px solid var(--line)}}
 </style>
-<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/","fflate":"https://cdn.jsdelivr.net/npm/fflate@0.8.2/esm/browser.js"}}</script>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/"}}</script>
+<script src="./esferas-poder.js?v=2"></script>
 </head>
 <body>
-<div id="view"><div id="loading">Carregando esfera…</div><div id="hint">Arraste para girar · role para aproximar</div></div>
+<div id="view"><div id="hint">Arraste para girar · role para aproximar</div></div>
 <aside>
- <h1>🔮 Esferas Elementais</h1>
- <p class="sub">Escolha quais esferas acompanham o seu personagem no jogo. Pode levar uma, duas ou as três.</p>
- <div class="cards" id="cards"></div>
+ <h1>✦ Esferas de Poder</h1>
+ <p class="sub">Escolha as esferas que acompanham o seu personagem. Pode levar quantas quiser.</p>
+ <div class="grid" id="grid"></div>
+ <div id="desc"></div>
  <fieldset><legend>Como elas seguem você</legend>
   <div class="modes"><button type="button" data-mode="orbita">🌀 Em órbita</button><button type="button" data-mode="ombro">🧍 Nos ombros</button></div>
-  <label class="row">Tamanho<input type="range" id="tamanho" min=".5" max="1.8" step=".05"><span class="val" id="vTamanho"></span></label>
-  <label class="row">Distância<input type="range" id="distancia" min=".6" max="2" step=".05"><span class="val" id="vDistancia"></span></label>
-  <label class="row">Velocidade<input type="range" id="velocidade" min="0" max="2.5" step=".05"><span class="val" id="vVelocidade"></span></label>
+  <label class="row">Tamanho<input type="range" id="tamanho" min=".5" max="2" step=".05"><span class="val" id="vtamanho"></span></label>
+  <label class="row">Distância<input type="range" id="distancia" min=".6" max="2" step=".05"><span class="val" id="vdistancia"></span></label>
+  <label class="row">Velocidade<input type="range" id="velocidade" min="0" max="2.5" step=".05"><span class="val" id="vvelocidade"></span></label>
  </fieldset>
  <div class="actions">
   <a class="play" href="./index.html">🎮 Jogar com estas esferas</a>
+  <button type="button" id="todas">Todas</button>
   <button type="button" id="nenhuma">Nenhuma</button>
-  <button type="button" id="padrao">↺ Padrão</button>
  </div>
  <div id="status">As escolhas ficam salvas neste navegador.</div>
 </aside>
 <script type="module">
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
-import {FBXLoader} from 'three/addons/loaders/FBXLoader.js';
-const KEY='arcanoEsferas';
-const DEF={ativas:['orbe_azul'],tamanho:1,distancia:1,velocidade:1,modo:'orbita'};
-const ORBS=[
- {id:'orbe_azul',nome:'Esfera da Maré',el:'Água e gelo',c:'#54b7ff',file:'orbe_azul_v2.fbx'},
- {id:'orbe_laranja',nome:'Esfera da Chama',el:'Fogo',c:'#ff8735',file:'orbe_laranja_v2.fbx'},
- {id:'orbe_verde',nome:'Esfera do Vento',el:'Vento e natureza',c:'#4cff80',file:'orbe_verde_v2.fbx'}
-];
-const VERSION='20261027-stable-orb-rotation';
+const E=window.EsferasDePoder,KEY='arcanoEsferasPoder';
+const DEF={ativas:['fogo'],tamanho:1,distancia:1,velocidade:1,modo:'orbita'};
 let cfg;try{cfg=Object.assign({},DEF,JSON.parse(localStorage.getItem(KEY)||'{}'));}catch(e){cfg=Object.assign({},DEF);}
-const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(cfg));}catch(e){}status.textContent=cfg.ativas.length?'✓ Salvo: '+cfg.ativas.map(id=>ORBS.find(o=>o.id===id).nome).join(', ')+'.':'✓ Salvo: nenhuma esfera acompanhando.';sync();};
-const status=document.getElementById('status');
+cfg.ativas=(cfg.ativas||[]).filter(id=>E.IDS.includes(id));
+const status=document.getElementById('status'),desc=document.getElementById('desc');
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(cfg));}catch(e){}
+ status.textContent=cfg.ativas.length?'✓ Salvo: '+cfg.ativas.map(id=>E.INFO[id].nome).join(', ')+'.':'✓ Salvo: nenhuma esfera acompanhando.';sync();};
 
-// ---------- Cartões ----------
-const cards=document.getElementById('cards');
-for(const o of ORBS){
- const el=document.createElement('div');el.className='orb';el.style.setProperty('--c',o.c);el.tabIndex=0;el.role='button';
- el.innerHTML=`<div class="dot"></div><div><strong>${o.nome}</strong><small>${o.el}</small></div><span class="tag"></span>`;
- const toggle=()=>{const i=cfg.ativas.indexOf(o.id);if(i>=0)cfg.ativas.splice(i,1);else cfg.ativas.push(o.id);paint();save();};
+// ---------- Cartões das 9 esferas ----------
+const grid=document.getElementById('grid'),cards={};
+for(const id of E.IDS){
+ const el=document.createElement('div');el.className='orb';el.style.setProperty('--c',E.cor(id));el.tabIndex=0;el.role='button';
+ el.innerHTML=`<div class="dot"></div><strong>${E.INFO[id].nome}</strong><span class="tag"></span>`;
+ const toggle=()=>{const i=cfg.ativas.indexOf(id);if(i>=0)cfg.ativas.splice(i,1);else cfg.ativas.push(id);desc.textContent=E.INFO[id].nome+' — '+E.INFO[id].desc+'.';paint();save();};
  el.addEventListener('click',toggle);el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}});
- o.el=el;cards.appendChild(el);
+ el.addEventListener('mouseenter',()=>{desc.textContent=E.INFO[id].nome+' — '+E.INFO[id].desc+'.';});
+ cards[id]=el;grid.appendChild(el);
 }
 const sliders=['tamanho','distancia','velocidade'];
 function paint(){
- for(const o of ORBS){const on=cfg.ativas.includes(o.id);o.el.classList.toggle('on',on);o.el.querySelector('.tag').textContent=on?'Acompanhando ✓':'Adicionar';o.el.setAttribute('aria-pressed',on);}
- for(const k of sliders){document.getElementById(k).value=cfg[k];document.getElementById('v'+k[0].toUpperCase()+k.slice(1)).textContent=(+cfg[k]).toFixed(2);}
+ for(const id of E.IDS){const on=cfg.ativas.includes(id);cards[id].classList.toggle('on',on);cards[id].querySelector('.tag').textContent=on?'Acompanhando ✓':'Adicionar';cards[id].setAttribute('aria-pressed',on);}
+ for(const k of sliders){document.getElementById(k).value=cfg[k];document.getElementById('v'+k).textContent=(+cfg[k]).toFixed(2);}
  document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('sel',b.dataset.mode===cfg.modo));
 }
 for(const k of sliders)document.getElementById(k).addEventListener('input',e=>{cfg[k]=+e.target.value;paint();save();});
 document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{cfg.modo=b.dataset.mode;paint();save();}));
+document.getElementById('todas').addEventListener('click',()=>{cfg.ativas=[...E.IDS];paint();save();});
 document.getElementById('nenhuma').addEventListener('click',()=>{cfg.ativas=[];paint();save();});
-document.getElementById('padrao').addEventListener('click',()=>{cfg=Object.assign({},DEF,{ativas:[...DEF.ativas]});paint();save();});
 paint();
 
 // ---------- Prévia 3D: boneco no pedestal com as esferas escolhidas ----------
-const view=document.getElementById('view'),loading=document.getElementById('loading');
+const view=document.getElementById('view');
 const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(2,devicePixelRatio));renderer.outputColorSpace=THREE.SRGBColorSpace;view.prepend(renderer.domElement);
-const scene=new THREE.Scene();scene.background=new THREE.Color('#0f2a35');scene.fog=new THREE.Fog('#0f2a35',14,30);
-const camera=new THREE.PerspectiveCamera(42,1,.05,100);camera.position.set(3.6,2.6,4.6);
-const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,1.2,0);controls.enableDamping=true;controls.minDistance=2.5;controls.maxDistance=11;controls.maxPolarAngle=Math.PI*.52;
-scene.add(new THREE.HemisphereLight('#cfe8ff','#1d2a22',1.1));const sun=new THREE.DirectionalLight('#fff3d6',1.6);sun.position.set(4,7,3);scene.add(sun);
-{const ped=new THREE.Mesh(new THREE.CylinderGeometry(1.9,2.2,.35,40),new THREE.MeshStandardMaterial({color:'#2a4a52',roughness:.9}));ped.position.y=-.18;scene.add(ped);
- const ring=new THREE.Mesh(new THREE.TorusGeometry(1.95,.05,8,64),new THREE.MeshStandardMaterial({color:'#d8b45a',metalness:.4,roughness:.4}));ring.rotation.x=Math.PI/2;ring.position.y=.01;scene.add(ring);}
-// Boneco estilizado (mesma silhueta do manequim do jogo).
+const scene=new THREE.Scene();scene.background=new THREE.Color('#0d0a1f');
+const camera=new THREE.PerspectiveCamera(42,1,.05,100);camera.position.set(3.8,2.8,4.8);
+const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,1.3,0);controls.enableDamping=true;controls.minDistance=2.5;controls.maxDistance=12;controls.maxPolarAngle=Math.PI*.52;
+scene.add(new THREE.HemisphereLight('#d8d0ff','#1b1530',1.1));const sun=new THREE.DirectionalLight('#fff3e6',1.5);sun.position.set(4,7,3);scene.add(sun);
+{const ped=new THREE.Mesh(new THREE.CylinderGeometry(2,2.3,.35,48),new THREE.MeshStandardMaterial({color:'#2a2350',roughness:.9}));ped.position.y=-.18;scene.add(ped);
+ const ring=new THREE.Mesh(new THREE.TorusGeometry(2.05,.05,8,64),new THREE.MeshStandardMaterial({color:'#8f6bff',emissive:'#5a3fd0',emissiveIntensity:.6}));ring.rotation.x=Math.PI/2;ring.position.y=.01;scene.add(ring);}
 const dummy=new THREE.Group();scene.add(dummy);
 {const m=new THREE.MeshStandardMaterial({color:'#f0a990',roughness:.7});
  const body=new THREE.Mesh(new THREE.CapsuleGeometry(.24,.7,6,14),m);body.position.y=1.05;dummy.add(body);
  const head=new THREE.Mesh(new THREE.SphereGeometry(.2,20,16),m);head.position.y=1.72;dummy.add(head);
  for(const s of [-1,1]){const leg=new THREE.Mesh(new THREE.CapsuleGeometry(.09,.55,4,10),m);leg.position.set(s*.12,.38,0);dummy.add(leg);
   const arm=new THREE.Mesh(new THREE.CapsuleGeometry(.07,.5,4,10),m);arm.position.set(s*.34,1.08,0);arm.rotation.z=s*.12;dummy.add(arm);}}
-const haloTex=(()=>{const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d');const gr=g.createRadialGradient(64,64,0,64,64,64);gr.addColorStop(0,'rgba(255,255,255,1)');gr.addColorStop(.25,'rgba(255,255,255,.55)');gr.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gr;g.fillRect(0,0,128,128);const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t;})();
-const loader=new FBXLoader(),cache=new Map();
-function loadOrb(o){
- if(cache.has(o.id))return cache.get(o.id);
- const p=loader.loadAsync('./assets/vfx/'+o.file+'?v='+VERSION).then(fbx=>{
-  const rm=[];fbx.traverse(x=>{if(x.isLight||x.isCamera)rm.push(x);});rm.forEach(x=>x.parent&&x.parent.remove(x));
-  fbx.updateMatrixWorld(true);const box=new THREE.Box3().setFromObject(fbx),size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());
-  const h=new THREE.Group();fbx.position.sub(center);h.add(fbx);h.scale.setScalar(1/Math.max(size.x,size.y,size.z,.001));return h;});
- cache.set(o.id,p);return p;
-}
-const live=new Map();let pending=0;
+const live=new Map();
 function sync(){
- for(const [id,c] of live)if(!cfg.ativas.includes(id)){scene.remove(c.root);live.delete(id);}
- for(const id of cfg.ativas){
-  if(live.has(id))continue;const o=ORBS.find(x=>x.id===id);
-  const root=new THREE.Group(),spin=new THREE.Group();root.add(spin);
-  const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:haloTex,color:o.c,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,opacity:.75}));halo.scale.setScalar(1.6);root.add(halo);
-  const core=new THREE.Mesh(new THREE.SphereGeometry(.32,20,14),new THREE.MeshBasicMaterial({color:o.c}));spin.add(core);
-  scene.add(root);const c={root,spin,halo,pos:null};live.set(id,c);
-  pending++;loading.style.display='block';
-  loadOrb(o).then(m=>{if(live.get(id)===c){spin.remove(core);spin.add(m);}}).catch(()=>{status.textContent='Não foi possível carregar o modelo de '+o.nome+' (o jogo usa uma esfera de brilho no lugar).';})
-   .finally(()=>{pending--;if(!pending)loading.style.display='none';});
- }
+ for(const [id,c] of live)if(!cfg.ativas.includes(id)){scene.remove(c.orb.root);c.orb.dispose();live.delete(id);}
+ for(const id of cfg.ativas)if(!live.has(id)){const orb=E.create(THREE,id,{detail:72});scene.add(orb.root);live.set(id,{orb,pos:null});}
 }
 sync();
 const tgt=new THREE.Vector3();let last=performance.now();
@@ -144,13 +120,13 @@ addEventListener('resize',resize);resize();
 renderer.setAnimationLoop(now=>{
  const dt=Math.min(.1,(now-last)/1000);last=now;const t=now/1000;
  dummy.rotation.y=Math.sin(t*.35)*.6;const hd=dummy.rotation.y,fx=Math.sin(hd),fz=Math.cos(hd),rx=Math.cos(hd),rz=-Math.sin(hd);
- const list=[...live.values()],n=list.length,size=.5*cfg.tamanho,dist=cfg.distancia,speed=cfg.velocidade;
+ const list=[...live.values()],n=list.length,size=.28*cfg.tamanho,dist=cfg.distancia,speed=cfg.velocidade;
  list.forEach((c,i)=>{
   const bob=Math.sin(t*1.8+i*2.1)*.12;
-  if(cfg.modo==='ombro'){const s=[[.75,1.95,-.45],[-.75,1.95,-.45],[0,2.45,-.65]][i%3];tgt.set((rx*s[0]+fx*s[2])*dist,s[1]+bob,(rz*s[0]+fz*s[2])*dist);}
-  else{const a=t*.9*speed+i*Math.PI*2/Math.max(1,n),r=1.05*dist;tgt.set(Math.cos(a)*r,1.75+bob,Math.sin(a)*r);}
+  if(cfg.modo==='ombro'){const s=[[.75,1.95,-.45],[-.75,1.95,-.45],[0,2.45,-.65],[1.25,1.6,-.7],[-1.25,1.6,-.7],[0,1.6,-1.2]][i%6];tgt.set((rx*s[0]+fx*s[2])*dist,s[1]+bob,(rz*s[0]+fz*s[2])*dist);}
+  else{const a=t*.9*speed+i*Math.PI*2/Math.max(1,n),r=(1.05+.12*Math.max(0,n-3))*dist;tgt.set(Math.cos(a)*r,1.75+bob,Math.sin(a)*r);}
   if(!c.pos)c.pos=tgt.clone();c.pos.lerp(tgt,1-Math.exp(-dt*(cfg.modo==='ombro'?7:5)));
-  c.root.position.copy(c.pos);c.root.scale.setScalar(size);c.spin.rotation.y+=dt*1.3*speed;c.halo.material.opacity=.6+.15*Math.sin(t*2.4+i);
+  c.orb.root.position.copy(c.pos);c.orb.root.scale.setScalar(size);c.orb.update(t*speed,camera);
  });
  controls.update();renderer.render(scene,camera);
 });
