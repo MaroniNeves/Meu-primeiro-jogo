@@ -341,12 +341,18 @@ function install(){
     if(Math.abs(Math.atan2(Math.sin(a-exitA),Math.cos(a-exitA)))<gap)continue;
     const inner=i%2===0,r=inner?R-4.5-rnd()*1.5:R-1.8+rnd()*2;
     const x=C.x+Math.cos(a)*r,z=C.z+Math.sin(a)*r;
-    const hgt=inner?2+rnd()*2.2:3.2+rnd()*5.5,rad=(inner?.9:1.3)+rnd()*1.1;
+    const hgt=inner?2.2+rnd()*2.4:3.4+rnd()*5.5,rad=(inner?1.3:1.8)+rnd()*1.2;
     list.push({a,x,z,y:window.arcanoIslandHeight(x,z)-.6,hgt,rad,tilt:.08+rnd()*.3,ry:rnd()*6.28});
     if(window.arcanoObstacles)window.arcanoObstacles.addCircle(x,z,rad*.8);
    }
-   const spikes=new T.InstancedMesh(sg,new T.MeshStandardMaterial({color:'#b5afa6',roughness:1}),list.length);
-   spikes.name='Pedras pontiagudas da borda da ilha';
+   // Textura própria de rocha cinza (sem musgo): faces facetadas e veios.
+   const rc=document.createElement('canvas');rc.width=rc.height=128;const rg=rc.getContext('2d');
+   rg.fillStyle='#7e7c7a';rg.fillRect(0,0,128,128);
+   for(let k=0;k<26;k++){rg.strokeStyle='rgba('+(40+rnd()*30)+','+(40+rnd()*30)+','+(45+rnd()*30)+',.5)';rg.lineWidth=1+rnd()*2;rg.beginPath();rg.moveTo(rnd()*128,0);rg.lineTo(rnd()*128,128);rg.stroke();}
+   for(let k=0;k<300;k++){rg.fillStyle='rgba(255,255,255,'+(rnd()*.08)+')';rg.fillRect(rnd()*128,rnd()*128,2,2);}
+   const rt=new T.CanvasTexture(rc);rt.wrapS=rt.wrapT=T.RepeatWrapping;rt.colorSpace=T.SRGBColorSpace;
+   const spikes=new T.InstancedMesh(sg,new T.MeshStandardMaterial({color:'#b7b4b0',map:rt,roughness:1,flatShading:true}),list.length);
+   spikes.name='Paredão de rocha da borda da ilha';
    const m=new T.Matrix4(),q=new T.Quaternion(),qy=new T.Quaternion(),axis=new T.Vector3(),pp=new T.Vector3(),sc=new T.Vector3();
    list.forEach((s,i)=>{
     axis.set(-Math.sin(s.a),0,Math.cos(s.a));
