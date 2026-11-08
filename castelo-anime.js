@@ -368,6 +368,8 @@ function build(api,site){
 
  // Telhado do prédio (some ao entrar).
  const roof=new T.Group();root.add(roof);
+ // Laje de teto do térreo (só de fora): sem ela se veria o telhado por baixo pela porta.
+ const lid=new T.Mesh(boxUV(new T.BoxGeometry(2*BX-1,.4,BZ1-BZ0-1),2*BX-1,.4,BZ1-BZ0-1,3),M.dark);lid.position.set(0,Fy(1)-.2,(BZ0+BZ1)/2);root.add(lid);
  {const r=new T.Group();
   box(r,2*BX+.6,.8,BZ1-BZ0+.6,M.trim,0,TOP+.4,(BZ0+BZ1)/2);
   prismX(r,2*BX-4,BZ1-BZ0+1.2,9,M.slate,0,TOP+.8,(BZ0+BZ1)/2);
@@ -576,6 +578,8 @@ function build(api,site){
  // ===== Pisos (andares + espiral) =====
  const inB=(lx,lz)=>Math.abs(lx)<BX-.45&&lz>BZ0+.45&&lz<BZ1-.45;
  const playerY=()=>{const p=api.getGrassPlayer&&api.getGrassPlayer();return p?p.position.y:site.y;};
+ // Pórtico: a laje da entrada é 50 cm acima do chão; o pé sobe nela e entra pela porta (piso do salão = +40 cm).
+ if(window.arcanoGroundOverrides)window.arcanoGroundOverrides.push((x,z)=>{const lx=x-site.x,lz=z-site.z;return Math.abs(lx)<4.9&&lz>BZ1-.3&&lz<BZ1+4?site.y+.5:null;});
  if(window.arcanoGroundOverrides)window.arcanoGroundOverrides.push((x,z)=>{
   const lx=x-site.x,lz=z-site.z;if(!inB(lx,lz))return null;
   const py=playerY()-site.y-.4,dx=lx-ST.x,dz=lz-ST.z,r=Math.hypot(dx,dz);
@@ -600,8 +604,9 @@ function build(api,site){
  const tmpV=new T.Vector3();let inside=false,saved=null,curFloor=-2;
  function setFloor(k){
   curFloor=k;
-  for(let i=0;i<NF;i++){interiors[i].visible=k>=0&&i===k;for(const g of Object.values(shells[i]))g.visible=k<0||i<=k;}
-  roof.visible=k<0;
+  for(let i=0;i<NF;i++){interiors[i].visible=k>=0?i===k:i===0; // de fora, o térreo aparece pela porta e pelas janelas
+   for(const g of Object.values(shells[i]))g.visible=k<0||i<=k;}
+  roof.visible=k<0;lid.visible=k<0;
   lamps.forEach((l,i)=>{l.intensity=k<0?0:1.1;l.position.set(i?-8:8,Fy(Math.max(k,0))+FH-1.2,-5);});
  }
  setFloor(-1);
@@ -721,7 +726,12 @@ function buildGarden(api,site){
  box(g,4.6,.06,16,gravel,0,Y+.11,19.5,0,3);box(g,32,.06,2.2,gravel,0,Y+.115,20,0,3);
  for(const sx of [-1,1])box(g,2.2,.06,20,gravel,sx*24,Y+.11,-4,0,3);
  // O pé pisa no gramado/cascalho do jardim (antes afundava ~7 cm na fundação).
- if(window.arcanoGroundOverrides)window.arcanoGroundOverrides.push((x,z)=>Math.hypot(x-site.x,z-site.z)<RIN-.3?Y+.1:null);
+ if(window.arcanoGroundOverrides)window.arcanoGroundOverrides.push((x,z)=>Math.hypot(x-site.x,z-site.z)<36.3?Y+.1:null);
+ // Pátio de pedra entre o muro do jardim e a escadaria (antes aparecia o topo musgoso da fundação).
+ {const cob=canvasTex(256,256,(c,w,h)=>{c.fillStyle='#8a8070';c.fillRect(0,0,w,h);for(let r=0;r<8;r++)for(let q=0;q<8;q++){const x=q*32+(r%2?16:0),y=r*32;c.fillStyle='hsl('+(34+rnd()*10)+','+(10+rnd()*8)+'%,'+(58+rnd()*14)+'%)';c.beginPath();c.roundRect?c.roundRect(x+2,y+2,28,28,5):c.rect(x+2,y+2,28,28);c.fill();}});
+  cob.repeat.set(24,24);
+  const rg=new T.RingGeometry(RIN-1.2,36.3,96,2);rg.rotateX(-Math.PI/2);const ru=rg.attributes.uv,rp=rg.attributes.position;for(let i=0;i<rp.count;i++)ru.setXY(i,rp.getX(i)/36.3*.5+.5,rp.getZ(i)/36.3*.5+.5);
+  const court=new T.Mesh(rg,mat({color:'#ffffff',map:cob,polygonOffset:true,polygonOffsetFactor:-3,polygonOffsetUnits:-3}));court.position.set(site.x,Y+.06,site.z);court.receiveShadow=true;court.name='Pátio do castelo';scene.add(court);}
  // Sebes baixas dos dois lados do caminho principal (aberturas no cruzamento).
  const hedgeM=mat({color:'#3f7a3a'});
  for(const sx of [-1,1])for(const [z0,z1] of [[12.6,18.4],[21.6,27.4]]){box(g,.8,1,z1-z0,hedgeM,sx*2.9,Y+.5,(z0+z1)/2);solidW(sx*2.9,(z0+z1)/2,.4,(z1-z0)/2);}
