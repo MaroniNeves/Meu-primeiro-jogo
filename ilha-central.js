@@ -549,7 +549,9 @@ function install(){
    for(let s=0;s<=SEG;s++){
     const a=s/SEG*Math.PI*2,ca=Math.cos(a),sa=Math.sin(a);
     const ex=C.x+ca*(R-1),ez=C.z+sa*(R-1);
-    const top=window.arcanoIslandHeight(ex,ez)+.6;
+    // Perto do porto o topo da rocha fica logo abaixo da praça (o píer sai dela, sem faixa cinza cortando).
+    const nearPort=Math.abs(Math.atan2(Math.sin(a-PA),Math.cos(a-PA)))<(PLAZA.hw+4)/R;
+    const top=window.arcanoIslandHeight(ex,ez)+(nearPort?-.45:.6);
     const jag=1+.10*Math.sin(a*7+t*5)+.07*Math.sin(a*17-t*9)+.05*Math.sin(a*31+t*13);
     // Recorte irregular que cresce para baixo (logo abaixo da borda quase nada sai para fora).
     const rad=(R+2)*Math.pow(1-t,.85)*(1-.03*t)*(t>0?1+(jag-1)*Math.min(1,t*2.5)*.6:1);
