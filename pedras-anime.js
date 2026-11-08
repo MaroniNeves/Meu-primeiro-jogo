@@ -114,7 +114,7 @@ function build(api,ground){
    const y=lo-sy*.68*.3;
    // Pedras altas bloqueiam; as baixas (até ~70 cm) viram chão: dá para subir nelas.
    const topY=y+sy*.95;
-   if(topY-ground.heightAt(s.x,s.z)>.7){if(window.arcanoObstacles)window.arcanoObstacles.addCircle(s.x,s.z,s.r*.8);}
+   if(topY-ground.heightAt(s.x,s.z)>.7){if(window.arcanoObstacles)window.arcanoObstacles.addCircle(s.x,s.z,s.r*1.05);}
    else lowRocks.push({x:s.x,z:s.z,r:s.r*.85,top:topY});
    e.set(s.tilt,s.rot,s.tilt*.6);q.setFromEuler(e);
    m.compose(pos.set(s.x,y,s.z),q,sc.set(s.r,sy,s.r*(.85+rnd()*.3)));

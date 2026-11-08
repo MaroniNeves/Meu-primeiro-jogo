@@ -142,13 +142,13 @@ function install(){
  // Distância ao afluente mais próximo, nível da água e direção da correnteza.
  function streamInfo(x,z){
   let best=1e9,res=null;
-  for(const S of STREAMS){
+  for(let si_=0;si_<STREAMS.length;si_++){const S=STREAMS[si_];
    const b=S.box;if(x<b[0]||x>b[1]||z<b[2]||z>b[3])continue;
    const P=S.pts;
    for(let i=0;i<P.length-1;i++){
     const a=P[i],c=P[i+1],vx=c.x-a.x,vz=c.z-a.z,wx=x-a.x,wz=z-a.z;
     const t=clamp((wx*vx+wz*vz)/(vx*vx+vz*vz),0,1),dd=Math.hypot(wx-vx*t,wz-vz*t);
-    if(dd<best){best=dd;res={d:dd,level:a.level+(c.level-a.level)*t,s:i+t,tx:a.tx,tz:a.tz,speed:a.speed};}
+    if(dd<best){best=dd;res={d:dd,level:a.level+(c.level-a.level)*t,s:i+t,tx:a.tx,tz:a.tz,speed:a.speed,sid:si_};}
    }
   }
   return res;
@@ -257,13 +257,13 @@ function install(){
   const lakeish=le<1.6||canal;
   if(!lakeish&&!inS)return null;
   const toRiver=sm(LAKE.z,INNER.z0,z);
-  let level=LAKE.y,fx=0,fz=.08+.44*toRiver;
+  let level=LAKE.y,fx=0,fz=.08+.44*toRiver,sid=-1;
   if(inS){
    const w=lakeish?sm(1.0,1.5,le):1;
-   level=Math.max(si.level,LAKE.y);
+   level=Math.max(si.level,LAKE.y);sid=level>LAKE.y+.05?si.sid:-1;
    fx=fx*(1-w)+si.tx*si.speed*w;fz=fz*(1-w)+si.tz*si.speed*w;
   }
-  return {level,fx,fz};
+  return {level,fx,fz,sid};
  }
  const outsideDist=(x,z)=>{
   const dx=Math.max(INNER.x0-x,0,x-INNER.x1),dz=Math.max(INNER.z0-z,0,z-INNER.z1);
@@ -607,21 +607,33 @@ function install(){
    let xA=LAKE.x-LAKE.rx-6,xB=LAKE.x+LAKE.rx+6,zA=LAKE.z-LAKE.rz-4;const zB=INNER.z0,S=.7;
    for(const s of STREAMS){xA=Math.min(xA,s.box[0]+6);xB=Math.max(xB,s.box[1]-6);zA=Math.min(zA,s.box[2]+6);}
    const nx=Math.round((xB-xA)/S)+1,nz=Math.round((zB-zA)/S)+1;
-   const p=new Float32Array(nx*nz*3),uvA=new Float32Array(nx*nz*2),dep=new Float32Array(nx*nz),fl=new Float32Array(nx*nz*2),ok=new Uint8Array(nx*nz),ix=[];
+   const p=new Float32Array(nx*nz*3),uvA=new Float32Array(nx*nz*2),dep=new Float32Array(nx*nz),fl=new Float32Array(nx*nz*2),ok=new Uint8Array(nx*nz),ix=[],lev=new Float32Array(nx*nz),sidA=new Int8Array(nx*nz);
    for(let j=0;j<nz;j++)for(let i=0;i<nx;i++){
     const k=j*nx+i,x=xA+i*S,z=Math.min(zB,zA+j*S),w=pondWater(x,z);
     p[k*3]=x;p[k*3+2]=z;uvA[k*2]=i/(nx-1);uvA[k*2+1]=j/(nz-1);
     if(!w){p[k*3+1]=LAKE.y;continue;}
-    ok[k]=1;p[k*3+1]=w.level+.003;
+    ok[k]=1;p[k*3+1]=w.level+.003;lev[k]=w.level;sidA[k]=w.sid;
     dep[k]=Math.max(0,w.level-window.arcanoIslandHeight(x,z));
     fl[k*2]=w.fx;fl[k*2+1]=w.fz;
    }
+   // Célula molhada: os 4 cantos com nível definido, alguma profundidade e sem
+   // degrau (cantos de braços diferentes com níveis distintos viravam paredes).
+   const CN=(nx-1)*(nz-1),wet=new Uint8Array(CN),seen=new Uint8Array(CN);
    for(let j=0;j<nz-1;j++)for(let i=0;i<nx-1;i++){
     const a=j*nx+i,b=a+1,c=a+nx,d=c+1;
     if(!(ok[a]&&ok[b]&&ok[c]&&ok[d]))continue;
     if(dep[a]+dep[b]+dep[c]+dep[d]<=0)continue;
-    ix.push(a,c,b,b,c,d);
+    const lo=Math.min(lev[a],lev[b],lev[c],lev[d]),hi=Math.max(lev[a],lev[b],lev[c],lev[d]);
+    const same=sidA[a]===sidA[b]&&sidA[a]===sidA[c]&&sidA[a]===sidA[d];
+    if(hi-lo>(same?1.2:.25))continue;
+    wet[j*(nx-1)+i]=1;
    }
+   // Só a água ligada ao corpo principal (poças soltas na margem eram os 'vazamentos').
+   const q=[];
+   for(let c=0;c<CN;c++){if(!wet[c])continue;const i=c%(nx-1),j=(c/(nx-1))|0,a=j*nx+i;if(dep[a]+dep[a+1]+dep[a+nx]+dep[a+nx+1]>1.0){seen[c]=1;q.push(c);}}
+   while(q.length){const c=q.pop(),i=c%(nx-1),j=(c/(nx-1))|0;
+    for(const [di,dj] of [[1,0],[-1,0],[0,1],[0,-1]]){const ii=i+di,jj=j+dj;if(ii<0||jj<0||ii>=nx-1||jj>=nz-1)continue;const n=jj*(nx-1)+ii;if(wet[n]&&!seen[n]){seen[n]=1;q.push(n);}}}
+   for(let c=0;c<CN;c++){if(!seen[c])continue;const i=c%(nx-1),j=(c/(nx-1))|0,a=j*nx+i,b=a+1,cc=a+nx,d=cc+1;ix.push(a,cc,b,b,cc,d);}
    const lg=new T.BufferGeometry();
    lg.setAttribute('position',new T.BufferAttribute(p,3));lg.setAttribute('uv',new T.BufferAttribute(uvA,2));
    lg.setAttribute('waterDepth',new T.BufferAttribute(dep,1));lg.setAttribute('waterFlow',new T.BufferAttribute(fl,2));
@@ -639,7 +651,7 @@ function install(){
     const a=k/9*Math.PI*2+.3;if(Math.abs(Math.atan2(Math.sin(a-Math.atan2(P[3].z-P[0].z,P[3].x-P[0].x)),Math.cos(a-Math.atan2(P[3].z-P[0].z,P[3].x-P[0].x))))<.5)continue;
     const r=new T.Mesh(rg,new T.MeshStandardMaterial({color:'#aaa59c',roughness:1}));
     const x=stream.spring.x+Math.cos(a)*5.6,z=stream.spring.z+Math.sin(a)*5.6,s=1.2+rnd()*1.4;
-    r.position.set(x,window.arcanoIslandHeight(x,z)-.3,z);r.scale.set(s,s*(1+rnd()*.8),s);r.name='Pedra da nascente';scene.add(r);
+    r.position.set(x,window.arcanoIslandHeight(x,z)-.3,z);r.scale.set(s,s*(1+rnd()*.8),s);r.name='Pedra da nascente';scene.add(r);if(window.arcanoObstacles)window.arcanoObstacles.addCircle(x,z,s*1.1);
    }
   }
  }
