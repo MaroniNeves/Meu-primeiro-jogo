@@ -77,6 +77,32 @@ function artTex(kind,seedHue){return canvasTex(128,96,(g,w,h)=>{
 M.art=[];for(let i=0;i<9;i++)M.art.push(mat({color:'#ffffff',map:artTex(i%3,i*7)}));
 M.book=['#7a2a2a','#2a4a7a','#2f6a3a','#6a4a2a','#4a2a5a','#8a6a2a','#2a5a5a','#5a2a3a'].map(c=>mat({color:c}));
 M.velvetBlue=mat({color:'#2b3f73'});M.velvetGreen=mat({color:'#2f5a3f'});
+// ---------- Tecido das cortinas e céu estrelado ----------
+const fabricTex=canvasTex(128,256,(g,w,h)=>{for(let x=0;x<w;x++){const v=Math.round(206+Math.sin(x*.35)*26+Math.sin(x*1.3)*9+rnd()*8);g.fillStyle=`rgb(${v},${v},${v})`;g.fillRect(x,0,1,h);}
+ const gr=g.createLinearGradient(0,0,0,h);gr.addColorStop(0,'rgba(255,255,255,.18)');gr.addColorStop(1,'rgba(0,0,0,.14)');g.fillStyle=gr;g.fillRect(0,0,w,h);});
+M.drape=['#8a1e2e','#24407a','#25603f','#5a2a6e'].map(c=>mat({color:c,map:fabricTex,side:T.DoubleSide,roughness:.72}));
+M.pane=new T.MeshBasicMaterial({color:'#dff0ff',transparent:true,opacity:.1,depthWrite:false,side:T.DoubleSide});
+const starTex=(w,h,lines)=>canvasTex(w,h,(g,W,Hh)=>{const gr=g.createRadialGradient(W/2,Hh/2,10,W/2,Hh/2,W*.7);gr.addColorStop(0,'#26336f');gr.addColorStop(1,'#0b1030');g.fillStyle=gr;g.fillRect(0,0,W,Hh);
+ for(let i=0;i<W*Hh/900;i++){const x=rnd()*W,y=rnd()*Hh,r=rnd()<.08?2.2:rnd()*1.2+.3;g.fillStyle=`rgba(255,${230+Math.floor(rnd()*25)},${190+Math.floor(rnd()*60)},${.5+rnd()*.5})`;g.beginPath();g.arc(x,y,r,0,6.3);g.fill();}
+ g.strokeStyle='rgba(216,180,90,.75)';g.lineWidth=1.5;for(let c=0;c<lines;c++){let x=W*.1+rnd()*W*.8,y=Hh*.1+rnd()*Hh*.8;g.beginPath();g.moveTo(x,y);for(let j=0;j<4;j++){x+=rnd()*60-30;y+=rnd()*60-30;g.lineTo(x,y);g.fillStyle='#fff6d0';g.fillRect(x-2,y-2,4,4);}g.stroke();}
+ g.strokeStyle='rgba(216,180,90,.55)';g.lineWidth=3;g.beginPath();g.arc(W/2,Hh/2,Math.min(W,Hh)*.45,0,6.3);g.stroke();});
+M.starCeil=new T.MeshBasicMaterial({map:starTex(512,512,9),side:T.DoubleSide});
+M.starMap=new T.MeshBasicMaterial({map:starTex(256,160,6)});
+// Painel de cortina com pregas: largo no varão, preso pela braçadeira e abrindo de novo até o chão.
+// e = lado (±1), inner/outer = distância das bordas ao centro da janela no topo.
+function drapeGeo(e,inner,outer,h,tie){
+ const W=outer-inner,geo=new T.PlaneGeometry(1,h,22,28),p=geo.attributes.position;
+ for(let i=0;i<p.count;i++){const u=p.getX(i)+.5,y=p.getY(i)+h/2,t=y/h;
+  const gth=t>tie?.32+.68*Math.pow((t-tie)/(1-tie),.7):.32+.3*Math.pow((tie-t)/tie,1.2);
+  const x=e*(outer-u*W*gth),amp=.035+.08*(1-gth);
+  p.setXYZ(i,x,y-h/2,.12+Math.sin(u*Math.PI*7)*amp+.03*Math.sin(t*3+u*5));}
+ geo.computeVertexNormals();return geo;}
+function valanceGeo(len){
+ const geo=new T.PlaneGeometry(len,.6,48,6),p=geo.attributes.position;
+ for(let i=0;i<p.count;i++){const u=p.getX(i),y=p.getY(i),t=(y+.3)/.6,drop=.22*(1-Math.abs(Math.sin((u/len+.5)*Math.PI*3)));
+  p.setXYZ(i,u,y-(1-t)*drop,.18+.06*(1-t)*Math.cos((u/len+.5)*Math.PI*6));}
+ geo.computeVertexNormals();return geo;}
+
 
 // ---------- Peças ----------
 function boxUV(geo,w,h,d,tile){const uv=geo.attributes.uv,F=[[d,h],[d,h],[w,d],[w,d],[w,h],[w,h]];for(let f=0;f<6;f++)for(let v=0;v<4;v++){const i=f*4+v;uv.setXY(i,uv.getX(i)*F[f][0]/tile,uv.getY(i)*F[f][1]/tile);}return geo;}
@@ -414,15 +440,20 @@ function build(api,site){
   const fireplace=(x,z,rot=0)=>{box(g,3.2,3,1.2,M.base,x,Y(1.9),z,rot);box(g,2,1.4,.5,M.iron,x,Y(1.1),z+(rot?0:.4)*Math.cos(rot),rot);box(g,1.2,.6,.3,M.fire,x,Y(.9),z,rot);box(g,3.6,.3,1.4,M.trim,x,Y(3.45),z,rot);FL.push([x+Math.sin(rot)*.4,Y(1.05),z+Math.cos(rot)*.4,2.1]);FL.push([x+Math.sin(rot)*.4+.3,Y(1.0),z+Math.cos(rot)*.4,1.5]);solid(x,z,3.2,1.2,rot);};
   // Quadro com moldura dourada (paisagens, retratos, natureza-morta).
   const paint=(x,z,rot,i,w=1.6,h=1.1,y=2.9)=>{const c=Math.cos(rot),s=Math.sin(rot);box(g,w+.2,h+.2,.06,M.gold,x,Y(y),z,rot);box(g,w,h,.04,M.art[i%M.art.length],x+s*.035,Y(y),z+c*.035,rot);};
-  // Cortinas dos dois lados de cada janela, com sanefa.
-  const curtain=(x,z,rot,m)=>{const c=Math.cos(rot),s=Math.sin(rot);for(const e of [-1,1]){const dx=c*e*1.05,dz=-s*e*1.05;box(g,.55,3.4,.12,m,x+dx+s*.1,Y(F+2.9),z+dz+c*.1,rot);box(g,.6,.12,.16,M.gold,x+dx+s*.12,Y(F+2.1),z+dz+c*.12,rot);}
-   box(g,2.8,.45,.14,m,x+s*.12,Y(F+4.75),z+c*.12,rot);box(g,3,.06,.06,M.gold,x+s*.06,Y(F+4.95),z+c*.06,rot);};
+  // Cortinas de tecido dos dois lados da janela: pregas, braçadeira dourada com borla, sanefa ondulada e varão.
+  const curtain=(x,z,rot,m)=>{const tie=.42,h=4.55,gp=new T.Group();gp.position.set(x,Y(0),z);gp.rotation.y=rot;g.add(gp);
+   for(const e of [-1,1]){const pm=new T.Mesh(drapeGeo(e,.5,1.55,h,tie),m);pm.position.y=F+.05+h/2;gp.add(pm);
+    const yt=F+.05+h*tie,tb=new T.Mesh(new T.TorusGeometry(.2,.035,6,14),M.gold);tb.rotation.x=Math.PI/2;tb.scale.set(1,.7,1);tb.position.set(e*1.38,yt,.14);gp.add(tb);
+    const ts=new T.Mesh(new T.ConeGeometry(.06,.28,8),M.gold);ts.position.set(e*1.2,yt-.2,.3);gp.add(ts);}
+   const va=new T.Mesh(valanceGeo(3.4),m);va.position.y=F+4.45;gp.add(va);
+   const rodM=new T.Mesh(new T.CylinderGeometry(.04,.04,3.6,8),M.gold);rodM.rotation.z=Math.PI/2;rodM.position.set(0,F+4.78,.14);gp.add(rodM);
+   for(const e of [-1,1]){const f=new T.Mesh(new T.SphereGeometry(.08,8,6),M.gold);f.position.set(e*1.85,F+4.78,.14);gp.add(f);}};
   let armorN=0;
   const armor=(x,z,rot,v)=>{const a=armorModel(v==null?(armorN++%3):v);a.position.set(x,Y(F),z);a.rotation.y=rot;g.add(a);solid(x,z,1.0,1.0);};
   const plant=(x,z)=>{cyl(g,.3,.24,.6,M.base,x,Y(F),z,10);const p=new T.Mesh(new T.IcosahedronGeometry(.5,1),M.leaf);p.position.set(x,Y(F+1),z);g.add(p);solid(x,z,.6,.6);};
   const chandelier=(x,z)=>{const r=new T.Mesh(new T.TorusGeometry(1.2,.1,6,20),M.gold);r.rotation.x=Math.PI/2;r.position.set(x,Y(H-.8),z);g.add(r);for(let i=0;i<8;i++){const a=i/8*Math.PI*2;candle(x+Math.cos(a)*1.2,H-.8,z+Math.sin(a)*1.2);}box(g,.05,.8,.05,M.iron,x,Y(H-.4),z);};
   // Cortinas em todas as janelas (cor do andar) e quadros nas paredes livres.
-  {const cm=[M.velvet,M.velvetBlue,M.velvetGreen,M.velvet][k];
+  {const cm=M.drape[k];
    for(const lx of [-12,-8,8,12]){curtain(lx,BZ1-.5,Math.PI,cm);curtain(lx,BZ0+.5,0,cm);}
    if(k>0)for(const lx of [-3,0,3])curtain(lx,BZ1-.5,Math.PI,cm);
    for(const lz of [-12,-6,0,5]){curtain(-BX+.5,lz,Math.PI/2,cm);curtain(BX-.5,lz,-Math.PI/2,cm);}}
@@ -455,12 +486,12 @@ function build(api,site){
    {const gl=new T.Mesh(new T.SphereGeometry(.5,14,10),M.blue);gl.position.set(-13.5,Y(1.5),-6);g.add(gl);box(g,.12,1,.12,M.woodDark,-13.5,Y(.9),-6);solid(-13.5,-6,1,1);}
    // ---- Sala de Estudos (oeste, frente) ----
    rug(-11,2,5,4);table(-11,2,2.6,1.4);chair(-11,3.1,Math.PI);chair(-11,.9,0);candle(-11,1.35,2);shelf(-BX+.8,5,3,3,Math.PI/2);fireplace(-11,BZ1-1.1,Math.PI);
-   paint(-9.5,-3.7,0,2);paint(-13,-3.7,0,7,1.2,1);plant(-7,6.6);
+   paint(-8.6,-3.7,0,2);paint(-13,-3.7,0,7,1.2,1);plant(-7,6.6);
    // ---- Hall da escada (leste, frente) ----
-   rug(7.6,5,2.2,3.4);plant(14.5,6.6);paint(6.3,-1.5,Math.PI/2,5,1.2,1.6);
+   plant(14.5,6.6);paint(6.3,-1.5,Math.PI/2,5,1.2,1.6);
    // ---- Refeitório (leste, fundo) ----
    table(11,-10,2,8,.9);for(let z=-13;z<=-7;z+=1.5){chair(9.6,z,Math.PI/2);chair(12.4,z,-Math.PI/2);}for(let z=-13;z<=-7;z+=2)candle(11,1.37,z);fireplace(BX-1.1,-10,-Math.PI/2);
-   paint(6.3,-10,Math.PI/2,8,2,1.3);paint(6.3,-6.2,Math.PI/2,3,1.1,.9);
+   paint(6.3,-14.2,Math.PI/2,8,2,1.3);paint(6.3,-6.2,Math.PI/2,3,1.1,.9);
   }else if(k===1){
    // ---- Galeria (centro, frente) ----
    rug(0,2.5,3.2,5);chandelier(0,2);
@@ -474,7 +505,7 @@ function build(api,site){
    rug(-11,2,4,3);table(-11,2.4,2.4,1.2);chair(-11,1.4,0);shelf(-BX+.8,2,3,4,Math.PI/2);candle(-10.4,1.35,2.4);paint(-10,-3.7,0,3);plant(-7,6.6);
    // ---- Sala de Mapas (oeste, fundo) ----
    table(-11,-10,3.2,2.2);box(g,3,.02,2,M.cloth,-11,Y(1.33),-10);{const gl=new T.Mesh(new T.SphereGeometry(.45,14,10),M.blue);gl.position.set(-13.8,Y(1.4),-13.8);g.add(gl);solid(-13.8,-13.8,1,1);}
-   paint(-6.3,-8,-Math.PI/2,0,2.4,1.6);paint(-6.3,-12.5,-Math.PI/2,6,1.2,1);
+   paint(-6.3,-7.2,-Math.PI/2,0,2.4,1.6);paint(-6.3,-12.5,-Math.PI/2,6,1.2,1);
    // ---- Arsenal (leste, fundo) ----
    for(let z=-13.5;z<-6;z+=1.6){box(g,.15,2,.15,M.woodDark,BX-1,Y(1.4),z);box(g,.1,1.6,.6,M.steel,BX-1.3,Y(1.6),z);}solid(BX-1.1,-9.8,.8,8);
    for(const x of [8,10])armor(x,-13.5,0);armor(12.5,-6,-Math.PI/2);
@@ -495,19 +526,66 @@ function build(api,site){
    for(let z=-14;z<-6;z+=2.2){box(g,1.8,2.6,.8,M.wood,-BX+1,Y(1.7),z,Math.PI/2,2);solid(-BX+1,z,1.8,.8,Math.PI/2);}
    box(g,1.2,2.4,.08,M.steel,-8,Y(1.8),BZ0+.6);box(g,1.4,2.6,.05,M.gold,-8,Y(1.8),BZ0+.57);
    // ---- Quarto de Hóspedes (leste, fundo) ----
-   bed(11.5,-11);box(g,1.2,.6,.6,M.wood,9,Y(.7),-13.8,0,2);solid(9,-13.8,1.2,.6);rug(11,-7.6,3,1.8);paint(6.3,-10,Math.PI/2,7);
+   bed(11.5,-11);box(g,1.2,.6,.6,M.wood,9,Y(.7),-13.8,0,2);solid(9,-13.8,1.2,.6);rug(11,-7.6,3,1.8);paint(6.3,-13.3,Math.PI/2,7);
    plant(14.5,6.6);
   }else{
-   // ---- Observatório ----
-   {const tel=new T.Mesh(new T.CylinderGeometry(.18,.3,3,10),M.gold);tel.rotation.z=-.8;tel.position.set(0,Y(2.2),-5);g.add(tel);cyl(g,.15,.15,1.4,M.woodDark,0,Y(.4),-5,6);rug(0,-5,5,5);solid(0,-5,1,1);
-    for(let i=0;i<10;i++){const s=new T.Mesh(new T.SphereGeometry(.12,6,5),M.candle);s.position.set(-2.5+rnd()*5,Y(H-.8-rnd()*1.5),-8+rnd()*6);g.add(s);}}
-   for(const sx of [-1,1])paint(sx*5.7,3,-sx*Math.PI/2,sx>0?0:3,1.8,1.2);
+   // Haste ligando dois pontos (tripés, tubos).
+   const rod=(ax,ay,az,bx,by,bz,r,m,seg=8)=>{const A=new T.Vector3(ax,ay,az),d=new T.Vector3(bx-ax,by-ay,bz-az),L=d.length();const mm=new T.Mesh(new T.CylinderGeometry(r,r,L,seg),m);mm.position.copy(A).addScaledVector(d,.5);mm.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),d.normalize());g.add(mm);return mm;};
+   // Cadeira de conselho: assento e encosto de veludo, braços, pináculos dourados.
+   const chairV=(x,z,r,tall=false)=>{const c=Math.cos(r),s=Math.sin(r),L=(a,b)=>[x+a*c+b*s,z-a*s+b*c],bh=tall?1.55:1.05;
+    box(g,.62,.1,.62,M.woodDark,x,Y(F+.5),z,r,2);box(g,.56,.08,.56,M.velvet,x,Y(F+.59),z,r);
+    {const [px,pz]=L(0,-.28);box(g,.62,bh,.08,M.woodDark,px,Y(F+.55+bh/2),pz,r,2);const [qx,qz]=L(0,-.235);box(g,.46,bh-.3,.03,M.velvet,qx,Y(F+.62+bh/2),qz,r);}
+    for(const e of [-1,1]){const [px,pz]=L(e*.27,-.28);const f=new T.Mesh(new T.SphereGeometry(.06,8,6),M.gold);f.position.set(px,Y(F+.6+bh),pz);g.add(f);
+     const [ax,az]=L(e*.3,0);box(g,.06,.06,.55,M.woodDark,ax,Y(F+.8),az,r);const [bx,bz]=L(e*.3,.22);box(g,.06,.25,.06,M.woodDark,bx,Y(F+.67),bz,r);}
+    for(const a of [-1,1])for(const b of [-1,1]){const [px,pz]=L(a*.25,b*.25);box(g,.07,.5,.07,M.woodDark,px,Y(F+.25),pz,r);}
+    if(tall){const [px,pz]=L(0,-.29);const cr=new T.Mesh(new T.TorusGeometry(.12,.03,6,12),M.gold);cr.position.set(px,Y(F+.66+bh),pz);cr.rotation.y=r;g.add(cr);solid(x,z,.7,.7);}};
+   // ---- Salão de Reuniões (centro, frente) ----
+   {const tz=2,TL=6.6,TW=1.9;
+    rug(0,tz,9.4,4.6);
+    box(g,TL,.1,TW,M.wood,0,Y(F+.86),tz,0,2);box(g,TL+.12,.05,TW+.12,M.gold,0,Y(F+.8),tz);box(g,TL-.4,.16,TW-.4,M.woodDark,0,Y(F+.72),tz,0,2);
+    for(const x of [-TL/2+.3,0,TL/2-.3])for(const e of [-1,1])box(g,.16,.72,.16,M.woodDark,x,Y(F+.36),tz+e*(TW/2-.3));
+    box(g,TL-.6,.015,.55,M.velvet,0,Y(F+.92),tz);
+    for(const x of [-2.2,0,2.2]){box(g,.3,.06,.3,M.gold,x,Y(F+.94),tz);box(g,.05,.35,.05,M.gold,x,Y(F+1.12),tz);box(g,.4,.04,.04,M.gold,x,Y(F+1.28),tz);candle(x-.18,F+1.3,tz);candle(x+.18,F+1.3,tz);candle(x,F+1.32,tz);}
+    for(const x of [-2.4,-1.2,0,1.2,2.4])for(const e of [-1,1]){box(g,.34,.012,.26,M.cloth,x,Y(F+.917),tz+e*.62);box(g,.07,.07,.07,M.iron,x+.22,Y(F+.95),tz+e*.55);}
+    solid(0,tz,TL,TW);
+    for(const x of [-2.4,-1.2,0,1.2,2.4]){chairV(x,tz-1.3,0);chairV(x,tz+1.3,Math.PI);}
+    chairV(-TL/2-.75,tz,Math.PI/2,true);chairV(TL/2+.75,tz,-Math.PI/2,true);
+    chandelier(-1.7,tz);chandelier(1.7,tz);
+    // Aparadores com candelabros na parede do fundo (dos dois lados da porta do observatório).
+    for(const sx of [-1,1]){const x=sx*3.7;box(g,2.4,.95,.55,M.woodDark,x,Y(F+.475),-3.42,0,2);box(g,2.5,.06,.62,M.gold,x,Y(F+.98),-3.42);
+     for(const e of [-.6,.6])box(g,.9,.6,.02,M.wood,x+e,Y(F+.5),-3.13,0,2);
+     candle(x-.8,F+1.01,-3.45);candle(x+.8,F+1.01,-3.45);cyl(g,.16,.12,.4,M.gold,x,Y(F+1.01),-3.45,10);
+     paint(x,-3.7,0,sx>0?3:5,2,1.3,3.1);solid(x,-3.42,2.4,.6);}
+    for(const sx of [-1,1]){shelf(sx*5.45,-1.4,2.6,3.0,-sx*Math.PI/2);paint(sx*5.7,5.5,-sx*Math.PI/2,sx>0?6:8,1.8,1.2,2.9);plant(sx*5.2,7.0);}}
+   // ---- Observatório (centro, fundo) ----
+   {const oz=-10;
+    const sky=new T.Mesh(new T.PlaneGeometry(11.4,11.1),M.starCeil);sky.rotation.x=Math.PI/2;sky.position.set(0,Y(H-.08),(-4.25+BZ0+.5)/2);g.add(sky);
+    cyl(g,2.3,2.5,.3,M.trim,0,Y(F),oz,28);{const r=new T.Mesh(new T.TorusGeometry(2.15,.05,6,40),M.gold);r.rotation.x=Math.PI/2;r.position.set(0,Y(F+.31),oz);g.add(r);}
+    const top=F+.3,mY=F+1.75;
+    for(let i=0;i<3;i++){const a=i/3*Math.PI*2+.5;rod(Math.cos(a)*.95,Y(top),oz+Math.sin(a)*.95,0,Y(mY),oz,.05,M.woodDark);}
+    box(g,.35,.3,.35,M.brass,0,Y(mY+.1),oz,0,1);
+    const tube=rod(-.9,Y(mY-.35),oz+.75,1.0,Y(mY+1.7),oz-.95,.2,M.brass,14);
+    {const lens=new T.Mesh(new T.TorusGeometry(.23,.05,6,16),M.goldM);lens.position.set(1.0,Y(mY+1.7),oz-.95);lens.quaternion.copy(tube.quaternion);lens.rotateX(Math.PI/2);g.add(lens);}
+    rod(-.9,Y(mY-.35),oz+.75,-1.15,Y(mY-.6),oz+.98,.06,M.iron);
+    rod(-.6,Y(mY+.0),oz+.4,.2,Y(mY+.85),oz-.35,.05,M.brass);
+    solid(0,oz,5,5);
+    // Esfera armilar, globo, mesa de cartas celestes e estantes.
+    {const ax=-3.6,az=-13.4;cyl(g,.3,.4,.9,M.trim,ax,Y(F),az,12);box(g,.5,.08,.5,M.gold,ax,Y(F+.94),az);
+     const c=new T.Vector3(ax,Y(F+1.75),az),core=new T.Mesh(new T.SphereGeometry(.13,12,8),M.blue);core.position.copy(c);g.add(core);
+     for(const [rx,ry] of [[0,0],[Math.PI/2,0],[Math.PI/2,Math.PI/2],[.41,0]]){const t=new T.Mesh(new T.TorusGeometry(.55,.025,6,32),M.goldM);t.position.copy(c);t.rotation.set(rx,ry,0);g.add(t);}
+     rod(ax,Y(F+.98),az,ax,Y(F+2.35),az,.025,M.goldM);solid(ax,az,1.1,1.1);}
+    {const gx=3.8,gz=-6.4;cyl(g,.35,.45,.1,M.woodDark,gx,Y(F),gz,12);rod(gx,Y(F+.1),gz,gx,Y(F+.85),gz,.05,M.woodDark);
+     const gl=new T.Mesh(new T.SphereGeometry(.45,18,12),M.blue);gl.position.set(gx,Y(F+1.35),gz);g.add(gl);
+     const mer=new T.Mesh(new T.TorusGeometry(.52,.03,6,24,Math.PI*1.4),M.goldM);mer.position.copy(gl.position);mer.rotation.z=.4;g.add(mer);solid(gx,gz,1,1);}
+    table(3.6,-13.3,2.2,1.3);box(g,2,.012,1.1,M.starMap,3.6,Y(F+.925),-13.3);chair(3.6,-12.2,Math.PI);candle(4.5,F+.92,-13.7);
+    for(const sx of [-1,1]){shelf(sx*5.45,-6.3,2.6,3.4,-sx*Math.PI/2);shelf(sx*5.45,-14,2.4,3.4,-sx*Math.PI/2);}
+    box(g,3.8,2.4,.04,M.gold,0,Y(3.2),BZ0+.53);box(g,3.6,2.2,.05,M.starMap,0,Y(3.2),BZ0+.56);}
    // ---- Tesouro ----
    for(let i=0;i<6;i++){box(g,1.1,.7,.7,M.wood,-14+i*1.3,Y(.75),-14.5,0,2);box(g,1.1,.25,.75,M.gold,-14+i*1.3,Y(1.2),-14.5);}solid(-10.75,-14.5,7.8,.75);
    {const pile=new T.Mesh(new T.ConeGeometry(1.2,.8,10),M.gold);pile.position.set(-11,Y(.8),-10);g.add(pile);solid(-11,-10,2.2,2.2);}
    // ---- Sala dos Troféus ----
    for(let i=0;i<4;i++){const s=new T.Mesh(new T.CircleGeometry(.6,8),M.paint[i]);s.position.set(-15.4,Y(2.5),-1+i*2);s.rotation.y=Math.PI/2;g.add(s);}box(g,.5,1.9,.5,M.steel,-10,Y(1.35),3);solid(-10,3,.6,.6);
-   paint(-6.3,2,-Math.PI/2,4);armor(-8,6,Math.PI);
+   paint(-6.3,5.2,-Math.PI/2,4);armor(-8,6,Math.PI);
    // ---- Acesso ao Campanário ----
    box(g,2,2,2,M.iron,11,Y(1.4),-10);box(g,.3,2,.3,M.woodDark,11,Y(3.4),-10);solid(11,-10,2,2);
   }
@@ -515,7 +593,7 @@ function build(api,site){
  }
 
  // ===== Andares =====
- const shells=[],interiors=[];
+ const shells=[],interiors=[],outerPanes=[],ceilings=[];
  for(let k=0;k<NF;k++){
   const y0=Fy(k),y1=Fy(k+1),H=y1-y0;
   const shell={front:new T.Group(),back:new T.Group(),west:new T.Group(),east:new T.Group()};
@@ -523,32 +601,52 @@ function build(api,site){
   shells.push(shell);
   const inn=new T.Group();inn.visible=false;root.add(inn);interiors.push(inn);
   const tmp=new T.Group();
-  // --- paredes externas inteiras (janelas dos dois lados) ---
+  // --- paredes externas com janelas abertas (arco no topo, vitral quase transparente) ---
+  // De fora, os andares de cima mostram o vidro iluminado (o interior só aparece ao entrar).
+  const WIN={w:1.3,v0:1.9,vr:4.05},WH=WIN.vr-WIN.v0+WIN.w/2;
+  const holedWall=(grp,len,holes,x,z,ry,door)=>{
+   const s=new T.Shape();s.moveTo(-len/2,0);s.lineTo(len/2,0);s.lineTo(len/2,H);s.lineTo(-len/2,H);s.lineTo(-len/2,0);
+   for(const u of holes){const hw=WIN.w/2,p=new T.Path();p.moveTo(u-hw,WIN.v0);p.lineTo(u+hw,WIN.v0);p.lineTo(u+hw,WIN.vr);p.absarc(u,WIN.vr,hw,0,Math.PI,false);p.lineTo(u-hw,WIN.v0);s.holes.push(p);}
+   if(door){const p=new T.Path();p.moveTo(-2.2,0);p.lineTo(2.2,0);p.lineTo(2.2,3.8);p.absarc(0,3.8,2.2,0,Math.PI,false);p.lineTo(-2.2,0);s.holes.push(p);}
+   const geo=new T.ExtrudeGeometry(s,{depth:1,bevelEnabled:false,curveSegments:10});geo.translate(0,0,-.5);const uv=geo.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)/4,uv.getY(i)/4);
+   const wm=new T.Mesh(geo,M.wall);wm.position.set(x,y0,z);wm.rotation.y=ry;wm.castShadow=wm.receiveShadow=true;grp.add(wm);
+   for(const u of holes){const fr=new T.Group();fr.position.set(x,y0,z);fr.rotation.y=ry;grp.add(fr);
+    box(fr,WIN.w+.5,.18,1.25,M.trim,u,WIN.v0-.09,0);
+    for(const e of [-1,1])box(fr,.16,WIN.vr-WIN.v0,1.04,M.trim,u+e*(WIN.w/2+.06),(WIN.v0+WIN.vr)/2,0);
+    const arch=new T.Mesh(new T.TorusGeometry(WIN.w/2+.06,.08,6,16,Math.PI),M.trim);arch.position.set(u,WIN.vr,0);arch.scale.z=6.5;fr.add(arch);
+    box(fr,.05,WH,.05,M.iron,u,WIN.v0+WH/2,0);box(fr,WIN.w,.05,.05,M.iron,u,WIN.v0+1.1,0);box(fr,WIN.w,.05,.05,M.iron,u,WIN.vr-.05,0);
+    const pane=new T.Mesh(new T.PlaneGeometry(WIN.w,WH),M.pane);pane.position.set(u,WIN.v0+WH/2,0);fr.add(pane);
+    const out=new T.Mesh(new T.PlaneGeometry(WIN.w,WH),M.glass);out.position.set(u,WIN.v0+WH/2,.53);fr.add(out);outerPanes.push({mesh:out,k});}
+  };
+  const zc=(BZ0+BZ1)/2;
+  holedWall(shell.front,2*BX,k>0?[-12,-8,-3,0,3,8,12]:[-12,-8,8,12],0,BZ1,0,k===0);
+  holedWall(shell.back,2*BX,[-12,-8,8,12],0,BZ0,Math.PI);
+  holedWall(shell.west,BZ1-BZ0,[-12,-6,0,5].map(lz=>lz-zc),-BX,zc,-Math.PI/2);
+  holedWall(shell.east,BZ1-BZ0,[-12,-6,0,5].map(lz=>zc-lz),BX,zc,Math.PI/2);
   if(k===0){
-   const s=new T.Shape();s.moveTo(-BX,0);s.lineTo(BX,0);s.lineTo(BX,H);s.lineTo(-BX,H);s.lineTo(-BX,0);
-   const hole=new T.Path();hole.moveTo(-2.2,0);hole.lineTo(2.2,0);hole.lineTo(2.2,3.8);hole.absarc(0,3.8,2.2,0,Math.PI,false);hole.lineTo(-2.2,0);s.holes.push(hole);
-   const geo=new T.ExtrudeGeometry(s,{depth:1,bevelEnabled:false});geo.translate(0,0,-.5);const uv=geo.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)/4,uv.getY(i)/4);
-   const wall=new T.Mesh(geo,M.wall);wall.position.set(0,y0,BZ1);shell.front.add(wall);
    for(let a=0;a<=10;a++){const t=Math.PI*a/10;const v=box(shell.front,.8,.9,1.3,M.trim,Math.cos(t)*2.6,y0+3.8+Math.sin(t)*2.6,BZ1);v.rotation.z=t-Math.PI/2;}
    obsBox(-(BX+2.2)/2,BZ1,(BX-2.2)/2,.5,0);obsBox((BX+2.2)/2,BZ1,(BX-2.2)/2,.5,0);
-  }else{box(shell.front,2*BX,H,1,M.wall,0,y0+H/2,BZ1);obsBox(0,BZ1,BX,.5,k);}
-  box(shell.back,2*BX,H,1,M.wall,0,y0+H/2,BZ0);obsBox(0,BZ0,BX,.5,k);
-  box(shell.west,1,H,BZ1-BZ0,M.wall,-BX,y0+H/2,(BZ0+BZ1)/2);obsBox(-BX,(BZ0+BZ1)/2,.5,(BZ1-BZ0)/2,k);
-  box(shell.east,1,H,BZ1-BZ0,M.wall,BX,y0+H/2,(BZ0+BZ1)/2);obsBox(BX,(BZ0+BZ1)/2,.5,(BZ1-BZ0)/2,k);
+  }else obsBox(0,BZ1,BX,.5,k);
+  obsBox(0,BZ0,BX,.5,k);obsBox(-BX,(BZ0+BZ1)/2,.5,(BZ1-BZ0)/2,k);obsBox(BX,(BZ0+BZ1)/2,.5,(BZ1-BZ0)/2,k);
   box(shell.front,2*BX+.4,.45,1.3,M.trim,0,y0+.22,BZ1);box(shell.back,2*BX+.4,.45,1.3,M.trim,0,y0+.22,BZ0);
   box(shell.west,1.3,.45,BZ1-BZ0,M.trim,-BX,y0+.22,(BZ0+BZ1)/2);box(shell.east,1.3,.45,BZ1-BZ0,M.trim,BX,y0+.22,(BZ0+BZ1)/2);
-  for(const lx of [-12,-8,8,12])for(const s of [-1,1]){box(shell.front,1.3,2.8,.12,M.glass,lx,y0+3.3,BZ1+s*.56);box(shell.back,1.3,2.8,.12,M.glass,lx,y0+3.3,BZ0+s*.56);}
-  if(k>0)for(const lx of [-3,0,3])for(const s of [-1,1])box(shell.front,1.1,2.8,.12,M.glass,lx,y0+3.3,BZ1+s*.56);
-  for(const lz of [-12,-6,0,5])for(const s of [-1,1]){box(shell.west,.12,2.8,1.3,M.glass,-BX+s*.56,y0+3.3,lz);box(shell.east,.12,2.8,1.3,M.glass,BX+s*.56,y0+3.3,lz);}
   // --- piso deste andar (com o vão da escada) ---
   {const s=new T.Shape();s.moveTo(-BX+.5,BZ0+.5);s.lineTo(BX-.5,BZ0+.5);s.lineTo(BX-.5,BZ1-.5);s.lineTo(-BX+.5,BZ1-.5);s.lineTo(-BX+.5,BZ0+.5);
    if(k>0){const hole=new T.Path();hole.absarc(ST.x,ST.z,ST.r+.05,0,Math.PI*2,true);s.holes.push(hole);}
    const geo=new T.ExtrudeGeometry(s,{depth:.4,bevelEnabled:false});geo.rotateX(Math.PI/2);
    const uv=geo.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)/3,uv.getY(i)/3);
    const fl=new T.Mesh(geo,M.floor);fl.position.y=y0+.4;fl.receiveShadow=true;inn.add(fl);}
+  // Teto do andar: só na primeira pessoa (na terceira, a câmera de cima enxerga o cômodo aberto).
+  {const s=new T.Shape();s.moveTo(-BX+.5,BZ0+.5);s.lineTo(BX-.5,BZ0+.5);s.lineTo(BX-.5,BZ1-.5);s.lineTo(-BX+.5,BZ1-.5);s.lineTo(-BX+.5,BZ0+.5);
+   if(k<NF-1){const hole=new T.Path();hole.absarc(ST.x,ST.z,ST.r+.05,0,Math.PI*2,true);s.holes.push(hole);}
+   const geo=new T.ExtrudeGeometry(s,{depth:.3,bevelEnabled:false});geo.rotateX(Math.PI/2);const uv=geo.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)/3,uv.getY(i)/3);
+   const ce=new T.Mesh(geo,M.inner);ce.position.y=y1+.05;ce.visible=false;root.add(ce);ceilings.push(ce);}
   // --- paredes internas INTEIRAS (até o teto), com portas ---
-  const wallX=(x,za,zb,doors)=>{let cur=za;for(const [a,b] of doors){if(a>cur){box(tmp,.5,H,a-cur,M.inner,x,y0+H/2,(cur+a)/2);obsBox(x,(cur+a)/2,.25,(a-cur)/2,k);}box(tmp,.5,H-3.2,b-a,M.inner,x,y0+3.2+(H-3.2)/2,(a+b)/2);box(tmp,.7,.35,b-a+.4,M.woodDark,x,y0+3.1,(a+b)/2,0,2);cur=b;}if(zb>cur){box(tmp,.5,H,zb-cur,M.inner,x,y0+H/2,(cur+zb)/2);obsBox(x,(cur+zb)/2,.25,(zb-cur)/2,k);}};
-  const wallZ=(z,xa,xb,doors)=>{let cur=xa;for(const [a,b] of doors){if(a>cur){box(tmp,a-cur,H,.5,M.inner,(cur+a)/2,y0+H/2,z);obsBox((cur+a)/2,z,(a-cur)/2,.25,k);}box(tmp,b-a,H-3.2,.5,M.inner,(a+b)/2,y0+3.2+(H-3.2)/2,z);box(tmp,b-a+.4,.35,.7,M.woodDark,(a+b)/2,y0+3.1,z,0,2);cur=b;}if(xb>cur){box(tmp,xb-cur,H,.5,M.inner,(cur+xb)/2,y0+H/2,z);obsBox((cur+xb)/2,z,(xb-cur)/2,.25,k);}};
+  const doorFrame=(cx,cz,w,alongZ)=>{const P=a=>alongZ?[cx,cz+a]:[cx+a,cz];
+   for(const e of [-1,1]){const [px,pz]=P(e*(w/2-.11));if(alongZ)box(tmp,.54,3.05,.22,M.trim,px,y0+.4+1.525,pz);else box(tmp,.22,3.05,.54,M.trim,px,y0+.4+1.525,pz);obsBox(px,pz,alongZ?.27:.11,alongZ?.11:.27,k);}
+   if(alongZ)box(tmp,.54,.3,w,M.trim,cx,y0+3.3,cz);else box(tmp,w,.3,.54,M.trim,cx,y0+3.3,cz);};
+  const wallX=(x,za,zb,doors)=>{let cur=za;for(const [a,b] of doors){if(a>cur){box(tmp,.5,H,a-cur,M.inner,x,y0+H/2,(cur+a)/2);obsBox(x,(cur+a)/2,.25,(a-cur)/2,k);}box(tmp,.5,H-3.45,b-a,M.inner,x,y0+3.45+(H-3.45)/2,(a+b)/2);doorFrame(x,(a+b)/2,b-a,true);cur=b;}if(zb>cur){box(tmp,.5,H,zb-cur,M.inner,x,y0+H/2,(cur+zb)/2);obsBox(x,(cur+zb)/2,.25,(zb-cur)/2,k);}};
+  const wallZ=(z,xa,xb,doors)=>{let cur=xa;for(const [a,b] of doors){if(a>cur){box(tmp,a-cur,H,.5,M.inner,(cur+a)/2,y0+H/2,z);obsBox((cur+a)/2,z,(a-cur)/2,.25,k);}box(tmp,b-a,H-3.45,.5,M.inner,(a+b)/2,y0+3.45+(H-3.45)/2,z);doorFrame((a+b)/2,z,b-a,false);cur=b;}if(xb>cur){box(tmp,xb-cur,H,.5,M.inner,(cur+xb)/2,y0+H/2,z);obsBox((cur+xb)/2,z,(xb-cur)/2,.25,k);}};
   wallX(-6,BZ0+.5,BZ1-.5,k===0?[[-12,-8.5],[0,3.5]]:[[-11,-9],[1.2,3.2]]);
   wallX(6,BZ0+.5,BZ1-.5,k===0?[[-12,-8.5],[0,3.5]]:[[-11,-9],[1.2,3.2]]);
   wallZ(-4,-BX+.5,-6,[[-12,-10]]);wallZ(-4,6,BX-.5,[[8,10]]);
@@ -598,7 +696,7 @@ function build(api,site){
   {c:['Salão Principal','Salão Principal'],w:['Sala de Estudos','Biblioteca'],e:['Escada em Espiral','Refeitório']},
   {c:['Galeria','Sala do Conselho'],w:['Escritório','Sala de Mapas'],e:['Escada em Espiral','Arsenal']},
   {c:['Salão de Música','Capela'],w:['Quarto Real','Quarto de Vestir'],e:['Escada em Espiral','Quarto de Hóspedes']},
-  {c:['Observatório','Observatório'],w:['Sala dos Troféus','Tesouro'],e:['Escada em Espiral','Acesso ao Campanário']}];
+  {c:['Salão de Reuniões','Observatório'],w:['Sala dos Troféus','Tesouro'],e:['Escada em Espiral','Acesso ao Campanário']}];
  const roomName=(lx,lz,k)=>{const R=ROOMS[k],i=lz>-4?0:1;if(Math.abs(lx)<6)return R.c[i];return (lx<0?R.w:R.e)[i];};
  const floorNames=['Térreo','1º andar','2º andar','3º andar'];
  const tmpV=new T.Vector3();let inside=false,saved=null,curFloor=-2;
@@ -607,6 +705,7 @@ function build(api,site){
   for(let i=0;i<NF;i++){interiors[i].visible=k>=0?i===k:i===0; // de fora, o térreo aparece pela porta e pelas janelas
    for(const g of Object.values(shells[i]))g.visible=k<0||i<=k;}
   roof.visible=k<0;lid.visible=k<0;
+  for(const o of outerPanes)o.mesh.visible=k<0?o.k>0:o.k!==k; // andares sem interior carregado mostram o vidro iluminado
   lamps.forEach((l,i)=>{l.intensity=k<0?0:1.1;l.position.set(i?-8:8,Fy(Math.max(k,0))+FH-1.2,-5);});
  }
  setFloor(-1);
@@ -621,6 +720,7 @@ function build(api,site){
    if(inside){saved={d:p.camDistance,pt:p.camPitch};p.camDistance=Math.min(Math.max(p.camDistance,7),9);p.camPitch=Math.max(p.camPitch,1.25);}
    else{setFloor(-1);label.style.display='none';if(saved&&p){p.camDistance=saved.d;p.camPitch=saved.pt;}saved=null;}
   }
+  {const fp=!!(window.arcanoFirstPerson&&window.arcanoFirstPerson.active);for(let i=0;i<ceilings.length;i++)ceilings[i].visible=inside&&fp&&i===curFloor;}
   if(inside){
    const k=Math.max(0,Math.min(NF-1,Math.floor((p.position.y-site.y+.6)/FH)));
    if(k!==curFloor)setFloor(k);
