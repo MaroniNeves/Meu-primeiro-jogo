@@ -432,7 +432,8 @@ function start(){
    });
    a.obj.updateMatrixWorld(true);box.setFromObject(a.obj);box.getSize(size);
    const wide=Math.max(size.x,size.z);
-   if(wide>.45&&size.y<wide*.28){
+   // O arbusto "Bush_Large_Flowers" tem partes invisíveis no modelo: removido do jogo.
+   if((wide>.45&&size.y<wide*.28)||/Bush_Large_Flowers/i.test(a.modelName||"")){
     if(a.fullScale&&a.fullScale.setScalar)a.fullScale.setScalar(.0001);
     a.obj.scale.setScalar(.0001);a.obj.updateMatrixWorld(true);
    }

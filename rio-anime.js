@@ -141,6 +141,16 @@ void main(){
   ringW+=sin(ph)*env;
   ringG+=(d>.001?dv/d:vec2(0.))*cos(ph)*env*1.2;
  }
+ // Onde a queda bate no poço: ondas saindo da linha de impacto.
+ {
+  float pz2=vWorld.z-(uFallZ+.5);
+  if(pz2>0.&&pz2<7.){
+   float env=exp(-pz2*.55)*smoothstep(0.,.3,pz2);
+   float ph=pz2*11.-uClock*7.+sin(vWorld.x*2.3)*1.5;
+   ringG.y+=cos(ph)*env*.9;ringG.x+=sin(ph*.7+vWorld.x)*env*.25;
+   ringW+=sin(ph)*env*.6;
+  }
+ }
  // Água empurrada logo em volta do corpo.
  vec2 toP=vWorld.xz-uPlayer.xz;float pd=length(toP);
  float bodyPush=smoothstep(.55,.15,pd)*uPlayerWet;
@@ -206,11 +216,11 @@ void main(){
   vec2 side=vec2(-flow.y,flow.x);float across=dot(vWorld.xz,side);
   float s1=fbm(vec2(across*4.,vWorld.y*1.1+uTime*4.5));
   float s2=fbm(vec2(across*10.+3.,vWorld.y*2.4+uTime*7.5));
-  float streak=smoothstep(.52,.82,s1*.6+s2*.5+vFallS*.3);
-  vec3 sheetC=mix(mix(uDeep,uShallow,.3+.35*s1),refl,fres*.45);
-  sheetC=mix(sheetC,uFoam,streak);
-  col=mix(col,sheetC,sheet);
-  a=mix(a,.86+.12*streak,sheet);
+  // A lâmina é a MESMA água (mesma cor e reflexo calculados acima);
+  // só ganha listras de espuma conforme cai.
+  float streak=smoothstep(.55,.85,s1*.6+s2*.5)*smoothstep(.1,.7,vFallS);
+  col=mix(col,uFoam,streak*.75);
+  a=mix(a,max(a,.88)+.1*streak,sheet);
  }
  float pz=vWorld.z-(uFallZ+.65);
  float plunge=exp(-pz*pz*.6)*smoothstep(-.9,-.15,pz)*(1.-sheet);
@@ -490,22 +500,7 @@ function install(){
     gl_PointSize=(.6+p*1.4)*uScale/max(.1,-mv.z);
     gl_Position=projectionMatrix*mv;
    }`,'','Névoa da cachoeira');
-  // Gotas caindo junto da lâmina e respingando no poço.
-  makePoints(mobile?90:200,`attribute vec4 seed;uniform float uTime,uWidth,uScale,uTop,uBottom;uniform vec3 uCenter;varying float vA;
-   void main(){
-    float life=fract(uTime*(.55+.35*seed.w)+seed.y);
-    float drop=uTop-uBottom;
-    float fallT=clamp(life/.7,0.,1.);
-    float y=uTop+.05-drop*fallT*fallT;
-    float z=uCenter.z-.65+fallT*.55;
-    // Depois de cair, as gotas respingam para cima e para fora.
-    if(life>.7){float b=(life-.7)/.3;y=uBottom+sin(b*3.14159)*(.35+.4*seed.w);z+=b*(.6+seed.z*.5);}
-    vec3 pos=vec3(uCenter.x+seed.x*uWidth,y,z);
-    vA=.75*(1.-smoothstep(.85,1.,life));
-    vec4 mv=modelViewMatrix*vec4(pos,1.);
-    gl_PointSize=(.05+.05*seed.w)*uScale/max(.1,-mv.z);
-    gl_Position=projectionMatrix*mv;
-   }`,'','Gotas da cachoeira');
+  // (sem gotas: apareciam como pontos brancos sobre o rio)
  }
  // ---------- Debaixo d'água: tom azul, raios de luz e bolhas ----------
  const css=document.createElement('style');

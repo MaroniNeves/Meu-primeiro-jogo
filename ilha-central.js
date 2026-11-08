@@ -79,7 +79,8 @@ function install(){
   y+=(CASTLE_Y-CITY_Y)*(1-sm(CASTLE_R-6,CASTLE_R+26,d));
   // Estradas um pouco aplainadas.
   const rd=roadDist(x,z);
-  y-=.25*(1-sm(2,6,rd));
+  // (dentro da cidade o piso é plano: estradas não rebaixam o chão)
+  y-=.25*(1-sm(2,6,rd))*sm(CITY_R+3,CITY_R+10,d);
   // Borda arredondada antes da queda para o céu.
   const e=sm(R-45,R,d);y-=7*e*e;
   return y;
@@ -120,6 +121,16 @@ function install(){
  }
 
  // ---------- Malha do terreno da ilha ----------
+ // Amostra atributos da área detalhada (cor, verde, normal) para emendar sem corte.
+ const innerGeo=api.terrain.geometry,IP=innerGeo.attributes.position;
+ let INX=1;while(INX<IP.count&&Math.abs(IP.getZ(INX)-IP.getZ(0))<1e-6)INX++;
+ const INZ=Math.round(IP.count/INX),IX0=IP.getX(0),IX1=IP.getX(INX-1),IZ0=IP.getZ(0),IZ1=IP.getZ((INZ-1)*INX);
+ function innerSample(attr,x,z,c){
+  const fi=clamp((x-IX0)/(IX1-IX0)*(INX-1),0,INX-1.001),fj=clamp((z-IZ0)/(IZ1-IZ0)*(INZ-1),0,INZ-1.001);
+  const i=Math.floor(fi),j=Math.floor(fj),u=fi-i,v=fj-j,k=j*INX+i;
+  const arr=attr.array,sz=attr.itemSize,g=q=>arr[q*sz+c];
+  return g(k)*(1-u)*(1-v)+g(k+1)*u*(1-v)+g(k+INX)*(1-u)*v+g(k+INX+1)*u*v;
+ }
  const x0=C.x-R-6,z0=C.z-R-6,n=Math.ceil((2*R+12)/STEP)+1;
  const heights=new Float32Array(n*n);
  const pos=new Float32Array(n*n*3),uv=new Float32Array(n*n*2),col=new Float32Array(n*n*3);
@@ -142,11 +153,20 @@ function install(){
   const dl=Math.hypot(x-LAKE.x,z-LAKE.z)-LAKE.r;
   if(dl<sd&&z<INNER.z0+2){sd=dl;hw=y-LAKE.y;}
   if(sd<14)g*=sm(2.6,4.6,sd)*sm(.55,1.1,hw);
+  const od=outsideDist(x,z),seam=sm(0,25,od);
+  if(seam<1){
+   const ex=clamp(x,INNER.x0,INNER.x1),ez=clamp(z,INNER.z0,INNER.z1);
+   g=innerSample(innerGeo.attributes.animeGreen,ex,ez,0)*(1-seam)+g*seam;
+  }
   green[k]=g;shore[k*2]=sd;shore[k*2+1]=hw;
   // Cor base: terra quente; na cidade, piso claro (área a construir).
   const v=.92+.08*Math.sin(x*.7+z*1.1);
   if(city>.01){col[k*3]=(.62+.16*city)*v;col[k*3+1]=(.52+.17*city)*v;col[k*3+2]=(.40+.17*city)*v;}
   else{col[k*3]=.58*v;col[k*3+1]=.46*v;col[k*3+2]=.33*v;}
+  if(seam<1){
+   const ex=clamp(x,INNER.x0,INNER.x1),ez=clamp(z,INNER.z0,INNER.z1),ca=innerGeo.attributes.color;
+   for(let c=0;c<3;c++)col[k*3+c]=innerSample(ca,ex,ez,c)*(1-seam)+col[k*3+c]*seam;
+  }
  }
  const idx=[];
  const inside=(x,z)=>x>INNER.x0&&x<INNER.x1&&z>INNER.z0&&z<INNER.z1;
@@ -164,6 +184,18 @@ function install(){
  geo.setAttribute('animeGreen',new T.BufferAttribute(green,1));
  geo.setAttribute('animeShore',new T.BufferAttribute(shore,2));
  geo.setIndex(idx);geo.computeVertexNormals();geo.computeBoundingSphere();
+ // Na borda, a normal (iluminação) é a mesma do terreno detalhado: sem vinco.
+ {
+  const nrm=geo.attributes.normal,inN=innerGeo.attributes.normal;
+  for(let k=0;k<n*n;k++){
+   const x=pos[k*3],z=pos[k*3+2],od=outsideDist(x,z);
+   if(od>6||!inN)continue;
+   const t=sm(0,6,od),ex=clamp(x,INNER.x0,INNER.x1),ez=clamp(z,INNER.z0,INNER.z1);
+   const nx=innerSample(inN,ex,ez,0)*(1-t)+nrm.getX(k)*t,ny=innerSample(inN,ex,ez,1)*(1-t)+nrm.getY(k)*t,nz=innerSample(inN,ex,ez,2)*(1-t)+nrm.getZ(k)*t;
+   const l=Math.hypot(nx,ny,nz)||1;nrm.setXYZ(k,nx/l,ny/l,nz/l);
+  }
+  nrm.needsUpdate=true;
+ }
  // Mesmo material do solo detalhado: emenda sem diferença de cor/estilo.
  const land=new T.Mesh(geo,api.terrain.material);
  land.name='Ilha Central · terreno';land.receiveShadow=true;
@@ -287,7 +319,8 @@ function install(){
      p[k*3]=x;p[k*3+1]=lvl+.003-row.fall*fallDepth;p[k*3+2]=z;
      uvA[k*2]=s;uvA[k*2+1]=r/(N-1);
      dep[k]=row.fall?1:Math.max(0,lvl-window.arcanoIslandHeight(x,cz));
-     flow[k*2]=.6*turn/nrm;flow[k*2+1]=.6/nrm;
+     // Mesma velocidade da correnteza do rio da área detalhada.
+     flow[k*2]=.52*turn/nrm;flow[k*2+1]=.52/nrm;
      if(r<N-1&&c<COLS-1){const a=k,b=k+1,cc=k+COLS,d=cc+1;ix.push(a,cc,b,b,cc,d);}
     }
    });
@@ -306,21 +339,31 @@ function install(){
 
   south.name='Rio da Ilha Central · até a borda';south.frustumCulled=false;south.renderOrder=3;
   scene.add(south);
-  // Nascente: lago e canal até a área detalhada.
-  const lakeLevel=()=>LAKE.y;
-  const chan=new T.Mesh(ribbon(LAKE.z,INNER.z0,lakeLevel,river.center,half,0),shareMat(-9999));
-  chan.name='Canal da nascente';chan.frustumCulled=false;chan.renderOrder=3;scene.add(chan);
-  const lg=new T.CircleGeometry(LAKE.r+.5,48);lg.rotateX(-Math.PI/2);
-  const lp=lg.attributes.position,ld=new Float32Array(lp.count),lf=new Float32Array(lp.count*2),luv=lg.attributes.uv;
-  for(let i=0;i<lp.count;i++){
-   const x=lp.getX(i)+LAKE.x,z=lp.getZ(i)+LAKE.z;
-   lp.setXYZ(i,x,LAKE.y+.003,z);
-   ld[i]=Math.max(0,LAKE.y-window.arcanoIslandHeight(x,z));
-   lf[i*2]=.05;lf[i*2+1]=.08;
+  // Nascente: lago + canal numa ÚNICA superfície d'água (sem sobreposição,
+  // que deixava uma cunha mais escura), terminando exatamente onde o rio começa.
+  {
+   const xA=LAKE.x-LAKE.r-6,xB=LAKE.x+LAKE.r+6,zA=LAKE.z-LAKE.r-4,zB=INNER.z0,S=.5;
+   const nx=Math.round((xB-xA)/S)+1,nz=Math.round((zB-zA)/S)+1;
+   const p=new Float32Array(nx*nz*3),uvA=new Float32Array(nx*nz*2),dep=new Float32Array(nx*nz),fl=new Float32Array(nx*nz*2),ix=[];
+   for(let j=0;j<nz;j++)for(let i=0;i<nx;i++){
+    const k=j*nx+i,x=xA+i*S,z=Math.min(zB,zA+j*S);
+    p[k*3]=x;p[k*3+1]=LAKE.y+.003;p[k*3+2]=z;uvA[k*2]=i/(nx-1);uvA[k*2+1]=j/(nz-1);
+    dep[k]=Math.max(0,LAKE.y-window.arcanoIslandHeight(x,z));
+    const toRiver=sm(LAKE.z,zB,z);
+    fl[k*2]=0;fl[k*2+1]=.08+.44*toRiver;
+   }
+   for(let j=0;j<nz-1;j++)for(let i=0;i<nx-1;i++){
+    const a=j*nx+i,b=a+1,c=a+nx,d=c+1;
+    if(dep[a]+dep[b]+dep[c]+dep[d]<=0)continue;
+    ix.push(a,c,b,b,c,d);
+   }
+   const lg=new T.BufferGeometry();
+   lg.setAttribute('position',new T.BufferAttribute(p,3));lg.setAttribute('uv',new T.BufferAttribute(uvA,2));
+   lg.setAttribute('waterDepth',new T.BufferAttribute(dep,1));lg.setAttribute('waterFlow',new T.BufferAttribute(fl,2));
+   lg.setIndex(ix);
+   const lake=new T.Mesh(lg,shareMat(-9999));lake.name='Lago da nascente';lake.frustumCulled=false;lake.renderOrder=3;
+   scene.add(lake);
   }
-  lg.setAttribute('waterDepth',new T.BufferAttribute(ld,1));lg.setAttribute('waterFlow',new T.BufferAttribute(lf,2));
-  const lake=new T.Mesh(lg,shareMat(-9999));lake.name='Lago da nascente';lake.frustumCulled=false;lake.renderOrder=3;
-  scene.add(lake);
  }
 
  // ---------- Demarcação da cidade Aurora ----------
@@ -378,6 +421,11 @@ function install(){
   const pave=new T.Mesh(ring,new T.MeshStandardMaterial({map:tex,roughness:1,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}));
   pave.position.set(C.x,CITY_Y+.04,C.z);pave.receiveShadow=true;pave.name='Piso da cidade Aurora (área a construir)';
   scene.add(pave);
+  // Meio-fio de pedra nas duas bordas do piso (sem fresta entre piso e chão).
+  for(const r of [CASTLE_R+27,CITY_R-1.2]){
+   const curb=new T.Mesh(new T.CylinderGeometry(r,r,1.1,160,1,true),new T.MeshStandardMaterial({color:'#9b958b',roughness:1,side:T.DoubleSide}));
+   curb.position.set(C.x,CITY_Y-.48,C.z);curb.name='Pedra do meio-fio da cidade';curb.receiveShadow=true;scene.add(curb);
+  }
  }
  // ---------- Local do castelo + núcleo de energia ----------
  {

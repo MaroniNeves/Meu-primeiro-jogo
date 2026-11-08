@@ -4088,12 +4088,20 @@ function safeGameCameraDistance(focus,desired){
 // Obstruções por árvores usam a transparência temporária abaixo, não
 // aproximações automáticas. A câmera ainda acompanha suavemente o boneco.
 const gameCameraOffset=new T.Vector3();
+const gameCameraSmooth={focus:NaN,ground:NaN,floor:NaN};
 function applyGameCamera(){
  const goal=game.position;
  const reach=Math.cos(game.camPitch)*game.camDistance;
  const bx=-Math.sin(game.camHeading)*reach,bz=-Math.cos(game.camHeading)*reach;
- gameCameraFocus.set(goal.x,goal.y+1.03,goal.z);
- const cameraGround=worldGround(goal.x+bx,goal.z+bz)+.45;
+ // Foco e chão da câmera suavizados: em subidas íngremes a altura mudava aos
+ // saltos de um quadro para o outro e a câmera tremia.
+ const focusY=goal.y+1.03;
+ gameCameraSmooth.focus=Number.isFinite(gameCameraSmooth.focus)?gameCameraSmooth.focus+(focusY-gameCameraSmooth.focus)*.22:focusY;
+ if(Math.abs(focusY-gameCameraSmooth.focus)>1.5)gameCameraSmooth.focus=focusY;
+ gameCameraFocus.set(goal.x,gameCameraSmooth.focus,goal.z);
+ const groundTarget=worldGround(goal.x+bx,goal.z+bz)+.45;
+ gameCameraSmooth.ground=Number.isFinite(gameCameraSmooth.ground)?gameCameraSmooth.ground+(groundTarget-gameCameraSmooth.ground)*.12:groundTarget;
+ const cameraGround=gameCameraSmooth.ground;
  gameCameraGoal.set(goal.x+bx,
   Math.max(cameraGround,gameCameraFocus.y+Math.sin(game.camPitch)*game.camDistance),
   goal.z+bz);
@@ -4107,8 +4115,9 @@ function applyGameCamera(){
   .addScaledVector(gameCameraOffset,desired/actual);
  else camera.position.copy(gameCameraGoal);
  // Não atravessar o terreno quando o jogador olhar rente ao chão.
- camera.position.y=Math.max(camera.position.y,
-  worldGround(camera.position.x,camera.position.z)+.40);
+ const floorUnder=worldGround(camera.position.x,camera.position.z)+.40;
+ gameCameraSmooth.floor=Number.isFinite(gameCameraSmooth.floor)?gameCameraSmooth.floor+(floorUnder-gameCameraSmooth.floor)*.15:floorUnder;
+ camera.position.y=Math.max(camera.position.y,Math.max(gameCameraSmooth.floor,floorUnder-.25));
  gameCameraActualDistance=game.camDistance;
  camera.lookAt(gameCameraFocus);
  updateGameCameraOcclusion(gameCameraFocus,camera.position);
