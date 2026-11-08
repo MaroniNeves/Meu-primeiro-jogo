@@ -47,7 +47,12 @@ function install(){
 
  // ---------- Estradas (polilinhas) ----------
  const gate=(ang,extra=0)=>({x:C.x+Math.cos(ang)*(CITY_R+extra),z:C.z+Math.sin(ang)*(CITY_R+extra)});
- const PORT={x:C.x+R*.80,z:C.z+18};
+ // Porto dos Ventos: praça no alto do penhasco, na borda leste; o píer sai da borda.
+ const PA=Math.atan2(18,R*.8),PU={x:Math.cos(PA),z:Math.sin(PA)},PV={x:-Math.sin(PA),z:Math.cos(PA)};
+ const PLAZA={u0:R-58,u1:R+3,hw:22};
+ const portUV=(x,z)=>{const dx=x-C.x,dz=z-C.z;return {u:dx*PU.x+dz*PU.z,v:dx*PV.x+dz*PV.z};};
+ const portXZ=(u,v)=>({x:C.x+PU.x*u+PV.x*v,z:C.z+PU.z*u+PV.z*v});
+ const PORT=portXZ(R-62,0);
  const roads=[
   // Portão sul da cidade até a borda norte da área detalhada (perto do lago).
   [gate(Math.PI/2,2),{x:46,z:-92},{x:42,z:-52}],
@@ -239,6 +244,14 @@ function install(){
   for(const st of VILLAGE.stairs){const q=stairInfo(st,x,z);if(q.t>-.1&&q.t<1.1&&q.d<st.w*.5+m)return true;}
   return false;
  }
+ // Praça do porto: plana, no nível em que a estrada chega.
+ let PORT_Y=null;
+ function carvePort(x,z,y){
+  const q=portUV(x,z);if(q.u<PLAZA.u0-14||Math.abs(q.v)>PLAZA.hw+14)return y;
+  if(PORT_Y==null){const e=portXZ(R-62,0);PORT_Y=field(e.x,e.z)+.1;}
+  const du=Math.max(PLAZA.u0-q.u,0),dv=Math.max(Math.abs(q.v)-PLAZA.hw,0),out=Math.hypot(du,dv);
+  return PORT_Y+(y-PORT_Y)*sm(0,12,out);
+ }
  function carveVillage(x,z,y){
   const b=VILLAGE.box;if(x<b[0]||x>b[1]||z<b[2]||z>b[3])return y;
   // Rua: plana de lado a lado, encaixada na encosta.
@@ -278,7 +291,7 @@ function install(){
   // O canal entra na mistura (antes era aplicado por cima e criava um degrau).
   let y=edge+(carveRiver(x,z,field(x,z))-edge)*sm(0,38,od);
   const k=sm(0,8,od);if(k>0){const yw=carveWater(x,z,y);y+=(yw-y)*k;}
-  return carveVillage(x,z,y);
+  return carvePort(x,z,carveVillage(x,z,y));
  }
 
  // ---------- Malha do terreno da ilha ----------
@@ -309,6 +322,7 @@ function install(){
   if(dl<sd&&z<INNER.z0+2){sd=dl;hw=y-LAKE.y;}
   {const si=streamInfo(x,z);if(si&&si.d-STREAM_W<sd){sd=si.d-STREAM_W;hw=y-si.level;}}
   if(sd<14)g*=sm(2.6,4.6,sd)*sm(.55,1.1,hw);
+  {const q=portUV(x,z);if(q.u>PLAZA.u0-4&&Math.abs(q.v)<PLAZA.hw+4)g*=Math.max(sm(0,3,PLAZA.u0-q.u),sm(PLAZA.hw,PLAZA.hw+3,Math.abs(q.v)));} // praça do porto
   // Vila: terraços das casas e escadas sem grama (a rua já entra nas estradas).
   {const b=VILLAGE.box;if(x>b[0]&&x<b[1]&&z>b[2]&&z<b[3]){
    for(const p of VILLAGE.pads)g*=sm(p.r-.5,p.r+1.5,Math.hypot(x-p.x,z-p.z));
@@ -537,7 +551,8 @@ function install(){
     const ex=C.x+ca*(R-1),ez=C.z+sa*(R-1);
     const top=window.arcanoIslandHeight(ex,ez)+.6;
     const jag=1+.10*Math.sin(a*7+t*5)+.07*Math.sin(a*17-t*9)+.05*Math.sin(a*31+t*13);
-    const rad=(R+2)*Math.pow(1-t,.85)*(t>0?jag:1)*(1-.03*t);
+    // Recorte irregular que cresce para baixo (logo abaixo da borda quase nada sai para fora).
+    const rad=(R+2)*Math.pow(1-t,.85)*(1-.03*t)*(t>0?1+(jag-1)*Math.min(1,t*2.5)*.6:1);
     const y=top-t*(170+25*Math.sin(a*3))-Math.pow(t,3)*60-(t>0?4*Math.sin(a*11+t*20):0);
     const k=r*(SEG+1)+s;
     p[k*3]=C.x+ca*rad;p[k*3+1]=y;p[k*3+2]=C.z+sa*rad;
@@ -581,6 +596,7 @@ function install(){
    for(let i=0;i<COUNT;i++){
     const a=i/COUNT*Math.PI*2+(rnd()-.5)*.006;
     if(Math.abs(Math.atan2(Math.sin(a-exitA),Math.cos(a-exitA)))<gap)continue;
+    if(Math.abs(Math.atan2(Math.sin(a-PA),Math.cos(a-PA)))<(PLAZA.hw+1)/R)continue; // abertura do porto
     const inner=i%2===0,r=inner?R-4.5-rnd()*1.5:R-1.8+rnd()*2;
     const x=C.x+Math.cos(a)*r,z=C.z+Math.sin(a)*r;
     const hgt=inner?2.2+rnd()*2.4:3.4+rnd()*5.5,rad=(inner?1.3:1.8)+rnd()*1.2;
@@ -1019,7 +1035,8 @@ function install(){
    const d=Math.hypot(x-C.x,z-C.z);
    if(d<CITY_R+14||d>R-16)return false;
    if(outsideDist(x,z)<6)return false;
-   if(roadDist(x,z)<5||Math.hypot(x-PORT.x,z-PORT.z)<30)return false;
+   if(roadDist(x,z)<5)return false;
+   {const q=portUV(x,z);if(q.u>PLAZA.u0-8&&Math.abs(q.v)<PLAZA.hw+8)return false;}
    if(z>INNER.z1-4&&Math.abs(x-river.center(z))<half(z)+7)return false;
    {const si=streamInfo(x,z);if(si&&si.d<STREAM_W+5)return false;}
    if(villageNear(x,z,3))return false;
@@ -1095,7 +1112,7 @@ function install(){
   scene.add(group);
   window.arcanoIsland.forest={group,count:spots.length,templates:templates.length,spots};
  }
- window.arcanoIsland={center:C,radius:R,cityRadius:CITY_R,castleRadius:CASTLE_R,height:window.arcanoIslandHeight,land,roads,lake:LAKE,port:PORT,inner:INNER,village:VILLAGE,streams:STREAMS};
+ window.arcanoIsland={center:C,radius:R,cityRadius:CITY_R,castleRadius:CASTLE_R,height:window.arcanoIslandHeight,land,roads,lake:LAKE,port:PORT,portSite:{angle:PA,u:PU,v:PV,plaza:PLAZA,y:PORT_Y,uvOf:portUV,at:portXZ},inner:INNER,village:VILLAGE,streams:STREAMS};
  // Água fora da área detalhada (rio até a borda, canal e lago): nível e profundidade.
  // Usado para nadar, mergulhar e fazer ondulações também nessas águas.
  window.arcanoOuterWater=(x,z)=>{
