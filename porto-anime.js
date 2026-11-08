@@ -283,16 +283,19 @@ function build(api,isl){
  box(g,14,.25,PH*2+5,M.deck,PU1-7,DY-.12,-2.5,0,2.5);
  // Braço de pedra da própria ilha que sai do penhasco e sustenta o píer inteiro
  // (topo logo abaixo das vigas, embaixo afina numa quilha pontiaguda).
- {const OT=DY-1.05,U0=R-6,U1=PU1+2.5,NS=34,NV=10,pos=[],col=[],ix=[];
+ {const OT=DY-1.05,U0=R-6,U1=PU1+2.5,NS=60,NV=12,pos=[],col=[],ix=[];
+  // Na beira do penhasco o braço se alarga e sobe até a praça: fecha a fenda dos dois lados do píer.
+  const flare=u=>{const q=Math.min(1,Math.max(0,(u-(R+3))/8));return 1-q*q*(3-2*q);};
+  const topAt=u=>OT+(Y-.08-OT)*flare(u);
   const hs=n=>{const x=Math.sin(n*91.7)*43758.5;return x-Math.floor(x);};
-  const vmin=u=>u>PU1-15?-PH-6.2:-PH-1.4,vmax=u=>PH+1.2;
+  const vmin=u=>{const b=u>PU1-15?-PH-6.2:-PH-1.4;return b+(-HW-1.5-b)*flare(u);},vmax=u=>{const b=PH+1.2;return b+(HW+1.5-b)*flare(u);};
   for(let i=0;i<=NS;i++){const t=i/NS,u=U0+(U1-U0)*t,tip=Math.min(1,(U1-u)/4);
-   const a=vmin(u)*Math.max(.25,tip),b=vmax(u)*Math.max(.25,tip),depth=(34-20*t)*Math.max(.3,tip),vc=(a+b)/2;
+   const a=vmin(u)*Math.max(.25,tip),b=vmax(u)*Math.max(.25,tip),depth=(34-20*t+14*flare(u))*Math.max(.3,tip),vc=(a+b)/2,OTu=topAt(u);
    for(let k=0;k<=NV;k++){const s=k/NV;let v,y;
-    if(s<=.15){const q=s/.15;v=a+(b-a)*q;y=OT;}
-    else{const q=(s-.15)/.85,ang=q*Math.PI;v=vc+(b-vc)*Math.cos(ang)*(1-.35*Math.pow(Math.sin(ang),2));y=OT-depth*Math.pow(Math.sin(ang),.7);}
+    if(s<=.15){const q=s/.15;v=a+(b-a)*q;y=OTu;}
+    else{const q=(s-.15)/.85,ang=q*Math.PI;v=vc+(b-vc)*Math.cos(ang)*(1-.35*Math.pow(Math.sin(ang),2));y=OTu-depth*Math.pow(Math.sin(ang),.7);}
     const j=(s>.15)?(hs(i*13+k*7)-.5)*1.4:0;pos.push(u+(s>.15?(hs(i*5+k)-.5)*1.2:0),y+j*.6,v+j);
-    const dy=OT-y,c=dy<1.2?[.47,.42,.30]:dy<10?[.78,.69,.56]:[.62,.64,.70],m=.86+.14*(Math.sin(y*.5+u*.07)>0?1:0);col.push(c[0]*m,c[1]*m,c[2]*m);
+    const dy=OTu-y,c=dy<1.2?[.47,.42,.30]:dy<10?[.78,.69,.56]:[.62,.64,.70],m=.86+.14*(Math.sin(y*.5+u*.07)>0?1:0);col.push(c[0]*m,c[1]*m,c[2]*m);
     if(i<NS&&k<NV){const p=i*(NV+1)+k,q2=p+NV+1;ix.push(p,q2,p+1,p+1,q2,q2+1);}}}
   const og=new T.BufferGeometry();og.setAttribute('position',new T.Float32BufferAttribute(pos,3));og.setAttribute('color',new T.Float32BufferAttribute(col,3));og.setIndex(ix);og.computeVertexNormals();
   const out=new T.Mesh(og,new T.MeshStandardMaterial({vertexColors:true,roughness:1,flatShading:true,side:T.DoubleSide}));out.name='Braço de pedra sob o píer';out.castShadow=true;out.receiveShadow=true;root.add(out);
