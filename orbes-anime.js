@@ -1,7 +1,7 @@
 /* Esferas de Poder que acompanham o personagem.
-   - As 9 esferas do repositório esferas-de-poder (fogo, água, elétrica,
-     veneno, arcana, natureza, vórtice, trevas e universal), com os shaders e
-     efeitos originais (via esferas-poder.js).
+   - As 9 esferas em FBX (assets/esferas): fogo, água, elétrica, veneno,
+     arcana, natureza, vórtice, trevas e universal, com as animações dos
+     arquivos (via esferas-fbx.js). Só baixa as escolhidas.
    - Quais aparecem, tamanho, distância, velocidade e o jeito de seguir
      (órbita ou nos ombros) vêm da página orbes.html, salvos no navegador.
    - Seguem o personagem com suavidade, flutuando; sem luzes extras na cena. */
@@ -19,8 +19,9 @@ function install(){
  if(!api||!api.scene||!api.getMainCamera){setTimeout(install,400);return;}
  const scene=api.scene,companions=new Map();
  function sync(){
-  for(const [id,c] of companions)if(!cfg.ativas.includes(id)){scene.remove(c.orb.root);c.orb.dispose();companions.delete(id);}
-  for(const id of cfg.ativas){if(companions.has(id))continue;const orb=E.create(T,id,{detail:56});orb.root.visible=false;scene.add(orb.root);companions.set(id,{orb,pos:null});}
+  for(const [id,c] of companions)if(!cfg.ativas.includes(id)){if(c.orb){scene.remove(c.orb.root);c.orb.dispose();}companions.delete(id);}
+  for(const id of cfg.ativas){if(companions.has(id))continue;const c={orb:null,pos:null};companions.set(id,c);
+   E.create(id).then(orb=>{if(companions.get(id)!==c){orb.dispose();return;}orb.root.visible=false;c.orb=orb;scene.add(orb.root);}).catch(e=>console.warn('[Esferas] não carregou',id,e));}
  }
  sync();
  addEventListener('storage',e=>{if(e.key===KEY){cfg=readCfg();sync();}});
@@ -33,7 +34,7 @@ function install(){
   const list=[...companions.values()],n=list.length;
   const size=.28*(+cfg.tamanho||1),dist=+cfg.distancia||1,speed=+cfg.velocidade||1;
   list.forEach((c,i)=>{
-   const root=c.orb.root;
+   if(!c.orb)return;const root=c.orb.root;
    if(!p||!cam){root.visible=false;c.pos=null;return;}
    const h=p.heading||0,fx=Math.sin(h),fz=Math.cos(h),rx=Math.cos(h),rz=-Math.sin(h);
    const bob=Math.sin(t*1.8+i*2.1)*.12;
@@ -47,7 +48,7 @@ function install(){
    if(!c.pos)c.pos=tgt.clone();
    c.pos.lerp(tgt,1-Math.exp(-dt*(cfg.modo==='ombro'?7:5)));
    root.position.copy(c.pos);root.scale.setScalar(size);root.visible=true;
-   c.orb.update(t*speed,cam);
+   c.orb.update(dt*Math.max(.15,speed));
   });
  })(performance.now());
 }
