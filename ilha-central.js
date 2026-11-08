@@ -46,7 +46,7 @@ function install(){
  const PORT={x:C.x+R*.80,z:C.z+18};
  const roads=[
   // Portão sul da cidade até a borda norte da área detalhada (perto do lago).
-  [gate(Math.PI/2,2),{x:14,z:-70},{x:22,z:-52}],
+  [gate(Math.PI/2,2),{x:34,z:-84},{x:30,z:-52}],
   // Estrada da área detalhada, a leste, até o porto.
   [{x:INNER.x1,z:roadZ(INNER.x1)},{x:120,z:-20},{x:210,z:-110},{x:PORT.x-30,z:PORT.z},PORT],
   // Ligação do portão leste ao porto.
@@ -171,7 +171,9 @@ function install(){
   }
  }
  const idx=[];
- const inside=(x,z)=>x>INNER.x0&&x<INNER.x1&&z>INNER.z0&&z<INNER.z1;
+ // Fica de fora a área detalhada + um anel de 1 célula: esse anel é preenchido
+ // pela costura (ver abaixo), que liga ponto a ponto as duas malhas.
+ const inside=(x,z)=>x>INNER.x0-STEP&&x<INNER.x1+STEP&&z>INNER.z0-STEP&&z<INNER.z1+STEP;
  for(let j=0;j<n-1;j++)for(let i=0;i<n-1;i++){
   const a=j*n+i,b=a+1,c=a+n,d=c+1;
   const cx=x0+(i+.5)*STEP,cz=z0+(j+.5)*STEP;
@@ -202,27 +204,64 @@ function install(){
  const land=new T.Mesh(geo,api.terrain.material);
  land.name='Ilha Central · terreno';land.receiveShadow=true;
  scene.add(land);
- // Saia de terra na borda da área detalhada: fecha frestas entre as duas malhas
- // (a detalhada tem um ponto a cada 45 cm, a da ilha a cada 2 m).
+ // Costura: cada ponto da borda da área detalhada (a cada ~45 cm) é ligado
+ // por triângulos ao anel de pontos da ilha (a cada 2 m). Malha fechada, sem
+ // frestas, degraus ou paredes — o terreno vira uma superfície só.
  {
-  const ig=api.terrain.geometry.attributes.position,count=ig.count,zA=ig.getZ(0);
-  let nxI=1;while(nxI<count&&Math.abs(ig.getZ(nxI)-zA)<1e-6)nxI++;
-  const nzI=Math.round(count/nxI);
-  const ring=[];
-  for(let i=0;i<nxI;i++)ring.push(i);
-  for(let j=1;j<nzI;j++)ring.push(j*nxI+nxI-1);
-  for(let i=nxI-2;i>=0;i--)ring.push((nzI-1)*nxI+i);
-  for(let j=nzI-2;j>0;j--)ring.push(j*nxI);
-  ring.push(0);
-  const sp=new Float32Array(ring.length*6),si=[];
-  ring.forEach((k,r)=>{
-   const x=ig.getX(k),y=ig.getY(k),z=ig.getZ(k);
-   sp.set([x,y-.03,z,x,y-1.0,z],r*6);
-   if(r<ring.length-1){const a=r*2,b=a+1,c=a+2,d=a+3;si.push(a,b,c,c,b,d);}
+  const iPos=innerGeo.attributes.position,iNrm=innerGeo.attributes.normal,iUv=innerGeo.attributes.uv,
+   iCol=innerGeo.attributes.color,iGr=innerGeo.attributes.animeGreen,iSh=innerGeo.attributes.animeShore,oNrm=geo.attributes.normal;
+  const oIdx=(x,z)=>Math.round((z-z0)/STEP)*n+Math.round((x-x0)/STEP);
+  const verts=[],map=new Map();
+  const vid=(src,k)=>{const key=src+k;if(map.has(key))return map.get(key);map.set(key,verts.length);verts.push([src,k]);return verts.length-1;};
+  const tris=[];
+  const zip=(A,B,sa,sb)=>{
+   let i=0,j=0;
+   while(i<A.length-1||j<B.length-1){
+    if(j>=B.length-1||(i<A.length-1&&sa[i+1]<=sb[j+1])){tris.push([['I',A[i]],['I',A[i+1]],['O',B[j]]]);i++;}
+    else{tris.push([['I',A[i]],['O',B[j+1]],['O',B[j]]]);j++;}
+   }
+  };
+  const X0=INNER.x0,X1=INNER.x1,Z0=INNER.z0,Z1=INNER.z1,E=STEP;
+  const outerLine=(fixed,axis,from,to)=>{const out=[];for(let v=from;v<=to+1e-6;v+=E)out.push(axis==='x'?oIdx(v,fixed):oIdx(fixed,v));return out;};
+  const param=(arr,get,lo,hi)=>arr.map(k=>(get(k)-lo)/(hi-lo));
+  const ix=k=>iPos.getX(k),iz=k=>iPos.getZ(k),ox=k=>pos[k*3],oz=k=>pos[k*3+2];
+  // 4 lados (cantos compartilhados entre lados consecutivos).
+  let A=[],B;
+  A=[];for(let i=0;i<INX;i++)A.push(i);B=outerLine(Z0-E,'x',X0-E,X1+E);
+  zip(A,B,param(A,ix,X0,X1),param(B,ox,X0-E,X1+E));
+  A=[];for(let j=0;j<INZ;j++)A.push(j*INX+INX-1);B=outerLine(X1+E,'z',Z0-E,Z1+E);
+  zip(A,B,param(A,iz,Z0,Z1),param(B,oz,Z0-E,Z1+E));
+  A=[];for(let i=0;i<INX;i++)A.push((INZ-1)*INX+i);B=outerLine(Z1+E,'x',X0-E,X1+E);
+  zip(A,B,param(A,ix,X0,X1),param(B,ox,X0-E,X1+E));
+  A=[];for(let j=0;j<INZ;j++)A.push(j*INX);B=outerLine(X0-E,'z',Z0-E,Z1+E);
+  zip(A,B,param(A,iz,Z0,Z1),param(B,oz,Z0-E,Z1+E));
+  const indices=[];
+  for(const t of tris)indices.push(vid(...t[0]),vid(...t[1]),vid(...t[2]));
+  const N=verts.length,P=new Float32Array(N*3),NM=new Float32Array(N*3),U=new Float32Array(N*2),CO=new Float32Array(N*3),GR=new Float32Array(N),SH=new Float32Array(N*2);
+  verts.forEach(([src,k],v)=>{
+   if(src==='I'){
+    P.set([iPos.getX(k),iPos.getY(k),iPos.getZ(k)],v*3);NM.set([iNrm.getX(k),iNrm.getY(k),iNrm.getZ(k)],v*3);
+    U.set([iUv.getX(k),iUv.getY(k)],v*2);CO.set([iCol.getX(k),iCol.getY(k),iCol.getZ(k)],v*3);
+    GR[v]=iGr?iGr.getX(k):0;SH.set(iSh?[iSh.getX(k),iSh.getY(k)]:[99,9],v*2);
+   }else{
+    P.set([pos[k*3],pos[k*3+1],pos[k*3+2]],v*3);NM.set([oNrm.getX(k),oNrm.getY(k),oNrm.getZ(k)],v*3);
+    U.set([uv[k*2],uv[k*2+1]],v*2);CO.set([col[k*3],col[k*3+1],col[k*3+2]],v*3);
+    GR[v]=green[k];SH.set([shore[k*2],shore[k*2+1]],v*2);
+   }
   });
-  const sg=new T.BufferGeometry();sg.setAttribute('position',new T.BufferAttribute(sp,3));sg.setIndex(si);sg.computeVertexNormals();
-  const skirt=new T.Mesh(sg,new T.MeshStandardMaterial({color:'#7d6247',roughness:1,side:T.DoubleSide}));
-  skirt.name='Emenda da área detalhada';scene.add(skirt);
+  // Triângulos virados para cima.
+  for(let t=0;t<indices.length;t+=3){
+   const a=indices[t]*3,b=indices[t+1]*3,c=indices[t+2]*3;
+   const ux=P[b]-P[a],uz=P[b+2]-P[a+2],vx=P[c]-P[a],vz=P[c+2]-P[a+2];
+   if(uz*vx-ux*vz<0){const tmp=indices[t+1];indices[t+1]=indices[t+2];indices[t+2]=tmp;}
+  }
+  const sg=new T.BufferGeometry();
+  sg.setAttribute('position',new T.BufferAttribute(P,3));sg.setAttribute('normal',new T.BufferAttribute(NM,3));
+  sg.setAttribute('uv',new T.BufferAttribute(U,2));sg.setAttribute('color',new T.BufferAttribute(CO,3));
+  sg.setAttribute('animeGreen',new T.BufferAttribute(GR,1));sg.setAttribute('animeShore',new T.BufferAttribute(SH,2));
+  sg.setIndex(indices);sg.computeBoundingSphere();
+  const stitch=new T.Mesh(sg,api.terrain.material);stitch.name='Costura do terreno';stitch.receiveShadow=true;
+  scene.add(stitch);
  }
 
  // Altura para o personagem andar (mesma grade da malha).
@@ -284,6 +323,42 @@ function install(){
    floatData.push({x:C.x+Math.cos(a)*dist,z:C.z+Math.sin(a)*dist,y:-10-rnd()*70,s,r:rnd()*6.28,ph:rnd()*6.28});
   }
   scene.add(floating);
+  // Pedras pontiagudas ao longo da borda (maiores que o personagem), inclinadas
+  // para fora; uma abertura onde o rio cai. Também impedem de cair da ilha.
+  {
+   const sg=new T.ConeGeometry(1,1,7,4);sg.translate(0,.5,0);
+   const sp=sg.attributes.position,vv=new T.Vector3();
+   for(let i=0;i<sp.count;i++){
+    vv.fromBufferAttribute(sp,i);
+    const k=1+.22*Math.sin(vv.x*5.1+vv.y*3.3)+.15*Math.sin(vv.z*6.7-vv.y*2.1);
+    vv.x*=k;vv.z*=k;vv.x+=.12*Math.sin(vv.y*3.)*vv.y;sp.setXYZ(i,vv.x,vv.y,vv.z);
+   }
+   sg.computeVertexNormals();
+   const exitZ=(()=>{let z=INNER.z1;while(Math.hypot(river.center(z)-C.x,z-C.z)<R-1&&z<C.z+R)z+=.5;return z;})();
+   const exitA=Math.atan2(exitZ-C.z,river.center(exitZ)-C.x),gap=(half(exitZ)+3)/R;
+   const COUNT=mobile?280:560,list=[];
+   for(let i=0;i<COUNT;i++){
+    const a=i/COUNT*Math.PI*2+(rnd()-.5)*.006;
+    if(Math.abs(Math.atan2(Math.sin(a-exitA),Math.cos(a-exitA)))<gap)continue;
+    const inner=i%3===0,r=inner?R-5-rnd()*2:R-1.5+rnd()*3;
+    const x=C.x+Math.cos(a)*r,z=C.z+Math.sin(a)*r;
+    const hgt=inner?1.6+rnd()*1.6:2.6+rnd()*5,rad=(inner?.6:1)+rnd()*1.1;
+    list.push({a,x,z,y:window.arcanoIslandHeight(x,z)-.6,hgt,rad,tilt:.08+rnd()*.3,ry:rnd()*6.28});
+    if(window.arcanoObstacles)window.arcanoObstacles.addCircle(x,z,rad*.8);
+   }
+   const spikes=new T.InstancedMesh(sg,new T.MeshStandardMaterial({color:'#b5afa6',roughness:1}),list.length);
+   spikes.name='Pedras pontiagudas da borda da ilha';
+   const m=new T.Matrix4(),q=new T.Quaternion(),qy=new T.Quaternion(),axis=new T.Vector3(),pp=new T.Vector3(),sc=new T.Vector3();
+   list.forEach((s,i)=>{
+    axis.set(-Math.sin(s.a),0,Math.cos(s.a));
+    q.setFromAxisAngle(axis,-s.tilt).multiply(qy.setFromAxisAngle(new T.Vector3(0,1,0),s.ry));
+    m.compose(pp.set(s.x,s.y,s.z),q,sc.set(s.rad,s.hgt,s.rad*(.8+rnd()*.4)));
+    spikes.setMatrixAt(i,m);
+   });
+   spikes.instanceMatrix.needsUpdate=true;spikes.castShadow=!mobile;spikes.receiveShadow=true;
+   if(spikes.computeBoundingSphere)spikes.computeBoundingSphere();else spikes.frustumCulled=false;
+   scene.add(spikes);
+  }
   const animateFloating=t=>{
    floatData.forEach((f,i)=>{
     m.compose(pp.set(f.x,f.y+Math.sin(t*.4+f.ph)*1.5,f.z),q.setFromEuler(e.set(0,f.r+t*.03,0)),sc.setScalar(f.s));
@@ -337,7 +412,12 @@ function install(){
   while(Math.hypot(river.center(zEdge)-C.x,zEdge-C.z)<R-1&&zEdge<C.z+R)zEdge+=.5;
   // O próprio rio dobra na borda e cai (um elemento só com o rio).
   const south=new T.Mesh(ribbon(INNER.z1,zEdge,river.levelAt,river.center,half,150),shareMat(zEdge+.45,river.levelAt(zEdge),150));
-  // Queda da borda da ilha: cortina de água com volume (rio-anime.js).
+  // Queda da borda da ilha com volume (parede de trás e laterais da mesma água).
+  if(window.arcanoFallShell){
+   const lv=river.levelAt(zEdge),rows=[{y:lv-.01,z:zEdge}];
+   for(let f=4;f<=60;f+=4)rows.push({y:lv-Math.pow(f/60,1.6)*150,z:zEdge+.25+f*.008});
+   window.arcanoFallShell(south.material,rows,river.center(zEdge),half(zEdge)*.98,.3,'Volume da queda da borda');
+  }
 
   south.name='Rio da Ilha Central · até a borda';south.frustumCulled=false;south.renderOrder=3;
   scene.add(south);
@@ -429,6 +509,54 @@ function install(){
    curb.position.set(C.x,CITY_Y-.48,C.z);curb.name='Pedra do meio-fio da cidade';curb.receiveShadow=true;scene.add(curb);
   }
  }
+ // ---------- Estradas calçadas estilizadas ----------
+ {
+  const cv=document.createElement('canvas');cv.width=256;cv.height=256;
+  const g=cv.getContext('2d');
+  // Bordas transparentes (terra/grama aparecem), centro com pedras irregulares.
+  const grad=g.createLinearGradient(0,0,256,0);
+  grad.addColorStop(0,'rgba(150,120,80,0)');grad.addColorStop(.14,'rgba(150,120,80,.85)');
+  grad.addColorStop(.86,'rgba(150,120,80,.85)');grad.addColorStop(1,'rgba(150,120,80,0)');
+  g.fillStyle=grad;g.fillRect(0,0,256,256);
+  for(let k=0;k<70;k++){
+   const x=40+rnd()*176,y=rnd()*256,w=14+rnd()*16,h=11+rnd()*12,l=60+rnd()*14;
+   g.fillStyle=`hsl(${32+rnd()*12},${12+rnd()*10}%,${l}%)`;
+   g.beginPath();g.ellipse(x,y,w/2,h/2,rnd()*3,0,6.3);g.fill();
+   g.strokeStyle='rgba(70,55,40,.45)';g.lineWidth=2;g.stroke();
+   if(y<20||y>236){g.beginPath();g.ellipse(x,y+(y<20?256:-256),w/2,h/2,0,0,6.3);g.fill();g.stroke();}
+  }
+  const tex=new T.CanvasTexture(cv);tex.wrapS=T.ClampToEdgeWrapping;tex.wrapT=T.RepeatWrapping;tex.colorSpace=T.SRGBColorSpace;tex.anisotropy=4;
+  const mat=new T.MeshStandardMaterial({map:tex,transparent:true,depthWrite:false,roughness:1,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4});
+  const groundAt=(x,z)=>(Math.abs(x)<INNER.x1-.3&&Math.abs(z)<INNER.z1-.3)?ground.heightAt(x,z):window.arcanoIslandHeight(x,z);
+  const bridge=window.arcanoBridgeSolid;
+  const lines=roads.map(l=>({pts:l,w:2.4}));
+  {const pts=[];for(let x=INNER.x0;x<=INNER.x1;x+=1.5)pts.push({x,z:roadZ(x)});lines.push({pts,w:1.7});}
+  const pos=[],uvs=[],idx=[];
+  for(const line of lines){
+   // Reamostra a cada 1,2 m.
+   const P=[];
+   for(let i=0;i<line.pts.length-1;i++){const a=line.pts[i],b=line.pts[i+1],len=Math.hypot(b.x-a.x,b.z-a.z),steps=Math.max(1,Math.ceil(len/1.2));for(let s=0;s<steps;s++)P.push({x:a.x+(b.x-a.x)*s/steps,z:a.z+(b.z-a.z)*s/steps});}
+   P.push(line.pts[line.pts.length-1]);
+   let along=0,prev=null;
+   for(let i=0;i<P.length;i++){
+    const p=P[i],q=P[Math.min(P.length-1,i+1)],o=P[Math.max(0,i-1)];
+    let tx=q.x-o.x,tz=q.z-o.z;const tl=Math.hypot(tx,tz)||1;tx/=tl;tz/=tl;
+    if(prev)along+=Math.hypot(p.x-prev.x,p.z-prev.z);prev=p;
+    const onBridge=bridge&&bridge.center&&Math.abs(p.x-bridge.center.x)<bridge.span/2+1&&Math.abs(p.z-bridge.center.z)<3;
+    const base=pos.length/3;
+    for(let c=0;c<3;c++){
+     const off=(c-1)*line.w,x=p.x-tz*off,z=p.z+tx*off;
+     pos.push(x,groundAt(x,z)+.05-(onBridge?50:0),z);uvs.push(c/2,along/3);
+    }
+    if(i>0&&!onBridge){const a=base-3;idx.push(a,base,a+1,a+1,base,base+1,a+1,base+1,a+2,a+2,base+1,base+2);}
+   }
+  }
+  const rg=new T.BufferGeometry();
+  rg.setAttribute('position',new T.Float32BufferAttribute(pos,3));rg.setAttribute('uv',new T.Float32BufferAttribute(uvs,2));
+  rg.setIndex(idx);rg.computeVertexNormals();
+  const roadMesh=new T.Mesh(rg,mat);roadMesh.name='Estrada calçada';roadMesh.receiveShadow=true;roadMesh.renderOrder=1;
+  scene.add(roadMesh);
+ }
  // ---------- Local do castelo + núcleo de energia ----------
  {
   const y=window.arcanoIslandHeight(C.x,C.z);
@@ -466,12 +594,18 @@ function install(){
   for(const a of anchors)if(!byModel.has(a.modelName)&&!faded(a))byModel.set(a.modelName,a);
   const templates=[];
   const inv=new T.Matrix4();
+  const tb=new T.Box3(),ts=new T.Vector3();
   for(const a of byModel.values()){
+   // Copia a árvore em pé: zera a inclinação do vento naquele instante.
+   const rx=a.obj.rotation.x,rz=a.obj.rotation.z;a.obj.rotation.x=0;a.obj.rotation.z=0;
    a.obj.updateMatrixWorld(true);
+   tb.setFromObject(a.obj);tb.getSize(ts);
+   const lying=ts.y<Math.max(ts.x,ts.z)*.9;
    inv.makeTranslation(-a.x,-(a.contactY??a.y),-a.z);
    const parts=[];
    a.obj.traverse(o=>{if(o.isMesh&&!o.isInstancedMesh&&o.visible!==false)parts.push({geometry:o.geometry,material:o.material,rel:inv.clone().multiply(o.matrixWorld)});});
-   if(parts.length)templates.push({name:a.modelName,pine:a.type==='pine',parts});
+   a.obj.rotation.x=rx;a.obj.rotation.z=rz;a.obj.updateMatrixWorld(true);
+   if(parts.length&&!lying)templates.push({name:a.modelName,pine:a.type==='pine',parts});
   }
   // Lugares: anel entre a cidade e a borda, com bosques densos e clareiras.
   const COUNT=mobile?700:2200,cell=4.2,taken=new Set(),spots=[];

@@ -473,6 +473,41 @@ function install(){
  window.arcanoMakeWaterfall=makeWaterfall;
  // A cachoeira do rio é desenhada pelo próprio rio (ver vertexShader): sem malha separada.
 
+ // ---------- Volume da cachoeira ----------
+ // A queda é a própria superfície do rio; para não parecer uma "linha" vista
+ // de lado, ganha uma parede de trás e duas laterais com o MESMO material
+ // (mesma água, mesma curva de queda calculada no shader).
+ function fallShell(mat,rows,cx,w,back,name){
+  // rows: [{y,z}] da frente (de cima para baixo), coordenadas antes da curva.
+  const COLS=10,pos=[],dep=[],flw=[],uvs=[],idx=[];
+  const push=(x,y,z,u,v)=>{pos.push(x,y,z);dep.push(1.6);flw.push(0,.52);uvs.push(u,v);return pos.length/3-1;};
+  const R=rows.length;
+  // Parede de trás.
+  const backId=[];
+  rows.forEach((r,j)=>{backId[j]=[];for(let c=0;c<COLS;c++)backId[j].push(push(cx-w+2*w*c/(COLS-1),r.y,r.z-back,c/(COLS-1),j/(R-1)));});
+  for(let j=0;j<R-1;j++)for(let c=0;c<COLS-1;c++){const a=backId[j][c],b=backId[j][c+1],d=backId[j+1][c],e=backId[j+1][c+1];idx.push(a,d,b,b,d,e);}
+  // Laterais (ligam a frente à parede de trás).
+  for(const side of [-1,1]){
+   const x=cx+side*w,ids=[];
+   rows.forEach((r,j)=>ids.push([push(x,r.y,r.z,0,j/(R-1)),push(x,r.y,r.z-back,1,j/(R-1))]));
+   for(let j=0;j<R-1;j++){const a=ids[j][0],b=ids[j][1],d=ids[j+1][0],e=ids[j+1][1];idx.push(a,d,b,b,d,e);}
+  }
+  const g=new T.BufferGeometry();
+  g.setAttribute('position',new T.Float32BufferAttribute(pos,3));g.setAttribute('waterDepth',new T.Float32BufferAttribute(dep,1));
+  g.setAttribute('waterFlow',new T.Float32BufferAttribute(flw,2));g.setAttribute('uv',new T.Float32BufferAttribute(uvs,2));
+  g.setIndex(idx);
+  const m=new T.Mesh(g,mat);m.name=name;m.frustumCulled=false;m.renderOrder=3;scene.add(m);
+  return m;
+ }
+ window.arcanoFallShell=fallShell;
+ if(profile&&profile.fall){
+  const fz=profile.fall.z,top=u.uFallTop.value,drop=u.uFallDrop.value;
+  const rows=[];
+  for(let k=0;k<=14;k++){const s=k/14;rows.push({y:top-.01-drop*s,z:fz-.35+.7*s});}
+  const w=((typeof profile.halfWidth==='function'?profile.halfWidth(fz):profile.halfWidth)||3)*.96;
+  fallShell(material,rows,profile.center(fz),w,.28,'Volume da cachoeira do rio');
+ }
+
  // ---------- Névoa e gotas da cachoeira ----------
  if(profile&&profile.fall){
   const fz=profile.fall.z,halfW=(typeof profile.halfWidth==='function'?profile.halfWidth(fz):profile.halfWidth)||3;
