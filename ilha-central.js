@@ -542,28 +542,72 @@ function install(){
 
  // ---------- Base de rocha da ilha flutuante ----------
  {
-  const SEG=mobile?72:120,RINGS=mobile?16:24;
-  const p=new Float32Array((SEG+1)*(RINGS+1)*3),ix=[];
+  // Bloco de pedra gigante e pontiagudo: paredão quase vertical sob a borda,
+  // depois afina em gomos e nervuras até uma ponta afiada lá embaixo.
+  // Faces facetadas, camadas de rocha (terra no topo, pedra clara, azul-acinzentada
+  // no fundo), pontas penduradas e veios de cristal.
+  const SEG=mobile?80:140,RINGS=mobile?26:44,DEPTH=330;
+  const hsh=(n)=>{const x=Math.sin(n*127.1)*43758.5453;return x-Math.floor(x);};
+  const lobes=a=>.11*Math.sin(a*3+1.3)+.08*Math.sin(a*5+.4)+.06*Math.sin(a*9+2.2);
+  const ribs=a=>.07*Math.pow(Math.abs(Math.sin(a*11)),3)+.05*Math.pow(Math.abs(Math.sin(a*23+.7)),4);
+  const profile=t=>t<.05?1-t*.4:(1-.02)*Math.pow(Math.max(0,1-(t-.05)/.95),1.25);
+  const pos=[],col=[],ix=[];
+  const rockColor=(dy,y,a)=>{
+   const band=Math.sin(y*.16+Math.sin(a*3)*1.2)>.15?1:0,fine=Math.sin(y*.9+a*5)*.5+.5;
+   let c;
+   if(dy<3.5)c=[.47,.42,.30];
+   else if(dy<45){const k=Math.min(1,(dy-3.5)/41.5);c=[.80-.12*k,.70-.08*k,.56-.02*k];}
+   else{const k=Math.min(1,(dy-45)/(DEPTH-45));c=[.60-.22*k,.62-.20*k,.68-.14*k];}
+   const m=.84+.14*band+.04*fine;return [c[0]*m,c[1]*m,c[2]*m];
+  };
   for(let r=0;r<=RINGS;r++){
-   const t=r/RINGS;
-   for(let s=0;s<=SEG;s++){
-    const a=s/SEG*Math.PI*2,ca=Math.cos(a),sa=Math.sin(a);
+   const t=Math.pow(r/RINGS,1.15);
+   for(let sI=0;sI<=SEG;sI++){
+    const a=sI/SEG*Math.PI*2,ca=Math.cos(a),sa=Math.sin(a);
     const ex=C.x+ca*(R-1),ez=C.z+sa*(R-1);
-    // Perto do porto o topo da rocha fica logo abaixo da praça (o píer sai dela, sem faixa cinza cortando).
+    // Perto do porto o topo da rocha fica logo abaixo da praça (o píer sai dela).
     const nearPort=Math.abs(Math.atan2(Math.sin(a-PA),Math.cos(a-PA)))<(PLAZA.hw+4)/R;
     const top=window.arcanoIslandHeight(ex,ez)+(nearPort?-.45:.6);
-    const jag=1+.10*Math.sin(a*7+t*5)+.07*Math.sin(a*17-t*9)+.05*Math.sin(a*31+t*13);
-    // Recorte irregular que cresce para baixo (logo abaixo da borda quase nada sai para fora).
-    const rad=(R+2)*Math.pow(1-t,.85)*(1-.03*t)*(t>0?1+(jag-1)*Math.min(1,t*2.5)*.6:1);
-    const y=top-t*(170+25*Math.sin(a*3))-Math.pow(t,3)*60-(t>0?4*Math.sin(a*11+t*20):0);
-    const k=r*(SEG+1)+s;
-    p[k*3]=C.x+ca*rad;p[k*3+1]=y;p[k*3+2]=C.z+sa*rad;
-    if(r<RINGS&&s<SEG){const b=k+SEG+1;ix.push(k,k+1,b,k+1,b+1,b);}
+    const grow=Math.min(1,t*6);
+    const wob=t>0?1+(lobes(a+t*1.7)+ribs(a+t*.9))*grow+.018*(hsh(r*31+sI*7)-.5)*grow:1;
+    const rad=(R+2)*profile(t)*wob;
+    const y=top-t*DEPTH-(t>0?6*Math.sin(a*7+t*9)*grow:0);
+    pos.push(C.x+ca*rad,y,C.z+sa*rad);col.push(...rockColor(top-y,y,a));
+    if(r<RINGS&&sI<SEG){const k=r*(SEG+1)+sI,b=k+SEG+1;ix.push(k,k+1,b,k+1,b+1,b);}
    }
   }
   const g=new T.BufferGeometry();
-  g.setAttribute('position',new T.BufferAttribute(p,3));g.setIndex(ix);g.computeVertexNormals();
-  const base=new T.Mesh(g,new T.MeshStandardMaterial({color:'#a9a39b',roughness:1,metalness:0,side:T.DoubleSide}));
+  g.setAttribute('position',new T.Float32BufferAttribute(pos,3));g.setAttribute('color',new T.Float32BufferAttribute(col,3));g.setIndex(ix);g.computeVertexNormals();
+  const rockMat=new T.MeshStandardMaterial({vertexColors:true,roughness:1,metalness:0,side:T.DoubleSide,flatShading:true});
+  const base=new T.Mesh(g,rockMat);
+  // Pontas penduradas (estalactites gigantes) presas na parte de baixo.
+  {const sp=[],sc=[],si=[];let off=0;
+   const N=mobile?34:64;
+   for(let i=0;i<N;i++){
+    const a=hsh(i*3.7)*Math.PI*2,t=.12+hsh(i*5.3)*.62,rad=(R+2)*profile(t)*(1+lobes(a+t*1.7)*.9)*.93;
+    const top=window.arcanoIslandHeight(C.x+Math.cos(a)*(R-1),C.z+Math.sin(a)*(R-1))+.6;
+    const y0=top-t*DEPTH+10,len=(45+hsh(i*9.1)*110)*(1-t*.45),r0=10+hsh(i*2.9)*22;
+    const cg=new T.ConeGeometry(r0,len,7,4);cg.rotateX(Math.PI);cg.translate(0,-len/2,0);
+    const cp=cg.attributes.position;for(let k=0;k<cp.count;k++){const x=cp.getX(k),yy=cp.getY(k),z=cp.getZ(k),j=1+.22*Math.sin(x*.7+yy*.3+i)+.12*Math.sin(z*.9-yy*.2);cp.setXYZ(k,x*j,yy,z*j);}
+    const tilt=new T.Matrix4().makeRotationFromEuler(new T.Euler((hsh(i*7.7)-.5)*.35,a,(hsh(i*1.3)-.5)*.35));
+    cg.applyMatrix4(tilt);cg.translate(C.x+Math.cos(a)*rad*.92,y0,C.z+Math.sin(a)*rad*.92);
+    const ng=cg.index?cg.toNonIndexed():cg;
+    const pa=ng.attributes.position;for(let k=0;k<pa.count;k++){sp.push(pa.getX(k),pa.getY(k),pa.getZ(k));sc.push(...rockColor(top-pa.getY(k),pa.getY(k),a));}
+   }
+   const sg=new T.BufferGeometry();sg.setAttribute('position',new T.Float32BufferAttribute(sp,3));sg.setAttribute('color',new T.Float32BufferAttribute(sc,3));sg.computeVertexNormals();
+   const spikes=new T.Mesh(sg,rockMat);spikes.name='Pontas de pedra sob a ilha';spikes.frustumCulled=false;scene.add(spikes);}
+  // Veios de cristal brilhando na rocha.
+  {const cm=new T.MeshStandardMaterial({color:'#dff8ff',emissive:new T.Color('#5fd2ff'),emissiveIntensity:1.4,roughness:.25,flatShading:true});
+   const cg=new T.OctahedronGeometry(1,0);cg.scale(.6,1.6,.6);
+   const N=mobile?40:90,im=new T.InstancedMesh(cg,cm,N),mm=new T.Matrix4(),qq=new T.Quaternion(),ee=new T.Euler(),ss=new T.Vector3(),pv=new T.Vector3();
+   for(let i=0;i<N;i++){
+    const cl=Math.floor(i/3),a=hsh(cl*4.1)*Math.PI*2,t=.06+hsh(cl*6.7)*.5,rad=(R+2)*profile(t)*(1+lobes(a+t*1.7)+ribs(a+t*.9))-1.5;
+    const top=window.arcanoIslandHeight(C.x+Math.cos(a)*(R-1),C.z+Math.sin(a)*(R-1));
+    pv.set(C.x+Math.cos(a)*rad+(hsh(i*3.3)-.5)*3,top-t*DEPTH+(hsh(i*8.8)-.5)*4,C.z+Math.sin(a)*rad+(hsh(i*5.5)-.5)*3);
+    ee.set((hsh(i*1.1)-.5)*1.4,a,(hsh(i*2.2)-.5)*1.4+Math.PI/2*.6);qq.setFromEuler(ee);const s0=1.5+hsh(i*9.9)*3.5;ss.set(s0,s0,s0);
+    mm.compose(pv,qq,ss);im.setMatrixAt(i,mm);
+   }
+   im.instanceMatrix.needsUpdate=true;im.frustumCulled=false;im.name='Cristais da rocha da ilha';scene.add(im);}
   base.name='Pedra da base da ilha flutuante';base.frustumCulled=false;
   scene.add(base);
   // Pedras flutuando em volta da ilha.
