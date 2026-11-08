@@ -1009,65 +1009,91 @@ function install(){
    const parts=[];
    a.obj.traverse(o=>{if(o.isMesh&&!o.isInstancedMesh&&o.visible!==false)parts.push({geometry:o.geometry,material:o.material,rel:inv.clone().multiply(o.matrixWorld)});});
    a.obj.rotation.x=rx;a.obj.rotation.z=rz;a.obj.updateMatrixWorld(true);
-   if(parts.length&&!lying)templates.push({name:a.modelName,pine:a.type==='pine',parts});
+   if(parts.length&&!lying)templates.push({name:a.modelName,pine:a.type==='pine',parts,h:ts.y,w:Math.max(ts.x,ts.z)});
   }
-  // Lugares: anel entre a cidade e a borda, com bosques densos e clareiras.
-  const COUNT=mobile?700:2200,cell=4.2,taken=new Set(),spots=[];
-  const free=(x,z)=>{const k=Math.round(x/cell)+','+Math.round(z/cell);if(taken.has(k))return false;taken.add(k);return true;};
-  for(let tries=0;spots.length<COUNT&&tries<COUNT*30;tries++){
-   const a=rnd()*Math.PI*2,d=CITY_R+16+Math.sqrt(rnd())*(R-CITY_R-34);
-   const x=C.x+Math.cos(a)*d,z=C.z+Math.sin(a)*d;
-   if(outsideDist(x,z)<6)continue;
-   if(roadDist(x,z)<6||Math.hypot(x-PORT.x,z-PORT.z)<30)continue;
-   if(z>INNER.z1-4&&Math.abs(x-river.center(z))<half(z)+8)continue;
-   {const si=streamInfo(x,z);if(si&&si.d<STREAM_W+6)continue;}
-   if(villageNear(x,z,3))continue;
-   if(lakeE(x,z)<1+8/LAKE.rz||(z<INNER.z0+2&&z>LAKE.z&&Math.abs(x-river.center(z))<half(z)+7))continue;
-   const dens=Math.sin(x*.018+z*.011)*.5+Math.sin(x*.041-z*.027+2.)*.3+Math.sin(x*.07+z*.06)*.2;
-   if(rnd()>.15+.85*sm(-.25,.35,dens))continue;
+  // Floresta DENSA em todo o anel entre a cidade e a borda: grade com sorteio
+  // (uma árvore a cada ~5,5 m), só pequenas clareiras, longe de estradas,
+  // água, vila e porto.
+  const SP=mobile?7:5.5,spots=[];
+  const ok=(x,z)=>{
+   const d=Math.hypot(x-C.x,z-C.z);
+   if(d<CITY_R+14||d>R-16)return false;
+   if(outsideDist(x,z)<6)return false;
+   if(roadDist(x,z)<5||Math.hypot(x-PORT.x,z-PORT.z)<30)return false;
+   if(z>INNER.z1-4&&Math.abs(x-river.center(z))<half(z)+7)return false;
+   {const si=streamInfo(x,z);if(si&&si.d<STREAM_W+5)return false;}
+   if(villageNear(x,z,3))return false;
+   if(lakeE(x,z)<1+7/LAKE.rz||(z<INNER.z0+2&&z>LAKE.z&&Math.abs(x-river.center(z))<half(z)+7))return false;
+   return true;
+  };
+  for(let gz=C.z-R;gz<C.z+R;gz+=SP)for(let gx=C.x-R;gx<C.x+R;gx+=SP){
+   const x=gx+(rnd()-.5)*SP*.85,z=gz+(rnd()-.5)*SP*.85;
+   if(!ok(x,z))continue;
+   // Poucas clareiras pequenas (o resto é mata fechada).
+   const dens=Math.sin(x*.031+z*.017)*.5+Math.sin(x*.057-z*.043+2.)*.3+Math.sin(x*.09+z*.08)*.2;
+   if(dens<-.62||rnd()<.06)continue;
    const y=window.arcanoIslandHeight(x,z),yx=window.arcanoIslandHeight(x+2,z),yz=window.arcanoIslandHeight(x,z+2);
-   if(Math.hypot(yx-y,yz-y)>1.6)continue;
-   if(!free(x,z))continue;
-   spots.push({x,y,z,rot:rnd()*Math.PI*2,s:.85+rnd()*.45,t:Math.floor(rnd()*templates.length)});
-   if(window.arcanoObstacles)window.arcanoObstacles.addCircle(x,z,.45); // tronco
+   if(Math.hypot(yx-y,yz-y)>1.7)continue;
+   spots.push({x,y,z,rot:rnd()*Math.PI*2,s:.8+rnd()*.5,t:Math.floor(rnd()*templates.length)});
   }
   // Árvores em volta da nascente (modelos originais).
   for(let k=0;k<26;k++){
    const a=k/26*Math.PI*2+rnd()*.2,r=8+rnd()*14,x=stream.spring.x+Math.cos(a)*r,z=stream.spring.z+Math.sin(a)*r;
    const si=streamInfo(x,z);if(si&&si.d<STREAM_W+3)continue;
    if(villageNear(x,z,3)||roadDist(x,z)<5)continue;
-   if(!free(x,z))continue;
+   if(spots.some(s=>Math.hypot(s.x-x,s.z-z)<3))continue;
    spots.push({x,y:window.arcanoIslandHeight(x,z),z,rot:rnd()*Math.PI*2,s:.85+rnd()*.4,t:Math.floor(rnd()*templates.length)});
-   if(window.arcanoObstacles)window.arcanoObstacles.addCircle(x,z,.45);
   }
-  // Setores 3×3: cada setor só é desenhado quando aparece na tela.
-  const SECT=7,minX=C.x-R,size=2*R/SECT,minZ=C.z-R;
-  const buckets=new Map();
-  for(const s of spots){
-   const si=clamp(Math.floor((s.x-minX)/size),0,SECT-1),sj=clamp(Math.floor((s.z-minZ)/size),0,SECT-1);
-   const key=si+','+sj+','+s.t;
-   if(!buckets.has(key))buckets.set(key,[]);
-   buckets.get(key).push(s);
-  }
+  if(window.arcanoObstacles)for(const s of spots)window.arcanoObstacles.addCircle(s.x,s.z,.42*s.s+.05); // tronco
+  // ---------- Nível de detalhe ----------
+  // Perto do personagem: os modelos originais. Longe: árvore leve no mesmo
+  // formato e cor (uma chamada de desenho para milhares). Troca ao andar.
+  const NEAR=mobile?38:58;
   const group=new T.Group();group.name='Floresta da Ilha Central';
   const M=new T.Matrix4(),Q=new T.Quaternion(),E=new T.Euler(),P=new T.Vector3(),S=new T.Vector3();
-  for(const [key,list] of buckets){
-   const tpl=templates[+key.split(',')[2]];
-   for(const part of tpl.parts){
-    const im=new T.InstancedMesh(part.geometry,part.material,list.length);
-    im.name='Árvore da ilha · '+tpl.name;
-    list.forEach((s,i)=>{
-     M.compose(P.set(s.x,s.y-.08,s.z),Q.setFromEuler(E.set(0,s.rot,0)),S.setScalar(s.s)).multiply(part.rel);
-     im.setMatrixAt(i,M);
-    });
-    im.instanceMatrix.needsUpdate=true;
-    im.castShadow=false;im.receiveShadow=false; // sombra só nas árvores perto (área detalhada)
-    if(im.computeBoundingSphere)im.computeBoundingSphere();else im.frustumCulled=false;
-    group.add(im);
+  const perT=templates.map(()=>0);for(const s of spots)perT[s.t]++;
+  const nearMeshes=templates.map((tpl,t)=>tpl.parts.map(part=>{
+   const cap=Math.max(1,Math.min(perT[t],mobile?160:420));
+   const im=new T.InstancedMesh(part.geometry,part.material,cap);im.name='Árvore da ilha · '+tpl.name;
+   im.count=0;im.castShadow=false;im.receiveShadow=false;im.frustumCulled=false;group.add(im);return {im,part,cap};
+  }));
+  // Árvore leve: tronco + copa arredondada (folhosas) ou cones (pinheiros), em 1 m
+  // de altura; grupo 0 = tronco, grupo 1 = copa (material com a cor do tipo).
+  const part=(geo,x,y,z,sy)=>{const g=geo.toNonIndexed();g.scale(1,sy,1);g.translate(x,y,z);g.computeVertexNormals();return g;};
+  const merge=(trunk,crown)=>{const list=trunk.concat(crown);let n=0;for(const g of list)n+=g.attributes.position.count;const Pp=new Float32Array(n*3),Nn=new Float32Array(n*3);let o=0;
+   for(const g of list){Pp.set(g.attributes.position.array,o*3);Nn.set(g.attributes.normal.array,o*3);o+=g.attributes.position.count;}
+   let nt=0;for(const g of trunk)nt+=g.attributes.position.count;
+   const geo=new T.BufferGeometry();geo.setAttribute('position',new T.BufferAttribute(Pp,3));geo.setAttribute('normal',new T.BufferAttribute(Nn,3));geo.addGroup(0,nt,0);geo.addGroup(nt,n-nt,1);return geo;};
+  const roundGeo=merge([part(new T.CylinderGeometry(.035,.05,.45,6),0,.225,0,1)],
+   [part(new T.IcosahedronGeometry(.32,1),0,.58,0,.85),part(new T.IcosahedronGeometry(.24,1),.12,.78,.05,.9),part(new T.IcosahedronGeometry(.22,1),-.13,.72,-.06,.9)]);
+  const pineGeo=merge([part(new T.CylinderGeometry(.03,.045,.3,6),0,.15,0,1)],
+   [part(new T.ConeGeometry(.3,.45,8),0,.42,0,1),part(new T.ConeGeometry(.23,.38,8),0,.66,0,1),part(new T.ConeGeometry(.15,.3,8),0,.86,0,1)]);
+  const trunkMat=new T.MeshStandardMaterial({color:'#7a4a2c',roughness:1});
+  const leafColor=name=>/Birch/i.test(name)?'#d6c65c':/Maple/i.test(name)?'#d77a45':/Pine/i.test(name)?'#3f7a4a':'#4f8f42';
+  const farMeshes=templates.map((tpl,t)=>{const im=new T.InstancedMesh(tpl.pine?pineGeo:roundGeo,[/Birch/i.test(tpl.name)?new T.MeshStandardMaterial({color:'#ece6d6',roughness:1}):trunkMat,new T.MeshStandardMaterial({color:leafColor(tpl.name),roughness:1})],Math.max(1,perT[t]));
+   im.name='Floresta distante (árvores leves)';im.count=0;im.castShadow=false;im.receiveShadow=false;im.frustumCulled=false;group.add(im);return im;});
+  let lastX=1e9,lastZ=1e9;
+  function rebuild(px,pz){
+   lastX=px;lastZ=pz;
+   const nearCount=templates.map(()=>0),farCount=templates.map(()=>0);
+   for(const s of spots){
+    const d=Math.hypot(s.x-px,s.z-pz),tpl=templates[s.t];
+    if(d<NEAR&&nearCount[s.t]<nearMeshes[s.t][0].cap){
+     const k=nearCount[s.t]++;
+     for(const nm of nearMeshes[s.t]){M.compose(P.set(s.x,s.y-.08,s.z),Q.setFromEuler(E.set(0,s.rot,0)),S.setScalar(s.s)).multiply(nm.part.rel);nm.im.setMatrixAt(k,M);}
+     continue;
+    }
+    const f=farMeshes[s.t],k=farCount[s.t]++;
+    M.compose(P.set(s.x,s.y-.05,s.z),Q.setFromEuler(E.set(0,s.rot,0)),S.set(tpl.w*s.s*1.25,tpl.h*s.s,tpl.w*s.s*1.25));f.setMatrixAt(k,M);
    }
+   nearMeshes.forEach((parts,t)=>parts.forEach(nm=>{nm.im.count=nearCount[t];nm.im.instanceMatrix.needsUpdate=true;}));
+   farMeshes.forEach((f,t)=>{f.count=farCount[t];f.instanceMatrix.needsUpdate=true;});
   }
+  function where(){const p=api.getGrassPlayer&&api.getGrassPlayer();if(p)return p.position;const c=api.getMainCamera&&api.getMainCamera();return c?c.position:null;}
+  {const w=where();rebuild(w?w.x:0,w?w.z:0);}
+  setInterval(()=>{const w=where();if(w&&Math.hypot(w.x-lastX,w.z-lastZ)>8)rebuild(w.x,w.z);},300);
   scene.add(group);
-  window.arcanoIsland.forest={group,count:spots.length,templates:templates.length};
+  window.arcanoIsland.forest={group,count:spots.length,templates:templates.length,spots};
  }
  window.arcanoIsland={center:C,radius:R,cityRadius:CITY_R,castleRadius:CASTLE_R,height:window.arcanoIslandHeight,land,roads,lake:LAKE,port:PORT,inner:INNER,village:VILLAGE,streams:STREAMS};
  // Água fora da área detalhada (rio até a borda, canal e lago): nível e profundidade.

@@ -72,7 +72,9 @@ function build(){
   const trees=(api.forestInstances||[]).filter(a=>a.type==='tree'||a.type==='pine');
   for(const t of trees){const [px,py]=toPx(t.x,t.z);g.beginPath();g.arc(px,py,1.6,0,6.3);g.fill();}
   const forest=isl.forest&&isl.forest.group;
-  if(forest){
+  if(isl.forest&&isl.forest.spots){
+   for(const s of isl.forest.spots){const [px,py]=toPx(s.x,s.z);g.beginPath();g.arc(px,py,1.3,0,6.3);g.fill();}
+  }else if(forest){
    const m=new THREE.Matrix4(),p=new THREE.Vector3(),seen=new Set();
    forest.children.forEach(im=>{
     if(!im.isInstancedMesh)return;
