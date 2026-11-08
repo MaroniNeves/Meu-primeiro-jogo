@@ -26,6 +26,9 @@ const INFO={
 const VERSION='1';
 // Esferas mostradas exatamente com os materiais do arquivo (só o halo é ajustado).
 const ORIGINAL=new Set();
+// Engrossamento dos raios (miolo e brilho) para aparecerem com a esfera pequena.
+const WIDTH={core:3,glow:1.8};
+const RAY_GEO=new WeakMap();
 const base=(()=>{const s=document.currentScript&&document.currentScript.src;return s?s.replace(/[^/]*$/,''):'./';})();
 let libs=null;
 function getLibs(){return libs||(libs=Promise.all([import('three'),import('https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/loaders/FBXLoader.js')]).then(([THREE,F])=>({THREE,loader:new F.FBXLoader()})));}
@@ -37,6 +40,13 @@ function loadFile(id){
 // keep=true: corpo, texturas e efeitos ficam com os materiais do próprio arquivo (sem alterar).
 function prepare(THREE,fbx,keep){
  const halos=[];
+ // Peças que começam com escala 0 (raios, clarões, faíscas) chegam do FBXLoader com a
+ // rotação NaN: o objeto não é desenhado nunca. Zera só o que for inválido.
+ fbx.traverse(o=>{
+  const r=o.rotation;if(!isFinite(r.x)||!isFinite(r.y)||!isFinite(r.z)){r.set(isFinite(r.x)?r.x:0,isFinite(r.y)?r.y:0,isFinite(r.z)?r.z:0);}
+  const q=o.quaternion;if(!isFinite(q.x)||!isFinite(q.y)||!isFinite(q.z)||!isFinite(q.w))o.quaternion.setFromEuler(o.rotation);
+  for(const v of [o.position,o.scale])if(!isFinite(v.x)||!isFinite(v.y)||!isFinite(v.z))v.set(isFinite(v.x)?v.x:0,isFinite(v.y)?v.y:0,isFinite(v.z)?v.z:0);
+ });
  fbx.traverse(o=>{
   if(!o.isMesh&&!o.isPoints&&!o.isLine)return;
   o.frustumCulled=false;o.castShadow=false;o.receiveShadow=false;
@@ -53,8 +63,21 @@ function prepare(THREE,fbx,keep){
    if(name==='vcadd'){
     // Raios: miolo branco + faixa de brilho azul. No desenho original a faixa tem
     // 30% de força (o miolo, 100%); aplica isso às cores do próprio arquivo.
-    const g=o.geometry,c=g&&g.attributes.color;
-    if(c&&!g.userData.glowScaled){const nc=c.clone();for(let i=0;i<nc.count;i++){const r=nc.getX(i),gg=nc.getY(i),b=nc.getZ(i);if(Math.min(r,gg,b)<.9)nc.setXYZ(i,r*.3,gg*.3,b*.3);}o.geometry=g.clone();o.geometry.setAttribute('color',nc);o.geometry.userData.glowScaled=true;}
+    // (cache por geometria do arquivo: o clone() do Three compartilha o userData)
+    const g=o.geometry;let ng=RAY_GEO.get(g);
+    if(!ng&&g&&g.attributes.color){
+     ng=g.clone();ng.userData={};const nc=ng.attributes.color;
+     for(let i=0;i<nc.count;i++){const r=nc.getX(i),gg=nc.getY(i),b=nc.getZ(i);if(Math.min(r,gg,b)<.9)nc.setXYZ(i,r*.3,gg*.3,b*.3);}
+     // Com a esfera pequena no jogo os fios ficam finos demais (somem na tela):
+     // engrossa cada faixa em volta do próprio centro, sem mudar o caminho do raio.
+     const P=ng.attributes.position;
+     if(!ng.index&&P.count%6===0){const v=[0,0,0,0,0,0].map(()=>new THREE.Vector3()),m=new THREE.Vector3();
+      for(let q=0;q<P.count;q+=6){for(let k=0;k<6;k++)v[k].fromBufferAttribute(P,q+k);const K=nc.getX(q)>.9?WIDTH.core:WIDTH.glow;
+       for(const [i0,i1] of [[0,1],[2,5]]){m.copy(v[i0]).add(v[i1]).multiplyScalar(.5);v[i0].sub(m).multiplyScalar(K).add(m);v[i1].sub(m).multiplyScalar(K).add(m);}
+       v[3].copy(v[2]);v[4].copy(v[1]);for(let k=0;k<6;k++)P.setXYZ(q+k,v[k].x,v[k].y,v[k].z);}}
+     nc.needsUpdate=true;P.needsUpdate=true;ng.computeBoundingSphere();RAY_GEO.set(g,ng);
+    }
+    if(ng)o.geometry=ng;
     return new THREE.MeshBasicMaterial({vertexColors:true,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,depthTest:true,fog:false,toneMapped:false,side:THREE.DoubleSide});}
    if(name==='vc')return new THREE.MeshBasicMaterial({vertexColors:true,fog:false,toneMapped:false,side:THREE.DoubleSide});
    const transparent=!!(m.transparent||/^tex_|neb|gal/.test(name));
