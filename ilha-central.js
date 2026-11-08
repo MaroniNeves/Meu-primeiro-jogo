@@ -660,21 +660,8 @@ function install(){
   // O topo da fundação é piso (o personagem sobe nele em vez de atravessar).
   const topY=y+.3;
   if(window.arcanoGroundOverrides)window.arcanoGroundOverrides.push((px,pz)=>Math.hypot(px-C.x,pz-C.z)<CASTLE_R-5.6?topY:null);
-  // Marcos nos cantos do futuro castelo.
-  const markGeo=new T.BoxGeometry(2.4,6,2.4);markGeo.translate(0,3,0);
-  for(let i=0;i<8;i++){
-   const a=i/8*Math.PI*2+Math.PI/8,x=C.x+Math.cos(a)*(CASTLE_R-9),z=C.z+Math.sin(a)*(CASTLE_R-9);
-   if(window.arcanoObstacles)window.arcanoObstacles.addBox({x,z,hw:1.2,hd:1.2,rot:0});
-   const mk=new T.Mesh(markGeo,stone);mk.position.set(x,y+.3,z);mk.castShadow=true;mk.name='Pedra marco do castelo';scene.add(mk);
-  }
-  const coreMat=new T.MeshStandardMaterial({color:'#fff3c4',emissive:new T.Color('#ffd877'),emissiveIntensity:2.2,roughness:.4});
-  const core=new T.Mesh(new T.IcosahedronGeometry(4,2),coreMat);
-  core.position.set(C.x,y+26,C.z);core.name='Núcleo de energia da Ilha Central';
-  scene.add(core);
-  const beam=new T.Mesh(new T.CylinderGeometry(1.2,2.4,60,24,1,true),new T.MeshBasicMaterial({color:'#ffe9a8',transparent:true,opacity:.18,depthWrite:false,side:T.DoubleSide,blending:T.AdditiveBlending}));
-  beam.position.set(C.x,y+30,C.z);beam.name='Feixe do núcleo';scene.add(beam);
-  const light=new T.PointLight('#ffd98a',2.2,90,1.6);light.position.copy(core.position);scene.add(light);
-  setInterval(()=>{const t=performance.now()/1000;core.position.y=y+26+Math.sin(t*.8)*1.2;core.rotation.y=t*.3;},50);
+  // O castelo (com o núcleo de energia no alto da torre central) é montado em castelo-anime.js.
+  window.arcanoCastleSite={x:C.x,z:C.z,y:topY,radius:CASTLE_R-6};
  }
 
  // ---------- Floresta em volta da cidade (árvores originais instanciadas) ----------
