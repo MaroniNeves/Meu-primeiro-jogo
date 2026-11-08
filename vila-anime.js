@@ -109,8 +109,8 @@ function houseChale(g,w,d,roof){
  box(g,w,.7,d,M.stone,0,.35,0);box(g,w,3.4,d,M.log,0,2.4,0,0,1.6);
  gable(g,w,d+2.4,4.1,1.8,roof,.9,M.log);
  // Varanda coberta na frente.
- box(g,w,.2,2.2,M.wood,0,.75,d/2+1.1);for(const sx of [-1,-.33,.33,1])box(g,.22,3.3,.22,M.timber,sx*(w/2-.15),2.45,d/2+2.05);
- box(g,w,.12,.12,M.timber,0,1.7,d/2+2.05);
+ box(g,w,.2,2.2,M.wood,0,.25,d/2+1.1);for(const sx of [-1,-.33,.33,1])box(g,.22,3.3,.22,M.timber,sx*(w/2-.15),2.45,d/2+2.05);
+ box(g,w,.12,.12,M.timber,0,3.0,d/2+2.05);
  door(g,w,d/2+.05);windowAt(g,-w*.3,2.5,d/2+.08,0);windowAt(g,w*.3,2.5,d/2+.08,0);
  for(const sx of [-1,1])windowAt(g,sx*(w/2+.08),2.5,0,Math.PI/2);
  box(g,1.1,6,1.1,M.stone,-w/2-.3,3,-d*.15);box(g,1.3,.25,1.3,M.stone,-w/2-.3,6.1,-d*.15);
@@ -145,7 +145,20 @@ function build(api,V){
   box(g,1.8,.2,.6,M.stone,0,.1,p.d/2+.9);
   {const pot=new T.Mesh(new T.CylinderGeometry(.3,.22,.5,10),M.redWood);pot.position.set(p.w/2+.2,.43,p.d/2+.7);g.add(pot);const b=new T.Mesh(new T.IcosahedronGeometry(.42,1),M.leaf);b.position.set(p.w/2+.2,.95,p.d/2+.7);g.add(b);}
   g.position.set(p.x,p.y,p.z);g.rotation.y=p.rot;all.add(g);
-  if(O){const r=p.style==='torre'?Math.max(p.w,p.d)/2+.3:0;O.addBox({x:p.x,z:p.z,hw:p.w/2+.25+(r?.3:0),hd:p.d/2+.25,rot:p.rot,ymin:lo-2,ymax:p.y+12});}
+  if(O){const r=p.style==='torre'?Math.max(p.w,p.d)/2+.3:0;O.addBox({x:p.x,z:p.z,hw:p.w/2+.25+(r?.3:0),hd:p.d/2+.32,rot:p.rot,ymin:lo-2,ymax:p.y+12});
+   // Vaso de flores ao lado da porta.
+   const L2W=(lx,lz)=>[p.x+lx*c+lz*s,p.z-lx*s+lz*c],yr={ymin:p.y-2,ymax:p.y+8};
+   if(p.style==='chale'){
+    for(const sx of [-1,-.33,.33,1]){const [x,z]=L2W(sx*(p.w/2-.15),p.d/2+2.05);O.addCircle(x,z,.16,yr);}
+    {const [x,z]=L2W(-p.w/2-.3,-p.d*.15);O.addBox({x,z,hw:.6,hd:.6,rot:p.rot,...yr});}
+    {const [x,z]=L2W(p.w/2+.7,p.d/2-.68);O.addBox({x,z,hw:.62,hd:.55,rot:p.rot,...yr});}
+    // Piso da varanda (degrau de 35 cm) onde se pisa.
+    if(window.arcanoGroundOverrides)window.arcanoGroundOverrides.push((x,z)=>{const dx=x-p.x,dz=z-p.z,lx=dx*c-dz*s,lz=dx*s+dz*c;return Math.abs(lx)<p.w/2&&lz>p.d/2&&lz<p.d/2+2.2?p.y+.53:null;});
+   }
+   if(p.style==='torre'){const [x,z]=L2W(p.w*.42,p.d*.05);O.addBox({x,z,hw:p.w*.275+.05,hd:p.d*.35+.05,rot:p.rot,...yr});}
+   // Borda do alicerce de pedra: onde o terreno desce, o pé sobe nela (não afunda).
+   if(window.arcanoGroundOverrides)window.arcanoGroundOverrides.push((x,z)=>{const dx=x-p.x,dz=z-p.z,lx=dx*c-dz*s,lz=dx*s+dz*c;return Math.abs(lx)<p.w/2+.7&&Math.abs(lz)<p.d/2+.7?p.y+.19:null;});
+   const vx=p.w/2+.2,vz=p.d/2+.7;O.addCircle(p.x+vx*c+vz*s,p.z-vx*s+vz*c,.34,{ymin:p.y-2,ymax:p.y+3});}
  });
  // ----- Escadas de pedra -----
  for(const st of V.stairs){
@@ -159,7 +172,10 @@ function build(api,V){
   for(const sd of [-1,1]){const c=Math.cos(ry),s=Math.sin(ry);
    for(let k=0;k<n;k+=2){const t=(k+.5)/n,top=st.a.y+rise*(k+1)/n,x=st.a.x+dx*t+c*sd*(st.w/2+.15),z=st.a.z+dz*t-s*sd*(st.w/2+.15);box(g,.3,.7,L/n*2+.05,M.stone,x,top+.2,z,ry);}}
   // Lanternas no pé da escada.
-  for(const sd of [-1,1]){const c=Math.cos(ry),s=Math.sin(ry),x=st.a.x+c*sd*(st.w/2+.4),z=st.a.z-s*sd*(st.w/2+.4),y=H(x,z);box(g,.3,1.2,.3,M.stone,x,y+.6,z);box(g,.4,.4,.4,M.lamp,x,y+1.4,z);box(g,.5,.1,.5,M.iron,x,y+1.65,z);}
+  for(const sd of [-1,1]){const c=Math.cos(ry),s=Math.sin(ry),x=st.a.x+c*sd*(st.w/2+.4),z=st.a.z-s*sd*(st.w/2+.4),y=H(x,z);box(g,.3,1.2,.3,M.stone,x,y+.6,z);box(g,.4,.4,.4,M.lamp,x,y+1.4,z);box(g,.5,.1,.5,M.iron,x,y+1.65,z);if(O)O.addCircle(x,z,.25,{ymin:y-2,ymax:y+3});}
+  // Mureta dos dois lados: quem está na escada não cai e quem está fora não atravessa.
+  if(O){const lo=Math.min(st.a.y,st.b.y),hi=Math.max(st.a.y,st.b.y),c=Math.cos(ry),s=Math.sin(ry),mx=(st.a.x+st.b.x)/2,mz=(st.a.z+st.b.z)/2;
+   for(const sd of [-1,1])O.addBox({x:mx+c*sd*(st.w/2+.15),z:mz-s*sd*(st.w/2+.15),hw:.15,hd:L/2,rot:ry,ymin:lo-3,ymax:hi+2});}
   all.add(g);
  }
  // ----- Postes de luz ao longo da rua -----
