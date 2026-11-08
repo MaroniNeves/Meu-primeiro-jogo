@@ -91,7 +91,7 @@ function install(){
   return y;
  }
  // ---------- Afluente: nasce na ponta da montanha e desce até o lago ----------
- const STREAM_W=2.6;
+ const STREAM_W=3.4;
  const stream=(()=>{
   const dir=Math.atan2(LAKE.z-MT.z,LAKE.x-MT.x);
   const sp={x:MT.x+Math.cos(dir)*22,z:MT.z+Math.sin(dir)*22};
@@ -136,10 +136,9 @@ function install(){
     const depth=.75-1.2*sI(clamp((si.d/STREAM_W-.45)/.5,0,1));
     const bankT=sI(clamp((STREAM_W+6-si.d)/6,0,1));
     y=y+(si.level-depth-y)*bankT;
+    // Barranco: as margens nunca ficam abaixo da água (encosta da montanha).
+    if(si.d>STREAM_W*.78&&si.d<STREAM_W+3.5)y=Math.max(y,si.level+.12+(si.d-STREAM_W*.78)*.12);
    }
-   // Poço da nascente.
-   const ds=Math.hypot(x-stream.spring.x,z-stream.spring.z);
-   if(ds<7){const bed=stream.spring.level-1.1*(1-ds/4.5);y=y+(Math.min(y,bed)-y)*sI(clamp((7-ds)/3,0,1));}
   }
   if(z<INNER.z0+4&&z>LAKE.z-LAKE.rz-14){
    // Canal da nascente: mesmo perfil, com o nível do lago.
@@ -319,6 +318,12 @@ function install(){
   if(u+v<=1)return h00+(h10-h00)*u+(h01-h00)*v;
   return h11+(h01-h11)*(1-u)+(h10-h11)*(1-v);
  };
+ // Quanto o chão é gramado (0..1) — usado pela grama 3D da ilha.
+ window.arcanoIslandGreen=(x,z)=>{
+  const fi=clamp((x-x0)/STEP,0,n-1.001),fj=clamp((z-z0)/STEP,0,n-1.001);
+  const i=Math.floor(fi),j=Math.floor(fj),u=fi-i,v=fj-j,k=j*n+i;
+  return green[k]*(1-u)*(1-v)+green[k+1]*u*(1-v)+green[k+n]*(1-u)*v+green[k+n+1]*u*v;
+ };
  window.arcanoIslandClamp=(x,z)=>{
   const dx=x-C.x,dz=z-C.z,d=Math.hypot(dx,dz),max=R-7; // antes do paredão de pedras
   if(d<=max)return [x,z];
@@ -489,6 +494,7 @@ function install(){
    for(let j=0;j<nz-1;j++)for(let i=0;i<nx-1;i++){
     const a=j*nx+i,b=a+1,c=a+nx,d=c+1;
     if(dep[a]+dep[b]+dep[c]+dep[d]<=0)continue;
+    {const cx=xA+(i+.5)*S,cz=zA+(j+.5)*S,si=streamInfo(cx,cz);if(si&&si.d<STREAM_W+3&&lakeE(cx,cz)>1)continue;}
     ix.push(a,c,b,b,c,d);
    }
    const lg=new T.BufferGeometry();
@@ -500,14 +506,15 @@ function install(){
   }
   // Afluente: faixa de água seguindo o leito, da nascente até o lago.
   {
-   const P=stream.pts,COLS=7,pos=[],uvs=[],dep=[],fl=[],ix=[];
+   // Termina na margem do lago (sem duas águas sobrepostas na foz).
+   const P=stream.pts.filter(p=>lakeE(p.x,p.z)>1.02),COLS=7,pos=[],uvs=[],dep=[],fl=[],ix=[];
    P.forEach((p,i)=>{
     const q=P[Math.min(P.length-1,i+1)],o=P[Math.max(0,i-1)];
     let tx=q.x-o.x,tz=q.z-o.z;const tl=Math.hypot(tx,tz)||1;tx/=tl;tz/=tl;
     const slope=Math.max(0,(o.level-q.level)/Math.max(.1,Math.hypot(q.x-o.x,q.z-o.z)));
     const sp=.35+Math.min(.9,slope*4);
     for(let c=0;c<COLS;c++){
-     const off=(c/(COLS-1)*2-1)*STREAM_W*.98,x=p.x-tz*off,z=p.z+tx*off;
+     const off=(c/(COLS-1)*2-1)*STREAM_W*.74,x=p.x-tz*off,z=p.z+tx*off;
      pos.push(x,p.level+.003,z);uvs.push(c/(COLS-1),i/(P.length-1));
      dep.push(Math.max(0,p.level-window.arcanoIslandHeight(x,z)));fl.push(tx*sp,tz*sp);
      if(i<P.length-1&&c<COLS-1){const a=i*COLS+c,b=a+1,cc=a+COLS,d=cc+1;ix.push(a,cc,b,b,cc,d);}
@@ -518,12 +525,7 @@ function install(){
    sg.setAttribute('waterDepth',new T.Float32BufferAttribute(dep,1));sg.setAttribute('waterFlow',new T.Float32BufferAttribute(fl,2));
    sg.setIndex(ix);
    const sm_=new T.Mesh(sg,shareMat(-9999));sm_.name='Afluente da nascente';sm_.frustumCulled=false;sm_.renderOrder=3;scene.add(sm_);
-   // Poço da nascente (água parada no alto da montanha).
-   const pg=new T.CircleGeometry(4.8,32);pg.rotateX(-Math.PI/2);
-   const pp=pg.attributes.position,pd=new Float32Array(pp.count),pf=new Float32Array(pp.count*2);
-   for(let i=0;i<pp.count;i++){const x=pp.getX(i)+stream.spring.x,z=pp.getZ(i)+stream.spring.z;pp.setXYZ(i,x,stream.spring.level+.01,z);pd[i]=Math.max(0,stream.spring.level-window.arcanoIslandHeight(x,z));pf[i*2]=.05;pf[i*2+1]=.05;}
-   pg.setAttribute('waterDepth',new T.BufferAttribute(pd,1));pg.setAttribute('waterFlow',new T.BufferAttribute(pf,2));
-   const pool=new T.Mesh(pg,shareMat(-9999));pool.name='Poço da nascente';pool.frustumCulled=false;pool.renderOrder=3;scene.add(pool);
+   // (sem lagoa redonda: a nascente é um olho-d'água entre as pedras)
    // Rochas em volta da nascente.
    const rg=new T.SphereGeometry(1,14,10);const rp=rg.attributes.position,vv=new T.Vector3();
    for(let i=0;i<rp.count;i++){vv.fromBufferAttribute(rp,i);vv.multiplyScalar(1+.2*Math.sin(vv.x*4+vv.z*3));vv.y*=.75;rp.setXYZ(i,vv.x,vv.y,vv.z);}
@@ -791,6 +793,14 @@ function install(){
    spots.push({x,y,z,rot:rnd()*Math.PI*2,s:.85+rnd()*.45,t:Math.floor(rnd()*templates.length)});
    if(window.arcanoObstacles)window.arcanoObstacles.addCircle(x,z,.45); // tronco
   }
+  // Árvores em volta da nascente (modelos originais).
+  for(let k=0;k<26;k++){
+   const a=k/26*Math.PI*2+rnd()*.2,r=8+rnd()*14,x=stream.spring.x+Math.cos(a)*r,z=stream.spring.z+Math.sin(a)*r;
+   const si=streamInfo(x,z);if(si&&si.d<STREAM_W+3)continue;
+   if(!free(x,z))continue;
+   spots.push({x,y:window.arcanoIslandHeight(x,z),z,rot:rnd()*Math.PI*2,s:.85+rnd()*.4,t:Math.floor(rnd()*templates.length)});
+   if(window.arcanoObstacles)window.arcanoObstacles.addCircle(x,z,.45);
+  }
   // Setores 3×3: cada setor só é desenhado quando aparece na tela.
   const SECT=7,minX=C.x-R,size=2*R/SECT,minZ=C.z-R;
   const buckets=new Map();
@@ -827,7 +837,7 @@ function install(){
   let level=null;
   if(z>INNER.z1&&Math.abs(x-river.center(z))<half(z)+.2)level=river.levelAt(z);
   else if(z<INNER.z0&&(lakeE(x,z)<1+3/LAKE.rz||(z>LAKE.z&&Math.abs(x-river.center(z))<half(z)+.2)))level=LAKE.y;
-  if(level==null){const si=streamInfo(x,z);if(si&&si.d<STREAM_W)level=si.level;}
+  if(level==null){const si=streamInfo(x,z);if(si&&si.d<STREAM_W*.74)level=si.level;}
   if(level==null)return null;
   const depth=level-window.arcanoIslandHeight(x,z);
   return depth>0?{level,depth}:null;

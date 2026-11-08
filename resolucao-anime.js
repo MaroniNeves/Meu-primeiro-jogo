@@ -102,20 +102,30 @@ window.arcanoAnimeResolution={state,apply};
 const CELL=4,cells=new Map(),boxes=[],floors=[];
 const key=(i,j)=>i+','+j;
 window.arcanoObstacles={
- addCircle(x,z,r){const k=key(Math.floor(x/CELL),Math.floor(z/CELL));if(!cells.has(k))cells.set(k,[]);cells.get(k).push({x,z,r});},
+ // Registra o círculo em TODAS as células que ele cobre (objetos grandes, como o
+ // chafariz, antes ficavam fora da busca e dava para atravessar).
+ // opt.ymin/ymax: só vale nessa faixa de altura (paredes de um andar).
+ addCircle(x,z,r,opt){const c=Object.assign({x,z,r},opt||{});
+  const e=r+.35;for(let i=Math.floor((x-e)/CELL);i<=Math.floor((x+e)/CELL);i++)for(let j=Math.floor((z-e)/CELL);j<=Math.floor((z+e)/CELL);j++){
+   const k=key(i,j);if(!cells.has(k))cells.set(k,[]);cells.get(k).push(c);}},
  addBox(b){boxes.push(b);return b;},
  blocked(fx,fz,tx,tz){
   const pr=.28;
+  const pl=window.arcanoWaterV1226&&window.arcanoWaterV1226.getGrassPlayer&&window.arcanoWaterV1226.getGrassPlayer();
+  const py=pl?pl.position.y:0;
+  const outY=o=>(o.ymin!=null&&py<o.ymin)||(o.ymax!=null&&py>o.ymax);
   const ci=Math.floor(tx/CELL),cj=Math.floor(tz/CELL);
-  for(let i=ci-1;i<=ci+1;i++)for(let j=cj-1;j<=cj+1;j++){
+  for(let i=ci;i<=ci;i++)for(let j=cj;j<=cj;j++){
    const list=cells.get(key(i,j));if(!list)continue;
    for(const c of list){
+    if(outY(c))continue;
     const rr=c.r+pr,after=Math.hypot(tx-c.x,tz-c.z);
     if(after<rr&&after<Math.hypot(fx-c.x,fz-c.z)-1e-6)return true;
    }
   }
   for(const b of boxes){
    if(b.enabled&&!b.enabled())continue;
+   if(outY(b))continue;
    const cs=Math.cos(b.rot||0),sn=Math.sin(b.rot||0);
    const lx=(x,z)=>(x-b.x)*cs-(z-b.z)*sn,lz=(x,z)=>(x-b.x)*sn+(z-b.z)*cs;
    const ax=Math.abs(lx(tx,tz)),az=Math.abs(lz(tx,tz)),hw=b.hw+pr,hd=b.hd+pr;
