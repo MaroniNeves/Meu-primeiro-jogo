@@ -293,16 +293,10 @@ function install(){
   return g(k)*(1-u)*(1-v)+g(k+1)*u*(1-v)+g(k+INX)*(1-u)*v+g(k+INX+1)*u*v;
  }
  const x0=C.x-R-6,z0=C.z-R-6,n=Math.ceil((2*R+12)/STEP)+1;
- const heights=new Float32Array(n*n);
- const pos=new Float32Array(n*n*3),uv=new Float32Array(n*n*2),col=new Float32Array(n*n*3);
- const green=new Float32Array(n*n),shore=new Float32Array(n*n*2);
- for(let j=0;j<n;j++)for(let i=0;i<n;i++){
-  const k=j*n+i,x=x0+i*STEP,z=z0+j*STEP;
+ // Atributos de um vértice do terreno (uv, cor, verde, margem).
+ function vAttr(x,z,y,k,U,Cc,G,S){
   const d=Math.hypot(x-C.x,z-C.z);
-  const y=d<R+4?height(x,z):field(x,z)-8;
-  heights[k]=y;
-  pos[k*3]=x;pos[k*3+1]=y;pos[k*3+2]=z;
-  uv[k*2]=x/128+.5;uv[k*2+1]=z/100+.5;
+  U[k*2]=x/128+.5;U[k*2+1]=z/100+.5;
   const rd=roadDist(x,z),city=1-sm(CITY_R-4,CITY_R+6,d);
   // Grama em quase toda a ilha; terra nas estradas, na cidade e nas margens.
   let g=1-(1-sm(2.5,5.5,rd));
@@ -326,25 +320,53 @@ function install(){
    const ex=clamp(x,INNER.x0,INNER.x1),ez=clamp(z,INNER.z0,INNER.z1);
    g=innerSample(innerGeo.attributes.animeGreen,ex,ez,0)*(1-seam)+g*seam;
   }
-  green[k]=g;shore[k*2]=sd;shore[k*2+1]=hw;
+  G[k]=g;S[k*2]=sd;S[k*2+1]=hw;
   // Cor base: terra quente; na cidade, piso claro (área a construir).
   const v=.92+.08*Math.sin(x*.7+z*1.1);
-  if(city>.01){col[k*3]=(.62+.16*city)*v;col[k*3+1]=(.52+.17*city)*v;col[k*3+2]=(.40+.17*city)*v;}
-  else{col[k*3]=.58*v;col[k*3+1]=.46*v;col[k*3+2]=.33*v;}
+  if(city>.01){Cc[k*3]=(.62+.16*city)*v;Cc[k*3+1]=(.52+.17*city)*v;Cc[k*3+2]=(.40+.17*city)*v;}
+  else{Cc[k*3]=.58*v;Cc[k*3+1]=.46*v;Cc[k*3+2]=.33*v;}
   if(seam<1){
    const ex=clamp(x,INNER.x0,INNER.x1),ez=clamp(z,INNER.z0,INNER.z1),ca=innerGeo.attributes.color;
-   for(let c=0;c<3;c++)col[k*3+c]=innerSample(ca,ex,ez,c)*(1-seam)+col[k*3+c]*seam;
+   for(let c=0;c<3;c++)Cc[k*3+c]=innerSample(ca,ex,ez,c)*(1-seam)+Cc[k*3+c]*seam;
   }
+ }
+ const heights=new Float32Array(n*n);
+ const pos=new Float32Array(n*n*3),uv=new Float32Array(n*n*2),col=new Float32Array(n*n*3);
+ const green=new Float32Array(n*n),shore=new Float32Array(n*n*2);
+ for(let j=0;j<n;j++)for(let i=0;i<n;i++){
+  const k=j*n+i,x=x0+i*STEP,z=z0+j*STEP;
+  const d=Math.hypot(x-C.x,z-C.z);
+  const y=d<R+4?height(x,z):field(x,z)-8;
+  heights[k]=y;
+  pos[k*3]=x;pos[k*3+1]=y;pos[k*3+2]=z;
+  vAttr(x,z,y,k,uv,col,green,shore);
  }
  const idx=[];
  // Fica de fora a área detalhada + um anel de 1 célula: esse anel é preenchido
  // pela costura (ver abaixo), que liga ponto a ponto as duas malhas.
  const inside=(x,z)=>x>INNER.x0-STEP&&x<INNER.x1+STEP&&z>INNER.z0-STEP&&z<INNER.z1+STEP;
+ // ---------- Contorno suave perto da água ----------
+ // Células de 2 m perto do rio, lago e afluentes viram 4×4 células de 50 cm: a
+ // linha entre areia e água fica curva em vez de "em degraus". Nas bordas com
+ // células normais os pontos seguem a reta da célula vizinha (sem frestas).
+ const SUB=4,SS=STEP/SUB,NC=n-1,refined=new Uint8Array(NC*NC);
+ const nearWater=(x,z)=>{
+  if(z>INNER.z1-2&&Math.abs(x-river.center(z))<half(z)+8)return true;
+  if(z<INNER.z0+2&&lakeE(x,z)<1.7)return true;
+  const si=streamInfo(x,z);return !!(si&&si.d<STREAM_W+7);
+ };
+ for(let j=0;j<NC;j++)for(let i=0;i<NC;i++){
+  const cx=x0+(i+.5)*STEP,cz=z0+(j+.5)*STEP;
+  if(Math.hypot(cx-C.x,cz-C.z)>R-12||inside(cx,cz))continue;
+  if(nearWater(cx,cz))refined[j*NC+i]=1;
+ }
+ const isRef=(i,j)=>i>=0&&j>=0&&i<NC&&j<NC&&refined[j*NC+i]===1;
  for(let j=0;j<n-1;j++)for(let i=0;i<n-1;i++){
   const a=j*n+i,b=a+1,c=a+n,d=c+1;
   const cx=x0+(i+.5)*STEP,cz=z0+(j+.5)*STEP;
   if(Math.hypot(cx-C.x,cz-C.z)>R+2)continue;
   if(inside(cx,cz))continue; // célula dentro da área detalhada: sem sobreposição
+  if(refined[j*(n-1)+i])continue; // desenhada na malha detalhada perto da água
   idx.push(a,c,b,b,c,d);
  }
  const geo=new T.BufferGeometry();
@@ -370,6 +392,45 @@ function install(){
  const land=new T.Mesh(geo,api.terrain.material);
  land.name='Ilha Central · terreno';land.receiveShadow=true;
  scene.add(land);
+ const fine=new Map();let fineGeoPos=null;   // índice global (I,J) -> vértice da malha detalhada
+ {
+  const P=[],UV=[],CO=[],GR=[],SH=[],NR=[],fixedN=[],ix=[];
+  const mN=geo.attributes.normal;
+  const tU=new Float32Array(2),tC=new Float32Array(3),tG=new Float32Array(1),tS=new Float32Array(2);
+  const vert=(I,J)=>{
+   const key=I*65536+J;let v=fine.get(key);if(v!=null)return v;
+   const i=Math.floor(I/SUB),j=Math.floor(J/SUB),si=I-i*SUB,sj=J-j*SUB,x=x0+I*SS,z=z0+J*SS;
+   v=P.length/3;fine.set(key,v);
+   let ka=-1,kb=-1,t=0;
+   if(si===0&&sj===0){ka=kb=j*n+i;}
+   else if(si===0&&!(isRef(i-1,j)&&isRef(i,j))){ka=j*n+i;kb=ka+n;t=sj/SUB;}
+   else if(sj===0&&!(isRef(i,j-1)&&isRef(i,j))){ka=j*n+i;kb=ka+1;t=si/SUB;}
+   if(ka>=0){
+    const L=(arr,sz,c)=>arr[ka*sz+c]*(1-t)+arr[kb*sz+c]*t;
+    P.push(x,L(pos,3,1),z);UV.push(L(uv,2,0),L(uv,2,1));CO.push(L(col,3,0),L(col,3,1),L(col,3,2));GR.push(L(green,1,0));SH.push(L(shore,2,0),L(shore,2,1));
+    const nx=mN.getX(ka)*(1-t)+mN.getX(kb)*t,ny=mN.getY(ka)*(1-t)+mN.getY(kb)*t,nz=mN.getZ(ka)*(1-t)+mN.getZ(kb)*t,l=Math.hypot(nx,ny,nz);
+    if(l>.5)fixedN.push([v,nx/l,ny/l,nz/l]); // normal da malha normal (se ela ainda desenha ali)
+   }else{
+    const y=height(x,z);vAttr(x,z,y,0,tU,tC,tG,tS);
+    P.push(x,y,z);UV.push(tU[0],tU[1]);CO.push(tC[0],tC[1],tC[2]);GR.push(tG[0]);SH.push(tS[0],tS[1]);
+   }
+   return v;
+  };
+  for(let j=0;j<NC;j++)for(let i=0;i<NC;i++){
+   if(!refined[j*NC+i])continue;
+   for(let sj=0;sj<SUB;sj++)for(let si=0;si<SUB;si++){
+    const I=i*SUB+si,J=j*SUB+sj,a=vert(I,J),b=vert(I+1,J),c=vert(I,J+1),d=vert(I+1,J+1);
+    ix.push(a,c,b,b,c,d);
+   }
+  }
+  const fg=new T.BufferGeometry();
+  fg.setAttribute('position',new T.Float32BufferAttribute(P,3));fg.setAttribute('uv',new T.Float32BufferAttribute(UV,2));
+  fg.setAttribute('color',new T.Float32BufferAttribute(CO,3));fg.setAttribute('animeGreen',new T.Float32BufferAttribute(GR,1));
+  fg.setAttribute('animeShore',new T.Float32BufferAttribute(SH,2));fg.setIndex(ix);fg.computeVertexNormals();
+  const fn=fg.attributes.normal;for(const [v,nx,ny,nz] of fixedN)fn.setXYZ(v,nx,ny,nz);fn.needsUpdate=true;
+  fg.computeBoundingSphere();
+  fineGeoPos=fg.attributes.position.array;const fm=new T.Mesh(fg,api.terrain.material);fm.name='Ilha Central · terreno perto da água';fm.receiveShadow=true;scene.add(fm);
+ }
  // Costura: cada ponto da borda da área detalhada (a cada ~45 cm) é ligado
  // por triângulos ao anel de pontos da ilha (a cada 2 m). Malha fechada, sem
  // frestas, degraus ou paredes — o terreno vira uma superfície só.
@@ -434,6 +495,13 @@ function install(){
  window.arcanoIslandHeight=(x,z)=>{
   const fi=clamp((x-x0)/STEP,0,n-1.001),fj=clamp((z-z0)/STEP,0,n-1.001);
   const i=Math.floor(fi),j=Math.floor(fj),u=fi-i,v=fj-j,k=j*n+i;
+  if(i<NC&&j<NC&&refined[j*NC+i]){
+   const FI=fi*SUB,FJ=fj*SUB,I=Math.min(Math.floor(FI),i*SUB+SUB-1),J=Math.min(Math.floor(FJ),j*SUB+SUB-1),uu=FI-I,vv=FJ-J;
+   const fp=fineGeoPos,g=(a,b)=>fp[fine.get(a*65536+b)*3+1];
+   const h00=g(I,J),h10=g(I+1,J),h01=g(I,J+1),h11=g(I+1,J+1);
+   if(uu+vv<=1)return h00+(h10-h00)*uu+(h01-h00)*vv;
+   return h11+(h01-h11)*(1-uu)+(h10-h11)*(1-vv);
+  }
   // Mesma divisão em triângulos da malha (a,c,b / b,c,d): o pé fica exatamente
   // na superfície desenhada, sem afundar em encostas íngremes.
   const h00=heights[k],h10=heights[k+1],h01=heights[k+n],h11=heights[k+n+1];
