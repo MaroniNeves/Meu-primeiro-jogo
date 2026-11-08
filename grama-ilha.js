@@ -44,8 +44,20 @@ function install(){
  const inInner=(x,z)=>x>INNER.x0+.4&&x<INNER.x1-.4&&z>INNER.z0+.4&&z<INNER.z1-.4;
  const innerWater=(x,z)=>{const wl=window.arcanoWaterLevelAt;if(!wl)return false;const l=wl(x,z);return l!=null&&l>ground.heightAt(x,z)-.05;};
  // Altura do chão onde pode nascer grama (ou null).
+ // Estradas: nada de grama no calçamento nem na borda dele.
+ const roads=(island&&island.roads||[]).map(l=>{let a=1e9,b=-1e9,c=1e9,d=-1e9;for(const p of l){a=Math.min(a,p.x);b=Math.max(b,p.x);c=Math.min(c,p.z);d=Math.max(d,p.z);}return {l,box:[a-4,b+4,c-4,d+4]};});
+ const onRoad=(x,z)=>{
+  if(x>INNER.x0&&x<INNER.x1&&Math.abs(z-(.92-.70*Math.sin(x*.47+.6)+.17*Math.sin(x*1.34)))<2.6)return true; // trilha da área central
+  for(const r of roads){const b=r.box;if(x<b[0]||x>b[1]||z<b[2]||z>b[3])continue;const L=r.l;
+   for(let i=0;i<L.length-1;i++){const a=L[i],c=L[i+1],vx=c.x-a.x,vz=c.z-a.z,wx=x-a.x,wz=z-a.z,t=Math.max(0,Math.min(1,(wx*vx+wz*vz)/(vx*vx+vz*vz)));if(Math.hypot(wx-vx*t,wz-vz*t)<3.4)return true;}}
+  return false;
+ };
+ // A grama original que nasceu em cima de estrada some (escala zero).
+ {const zero=new T.Matrix4().makeScale(0,0,0),mm=new T.Matrix4(),vv=new T.Vector3();
+  for(const o of orig){let ch=false;for(let i=0;i<o.count;i++){o.getMatrixAt(i,mm);vv.setFromMatrixPosition(mm).applyMatrix4(o.matrixWorld);if(onRoad(vv.x,vv.z)){o.setMatrixAt(i,zero);ch=true;}}if(ch)o.instanceMatrix.needsUpdate=true;}}
  function spot(x,z){
   for(const f of window.arcanoNoGrass)if(f(x,z))return null;
+  if(onRoad(x,z))return null;
   const cs=window.arcanoCastleSite;if(cs&&Math.hypot(x-cs.x,z-cs.z)<cs.radius+2)return null; // castelo (o jardim tem a sua)
   if(inInner(x,z)){
    if(innerGreen(x,z)<.55||filled(x,z)||innerWater(x,z))return null;
