@@ -3869,8 +3869,12 @@ function gameCanStepOverStone(stone){
 }
 // Chão do mundo: a área detalhada usa a malha do solo; fora dela, a ilha.
 function worldGround(x,z){
- if((Math.abs(x)>W*.5-.35||Math.abs(z)>L*.5-.35)&&window.arcanoIslandHeight)return window.arcanoIslandHeight(x,z);
- return terrainContact(x,z);
+ let y=(Math.abs(x)>W*.5-.35||Math.abs(z)>L*.5-.35)&&window.arcanoIslandHeight?
+  window.arcanoIslandHeight(x,z):terrainContact(x,z);
+ // Pisos construídos (casa, fundação do castelo...).
+ const extra=window.arcanoGroundOverrides;
+ if(extra)for(const f of extra){const h=f(x,z);if(h!=null&&h>y)y=h;}
+ return y;
 }
 function solidGameFootHeight(x,z){
  const bridgeY=window.arcanoBridgeSolid?.surfaceAt(x,z);
@@ -3945,6 +3949,7 @@ function updateGame(dt){
     const after=((tx-stone.x)/rx)**2+((tz-stone.z)/rz)**2;
     if(after<1&&after<before-1e-7)return false;
    }
+   if(window.arcanoObstacles&&window.arcanoObstacles.blocked(game.position.x,game.position.z,tx,tz))return false;
    return !treesNearGame(tx,tz);
   };
   // Se bloquear na diagonal, deslizar pelo eixo livre sem grudar na rocha.

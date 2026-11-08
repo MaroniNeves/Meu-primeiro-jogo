@@ -14,7 +14,7 @@ if(!T)return;
 const fragmentShader=`
 precision highp float;
 varying vec3 vSkyDir;
-uniform float uTime,uCoverage,uWind,uSunVisible,uNight;
+uniform float uTime,uCoverage,uWind,uSunVisible,uNight,uClock;
 uniform vec3 uSunDir;
 
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
@@ -108,9 +108,13 @@ void main(){
  // ---------- Nuvens anime: bordas recortadas e base sombreada ----------
  if(h>-.02){
   vec2 cp=dir.xz/(h+.18)*1.15;
-  vec2 drift=vec2(uTime*.010+uTime*uWind*.012,uTime*.004);
-  float n=fbm(cp+drift);
-  float n2=fbm(cp+drift+sun.xz*.06);
+  // Nuvens andando de verdade (relógio real) e mudando de forma aos poucos:
+  // duas camadas em velocidades diferentes dão profundidade.
+  vec2 drift=vec2(uClock*(.010+.018*uWind),uClock*.004);
+  vec2 drift2=vec2(uClock*(.017+.026*uWind),-uClock*.003);
+  vec2 morph=vec2(sin(uClock*.031),cos(uClock*.027))*.35;
+  float n=fbm(cp+drift+morph*.3)*.78+fbm(cp*1.9+drift2-morph*.5+7.3)*.30-.04;
+  float n2=fbm(cp+drift+morph*.3+sun.xz*.06)*.78+fbm(cp*1.9+drift2-morph*.5+7.3+sun.xz*.1)*.30-.04;
   float threshold=mix(.66,.40,clamp(uCoverage,0.,1.));
   float mask=smoothstep(threshold,threshold+.035,n);
   // Sombra interna: amostra deslocada na direção do sol.
@@ -159,7 +163,7 @@ function install(){
  const old=dome.material,ou=old.uniforms;
  const material=new T.ShaderMaterial({
   side:T.BackSide,depthWrite:false,depthTest:true,fog:false,toneMapped:false,
-  uniforms:{uTime:ou.uTime,uCoverage:ou.uCoverage,uWind:ou.uWind,uNight:ou.uNight,
+  uniforms:{uClock:{value:0},uTime:ou.uTime,uCoverage:ou.uCoverage,uWind:ou.uWind,uNight:ou.uNight,
    uSunDir:ou.uSunDir,uSunVisible:ou.uSunVisible},
   vertexShader:old.vertexShader,fragmentShader
  });
@@ -176,6 +180,7 @@ function install(){
  const radius=dome.geometry.boundingSphere?dome.geometry.boundingSphere.radius:
   (dome.geometry.computeBoundingSphere(),dome.geometry.boundingSphere.radius);
  dome.onBeforeRender=function(renderer,sceneRef,camera){
+  material.uniforms.uClock.value=performance.now()/1000;
   // O domo original ficava além do alcance da câmera e era cortado,
   // mostrando só o fundo cinza. Agora ele segue a câmera, dentro do alcance.
   if(camera&&camera.isPerspectiveCamera){

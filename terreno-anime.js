@@ -83,6 +83,16 @@ float animeCaustic(vec2 p,float t){
  }
  return 1.-smoothstep(.0,.12,d2-d1);
 }
+// Versão suave para a luz no fundo d'água (borda larga, sem "rachaduras").
+float animeCausticSoft(vec2 p,float t){
+ vec2 n=floor(p),f=fract(p);float d1=8.,d2=8.;
+ for(int j=-1;j<=1;j++)for(int i=-1;i<=1;i++){
+  vec2 g=vec2(float(i),float(j));vec2 o=animeHash2(n+g);o=.5+.45*sin(t+6.2831*o);
+  float d=length(g+o-f);
+  if(d<d1){d2=d1;d1=d;}else if(d<d2)d2=d;
+ }
+ float e=1.-smoothstep(.0,.38,d2-d1);return e*e;
+}
 `;
 function patchLand(material){
  if(material.userData.animeLand)return;
@@ -136,8 +146,16 @@ function patchLand(material){
      vec3 bed=mix(animeLin(vec3(.50,.46,.36)),animeLin(vec3(.32,.38,.34)),smoothstep(.0,1.2,-hw));
      outC=mix(outC,bed*(.85+.3*big),under);
      // Cáusticas: redes de luz dançando no leito, só debaixo d'água.
-     float caus=animeCaustic(w*1.3+vec2(0.,uAnimeTime*.15),uAnimeTime*.9)*.7+animeCaustic(w*2.1+3.3,uAnimeTime*1.2)*.4;
-     outC+=animeLin(vec3(.80,1.,.92))*caus*under*.30*(1.-smoothstep(.6,2.8,-hw));
+     // Areia do leito com marcas de ondulação da correnteza.
+     float rip=sin(dot(w,vec2(.35,.94))*7.5+animeNoise(w*1.3)*4.)*.5+.5;
+     outC*=mix(1.,.90+.14*rip,under);
+     // Cáusticas suaves: duas camadas distorcidas, combinadas pelo mínimo
+     // (a luz forma manchas e fios ondulando, não uma rede rígida).
+     vec2 cw=w+vec2(animeNoise(w*.8+uAnimeTime*.2),animeNoise(w*.8-uAnimeTime*.2))*.6;
+     float c1=animeCausticSoft(cw*1.15+vec2(0.,uAnimeTime*.12),uAnimeTime*.8);
+     float c2=animeCausticSoft(cw*1.15+vec2(2.7,-uAnimeTime*.09),uAnimeTime*.65+1.3);
+     float caus=min(c1,c2)*1.6+max(c1,c2)*.15;
+     outC+=animeLin(vec3(.85,1.,.95))*caus*under*.22*(1.-smoothstep(.8,3.5,-hw));
      // Areia molhada logo acima da linha d'água.
      float wetSand=(1.-smoothstep(.0,.55,sd))*(1.-smoothstep(.06,.30,hw))*(1.-under);
      outC=mix(outC,animeLin(vec3(.66,.55,.42)),wetSand*.6);
@@ -397,6 +415,30 @@ function start(){
  // A grama é criada em setores ao longo do carregamento.
  setInterval(()=>{if(!document.hidden)scan(api);},9000);
  window.arcanoAnimeTerrain={rescan:()=>scan(api)};
+ // Plantas e arbustos: folhas visíveis dos dois lados (antes alguns lados
+ // ficavam "abertos") e plantas que vieram deitadas no modelo são escondidas.
+ const box=new T.Box3(),size=new T.Vector3();
+ let lastCount=-1;
+ const fixPlants=()=>{
+  const list=api.forestInstances||[];
+  if(list.length!==lastCount){lastCount=list.length;setTimeout(fixPlants,3000);return;}
+  for(const a of list){
+   if(!a||!a.obj||a.userData_animePlant||!['bush','flower','fern','grass'].includes(a.type))continue;
+   a.userData_animePlant=true;
+   a.obj.traverse(o=>{
+    if(!o.isMesh)return;
+    for(const m of Array.isArray(o.material)?o.material:[o.material])
+     if(m&&m.side!==T.DoubleSide){m.side=T.DoubleSide;m.needsUpdate=true;}
+   });
+   a.obj.updateMatrixWorld(true);box.setFromObject(a.obj);box.getSize(size);
+   const wide=Math.max(size.x,size.z);
+   if(wide>.45&&size.y<wide*.28){
+    if(a.fullScale&&a.fullScale.setScalar)a.fullScale.setScalar(.0001);
+    a.obj.scale.setScalar(.0001);a.obj.updateMatrixWorld(true);
+   }
+  }
+ };
+ setTimeout(fixPlants,4000);
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
 })();

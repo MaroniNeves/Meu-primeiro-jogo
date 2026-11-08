@@ -111,6 +111,8 @@ function build(api,ground){
    lo=Math.min(lo,ground.heightAt(s.x,s.z));
    const sy=s.r*(.75+rnd()*.35);
    const y=lo-sy*.68*.3;
+   // Pedras médias e grandes bloqueiam a passagem (as pequenas dá para pisar por cima).
+   if(s.r>.4&&window.arcanoObstacles)window.arcanoObstacles.addCircle(s.x,s.z,s.r*.8);
    e.set(s.tilt,s.rot,s.tilt*.6);q.setFromEuler(e);
    m.compose(pos.set(s.x,y,s.z),q,sc.set(s.r,sy,s.r*(.85+rnd()*.3)));
    mesh.setMatrixAt(i,m);

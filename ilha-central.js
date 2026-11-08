@@ -195,7 +195,11 @@ function install(){
  window.arcanoIslandHeight=(x,z)=>{
   const fi=clamp((x-x0)/STEP,0,n-1.001),fj=clamp((z-z0)/STEP,0,n-1.001);
   const i=Math.floor(fi),j=Math.floor(fj),u=fi-i,v=fj-j,k=j*n+i;
-  return heights[k]*(1-u)*(1-v)+heights[k+1]*u*(1-v)+heights[k+n]*(1-u)*v+heights[k+n+1]*u*v;
+  // Mesma divisão em triângulos da malha (a,c,b / b,c,d): o pé fica exatamente
+  // na superfície desenhada, sem afundar em encostas íngremes.
+  const h00=heights[k],h10=heights[k+1],h01=heights[k+n],h11=heights[k+n+1];
+  if(u+v<=1)return h00+(h10-h00)*u+(h01-h00)*v;
+  return h11+(h01-h11)*(1-u)+(h10-h11)*(1-v);
  };
  window.arcanoIslandClamp=(x,z)=>{
   const dx=x-C.x,dz=z-C.z,d=Math.hypot(dx,dz),max=R-5;
@@ -335,6 +339,7 @@ function install(){
    const x=C.x+Math.cos(a)*CITY_R,z=C.z+Math.sin(a)*CITY_R;
    m.compose(p.set(x,window.arcanoIslandHeight(x,z)+.25,z),q.setFromEuler(e.set(0,-a+Math.PI/2,0)),s);
    wall.setMatrixAt(used++,m);
+   if(window.arcanoObstacles)window.arcanoObstacles.addBox({x,z,hw:segLen*.51,hd:1.1,rot:-a+Math.PI/2});
   }
   wall.count=used;wall.castShadow=true;wall.receiveShadow=true;
   scene.add(wall);
@@ -348,6 +353,7 @@ function install(){
    for(const side of [-1,1]){
     const a=g+side*.075,x=C.x+Math.cos(a)*CITY_R,z=C.z+Math.sin(a)*CITY_R,y=window.arcanoIslandHeight(x,z);
     const pole=new T.Mesh(poleGeo,poleMat);pole.position.set(x,y,z);pole.castShadow=true;
+    if(window.arcanoObstacles)window.arcanoObstacles.addCircle(x,z,.25);
     const flag=new T.Mesh(flagGeo,flagMats[(gi+(side>0?1:0))%2]);flag.position.copy(pole.position);
     flag.rotation.y=-a;flag.name='Estandarte do portão';
     scene.add(pole,flag);
@@ -379,10 +385,14 @@ function install(){
   const base=new T.Mesh(new T.CylinderGeometry(CASTLE_R-6,CASTLE_R-3,3,48),stone);
   base.position.set(C.x,y-1.2,C.z);base.receiveShadow=true;base.castShadow=true;
   base.name='Pedra da fundação do castelo';scene.add(base);
+  // O topo da fundação é piso (o personagem sobe nele em vez de atravessar).
+  const topY=y+.3;
+  if(window.arcanoGroundOverrides)window.arcanoGroundOverrides.push((px,pz)=>Math.hypot(px-C.x,pz-C.z)<CASTLE_R-5.6?topY:null);
   // Marcos nos cantos do futuro castelo.
   const markGeo=new T.BoxGeometry(2.4,6,2.4);markGeo.translate(0,3,0);
   for(let i=0;i<8;i++){
    const a=i/8*Math.PI*2+Math.PI/8,x=C.x+Math.cos(a)*(CASTLE_R-9),z=C.z+Math.sin(a)*(CASTLE_R-9);
+   if(window.arcanoObstacles)window.arcanoObstacles.addBox({x,z,hw:1.2,hd:1.2,rot:0});
    const mk=new T.Mesh(markGeo,stone);mk.position.set(x,y+.3,z);mk.castShadow=true;mk.name='Pedra marco do castelo';scene.add(mk);
   }
   const coreMat=new T.MeshStandardMaterial({color:'#fff3c4',emissive:new T.Color('#ffd877'),emissiveIntensity:2.2,roughness:.4});
@@ -429,6 +439,7 @@ function install(){
    if(Math.hypot(yx-y,yz-y)>1.6)continue;
    if(!free(x,z))continue;
    spots.push({x,y,z,rot:rnd()*Math.PI*2,s:.85+rnd()*.45,t:Math.floor(rnd()*templates.length)});
+   if(window.arcanoObstacles)window.arcanoObstacles.addCircle(x,z,.45); // tronco
   }
   // Setores 3×3: cada setor só é desenhado quando aparece na tela.
   const SECT=7,minX=C.x-R,size=2*R/SECT,minZ=C.z-R;

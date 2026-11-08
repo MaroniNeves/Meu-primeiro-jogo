@@ -82,6 +82,9 @@ uniform vec3 uSun,uSunColor,uSkyTop,uSkyHorizon;
 uniform vec3 uShallow,uDeep,uFoam;
 uniform vec3 uPlayer;
 uniform float uPlayerWet;
+// Rastro: anéis soltos a cada passo na água (x,z, instante, força).
+uniform vec4 uRings[12];
+uniform float uClock;
 uniform sampler2D uRefl;
 uniform mat4 uReflMatrix;
 uniform float uReflReady,uMirrorY;
@@ -124,9 +127,24 @@ void main(){
  vec2 gr=mix(g0,g1,mixW)+ripple(vWorld.xz*6.2+vec2(uTime*.35,-uTime*.27))*.45;
  float rough=.10+.10*speed+.05*uWind;
  // Anéis em volta do personagem (ondulação de verdade, não só desenho).
+ // Cada anel se expande a ~1,4 m/s e some aos poucos; vários anéis seguidos
+ // (personagem andando) formam a esteira em V atrás dele.
+ vec2 ringG=vec2(0.);float ringW=0.;
+ for(int i=0;i<12;i++){
+  vec4 rg=uRings[i];
+  float age=uClock-rg.z;
+  if(rg.w<=0.||age<0.||age>3.)continue;
+  vec2 dv=vWorld.xz-rg.xy;float d=length(dv);
+  float r=.15+age*1.4;
+  float env=exp(-pow((d-r)*2.6,2.))*rg.w*exp(-age*1.3);
+  float ph=(d-r)*16.;
+  ringW+=sin(ph)*env;
+  ringG+=(d>.001?dv/d:vec2(0.))*cos(ph)*env*1.2;
+ }
+ // Água empurrada logo em volta do corpo.
  vec2 toP=vWorld.xz-uPlayer.xz;float pd=length(toP);
- float ringW=cos(pd*10.-uTime*6.)*smoothstep(2.6,.2,pd)*uPlayerWet;
- vec2 ringG=(pd>.001?toP/pd:vec2(0.))*ringW*.9;
+ float bodyPush=smoothstep(.55,.15,pd)*uPlayerWet;
+ ringG+=(pd>.001?toP/pd:vec2(0.))*sin(pd*18.-uClock*9.)*bodyPush*.5;
  vec3 n=normalize(vWaveN+vec3(gr.x*rough+ringG.x,0.,gr.y*rough+ringG.y));
 
  vec3 viewDir=normalize(cameraPosition-vWorld);
@@ -173,7 +191,7 @@ void main(){
  float bank=1.-smoothstep(.0,.07,vDepth);
  float foamBank=bank*smoothstep(.40,.70,fn+.25);
  float foamFast=smoothstep(.8,1.2,speed)*smoothstep(.62,.80,fbm(vWorld.xz*vec2(4.,1.2)-flow*uTime*2.));
- float foam=clamp(foamBank*.85+foamFast*.5+ringW*.15*step(0.,ringW),0.,1.);
+ float foam=clamp(foamBank*.85+foamFast*.5+max(ringW,0.)*.35+bodyPush*.35,0.,1.);
  col=mix(col,uFoam,foam);a=max(a,foam*.9);
 
  // ---------- Cachoeira ----------
@@ -205,8 +223,8 @@ void main(){
  if(!gl_FrontFacing){
   vec3 nb=normalize(vec3(n.x,-n.y,n.z));
   float up=max(dot(-viewDir,vec3(0.,1.,0.)),0.);
-  float window_=smoothstep(.55,.85,up+(gr.x+gr.y)*.08);
-  vec3 under=mix(vec3(.28,.62,.68),vec3(.62,.90,.92),.5+.5*sin((gr.x-gr.y)*3.));
+  float window_=smoothstep(.62,.97,up+n.x*.06);
+  vec3 under=mix(vec3(.22,.55,.64),vec3(.50,.82,.88),smoothstep(.1,.9,up)+(n.x+n.z)*.25);
   col=mix(under,mix(uSkyHorizon,vec3(1.),.35),window_);
   col+=uSunColor*pow(max(dot(-viewDir,normalize(uSun)),0.),40.)*.6;
   a=.88;
@@ -235,6 +253,7 @@ function install(){
    uSkyTop:{value:srgb('#3d8fe0')},uSkyHorizon:{value:srgb('#bfe8ff')},
    uShallow:{value:srgb('#86d6c6')},uDeep:{value:srgb('#1d6f92')},uFoam:{value:srgb('#f2fbfa')},
    uPlayer:{value:new T.Vector3(0,-999,0)},uPlayerWet:{value:0},
+   uRings:{value:Array.from({length:12},()=>new T.Vector4(0,0,-99,0))},uClock:{value:0},
    uRefl:{value:null},uReflMatrix:{value:new T.Matrix4()},uReflReady:{value:0},uMirrorY:{value:0},
    uFallZ:{value:profile&&profile.fall?profile.fall.z:-999},
    uFallTop:{value:profile&&profile.fall?profile.levelAt(profile.fall.z-.6):-999},
@@ -312,7 +331,7 @@ function install(){
   }
  }
 
- let wet=0;
+ let wet=0,ringIndex=0;const lastRing={x:0,z:0,t:0};
  const sunTmp=new T.Color();
  water.onBeforeRender=function(r,sc,camera){
   if(rendering)return;
@@ -342,6 +361,16 @@ function install(){
    }
   }
   wet+=(target-wet)*.08;
+  // Solta um anel a cada passo dentro d'água (mais vezes quando anda).
+  const now=performance.now()/1000;u.uClock.value=now;
+  if(player&&target>0){
+   const p=player.position,moved=Math.hypot(p.x-lastRing.x,p.z-lastRing.z);
+   if((moved>.35&&now-lastRing.t>.16)||now-lastRing.t>1.1){
+    const slot=u.uRings.value[ringIndex++%12];
+    slot.set(p.x,p.z,now,moved>.35?.55:.3);
+    lastRing.x=p.x;lastRing.z=p.z;lastRing.t=now;
+   }
+  }
   u.uPlayerWet.value=wet;
  };
 
