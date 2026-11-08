@@ -23,7 +23,7 @@ const C={x:0,z:-230};          // centro da ilha e da cidade
 const R=430;                    // raio da ilha
 const CITY_R=130;               // cidade Aurora (~260 m de diâmetro)
 const CASTLE_R=42;              // colina do castelo
-const CITY_Y=16,CASTLE_Y=CITY_Y+12;
+const CITY_Y=10,CASTLE_Y=CITY_Y+12; // platô baixo o bastante para a estrada subir em rampa
 const INNER={x0:-64,x1:64,z0:-50,z1:50};   // área detalhada já existente
 // 2 m: as linhas da malha caem EXATAMENTE nas bordas da área detalhada
 // (x=±64, z=±50), sem triângulos atravessando o terreno detalhado.
@@ -39,7 +39,7 @@ function install(){
  const scene=api.scene;
  const half=z=>typeof river.halfWidth==='function'?river.halfWidth(z):river.halfWidth;
  const roadZ=x=>.92-.70*Math.sin(x*.47+.6)+.17*Math.sin(x*1.34);
- const LAKE={x:river.center(-50),z:-76,r:18,y:river.levelAt(-50)};
+ const LAKE={x:river.center(-50),z:-67,r:13,y:river.levelAt(-50)};
 
  // ---------- Estradas (polilinhas) ----------
  const gate=(ang,extra=0)=>({x:C.x+Math.cos(ang)*(CITY_R+extra),z:C.z+Math.sin(ang)*(CITY_R+extra)});
@@ -49,12 +49,10 @@ function install(){
   [gate(Math.PI/2,2),{x:34,z:-84},{x:30,z:-52}],
   // Estrada da área detalhada, a leste, até o porto.
   [{x:INNER.x1,z:roadZ(INNER.x1)},{x:120,z:-20},{x:210,z:-110},{x:PORT.x-30,z:PORT.z},PORT],
-  // Ligação do portão leste ao porto.
-  [gate(0,2),{x:200,z:C.z+6},{x:PORT.x-30,z:PORT.z}],
-  // Estrada da área detalhada, a oeste, subindo até o portão oeste.
-  [{x:INNER.x0,z:roadZ(INNER.x0)},{x:-120,z:-15},{x:-185,z:-120},gate(Math.PI,2)],
-  // Portão norte: trilha para o norte da ilha.
-  [gate(-Math.PI/2,2),{x:-20,z:C.z-230},{x:30,z:C.z-330}]
+  // Estrada da área detalhada, a oeste, contornando até o grande portão (sul).
+  [{x:INNER.x0,z:roadZ(INNER.x0)},{x:-110,z:-20},{x:-70,z:-80},{x:-14,z:-92},gate(Math.PI/2,6)],
+  // Rua que atravessa o portão e entra na cidade.
+  [gate(Math.PI/2,14),gate(Math.PI/2,-30)]
  ];
  function roadDist(x,z){
   let best=1e9;
@@ -275,7 +273,7 @@ function install(){
   return h11+(h01-h11)*(1-u)+(h10-h11)*(1-v);
  };
  window.arcanoIslandClamp=(x,z)=>{
-  const dx=x-C.x,dz=z-C.z,d=Math.hypot(dx,dz),max=R-5;
+  const dx=x-C.x,dz=z-C.z,d=Math.hypot(dx,dz),max=R-7; // antes do paredão de pedras
   if(d<=max)return [x,z];
   return [C.x+dx/d*max,C.z+dz/d*max];
  };
@@ -336,13 +334,14 @@ function install(){
    sg.computeVertexNormals();
    const exitZ=(()=>{let z=INNER.z1;while(Math.hypot(river.center(z)-C.x,z-C.z)<R-1&&z<C.z+R)z+=.5;return z;})();
    const exitA=Math.atan2(exitZ-C.z,river.center(exitZ)-C.x),gap=(half(exitZ)+3)/R;
-   const COUNT=mobile?280:560,list=[];
+   // Paredão contínuo: pedras encostadas umas nas outras formam o limite da ilha.
+   const COUNT=mobile?1100:1800,list=[];
    for(let i=0;i<COUNT;i++){
     const a=i/COUNT*Math.PI*2+(rnd()-.5)*.006;
     if(Math.abs(Math.atan2(Math.sin(a-exitA),Math.cos(a-exitA)))<gap)continue;
-    const inner=i%3===0,r=inner?R-5-rnd()*2:R-1.5+rnd()*3;
+    const inner=i%2===0,r=inner?R-4.5-rnd()*1.5:R-1.8+rnd()*2;
     const x=C.x+Math.cos(a)*r,z=C.z+Math.sin(a)*r;
-    const hgt=inner?1.6+rnd()*1.6:2.6+rnd()*5,rad=(inner?.6:1)+rnd()*1.1;
+    const hgt=inner?2+rnd()*2.2:3.2+rnd()*5.5,rad=(inner?.9:1.3)+rnd()*1.1;
     list.push({a,x,z,y:window.arcanoIslandHeight(x,z)-.6,hgt,rad,tilt:.08+rnd()*.3,ry:rnd()*6.28});
     if(window.arcanoObstacles)window.arcanoObstacles.addCircle(x,z,rad*.8);
    }
@@ -450,40 +449,129 @@ function install(){
 
  // ---------- Demarcação da cidade Aurora ----------
  const stone=new T.MeshStandardMaterial({color:'#cfc8bb',roughness:1});
+ // Muralha de Aurora no estilo Mondstadt: muralha alta com ameias e passarela,
+ // torres redondas, estandartes e um GRANDE PORTÃO de entrada ao sul.
  {
-  // Fundação da muralha (anel), com aberturas nos 4 portões.
-  const segLen=4,count=Math.floor(2*Math.PI*CITY_R/segLen);
-  const wall=new T.InstancedMesh(new T.BoxGeometry(segLen*1.02,1.4,2.2),stone,count);
-  wall.name='Pedra da fundação da muralha de Aurora';
-  const m=new T.Matrix4(),q=new T.Quaternion(),e=new T.Euler(),p=new T.Vector3(),s=new T.Vector3(1,1,1);
-  let used=0;
+  const O=window.arcanoObstacles;
+  const stoneTex=(()=>{
+   const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');
+   g.fillStyle='#5c6068';g.fillRect(0,0,256,256);
+   for(let r=0;r<8;r++){let x=-rnd()*40;const y=r*32;
+    while(x<256){const w=34+rnd()*40,l=52+rnd()*14;g.fillStyle=`hsl(222,${6+rnd()*7}%,${l}%)`;
+     g.beginPath();if(g.roundRect)g.roundRect(x+2,y+2,w-4,28,4);else g.rect(x+2,y+2,w-4,28);g.fill();
+     g.fillStyle='rgba(255,255,255,.06)';g.fillRect(x+4,y+4,w-8,5);x+=w;}}
+   const t=new T.CanvasTexture(c);t.wrapS=t.wrapT=T.RepeatWrapping;t.colorSpace=T.SRGBColorSpace;t.anisotropy=4;return t;
+  })();
+  const wallMat=new T.MeshStandardMaterial({color:'#e6e8ee',map:stoneTex,roughness:1});
+  const darkMat=new T.MeshStandardMaterial({color:'#2a2a33',roughness:1});
+  const roofMat=new T.MeshStandardMaterial({color:'#3b7a8a',roughness:1});
+  const woodMat=new T.MeshStandardMaterial({color:'#6b4630',roughness:1});
+  const lampMat=new T.MeshStandardMaterial({color:'#ffe2a0',emissive:new T.Color('#ffc766'),emissiveIntensity:.6});
+  const bannerTex=(()=>{
+   const c=document.createElement('canvas');c.width=128;c.height=320;const g=c.getContext('2d');
+   g.fillStyle='#a8322d';g.fillRect(0,0,128,320);
+   g.fillStyle='#e8c56a';g.fillRect(0,0,128,14);g.fillRect(10,0,6,300);g.fillRect(112,0,6,300);
+   g.beginPath();g.arc(64,120,30,0,6.3);g.fill();g.fillStyle='#a8322d';g.beginPath();g.arc(64,120,20,0,6.3);g.fill();
+   g.fillStyle='#e8c56a';g.beginPath();g.moveTo(64,96);g.lineTo(76,128);g.lineTo(64,150);g.lineTo(52,128);g.closePath();g.fill();
+   const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;return t;
+  })();
+  const bannerMat=new T.MeshStandardMaterial({map:bannerTex,side:T.DoubleSide,roughness:1});
+  const boxUV=(geo,w,h,d,tile)=>{const uv=geo.attributes.uv,F=[[d,h],[d,h],[w,d],[w,d],[w,h],[w,h]];for(let f=0;f<6;f++)for(let v=0;v<4;v++){const i=f*4+v;uv.setXY(i,uv.getX(i)*F[f][0]/tile,uv.getY(i)*F[f][1]/tile);}return geo;};
+  const WALL_H=11,BASE=4,THK=3.2,GATE_A=Math.PI/2,GATE_HALF=9.5/CITY_R;
+  const ang=(a,b)=>Math.abs(Math.atan2(Math.sin(a-b),Math.cos(a-b)));
+  const towerAngles=[];for(let i=0;i<10;i++)towerAngles.push(GATE_A+Math.PI/10+i*(2*Math.PI-Math.PI/5)/9);
+  // Paredão em segmentos.
+  const segLen=4,count=Math.floor(2*Math.PI*CITY_R/segLen),H=WALL_H+BASE;
+  const wallGeo=boxUV(new T.BoxGeometry(segLen*1.04,H,THK),segLen,H,THK,3.2);
+  const walls=new T.InstancedMesh(wallGeo,wallMat,count);walls.name='Muralha de Aurora';
+  const merlonGeo=boxUV(new T.BoxGeometry(1.3,1.7,.9),1.3,1.7,.9,3.2);
+  const merlons=new T.InstancedMesh(merlonGeo,wallMat,count*2);merlons.name='Ameias da muralha';
+  const parapet=new T.InstancedMesh(boxUV(new T.BoxGeometry(segLen*1.04,1,.6),segLen,1,.6,3.2),wallMat,count);
+  const M4=new T.Matrix4(),Q=new T.Quaternion(),E=new T.Euler(),P=new T.Vector3(),S=new T.Vector3(1,1,1);
+  let wi=0,mi=0,pi=0;
   for(let i=0;i<count;i++){
-   const a=i/count*Math.PI*2;
-   const gateGap=[0,Math.PI/2,Math.PI,Math.PI*1.5].some(g=>Math.abs(Math.atan2(Math.sin(a-g),Math.cos(a-g)))<.06);
-   if(gateGap)continue;
-   const x=C.x+Math.cos(a)*CITY_R,z=C.z+Math.sin(a)*CITY_R;
-   m.compose(p.set(x,window.arcanoIslandHeight(x,z)+.25,z),q.setFromEuler(e.set(0,-a+Math.PI/2,0)),s);
-   wall.setMatrixAt(used++,m);
-   if(window.arcanoObstacles)window.arcanoObstacles.addBox({x,z,hw:segLen*.51,hd:1.1,rot:-a+Math.PI/2});
-  }
-  wall.count=used;wall.castShadow=true;wall.receiveShadow=true;
-  scene.add(wall);
-  // Estandartes nos portões.
-  const poleGeo=new T.CylinderGeometry(.18,.22,9,8);poleGeo.translate(0,4.5,0);
-  const flagGeo=new T.PlaneGeometry(2.2,4.2,1,4);flagGeo.translate(1.2,6.4,0);
-  const poleMat=new T.MeshStandardMaterial({color:'#6b4630',roughness:1});
-  const flagMats=[new T.MeshStandardMaterial({color:'#3f8fc4',side:T.DoubleSide,roughness:1}),
-   new T.MeshStandardMaterial({color:'#f2c75a',side:T.DoubleSide,roughness:1})];
-  [0,Math.PI/2,Math.PI,Math.PI*1.5].forEach((g,gi)=>{
-   for(const side of [-1,1]){
-    const a=g+side*.075,x=C.x+Math.cos(a)*CITY_R,z=C.z+Math.sin(a)*CITY_R,y=window.arcanoIslandHeight(x,z);
-    const pole=new T.Mesh(poleGeo,poleMat);pole.position.set(x,y,z);pole.castShadow=true;
-    if(window.arcanoObstacles)window.arcanoObstacles.addCircle(x,z,.25);
-    const flag=new T.Mesh(flagGeo,flagMats[(gi+(side>0?1:0))%2]);flag.position.copy(pole.position);
-    flag.rotation.y=-a;flag.name='Estandarte do portão';
-    scene.add(pole,flag);
+   const a=(i+.5)/count*Math.PI*2;
+   if(ang(a,GATE_A)<GATE_HALF+.02)continue;
+   const rot=-a+Math.PI/2,x=C.x+Math.cos(a)*CITY_R,z=C.z+Math.sin(a)*CITY_R;
+   M4.compose(P.set(x,CITY_Y-BASE+H/2,z),Q.setFromEuler(E.set(0,rot,0)),S);walls.setMatrixAt(wi++,M4);
+   for(const k of [-.25,.25]){
+    const aa=a+k*segLen/CITY_R,ro=CITY_R+THK/2-.45;
+    M4.compose(P.set(C.x+Math.cos(aa)*ro,CITY_Y+WALL_H+.85,C.z+Math.sin(aa)*ro),Q,S);merlons.setMatrixAt(mi++,M4);
    }
+   const ri=CITY_R-THK/2+.3;
+   M4.compose(P.set(C.x+Math.cos(a)*ri,CITY_Y+WALL_H+.5,C.z+Math.sin(a)*ri),Q,S);parapet.setMatrixAt(pi++,M4);
+   if(O)O.addBox({x,z,hw:segLen*.52,hd:THK/2,rot});
+  }
+  walls.count=wi;merlons.count=mi;parapet.count=pi;
+  for(const im of [walls,merlons,parapet]){im.castShadow=true;im.receiveShadow=true;im.instanceMatrix.needsUpdate=true;if(im.computeBoundingSphere)im.computeBoundingSphere();else im.frustumCulled=false;scene.add(im);}
+  // Torre redonda com coroa de ameias (e telhado opcional).
+  const towerMerlon=boxUV(new T.BoxGeometry(1.2,1.6,.9),1.2,1.6,.9,3.2);
+  function tower(x,z,r,h,roof){
+   const g=new T.Group();g.position.set(x,CITY_Y-BASE,z);
+   const body=new T.Mesh(new T.CylinderGeometry(r,r*1.1,h+BASE,24),wallMat);body.position.y=(h+BASE)/2;
+   const bu=body.geometry.attributes.uv;for(let i=0;i<bu.count;i++)bu.setXY(i,bu.getX(i)*2*Math.PI*r/3.2,bu.getY(i)*(h+BASE)/3.2);
+   const crown=new T.Mesh(new T.CylinderGeometry(r+.8,r+.3,1.4,24),wallMat);crown.position.y=h+BASE+.2;
+   g.add(body,crown);
+   const nm=Math.round(r*2.6);
+   for(let k=0;k<nm;k++){const a=k/nm*Math.PI*2;const mm=new T.Mesh(towerMerlon,wallMat);mm.position.set(Math.cos(a)*(r+.4),h+BASE+1.7,Math.sin(a)*(r+.4));mm.rotation.y=-a+Math.PI/2;g.add(mm);}
+   for(let k=0;k<4;k++){const a=k/4*Math.PI*2+.4;const sl=new T.Mesh(new T.BoxGeometry(.35,1.6,.3),darkMat);sl.position.set(Math.cos(a)*(r+.02),BASE+h*.6,Math.sin(a)*(r+.02));sl.rotation.y=-a+Math.PI/2;g.add(sl);}
+   if(roof){const cone=new T.Mesh(new T.ConeGeometry(r+1.2,r*1.5,24),roofMat);cone.position.y=h+BASE+1+r*.75;g.add(cone);}
+   g.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
+   g.name='Torre da muralha';scene.add(g);
+   if(O)O.addCircle(x,z,r+.3);
+   return g;
+  }
+  for(const a of towerAngles)tower(C.x+Math.cos(a)*CITY_R,C.z+Math.sin(a)*CITY_R,5,WALL_H+3,false);
+  // Estandartes vermelhos pendurados na face externa de algumas torres.
+  towerAngles.forEach((a,i)=>{
+   if(i%2)return;
+   const ro=CITY_R+5.2,b=new T.Mesh(new T.PlaneGeometry(2.4,6),bannerMat);
+   b.position.set(C.x+Math.cos(a)*ro,CITY_Y+WALL_H-2,C.z+Math.sin(a)*ro);b.rotation.y=Math.atan2(Math.cos(a),Math.sin(a));scene.add(b);
   });
+  // ---------- Grande portão (sul) ----------
+  {
+   const gx=C.x+Math.cos(GATE_A)*CITY_R,gz=C.z+Math.sin(GATE_A)*CITY_R,rotY=Math.atan2(Math.cos(GATE_A),Math.sin(GATE_A));
+   const G=new T.Group();G.position.set(gx,CITY_Y,gz);G.rotation.y=rotY;G.name='Grande portão de Aurora';scene.add(G);
+   const GW=19,GH=WALL_H+4,GD=9,AW=7.5,AH=7.5;
+   const shape=new T.Shape();
+   shape.moveTo(-GW/2,-BASE);shape.lineTo(GW/2,-BASE);shape.lineTo(GW/2,GH);shape.lineTo(-GW/2,GH);shape.lineTo(-GW/2,-BASE);
+   const hole=new T.Path();hole.moveTo(-AW/2,0);hole.lineTo(AW/2,0);hole.lineTo(AW/2,AH);hole.absarc(0,AH,AW/2,0,Math.PI,false);hole.lineTo(-AW/2,0);
+   shape.holes.push(hole);
+   const gg=new T.ExtrudeGeometry(shape,{depth:GD,bevelEnabled:false});gg.translate(0,0,-GD/2);
+   const gu=gg.attributes.uv;for(let i=0;i<gu.count;i++)gu.setXY(i,gu.getX(i)/3.2,gu.getY(i)/3.2);
+   const body=new T.Mesh(gg,wallMat);body.castShadow=true;body.receiveShadow=true;G.add(body);
+   // Pedras do arco (aduelas) e ameias do topo.
+   for(let k=0;k<=12;k++){
+    const t=Math.PI*k/12,v=new T.Mesh(boxUV(new T.BoxGeometry(1.1,1.2,GD+.3),1.1,1.2,GD,3.2),wallMat);
+    v.position.set(Math.cos(t)*(AW/2+.4),AH+Math.sin(t)*(AW/2+.4),0);v.rotation.z=t-Math.PI/2;G.add(v);
+   }
+   for(let k=0;k<8;k++)for(const zz of [GD/2-.45,-GD/2+.45]){const mm=new T.Mesh(merlonGeo,wallMat);mm.position.set(-GW/2+1.2+k*(GW-2.4)/7,GH+.85,zz);G.add(mm);}
+   // Portas de madeira abertas para dentro.
+   for(const side of [-1,1]){
+    const hinge=new T.Group();hinge.position.set(side*AW/2,0,-GD/2+.6);G.add(hinge);
+    const leaf=new T.Mesh(new T.BoxGeometry(AW/2,AH+1.6,.35),woodMat);leaf.position.set(-side*AW/4,(AH+1.6)/2,0);hinge.add(leaf);
+    for(const y of [1.2,AH*.55,AH]){const band=new T.Mesh(new T.BoxGeometry(AW/2-.1,.22,.42),darkMat);band.position.set(-side*AW/4,y,0);hinge.add(band);}
+    hinge.rotation.y=side*1.25;
+   }
+   // Grade levadiça erguida (aparece no alto do arco).
+   for(let k=0;k<7;k++){const bar=new T.Mesh(new T.BoxGeometry(.16,2.4,.16),darkMat);bar.position.set(-AW/2+.5+k*(AW-1)/6,AH+AW/2-1.6,GD/2-1.2);G.add(bar);}
+   // Estandartes grandes e lanternas na fachada.
+   for(const side of [-1,1]){
+    const b=new T.Mesh(new T.PlaneGeometry(2.8,7.5),bannerMat);b.position.set(side*(AW/2+2.6),GH-5,GD/2+.06);G.add(b);
+    const lamp=new T.Mesh(new T.BoxGeometry(.5,.7,.5),lampMat);lamp.position.set(side*(AW/2+1.1),4.2,GD/2+.5);G.add(lamp);
+   }
+   // Torres do portão, mais altas e com telhado.
+   for(const side of [-1,1]){
+    const lx=side*(GW/2+3.8),wx=gx+lx*Math.cos(rotY),wz=gz-lx*Math.sin(rotY);
+    tower(wx,wz,6,WALL_H+9,true);
+   }
+   // Colisão: blocos laterais do portão (a passagem sob o arco fica livre).
+   if(O)for(const side of [-1,1]){
+    const lx=side*(AW/2+(GW-AW)/4),wx=gx+lx*Math.cos(rotY),wz=gz-lx*Math.sin(rotY);
+    O.addBox({x:wx,z:wz,hw:(GW-AW)/4,hd:GD/2,rot:rotY});
+   }
+   setInterval(()=>{const s=window.arcanoAnimeSky&&window.arcanoAnimeSky.material.uniforms.uSunDir.value;const night=s?Math.min(1,Math.max(0,(-s.y+.02)/.2)):0;lampMat.emissiveIntensity=.6+night*1.8;},1000);
+  }
  }
  // Piso de pedra em toda a área da cidade (onde as casas serão construídas).
  {
@@ -526,7 +614,7 @@ function install(){
    if(y<20||y>236){g.beginPath();g.ellipse(x,y+(y<20?256:-256),w/2,h/2,0,0,6.3);g.fill();g.stroke();}
   }
   const tex=new T.CanvasTexture(cv);tex.wrapS=T.ClampToEdgeWrapping;tex.wrapT=T.RepeatWrapping;tex.colorSpace=T.SRGBColorSpace;tex.anisotropy=4;
-  const mat=new T.MeshStandardMaterial({map:tex,transparent:true,depthWrite:false,roughness:1,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4});
+  const mat=new T.MeshStandardMaterial({map:tex,transparent:true,depthWrite:false,roughness:1,side:T.DoubleSide,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4});
   const groundAt=(x,z)=>(Math.abs(x)<INNER.x1-.3&&Math.abs(z)<INNER.z1-.3)?ground.heightAt(x,z):window.arcanoIslandHeight(x,z);
   const bridge=window.arcanoBridgeSolid;
   const lines=roads.map(l=>({pts:l,w:2.4}));

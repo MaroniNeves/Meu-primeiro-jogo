@@ -211,6 +211,8 @@ void main(){
  // A parte vertical da superfície some: a queda é desenhada pela
  // "cortina" com volume (malha própria, ver makeWaterfall).
  float sheet=smoothstep(.30,.62,steep)*vFallV;
+ // Só a parte funda do rio cai: as bordas rasas na vertical "vazavam" pelos lados.
+ if(sheet>.25&&vDepth<.45)discard;
  if(sheet>.001){
   // Mesma água do rio (mesmas cores e reflexo), com listras de espuma descendo.
   // Listras na vertical (ao longo de x): a água cai reta, não na diagonal.
