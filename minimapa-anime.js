@@ -132,6 +132,57 @@ function draw(canvas,full){
  ctx.beginPath();ctx.moveTo(0,-10);ctx.lineTo(7,8);ctx.lineTo(0,4);ctx.lineTo(-7,8);ctx.closePath();ctx.fill();ctx.stroke();
  ctx.restore();
 }
+// ---------- Teleporte (só para teste) ----------
+// Clique/toque no mapa ampliado leva o personagem até o ponto; botões rápidos
+// para os lugares principais.
+function groundAt(x,z){
+ const inner=Math.abs(x)<63.6&&Math.abs(z)<49.6;
+ let y=inner&&window.arcanoAnimeGround?window.arcanoAnimeGround.heightAt(x,z):(window.arcanoIslandHeight?window.arcanoIslandHeight(x,z):0);
+ for(const f of window.arcanoGroundOverrides||[]){const h=f(x,z);if(h!=null&&h>y)y=h;}
+ const w=window.arcanoOuterWater&&window.arcanoOuterWater(x,z);if(w)y=Math.max(y,w.level);
+ return y;
+}
+function teleport(x,z){
+ const p=game();if(!p)return false;
+ if(window.arcanoIslandClamp){const c=window.arcanoIslandClamp(x,z);x=c[0];z=c[1];}
+ p.position.set(x,groundAt(x,z)+.4,z);
+ if(p.velocity&&p.velocity.set)p.velocity.set(0,0,0);
+ expanded(false);return true;
+}
+big.style.cursor='crosshair';
+big.addEventListener('click',e=>{
+ if(!info)return;
+ const r=big.getBoundingClientRect(),sx=(e.clientX-r.left)*big.width/r.width,sy=(e.clientY-r.top)*big.height/r.height;
+ const zoom=Math.min(big.width,big.height)/(2*info.radius)*.92;
+ const x=info.center.x+(sx-big.width/2)/zoom,z=info.center.z+(sy-big.height/2)/zoom;
+ if(Math.hypot(x-info.center.x,z-info.center.z)<=info.radius)teleport(x,z);
+});
+{
+ const card=document.getElementById('forestMapCard')||dialog;
+ const bar=document.createElement('div');
+ bar.style.cssText='display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0 2px;font:600 12px system-ui;color:#e3e5ca';
+ bar.innerHTML='<span style="opacity:.85">🧪 Teleporte de teste — clique no mapa ou:</span>';
+ const spots=[
+  ['Início',()=>[0,1]],
+  ['Castelo',()=>{const s=window.arcanoCastleSite;return s?[s.x,s.z+31]:null;}],
+  ['Jardim',()=>{const s=window.arcanoCastleSite;return s?[s.x+9,s.z+20]:null;}],
+  ['Chafariz',()=>{const s=window.arcanoCastleSite;return s?[s.x+9,s.z+88]:null;}],
+  ['Portão sul',()=>{const i=info;return i?[i.center.x,i.center.z+i.cityRadius+8]:null;}],
+  ['Lago',()=>{const l=info&&info.lake;return l?[l.x+l.rx+6,l.z]:null;}],
+  ['Nascente',()=>{const s=info&&info.streams&&info.streams[0].pts[0];return s?[s.x+7,s.z+7]:null;}],
+  ['Vila',()=>{const v=info&&info.village;return v?[v.spiral[20].x,v.spiral[20].z]:null;}],
+  ['Mirante',()=>{const v=info&&info.village;return v?[v.peakPad.x+2,v.peakPad.z]:null;}],
+  ['Porto',()=>{const p=info&&info.portSite;if(!p)return null;const w=p.at(info.radius-30,-3);return [w.x,w.z];}],
+  ['Navio',()=>{const p=info&&info.portSite;if(!p)return null;const w=p.at(info.radius+25,13.2);return [w.x,w.z];}]
+ ];
+ for(const [name,fn] of spots){
+  const b=document.createElement('button');b.type='button';b.textContent=name;
+  b.style.cssText='background:#324d42;color:#f1f5e6;border:1px solid #839b82;border-radius:8px;padding:5px 9px;cursor:pointer;font:600 12px system-ui';
+  b.addEventListener('click',ev=>{ev.stopPropagation();const p=fn();if(p)teleport(p[0],p[1]);});
+  bar.appendChild(b);
+ }
+ const canvasEl=big;canvasEl.parentNode.insertBefore(bar,canvasEl);
+}
 let counter=0;
 function tick(){
  if(document.body.classList.contains('play-active')&&(counter++%6===0)){draw(small,false);if(!dialog.hidden)draw(big,true);}
