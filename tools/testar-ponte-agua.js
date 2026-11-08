@@ -24,7 +24,7 @@ for(const angle of [0,Math.PI/4,Math.PI/2,-Math.PI/3]){
  assert.ok(Math.abs(surface(0,0)-1.7825)<1e-9,'Piso na altura do topo real da tábua');
  assert.ok(surface(1,0)!==null&&surface(-1,0)!==null,'Piso contínuo');
  assert.equal(surface(0,.66),null,'Corrimão não é parte do piso');
- assert.equal(surface(1.3,0),null,'Fora do vão não tem piso suspenso');
+ assert.equal(surface(1.4,0),null,'Fora do vão (meio vão + 8 cm de margem) não tem piso suspenso');
  assert.equal(blocks(-1,0,1,0),false,'Atravessar o vão na direção correta deve ser permitido');
  assert.equal(blocks(0,0,0,.83),true,'Não pode atravessar o corrimão lateral');
  assert.equal(blocks(0,.83,0,0),true,'Não pode atravessar para dentro pela lateral');
@@ -36,10 +36,10 @@ for(const angle of [0,Math.PI/4,Math.PI/2,-Math.PI/3]){
 assert.match(game,/function solidGameFootHeight\(x,z\)/);
 assert.match(game,/window\.arcanoBridgeSolid\?\.surfaceAt\(x,z\)/);
 assert.match(game,/bridge\?\.blocksSegment\(game\.position\.x/);
-assert.match(game,/game\.position\.y=solidGameFootHeight\(/);
-assert.match(game,/const footWater=!onBridge&&sample\(depth,/);
+assert.match(game,/=solidGameFootHeight\(game\.position\.x,game\.position\.z\)/);
+assert.match(game,/const footWater=!onBridge&&/);
 assert.match(game,/emitGameWaterFootstep\(game\.position\.x/);
-assert.match(game,/kind:'water'/);
+assert.match(game,/riverSimulation\.disturb\(fx,fz,/); // passo na água agita a superfície (ondas)
 assert.match(game,/const count=running\?10:6/);
 const start=game.indexOf('function emitGameWaterFootstep(');
 const end=game.indexOf('function dropStep(dt){',start);

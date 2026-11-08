@@ -54,7 +54,7 @@ for(const fragment of [
  'arcBlade*=arcBlade','arcRoot=instanceMatrix[3].xz',
  'arcMove=uArcWindDir*(uArcWindStrength*arcGust)',
  'vec2 away=normalize(d+across*.075)',
- 'arcMove+=away*(.83*uArcPlayer.w*pressure)',
+ 'arcMove+=away*(.20*uArcPlayer.w*pressure)',
  'transformed.y-=(arcCompression+vArcBurn*.74)*arcBlade',
  'arcMove+=normalize(d+vec2(.015,.019))',
  'instanceMatrix[0].xz','instanceMatrix[2].xz',
@@ -88,7 +88,7 @@ animateGrassVisuals(.1);
 assert.ok(u.uArcWindStrength.value<maxStorm*.5,'Painel diminui a reação visual do temporal');
 player={position:{x:0,z:0},heading:1.2,grassSpeed:1.65,grassOnGround:true};
 animateGrassVisuals(.1);
-assert.ok(u.uArcPlayer.value.w>=.95);
+assert.ok(u.uArcPlayer.value.w>=.45&&u.uArcPlayer.value.w<=.56,"Contato do personagem com a grama (suave)");
 assert.equal(u.uArcPlayer.value.z,1.2);
 for(let i=1;i<=12;i++){
  player.position.x=i*.13;

@@ -32,7 +32,7 @@ const stage={handlers,addEventListener(t,fn){this.handlers[t]=fn;},
 const ctx={
  Math,T:{Vector3:V3},game,camera,
  gameCameraFocus:focus,gameCameraGoal:goal,gameCameraActualDistance:0,
- terrainContact:()=>-2,
+ terrainContact:()=>-2,worldGround:()=>-2,
  updateGameCameraOcclusion(){occlusionCalls++;},
  $:id=>elements[id]||null,clamp:(v,lo,hi)=>Math.min(hi,Math.max(lo,v)),
  stage,pressedPointers:new Set(),paintWalkingStep:()=>false,
@@ -86,6 +86,6 @@ handlers.pointerup(e(1,115,110));
 let wheelPrevented=false;
 handlers.wheel({deltaY:80,preventDefault(){wheelPrevented=true;}});
 assert.ok(wheelPrevented,'Zoom da roda nao pode rolar a pagina');
-ctx.zoom(0);assert.equal(game.camDistance,2.3);
-ctx.zoom(100);assert.equal(game.camDistance,10);
+ctx.zoom(0);assert.equal(game.camDistance,1.5);
+ctx.zoom(100);assert.equal(game.camDistance,30);
 console.log('OK V12.63: camera estavel em 180 quadros, zoom pinça, botoes, roda e rotacao sem conflitos.');
