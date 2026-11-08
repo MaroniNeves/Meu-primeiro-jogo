@@ -142,7 +142,10 @@ void main(){
  }
 
  // ---------- Corpo d'água: absorção pela profundidade ----------
- float thick=1.-exp(-vDepth*1.9);
+ // Caminho da luz dentro d'água: olhando de lado ela atravessa mais água,
+ // então fica mais densa (dá volume em vez de parecer uma película).
+ float path=vDepth/max(viewDir.y,.18);
+ float thick=1.-exp(-path*1.6);
  vec3 body=mix(uShallow,uDeep,thick);
  // Luz atravessando a crista das ondas (verde-água).
  body+=vec3(.05,.20,.16)*max(vCrest,0.)*(1.-thick*.6);
@@ -171,20 +174,10 @@ void main(){
  vec3 fdx=dFdx(vWorld),fdy=dFdy(vWorld);
  vec3 fnrm=normalize(cross(fdx,fdy));
  float steep=1.-abs(fnrm.y);
+ // A parte vertical da superfície some: a queda é desenhada pela
+ // "cortina" com volume (malha própria, ver makeWaterfall).
  float sheet=smoothstep(.30,.62,steep)*vFallV;
- if(sheet>.001){
-  vec2 side=vec2(-flow.y,flow.x);float across=dot(vWorld.xz,side);
-  float s1=fbm(vec2(across*5.,vWorld.y*.9+uTime*4.2));
-  float s2=fbm(vec2(across*11.+3.,vWorld.y*2.+uTime*7.));
-  float streak=smoothstep(.45,.75,s1*.6+s2*.5);
-  // Lábio da queda mais liso e espelhado, base mais branca.
-  float lip=smoothstep(uMirrorY-.3,uMirrorY+.25,vWorld.y);
-  vec3 sheetC=mix(vec3(.50,.82,.88),vec3(.80,.95,.97),.35+.4*s1);
-  sheetC=mix(sheetC,uFoam,streak*(1.-lip*.6));
-  sheetC=mix(sheetC,refl,fres*.5*lip);
-  col=mix(col,sheetC,sheet);
-  a=mix(a,.82+.15*streak,sheet);
- }
+ if(sheet>.5)discard;
  float pz=vWorld.z-(uFallZ+.65);
  float plunge=exp(-pz*pz*.6)*smoothstep(-.9,-.15,pz)*(1.-sheet);
  float churn=fbm(vWorld.xz*2.4+vec2(0.,uTime*1.6))*.6+fbm(vWorld.xz*6.-uTime*1.3)*.4;
@@ -250,7 +243,10 @@ function install(){
  const bias=new T.Matrix4().set(.5,0,0,.5, 0,.5,0,.5, 0,0,.5,.5, 0,0,0,1);
  const tmp=new T.Vector3(),look=new T.Vector3(),size=new T.Vector2();
  let frame=0,rendering=false;
- const grassGroups=()=>{const out=[];scene.traverse(o=>{if(o.name==='Tufos reais de grama Quaternius')out.push(o);});return out;};
+ // Fora do reflexo: grama e o que fica longe do rio (floresta e base da ilha).
+ // Toda água que usa o próprio reflexo também sai (senão a placa de vídeo lê e escreve a mesma imagem).
+ const HIDE=new Set(['Tufos reais de grama Quaternius','Floresta da Ilha Central','Pedra da base da ilha flutuante','Pedras flutuantes da ilha','Rio da Ilha Central · até a borda','Canal da nascente','Lago da nascente']);
+ const grassGroups=()=>{const out=[];scene.traverse(o=>{if(HIDE.has(o.name))out.push(o);});return out;};
  let grass=null;
 
  function renderReflection(camera){
@@ -274,7 +270,7 @@ function install(){
   mirror.updateProjectionMatrix();mirror.updateMatrixWorld(true);
   u.uReflMatrix.value.copy(bias).multiply(mirror.projectionMatrix).multiply(mirror.matrixWorldInverse);
   plane.constant=-y+.02;
-  if(!grass)grass=grassGroups();
+  if(!grass||(frame++%240)===0)grass=grassGroups();
   const grassVis=grass.map(g=>g.visible);
   grass.forEach(g=>g.visible=false);
   const oldTarget=renderer.getRenderTarget(),oldClip=renderer.clippingPlanes,
@@ -330,6 +326,98 @@ function install(){
   wet+=(target-wet)*.08;
   u.uPlayerWet.value=wet;
  };
+
+ // ---------- Cachoeira com volume ----------
+ // Uma "cortina" de água com espessura e bordas arredondadas: sai da borda
+ // fazendo a curva (lançamento) e cai, ondulando, com espuma escorrendo.
+ const fallMaterial=new T.ShaderMaterial({
+  transparent:true,depthWrite:false,side:T.DoubleSide,
+  uniforms:{uTime:u.uTime,uSun:u.uSun,uSunColor:u.uSunColor,uSkyTop:u.uSkyTop,uSkyHorizon:u.uSkyHorizon,
+   uSunPower:u.uSunPower,fogColor:u.fogColor,fogNear:u.fogNear,fogFar:u.fogFar},
+  vertexShader:`
+   attribute vec2 fallInfo; // x = posição ao longo da queda (0 borda, 1 base), y = cos do contorno (-1..1 lados)
+   uniform float uTime;
+   varying vec3 vWorld;varying vec3 vN;varying float vT;varying float vSide;varying float vFogDepth;
+   void main(){
+    vT=fallInfo.x;vSide=fallInfo.y;
+    vec3 p=position;
+    float t=max(vT,0.);
+    p.x+=sin(t*9.-uTime*6.+p.x*2.3)*.035*t;
+    p+=normal*(sin(p.x*5.+uTime*8.-t*14.)*.025+sin(p.x*11.-uTime*11.)*.012)*smoothstep(0.,.2,t);
+    vec4 w=modelMatrix*vec4(p,1.);vWorld=w.xyz;vN=normalize(mat3(modelMatrix)*normal);
+    vec4 mv=viewMatrix*w;vFogDepth=-mv.z;gl_Position=projectionMatrix*mv;
+   }`,
+  fragmentShader:`
+   uniform float uTime,uSunPower;uniform vec3 uSun,uSunColor,uSkyTop,uSkyHorizon,fogColor;uniform float fogNear,fogFar;
+   varying vec3 vWorld;varying vec3 vN;varying float vT;varying float vSide;varying float vFogDepth;
+   float h(vec2 p){return fract(sin(dot(p,vec2(41.3,289.1)))*43758.5453);}
+   float nz(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h(i),h(i+vec2(1,0)),f.x),mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x),f.y);}
+   float fbm(vec2 p){return nz(p)*.55+nz(p*2.1+3.7)*.3+nz(p*4.3-1.9)*.15;}
+   void main(){
+    float t=clamp(vT,0.,1.);
+    // Listras escorrendo para baixo (rápidas) e espuma que aumenta na base.
+    float f1=fbm(vec2(vWorld.x*2.6,vT*6.-uTime*3.4));
+    float f2=fbm(vec2(vWorld.x*6.5+5.,vT*13.-uTime*5.6));
+    float edge=smoothstep(.70,1.,abs(vSide));
+    float foam=smoothstep(.48,.80,f1*.6+f2*.5+t*.38+edge*.30-(1.-smoothstep(0.,.18,vT))*.35);
+    vec3 viewDir=normalize(cameraPosition-vWorld);
+    vec2 g=vec2(f2-f1,fbm(vec2(vWorld.x*4.,vT*9.-uTime*4.))-.5);
+    vec3 n=normalize(vN+vec3(g.x,0.,g.y)*.6);
+    vec3 sun=normalize(uSun);
+    float lit=.62+.38*max(dot(n,sun),0.);
+    float fres=.04+.96*pow(1.-max(dot(n,viewDir),0.),4.);
+    vec3 water=mix(vec3(.24,.62,.72),vec3(.50,.86,.90),f1);
+    // Borda de cima: água lisa e espelhada antes de quebrar em espuma.
+    float lip=1.-smoothstep(.02,.22,vT);
+    vec3 sky=mix(uSkyHorizon,uSkyTop,.4);
+    vec3 col=mix(water*lit,sky,fres*(.35+.4*lip));
+    col=mix(col,vec3(.95,.99,1.)*(.82+.18*lit),foam);
+    float spec=pow(max(dot(reflect(-sun,n),viewDir),0.),60.)*uSunPower;
+    col+=uSunColor*spec*.6;
+    float a=mix(.68,.97,foam);a=mix(a,.55,edge*(1.-foam));
+    col=mix(col,fogColor,smoothstep(fogNear,fogFar,vFogDepth));
+    gl_FragColor=vec4(col,a);
+   }`
+ });
+ fallMaterial.name='Cachoeira com volume';
+ function makeWaterfall(opt){
+  const NT=opt.rows||26,NP=16,halfW=opt.halfWidth,drop=opt.drop;
+  const throwZ=(.55+.18*Math.sqrt(drop))*(opt.dir||1);
+  const pos=[],info=[],idx=[];
+  const rows=[];
+  for(let r=0;r<NT;r++){const t=-.14+r/(NT-1)*1.2;rows.push(t);}
+  rows.forEach((t,r)=>{
+   const tt=Math.max(t,0);
+   const zc=opt.zLip+(t<0?t*1.2*(opt.dir||1):throwZ*tt);
+   const yc=opt.yTop-(t<0?0:drop*tt*tt);
+   // Tangente e normal no plano vertical (para a espessura).
+   const tz=t<0?(opt.dir||1):throwZ,ty=t<0?0:-2*drop*tt,len=Math.hypot(tz,ty)||1;
+   const nzv=-ty/len*(opt.dir||1),nyv=tz/len*(opt.dir||1);
+   const w=halfW*(1+.18*Math.max(0,tt)),th=.10+.16*Math.min(1,tt);
+   for(let k=0;k<NP;k++){
+    const ph=k/NP*Math.PI*2,c=Math.cos(ph),s=Math.sin(ph);
+    const across=c*w,off=s*th*(1-.4*Math.abs(c));
+    pos.push(opt.x+across,yc+nyv*off,zc+nzv*off);
+    info.push(t,c);
+    if(r<NT-1){const a=r*NP+k,b=r*NP+(k+1)%NP,cc=a+NP,d=b+NP;idx.push(a,cc,b,b,cc,d);}
+   }
+  });
+  const g=new T.BufferGeometry();
+  g.setAttribute('position',new T.Float32BufferAttribute(pos,3));
+  g.setAttribute('fallInfo',new T.Float32BufferAttribute(info,2));
+  g.setIndex(idx);g.computeVertexNormals();
+  const m=new T.Mesh(g,fallMaterial);m.name=opt.name||'Cachoeira com volume';
+  m.frustumCulled=false;m.renderOrder=4;scene.add(m);
+  return m;
+ }
+ window.arcanoMakeWaterfall=makeWaterfall;
+ if(profile&&profile.fall){
+  const fz=profile.fall.z;
+  makeWaterfall({x:profile.center(fz),zLip:fz-.28,yTop:profile.levelAt(fz-.6)+.02,
+   drop:profile.levelAt(fz-.6)-profile.levelAt(fz+.8)+.15,
+   halfWidth:((typeof profile.halfWidth==='function'?profile.halfWidth(fz-.4):profile.halfWidth)||3)*.92,
+   name:'Cachoeira do rio'});
+ }
 
  // ---------- Névoa e gotas da cachoeira ----------
  if(profile&&profile.fall){

@@ -4088,7 +4088,7 @@ function applyGameCamera(){
  const reach=Math.cos(game.camPitch)*game.camDistance;
  const bx=-Math.sin(game.camHeading)*reach,bz=-Math.cos(game.camHeading)*reach;
  gameCameraFocus.set(goal.x,goal.y+1.03,goal.z);
- const cameraGround=terrainContact(goal.x+bx,goal.z+bz)+.45;
+ const cameraGround=worldGround(goal.x+bx,goal.z+bz)+.45;
  gameCameraGoal.set(goal.x+bx,
   Math.max(cameraGround,gameCameraFocus.y+Math.sin(game.camPitch)*game.camDistance),
   goal.z+bz);
@@ -4103,7 +4103,7 @@ function applyGameCamera(){
  else camera.position.copy(gameCameraGoal);
  // Não atravessar o terreno quando o jogador olhar rente ao chão.
  camera.position.y=Math.max(camera.position.y,
-  terrainContact(camera.position.x,camera.position.z)+.40);
+  worldGround(camera.position.x,camera.position.z)+.40);
  gameCameraActualDistance=game.camDistance;
  camera.lookAt(gameCameraFocus);
  updateGameCameraOcclusion(gameCameraFocus,camera.position);
@@ -4389,7 +4389,7 @@ function paintWalkingStep(e){
 // V12.63: distância solicitada não depende de árvores ou obstáculos.
 // Funciona por rolagem do mouse, pinça com dois dedos e botões +/-.
 function setGameZoom(distance){
- game.camDistance=clamp(distance,2.3,10);
+ game.camDistance=clamp(distance,1.5,30); // câmera livre: perto ou bem longe
  const display=$('gameZoomLevel');
  if(display)display.textContent=game.camDistance.toFixed(1)+' m';
 }
@@ -4442,7 +4442,7 @@ stage.addEventListener('pointermove',e=>{
   if(e.pointerId!==game.orbitPointer)return;
   const dx=e.clientX-game.orbitX,dy=e.clientY-game.orbitY;
   game.camHeading-=dx*.006;
-  game.camPitch=clamp(game.camPitch+dy*.0045,-.06,1.10);
+  game.camPitch=clamp(game.camPitch+dy*.0045,-.45,1.40);
   game.orbitX=e.clientX;game.orbitY=e.clientY;
   return;
  }

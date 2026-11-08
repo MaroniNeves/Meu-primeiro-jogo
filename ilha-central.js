@@ -270,7 +270,9 @@ function install(){
   // Rio ao sul até a borda, caindo da ilha.
   let zEdge=INNER.z1;
   while(Math.hypot(river.center(zEdge)-C.x,zEdge-C.z)<R-1&&zEdge<C.z+R)zEdge+=.5;
-  const south=new T.Mesh(ribbon(INNER.z1,zEdge,river.levelAt,river.center,half,120),shareMat(zEdge+.4));
+  const south=new T.Mesh(ribbon(INNER.z1,zEdge,river.levelAt,river.center,half,0),shareMat(-9999));
+  // Queda da borda da ilha: cortina de água com volume (rio-anime.js).
+  if(window.arcanoMakeWaterfall)window.arcanoMakeWaterfall({x:river.center(zEdge),zLip:zEdge,yTop:river.levelAt(zEdge)+.02,drop:150,halfWidth:half(zEdge)*.95,rows:44,name:'Cachoeira da borda da ilha'});
   south.name='Rio da Ilha Central · até a borda';south.frustumCulled=false;south.renderOrder=3;
   scene.add(south);
   // Nascente: lago e canal até a área detalhada.
@@ -402,7 +404,7 @@ function install(){
    spots.push({x,y,z,rot:rnd()*Math.PI*2,s:.85+rnd()*.45,t:Math.floor(rnd()*templates.length)});
   }
   // Setores 3×3: cada setor só é desenhado quando aparece na tela.
-  const SECT=3,minX=C.x-R,size=2*R/SECT,minZ=C.z-R;
+  const SECT=7,minX=C.x-R,size=2*R/SECT,minZ=C.z-R;
   const buckets=new Map();
   for(const s of spots){
    const si=clamp(Math.floor((s.x-minX)/size),0,SECT-1),sj=clamp(Math.floor((s.z-minZ)/size),0,SECT-1);
@@ -422,7 +424,7 @@ function install(){
      im.setMatrixAt(i,M);
     });
     im.instanceMatrix.needsUpdate=true;
-    im.castShadow=!mobile;im.receiveShadow=false;
+    im.castShadow=false;im.receiveShadow=false; // sombra só nas árvores perto (área detalhada)
     if(im.computeBoundingSphere)im.computeBoundingSphere();else im.frustumCulled=false;
     group.add(im);
    }
