@@ -174,6 +174,7 @@ big.addEventListener('click',e=>{
   ['Mirante',()=>{const v=info&&info.village;return v?[v.peakPad.x+2,v.peakPad.z]:null;}],
   // Vilas da floresta (vilas-mundo.js): cai na praça de cada uma.
   ...[['Moinho','moinho'],['Lenhadores','lenhadores'],['V. Branca','mediterranea'],['V. Norte','nordica'],['Cerejeiras','oriental'],['Cogumelos','cogumelos']].map(([n,id])=>[n,()=>{const v=(window.arcanoVilas||[]).find(q=>q.id===id);return v?[v.x,v.z+6]:null;}]),
+  ...[['Cripta','cripta'],['Prisão','prisao'],['Cofre','cofre'],['Mina','mina'],['Gruta','gruta']].map(([n,id])=>[n,()=>{const d=(window.arcanoMasmorras||[]).find(q=>q.id===id);if(!d)return null;return [d.x+Math.sin(d.rot)*30,d.z+Math.cos(d.rot)*30];}]),
   ['Píer do castelo',()=>{const p=window.arcanoPierCastelo;return p?[p.x,p.zStart+4]:null;}],
   ['Árvore gigante',()=>{const g=window.arcanoLagoGrande;return g?[g.x,g.z+g.r+14]:null;}],
   ['Acamp. aceso',()=>{const c=(window.arcanoAcampamentos||[]).find(q=>q.lit);return c?[c.x+5,c.z+5]:null;}],
