@@ -245,13 +245,13 @@ function make(species,stage,opt){
   const wings=body.userData.wings;
   wings.forEach((W,wi)=>{const sg=wi===0?1:-1,ws=st.wing,n=V(sg,.38,0).normalize();
    if(ws<.5){for(let i=0;i<7;i++){const pos=W.Wr.clone().lerp(W.Tp,i/7).add(V(sg*.02,-.02*i,0));add('flight',pos,V(sg*.18,-.1,-1),n,.28+.02*i,.1,mix(hex('#cdbb9a'),[.5,.45,.38],.5),0);add('down',pos.clone().add(V(0,0,-.2)),V(0,.4,-1),n,.18,.16,[.95,.9,.8],0);}return;}
-   for(let i=0;i<10;i++){const t=i/9,pos=W.Wr.clone().lerp(W.Tp,t*.9).add(V(sg*(.03+.006*i),-.01*i,0)),a=V(sg*(.04+.05*t),-.06-.05*t,-1),len=(.85+.2*Math.sin(PI*(1-t)*.8+.2))*ws*(species==='pardal'?.85:1);
-    add('flight',pos,a,n,len*(.9+.1*t),.2,tint(sp,stage,'primary',R,pos),sg*.06*(t-.5));}
-   for(let i=0;i<9;i++){const t=i/8,pos=W.E.clone().lerp(W.Wr,t).add(V(sg*.055,.03,0)),a=V(sg*.03,-.04,-1);
-    add('flight',pos,a,V(sg,.5,0).normalize(),(.62-.1*t)*ws,.22,tint(sp,stage,'second',R,pos),0);}
+   for(let i=0;i<10;i++){const t=i/9,pos=W.Wr.clone().lerp(W.Tp,t*.8).add(V(sg*(.03+.0035*i),-.004*i,0)),a=V(sg*(.012+.018*t),-.04-.025*t,-1),len=(.8+.16*Math.sin(PI*(1-t)*.8+.2))*ws*(species==='pardal'?.85:1);
+    add('flight',pos,a,n,len*(.92+.08*t),.34,tint(sp,stage,'primary',R,pos),sg*.02*(t-.5));}
+   for(let i=0;i<9;i++){const t=i/8,pos=W.E.clone().lerp(W.Wr,t).add(V(sg*(.05+.004*i),.03,0)),a=V(sg*.01,-.03,-1);
+    add('flight',pos,a,V(sg,.5,0).normalize(),(.62-.1*t)*ws,.34,tint(sp,stage,'second',R,pos),0);}
    for(let i=0;i<4;i++){const pos=W.S.clone().lerp(W.E,i/3).add(V(sg*.07,.07,0));add('contour',pos,V(sg*.02,-.05,-1),V(sg,.6,0).normalize(),.36*ws,.2,tint(sp,stage,'second',R,pos),0);}
    for(let row=0;row<3;row++){const cnt=9-row*2;for(let i=0;i<cnt;i++){const t=i/(cnt-1),pos=W.S.clone().lerp(W.Wr,t*.9).add(V(sg*(.085+.012*row),.1-.06*row,-.06*row));
-     add('contour',pos,V(sg*.02,-.1,-1),V(sg,.65,0).normalize(),(.32-.07*row)*Math.max(.6,ws),.18,tint(sp,stage,'cov',R,pos),(R()-.5)*.3);}}
+     add('contour',pos,V(sg*.02,-.1,-1),V(sg,.65,0).normalize(),(.32-.07*row)*Math.max(.6,ws),.26,tint(sp,stage,'cov',R,pos),(R()-.5)*.3);}}
   });
   if(st.contour&&sp.crest)for(let i=0;i<sp.crest;i++){const t=i/(sp.crest-1),pos=V((R()-.5)*.12,.78,lerp(1.28,1.02,t)),a=V((R()-.5)*.1,1,-.3-t*.7).normalize();add('flight',pos,a,V(0,.2,1).normalize(),(.26+.1*(1-t))*(stage==='jovem'?.7:1),.1,tint(sp,stage,'crest',R,pos),0);}
   fg.add(bufMesh(O,featherMat(),'Penas',true));if(D.P.length)fg.add(bufMesh(D,downMat(),'Penugem',true));
