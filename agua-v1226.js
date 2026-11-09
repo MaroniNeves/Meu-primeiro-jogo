@@ -3871,7 +3871,7 @@ function gameCanStepOverStone(stone){
   Math.max(stone.rx,stone.rz)<.16;
 }
 // Pisos extras sobre a água (ponte da ilha do lago, píer do castelo): window.arcanoExtraDecks = [{surfaceAt,blocksSegment}].
-function deckAt(x,z){const b=window.arcanoBridgeSolid;let y=b?b.surfaceAt(x,z):null;if(y!=null)return y;const ex=window.arcanoExtraDecks;if(ex)for(const d of ex){y=d.surfaceAt(x,z);if(y!=null)return y;}return null;}
+function deckAt(x,z){let y=window.arcanoBridgeSolid?.surfaceAt(x,z);if(y===undefined)y=null;if(y!=null)return y;const ex=window.arcanoExtraDecks;if(ex)for(const d of ex){y=d.surfaceAt(x,z);if(y!=null)return y;}return null;}
 function extraDeckBlocks(x1,z1,x2,z2){const ex=window.arcanoExtraDecks;if(ex)for(const d of ex)if(d.blocksSegment&&d.blocksSegment(x1,z1,x2,z2))return true;return false;}
 // Chão do mundo: a área detalhada usa a malha do solo; fora dela, a ilha.
 function worldGround(x,z){
