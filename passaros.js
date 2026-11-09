@@ -41,6 +41,7 @@ function featherShape(kind){
  const rows=7,P=[],U=[],I=[];
  for(let r=0;r<=rows;r++){const t=r/rows;let w;
   if(kind==='flight')w=Math.pow(Math.sin(PI*Math.pow(t,.6)),.55)*(1-.28*t)*(.3+.7*Math.min(1,t*3));
+  else if(kind==='round')w=Math.pow(Math.sin(PI*Math.min(1,t*.99+.01)),.42)*(.7+.3*Math.min(1,t*4));
   else if(kind==='tail')w=Math.pow(Math.sin(PI*Math.pow(t,.7)),.5)*(1-.12*t)*(.4+.6*Math.min(1,t*3));
   else w=(.2+.8*Math.sin(PI*Math.min(1,t*1.05)*.98))*Math.sin(PI*Math.min(.99,.2+t*.8));
   w=Math.max(0,w);const bend=-.14*t*t,rid=.05;
@@ -66,14 +67,22 @@ function sphere(b,c,r3,col,seg){seg=seg||8;const base=b.P.length/3;
 
 /* ---------- espécies ---------- */
 const SPECIES={
- pardal:{k:.05,tail:.82,crest:0,skin:'#d9a8a0',beak:{len:.3,r:.1,col:'#4a3d33',low:'#9a8a70'},leg:'#c99a78',
+ periquito:{k:.058,tail:1.6,crest:0,span:2.5,skin:'#d2b8a8',beak:{len:.22,r:.15,col:'#e8dcb0',low:'#d8c898'},leg:'#a89888',
+  paint(reg,R){let c;switch(reg){
+   case 'crown':c=hex('#f2d022');break;case 'face':c=hex('#f4dc30');break;case 'mask':c=hex('#f4dc30');break;case 'throat':c=hex('#eed23a');break;
+   case 'breast':c=mix(hex('#52b648'),hex('#8ed05a'),R()*.5);break;case 'belly':c=mix(hex('#6cc455'),hex('#a0d868'),R()*.5);break;
+   case 'back':c=mix(hex('#2f9a3a'),hex('#1f7a38'),R()*.5);break;case 'rump':c=hex('#3a9ad8');break;
+   case 'cov':c=R()<.35?hex('#f2c020'):R()<.5?hex('#e8602a'):mix(hex('#2f9a3a'),hex('#4ab04a'),R());break;
+   case 'primary':c=mix(hex('#2a62d0'),hex('#3a8ae0'),R()*.6);break;case 'second':c=R()<.5?hex('#2f78d8'):hex('#2a62d0');break;
+   case 'tail':c=R()<.3?hex('#d8321e'):mix(hex('#2a5fc8'),hex('#2f9a8a'),R()*.4);break;default:c=hex('#2f9a3a');}return c;}},
+ pardal:{k:.05,span:2.2,tail:.82,crest:0,skin:'#d9a8a0',beak:{len:.3,r:.1,col:'#4a3d33',low:'#9a8a70'},leg:'#c99a78',
   paint(reg,R){let c;switch(reg){
    case 'crown':c=hex('#8a4a2a');break;case 'face':c=hex('#c9b79a');break;case 'mask':c=hex('#2a211b');break;
    case 'throat':c=hex('#231d1a');break;case 'breast':c=hex('#b8aea0');break;case 'belly':c=hex('#dcd4c4');break;
    case 'back':c=hex('#7a5a3a');if(R()<.4)c=mix(c,hex('#2a1d14'),.65);break;case 'rump':c=hex('#8f7a5e');break;
    case 'cov':c=hex('#8d5f38');if(R()<.3)c=mix(c,hex('#f0e0c0'),.5);break;case 'primary':c=hex('#6e5640');break;
    case 'second':c=mix(hex('#6e4d34'),hex('#d9bf92'),R()*.45);break;case 'tail':c=hex('#6c5440');break;default:c=hex('#8a7358');}return c;}},
- gaio:{k:.072,tail:1.25,crest:14,skin:'#cfd0d6',beak:{len:.4,r:.11,col:'#1b1b22',low:'#2a2a30'},leg:'#2a2a2c',
+ gaio:{k:.072,span:2.6,tail:1.25,crest:14,skin:'#cfd0d6',beak:{len:.4,r:.11,col:'#1b1b22',low:'#2a2a30'},leg:'#2a2a2c',
   paint(reg,R){const blue=hex('#3f7bd1'),deep=hex('#27519c');let c;switch(reg){
    case 'crown':case 'crest':c=mix(blue,hex('#8cc0f4'),R()*.4);break;case 'face':c=hex('#e8ecf2');if(R()<.3)c=mix(c,blue,.35);break;
    case 'mask':c=hex('#1c1c24');break;case 'throat':c=hex('#f2f4f8');break;case 'collar':c=hex('#1c2230');break;
@@ -81,7 +90,7 @@ const SPECIES={
    case 'rump':c=mix(deep,blue,.5);break;case 'cov':c=R()<.28?hex('#ffffff'):mix(blue,deep,R()*.5);break;
    case 'primary':c=R()<.5?mix(deep,hex('#10151f'),.4):mix(blue,hex('#10151f'),.2);break;
    case 'second':c=R()<.6?hex('#f2f4f8'):mix(deep,blue,.4);break;case 'tail':c=R()<.55?mix(blue,deep,.4):hex('#10151f');break;default:c=blue;}return c;}},
- cardeal:{k:.06,tail:1.12,crest:12,skin:'#c9908c',beak:{len:.32,r:.15,col:'#e8742a',low:'#e0642a'},leg:'#b88a7a',
+ cardeal:{k:.06,span:2.4,tail:1.12,crest:12,skin:'#c9908c',beak:{len:.32,r:.15,col:'#e8742a',low:'#e0642a'},leg:'#b88a7a',
   paint(reg,R){const red=hex('#d4121f'),dr=hex('#9a0f1c');let c;switch(reg){
    case 'crown':case 'crest':c=mix(red,hex('#ef4a4a'),R()*.5);break;case 'face':c=red;break;case 'mask':c=hex('#17110f');break;
    case 'throat':c=hex('#17110f');break;case 'breast':c=mix(red,hex('#ee4040'),R()*.5);break;case 'belly':c=mix(red,hex('#e86a5a'),.3+R()*.3);break;
@@ -123,7 +132,7 @@ function interp(arr,z){
 function make(species,stage,opt){
  opt=opt||{};const sp=SPECIES[species],st=STAGES[stage];if(!sp||!st)return null;
  const R=mkRng((opt.seed||1)*131+species.length*17+stage.length*7),root=new T.Group();root.name='Pássaro '+species+' '+stage;
- const K=sp.k*st.kscale;
+ const K=sp.k*st.kscale,FLY=opt.pose==='voo'&&stage!=='filhote';
  const body=new T.Group();root.add(body);
  const prof=profile(st);
  const skinAt=(z,th)=>{
@@ -160,14 +169,17 @@ function make(species,stage,opt){
    bt([V(sg*.3,.2,.5),V(sg*.16,-.04,.56),V(sg*.07,-.12,.5)],[.02,.02,.016],5);
    bt([V(sg*.3,.24,.46),V(sg*.26,.3,.15),V(sg*.2,.32,-.12)],[.018,.014,.008],5);}
   for(const sg of [-1,1])bt([V(sg*.05,.34,-.15),V(sg*.19,.24,-.28),V(sg*.12,.18,-.55)],[.04,.04,.02],5);
-  const wing=(sg)=>{const S=V(sg*.3,.2,.48),E=V(sg*.38,.08,-.05),Wr=V(sg*.39,.2,.4);
+  const wing=(sg)=>{if(FLY){const Lh=sp.span*st.wing,S=V(sg*.3,.22,.48),E=V(sg*(.3+.3*Lh),.27,.42),Wr=V(sg*(.3+.64*Lh),.3,.52),Tp=V(sg*(.3+.82*Lh),.26,.4);
+    bt([S,S.clone().lerp(E,.5).add(V(0,.02,.0)),E],[.03,.026,.024],6);bt([E,E.clone().lerp(Wr,.5).add(V(0,0,.03)),Wr],[.018,.016,.013],5);bt([E,E.clone().lerp(Wr,.5).add(V(0,-.01,.02)),Wr],[.012,.011,.009],4);bt([Wr,Wr.clone().lerp(Tp,.5),Tp],[.016,.013,.008],5);
+    return {S,E,Wr,Tp,Lh};}
+   const S=V(sg*.3,.2,.48),E=V(sg*.38,.08,-.05),Wr=V(sg*.39,.2,.4);
    const ws=st.wing,e2=S.clone().lerp(E,ws),w2=e2.clone().lerp(Wr,ws>.5?1:.7);
    bt([S,S.clone().lerp(E,.5).add(V(sg*.02,.02,0)),e2],[.026,.022,.02],6);
    bt([e2,e2.clone().lerp(w2,.5).add(V(sg*.015,0,.03)),w2],[.016,.015,.012],5);bt([e2,e2.clone().lerp(w2,.5).add(V(sg*-.005,-.01,.03)),w2],[.01,.01,.008],4);
    const tip=w2.clone().add(V(sg*-.02,-.06*ws,-.46*ws));bt([w2,w2.clone().lerp(tip,.5),tip],[.014,.012,.008],5);
    return {S,E:e2,Wr:w2,Tp:tip};};
   body.userData.wings=[wing(1),wing(-1)];
-  for(const sg of [-1,1]){const hip=V(sg*.17,.02,-.18),knee=V(sg*.21,-.17,.12),ank=V(sg*.2,-.45,-.08),foot=V(sg*.2,-.72,.02);
+  for(const sg of [-1,1]){const hip=V(sg*.17,.02,-.18),knee=FLY?V(sg*.2,-.12,.05):V(sg*.21,-.17,.12),ank=FLY?V(sg*.18,-.2,-.3):V(sg*.2,-.45,-.08),foot=FLY?V(sg*.16,-.26,-.5):V(sg*.2,-.72,.02);
    bt([hip,knee],[.028,.022],5);bt([knee,knee.clone().lerp(ank,.5).add(V(0,0,-.03)),ank],[.022,.014,.012],5);
    bt([ank,foot],[.012,.01],5);
    for(const [ang,L] of [[-.45,.3],[0,.34],[.45,.3],[PI,.22]]){bt([foot,foot.clone().add(V(Math.sin(ang)*L*.5,-.01,Math.cos(ang)*L*.5)),foot.clone().add(V(Math.sin(ang)*L,-.02,Math.cos(ang)*L))],[.01,.008,.006],4);}}
@@ -208,7 +220,7 @@ function make(species,stage,opt){
   for(const sg of [-1,1]){const ep=V(sg*.15*h,.65,1.34),eye=new T.Mesh(new T.SphereGeometry(st.eye*(stage==='filhote'?1.25:1),16,12),sm('#0c0a0a',.12));eye.position.copy(ep);skinG.add(eye);
    const hl=new T.Mesh(new T.SphereGeometry(st.eye*.3,8,6),new T.MeshBasicMaterial({color:'#fff'}));hl.position.copy(ep).add(V(sg*.012,.02,.03));skinG.add(hl);
    const lid=new T.Mesh(new T.TorusGeometry(st.eye*1.1,st.eye*.2,6,16),sm(stage==='filhote'?'#d79a8a':'#d8c8b0',.8));lid.position.copy(ep).add(V(sg*.005,0,.005));lid.lookAt(ep.clone().add(V(sg,.1,.4)));skinG.add(lid);}
-  for(const sg of [-1,1]){const ank=V(sg*.2,-.45,-.08),foot=V(sg*.2,-.72,.02),B=Buf();
+  for(const sg of [-1,1]){const ank=FLY?V(sg*.18,-.2,-.3):V(sg*.2,-.45,-.08),foot=FLY?V(sg*.16,-.26,-.5):V(sg*.2,-.72,.02),B=Buf();
    tube(B,[ank,foot],[.014,.011],hex(sp.leg),6,3);for(let k=0;k<5;k++){const p=ank.clone().lerp(foot,(k+.5)/5);sphere(B,p,[.016,.012,.016],mix(hex(sp.leg),[0,0,0],.15),5);}
    for(const [ang,L] of [[-.45,.3],[0,.34],[.45,.3],[PI,.22]]){const to=foot.clone().add(V(Math.sin(ang)*L,-.02,Math.cos(ang)*L));tube(B,[foot,foot.clone().lerp(to,.5).add(V(0,.01,0)),to],[.011,.009,.007],hex(sp.leg),5,3);
     const claw=new T.Mesh(new T.ConeGeometry(.012,.07,5),sm('#2b2420',.5));claw.position.copy(to).add(V(Math.sin(ang)*.03,-.01,Math.cos(ang)*.03));claw.lookAt(to.clone().add(V(Math.sin(ang),-.4,Math.cos(ang))));claw.rotateX(PI/2);skinG.add(claw);}
@@ -239,11 +251,26 @@ function make(species,stage,opt){
   for(const sg of [-1,1])for(let i=0;i<40;i++){const a0=i*2.399963,yy=1-2*(i+.5)/40,rr=Math.sqrt(1-yy*yy),d=V(Math.cos(a0)*rr,yy,Math.sin(a0)*rr),c0=V(sg*.2,-.2,.0),pos=c0.clone().add(V(d.x*.1,d.y*.19,d.z*.12));
    add(kd,pos,V(sg*.04,-1,-.25),d,.2,.12,tint(sp,stage,'belly',R,pos),(R()-.5)*.3);}
   const tailN=st.tail>0?(species==='pardal'?10:12):0,tl=sp.tail*st.tail;
-  for(let i=0;i<tailN;i++){const f=(i-(tailN-1)/2)/((tailN-1)/2),th=f*.32,len=(.62+.1*(1-Math.abs(f)))*tl*1.25,a=V(Math.sin(th),-.07-.03*Math.abs(f),-Math.cos(th)),pos=V(0,.2+.01*(i%2),-.8);
+  for(let i=0;i<tailN;i++){const f=(i-(tailN-1)/2)/((tailN-1)/2),th=f*(FLY?.5:.32),len=(.62+.1*(1-Math.abs(f)))*tl*1.25,a=V(Math.sin(th),-.07-.03*Math.abs(f),-Math.cos(th)),pos=V(0,.2+.01*(i%2),-.8);
    add('tail',pos,a,V(0,1,0),len,.26,tint(sp,stage,'tail',R,pos),f*.1);}
   if(!st.tail)for(let i=0;i<14;i++)add('down',V((R()-.5)*.1,.22,-.84),V((R()-.5)*.5,.1,-1),V(0,1,0),.22,.16,hex('#cdbb9a'),0);
   const wings=body.userData.wings;
   wings.forEach((W,wi)=>{const sg=wi===0?1:-1,ws=st.wing,n=V(sg,.38,0).normalize();
+   if(FLY){const up=V(0,1,0),L=W.Lh,pw=.44,sw=.52;
+    // terciárias e escapulares no úmero
+    for(let i=0;i<6;i++){const t=i/5,pos=W.S.clone().lerp(W.E,t).add(V(0,.03,-.02));add('flight',pos,V(sg*.04*t,-.03,-1),up,1.25*(.9+.1*t),sw,tint(sp,stage,'second',R,pos),0);}
+    // secundárias na ulna
+    for(let i=0;i<10;i++){const t=i/9,pos=W.E.clone().lerp(W.Wr,t).add(V(0,.02,-.03)),a=V(sg*(.02+.12*t),-.03,-1);add('flight',pos,a,up,(2.0-.15*t)*(.6+.4*Math.min(1,L/2.3)),sw,tint(sp,stage,'second',R,pos),0);}
+    // primárias na mão: leque que abre para fora
+    for(let i=0;i<10;i++){const t=i/9,pos=W.Wr.clone().lerp(W.Tp,t*.95).add(V(0,0,-.03)),ang=.1+.72*t,a=V(sg*Math.sin(ang),-.02-.03*t,-Math.cos(ang)),len=(2.0+.6*Math.sin(PI*(1-t)*.7+.15))*Math.min(1.15,L/2.3);
+     add('flight',pos,a,up,len,pw,tint(sp,stage,'primary',R,pos),sg*.05*(t-.5));}
+    // coberteiras em fileiras (grandes, médias, pequenas) do ombro ao punho
+    for(let row=0;row<3;row++){const cnt=20-row*2,len=[1.1,.8,.55][row],off=[.04,.1,.16][row];
+     for(let i=0;i<cnt;i++){const t=i/(cnt-1),base=t<.45?W.S.clone().lerp(W.E,t/.45):W.E.clone().lerp(W.Wr,(t-.45)/.55),pos=base.clone().add(V(0,.03+.015*row,off-.12)),a=V(sg*(.02+.08*Math.max(0,t-.45)),-.04,-1);
+      add('round',pos,a,up,len*Math.min(1.1,L/2.3+.2),.4,tint(sp,stage,'cov',R,pos),(R()-.5)*.2);}}
+    // álula (penas do polegar)
+    for(let i=0;i<3;i++){const pos=W.Wr.clone().add(V(sg*.03*i,.02,.05));add('flight',pos,V(sg*.5,0,-.6),up,.26-.04*i,.1,tint(sp,stage,'primary',R,pos),0);}
+    return;}
    if(ws<.5){for(let i=0;i<7;i++){const pos=W.Wr.clone().lerp(W.Tp,i/7).add(V(sg*.02,-.02*i,0));add('flight',pos,V(sg*.18,-.1,-1),n,.28+.02*i,.1,mix(hex('#cdbb9a'),[.5,.45,.38],.5),0);add('down',pos.clone().add(V(0,0,-.2)),V(0,.4,-1),n,.18,.16,[.95,.9,.8],0);}return;}
    for(let i=0;i<10;i++){const t=i/9,pos=W.Wr.clone().lerp(W.Tp,t*.8).add(V(sg*(.03+.0035*i),-.004*i,0)),a=V(sg*(.012+.018*t),-.04-.025*t,-1),len=(.8+.16*Math.sin(PI*(1-t)*.8+.2))*ws*(species==='pardal'?.85:1);
     add('flight',pos,a,n,len*(.92+.08*t),.34,tint(sp,stage,'primary',R,pos),sg*.02*(t-.5));}
@@ -258,8 +285,8 @@ function make(species,stage,opt){
  }
 
  body.scale.setScalar(K);
- body.rotation.x=-.2;body.position.y=.8*K;
- if(opt.poleiro!==false){const per=new T.Mesh(new T.CylinderGeometry(.0045,.0052,.34,10),new T.MeshStandardMaterial({color:'#5b4030',roughness:1}));per.rotation.z=PI/2;per.position.set(0,-.0045,0);per.castShadow=true;per.receiveShadow=true;root.add(per);}
+ body.rotation.x=FLY?.06:-.2;body.position.y=FLY?.12:.8*K;
+ if(opt.poleiro!==false&&!FLY){const per=new T.Mesh(new T.CylinderGeometry(.0045,.0052,.34,10),new T.MeshStandardMaterial({color:'#5b4030',roughness:1}));per.rotation.z=PI/2;per.position.set(0,-.0045,0);per.castShadow=true;per.receiveShadow=true;root.add(per);}
  const c=opt.camadas||{};bone.visible=c.osso===true;musc.visible=c.musculo===true;skinG.visible=c.pele!==false;fg.visible=c.penas!==false;
  root.userData={especie:species,fase:stage,layers:{osso:bone,musculo:musc,pele:skinG,penas:fg},K};
  return root;

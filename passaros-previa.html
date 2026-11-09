@@ -12,9 +12,9 @@ canvas{display:block;width:100%;height:100%}
 </style></head>
 <body><div id="ui"></div><div id="hint">Arraste: girar · Roda/pinça: zoom · Botão direito: mover · Tamanho real (a mão tem 19 cm)</div>
 <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
-<script src="./passaros.js?v=7"></script>
+<script src="./passaros.js?v=10"></script>
 <script>
-const NAMES={pardal:'Pardal',gaio:'Gaio-azul',cardeal:'Cardeal'},SN={filhote:'Filhote',jovem:'Jovem',adulto:'Adulto'};
+const NAMES={periquito:'Periquito',pardal:'Pardal',gaio:'Gaio-azul',cardeal:'Cardeal'},SN={filhote:'Filhote',jovem:'Jovem',adulto:'Adulto'};
 const q=new URLSearchParams(location.search);
 const r=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});r.setPixelRatio(Math.min(2,devicePixelRatio));r.shadowMap.enabled=true;r.shadowMap.type=THREE.PCFSoftShadowMap;document.body.appendChild(r.domElement);
 const sc=new THREE.Scene();sc.background=new THREE.Color('#bfe0f2');
@@ -24,7 +24,7 @@ const fill=new THREE.DirectionalLight('#cfe4ff',.6);fill.position.set(-.5,.2,-.4
 const gr=new THREE.Mesh(new THREE.CircleGeometry(6,48),new THREE.MeshStandardMaterial({color:'#6fa84e',roughness:1}));gr.rotation.x=-Math.PI/2;gr.position.y=-.2;gr.receiveShadow=true;sc.add(gr);
 const cam=new THREE.PerspectiveCamera(30,1,.005,60);
 const st={sp:q.get('s')||'cardeal',mode:q.get('m')||'all',stage:q.get('f')||'adulto',rot:q.get('rot')!=='0',yaw:+(q.get('yaw')||.6),pitch:+(q.get('pitch')||.15),dist:0,tx:0,ty:.06,tz:0,
- L:{osso:q.get('osso')==='1',musculo:q.get('musculo')==='1',pele:q.get('pele')!=='0',penas:q.get('penas')!=='0'}};
+ pose:q.get('pose')||'pouso',L:{osso:q.get('osso')==='1',musculo:q.get('musculo')==='1',pele:q.get('pele')!=='0',penas:q.get('penas')!=='0'}};
 let holder=new THREE.Group();sc.add(holder);
 function hand(){ // mão de referência: palma com 19 cm de comprimento total
  const g=new THREE.Group(),m=new THREE.MeshStandardMaterial({color:'#d9a384',roughness:.8});
@@ -36,10 +36,10 @@ function hand(){ // mão de referência: palma com 19 cm de comprimento total
 const PI2=Math.PI/2;
 function build(){
  sc.remove(holder);holder=new THREE.Group();sc.add(holder);
- const opts=(s)=>({seed:3,camadas:st.L,poleiro:st.mode!=='mao'});
+ const opts=(s)=>({seed:3,camadas:st.L,poleiro:st.mode!=='mao',pose:st.pose});
  if(st.mode==='all'){const L=['filhote','jovem','adulto'];L.forEach((f,i)=>{const b=window.arcanoBirds.make(st.sp,f,opts());b.position.x=(i-1)*.15;holder.add(b);});st.ty=.06;st.dist=+q.get('d')||.62;}
  else if(st.mode==='mao'){holder.add(hand());const f=['filhote','jovem','adulto'];f.forEach((ff,i)=>{const b=window.arcanoBirds.make(st.sp,ff,opts());b.position.set((i-1)*.05,0,.0+(i-1)*.0);b.rotation.y=.3;holder.add(b);});st.ty=.04;st.dist=+q.get('d')||.5;}
- else{const b=window.arcanoBirds.make(st.sp,st.stage,opts());holder.add(b);st.ty=.07;st.dist=+q.get('d')||.38;}
+ else{const b=window.arcanoBirds.make(st.sp,st.stage,opts());holder.add(b);st.ty=st.pose==='voo'?.12:.07;st.dist=+q.get('d')||(st.pose==='voo'?.55:.38);}
  ui();
 }
 function ui(){const u=document.getElementById('ui');u.innerHTML='';
@@ -50,6 +50,7 @@ function ui(){const u=document.getElementById('ui');u.innerHTML='';
  for(const f of window.arcanoBirds.stages)mk(SN[f],st.mode==='one'&&st.stage===f,()=>{st.mode='one';st.stage=f;build();});
  const sp=document.createElement('div');sp.className='sep';u.appendChild(sp);
  for(const [k,n] of [['osso','Esqueleto'],['musculo','Músculos'],['pele','Pele'],['penas','Penas']])mk(n,st.L[k],()=>{st.L[k]=!st.L[k];build();});
+ mk('Pouso',st.pose==='pouso',()=>{st.pose='pouso';build();});mk('Voo (asas abertas)',st.pose==='voo',()=>{st.pose='voo';build();});
  mk(st.rot?'Girar: ligado':'Girar: desligado',st.rot,()=>{st.rot=!st.rot;ui();});}
 function size(){r.setSize(innerWidth,innerHeight);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();}
 addEventListener('resize',size);size();
