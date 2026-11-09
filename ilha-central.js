@@ -291,7 +291,7 @@ function install(){
   // O canal entra na mistura (antes era aplicado por cima e criava um degrau).
   let y=edge+(carveRiver(x,z,field(x,z))-edge)*sm(0,38,od);
   const k=sm(0,8,od);if(k>0){const yw=carveWater(x,z,y);y+=(yw-y)*k;}
-  {const yy=carvePort(x,z,carveVillage(x,z,y)),LG=window.arcanoLagoGrande;return LG?LG.carve(x,z,yy):yy;}
+  {const yy=carvePort(x,z,carveVillage(x,z,y)),LG=window.arcanoLagoGrande,y2=LG?LG.carve(x,z,yy):yy,PT=window.arcanoPits;return PT?PT(x,z,y2):y2;}
  }
 
  // ---------- Malha do terreno da ilha ----------
