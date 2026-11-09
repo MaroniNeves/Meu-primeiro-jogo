@@ -6,6 +6,7 @@
 'use strict';
 const T=window.THREE;if(!T)return;
 const PI=Math.PI,TAU=PI*2;
+const CUR={density:1,shadows:true};
 const mkRng=sd=>{let s=(sd>>>0)||1;return()=>{s=(s*1664525+1013904223)>>>0;return s/4294967296;};};
 
 /* ---------- Texturas ---------- */
@@ -83,8 +84,7 @@ function Builder(kind,R){
    for(let j=0;j<=S;j++){const an=j/S*TAU,lump=1+.09*Math.sin(an*3+t*8+sd)+.06*Math.sin(an*5-t*13+sd*2)+(flare>0?.15*Math.max(0,Math.sin(an*4+sd))*Math.exp(-t*7):0),dx=nn.x*Math.cos(an)+bb.x*Math.sin(an),dy=nn.y*Math.cos(an)+bb.y*Math.sin(an),dz=nn.z*Math.cos(an)+bb.z*Math.sin(an);
     P.push(pos.x+dx*rr*lump,pos.y+dy*rr*lump,pos.z+dz*rr*lump);U.push(j/S*Math.max(1,rr*4),t*len/1.1);}}
   for(let i=0;i<N;i++)for(let j=0;j<S;j++){const q=i*(S+1)+j;I.push(q,q+S+1,q+1,q+1,q+S+1,q+S+2);}
-  const gg=new T.BufferGeometry();gg.setAttribute('position',new T.Float32BufferAttribute(P,3));gg.setAttribute('uv',new T.Float32BufferAttribute(U,2));gg.setIndex(I);gg.computeVertexNormals();
-  const m=new T.Mesh(gg,barkMat(kind));m.castShadow=true;m.receiveShadow=true;g.add(m);
+  const base0=twigs.P.length/3;for(let i=0;i<P.length;i++)twigs.P.push(P[i]);for(let i=0;i<U.length;i++)twigs.U.push(U[i]);for(let i=0;i<I.length;i++)twigs.I.push(I[i]+base0);
  }
  function card(lk,px,py,pz,size,nrm,col,orient){ // um cartão de folha/flor
   const L=leaves[lk]||(leaves[lk]=[]);
@@ -105,7 +105,7 @@ function Builder(kind,R){
  const ALIGNED={oakleaf:1,small:1,lance:1,maple:1,acacia:1,broad:1};
  /* Massa de folhagem com "cumes": vários lóbulos, cada um com galhinhos que saem do miolo e folhas ao longo deles. */
  function clump(lk,cx,cy,cz,rx,ry,rz,n,size,palette,opt){
-  opt=opt||{};if(ALIGNED[lk]){n*=2.4;size*=1.3;}const lobes=[{x:0,y:0,z:0,r:.62,w:1.3}];
+  opt=opt||{};if(ALIGNED[lk]){n*=2.4;size*=1.3;}n=Math.max(30,n*CUR.density);if(CUR.density<.8)size*=1+(1-CUR.density)*.55;const lobes=[{x:0,y:0,z:0,r:.62,w:1.3}];
   const nl=opt.lobes||(5+Math.floor(R()*3));
   for(let i=0;i<nl;i++){let vx=R()-.5,vy=R()-.15,vz=R()-.5;if(opt.flat)vy*=.25;const l=Math.hypot(vx,vy,vz)||1;lobes.push({x:vx/l*.62,y:vy/l*.5,z:vz/l*.62,r:.42+R()*.2,w:1});}
   const wsum=lobes.reduce((a,b)=>a+b.w*b.r*b.r,0),per=9;
@@ -144,7 +144,7 @@ function Builder(kind,R){
    const P=new Float32Array(n*12),U=new Float32Array(n*8),C=new Float32Array(n*12),Nn=new Float32Array(n*12),I=new Uint32Array(n*6);
    list.forEach((q,i)=>{for(let k=0;k<4;k++){P.set(q.p[k],i*12+k*3);Nn.set(q.n,i*12+k*3);C.set(q.c,i*12+k*3);}U.set([0,0,1,0,1,1,0,1],i*8);I.set([i*4,i*4+1,i*4+2,i*4,i*4+2,i*4+3],i*6);});
    const gg=new T.BufferGeometry();gg.setAttribute('position',new T.BufferAttribute(P,3));gg.setAttribute('uv',new T.BufferAttribute(U,2));gg.setAttribute('color',new T.BufferAttribute(C,3));gg.setAttribute('normal',new T.BufferAttribute(Nn,3));gg.setIndex(new T.BufferAttribute(I,1));
-   const m=new T.Mesh(gg,leafMat(lk));m.castShadow=true;m.receiveShadow=true;m.customDepthMaterial=new T.MeshDepthMaterial({depthPacking:T.RGBADepthPacking,map:leafTex(lk),alphaTest:.45});g.add(m);}
+   const m=new T.Mesh(gg,leafMat(lk));m.castShadow=CUR.shadows;m.receiveShadow=true;if(CUR.shadows)m.customDepthMaterial=new T.MeshDepthMaterial({depthPacking:T.RGBADepthPacking,map:leafTex(lk),alphaTest:.45});g.add(m);}
   return g;
  }
  return {g,tube,card,clump,finish,R};
@@ -229,6 +229,16 @@ const TYPES={
 
 window.arcanoTrees={
  types:Object.keys(TYPES),
- make(type,o){o=o||{};const f=TYPES[type];if(!f)return null;const R=mkRng(o.seed||(type.length*131+7));const g=f(o.h||({cerejeira:5,carvalho:8,pinheiro:10,betula:7,salgueiro:7,bordo:6.5,acacia:7})[type],R);g.name='Árvore '+type;return g;}
+ make(type,o){o=o||{};const f=TYPES[type];if(!f)return null;CUR.density=o.density||1;CUR.shadows=o.shadows!==false;const R=mkRng(o.seed||(type.length*131+7));const g=f(o.h||({cerejeira:5,carvalho:8,pinheiro:10,betula:7,salgueiro:7,bordo:6.5,acacia:7})[type],R);g.name='Árvore '+type;CUR.density=1;CUR.shadows=true;return g;},
+ pool(scene,lite){
+  const cap=lite?7:16,VAR={carvalho:[7,9.5,12,8.5],bordo:[5,6.5,8.5,5.8],betula:[5.5,7,9,6.5]},vars={},items=[],group=new T.Group();group.name='Árvores orgânicas (perto)';scene.add(group);
+  const variant=(type,vi)=>{const k=type+vi;return vars[k]||(vars[k]=window.arcanoTrees.make(type,{h:VAR[type][vi],seed:1000+vi*37+type.length*11,density:lite?.22:.4,shadows:false}));};
+  return {cap,update(list){
+   for(const it of items)it.obj.visible=false;const used={};
+   for(const s of list){const vi=s.k%4,key=s.type+vi;used[key]=(used[key]||0);let it=items.filter(q=>q.key===key)[used[key]];used[key]++;
+    if(!it){it={key,obj:variant(s.type,vi).clone()};items.push(it);group.add(it.obj);}
+    it.obj.visible=true;it.obj.position.set(s.x,s.y-.05,s.z);it.obj.rotation.y=s.rot;it.obj.scale.setScalar(s.sc);}
+  }};
+ }
 };
 })();

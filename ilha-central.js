@@ -1150,15 +1150,23 @@ function install(){
   const pineGeo=merge([part(new T.CylinderGeometry(.03,.045,.3,6),0,.15,0,1)],
    [part(new T.ConeGeometry(.3,.45,8),0,.42,0,1),part(new T.ConeGeometry(.23,.38,8),0,.66,0,1),part(new T.ConeGeometry(.15,.3,8),0,.86,0,1)]);
   const trunkMat=new T.MeshStandardMaterial({color:'#7a4a2c',roughness:1});
-  const leafColor=name=>/Birch/i.test(name)?'#d6c65c':/Maple/i.test(name)?'#d77a45':/Pine/i.test(name)?'#3f7a4a':'#4f8f42';
+  const leafColor=name=>/Birch/i.test(name)?'#d6c65c':/Maple|CommonTree_3/i.test(name)?'#d77a45':/Pine/i.test(name)?'#3f7a4a':'#4f8f42';
   const farMeshes=templates.map((tpl,t)=>{const im=new T.InstancedMesh(tpl.pine?pineGeo:roundGeo,[/Birch/i.test(tpl.name)?new T.MeshStandardMaterial({color:'#ece6d6',roughness:1}):trunkMat,new T.MeshStandardMaterial({color:leafColor(tpl.name),roughness:1})],Math.max(1,perT[t]));
    im.name='Floresta distante (árvores leves)';im.count=0;im.castShadow=false;im.receiveShadow=false;im.frustumCulled=false;group.add(im);return im;});
-  let lastX=1e9,lastZ=1e9;
+  let lastX=1e9,lastZ=1e9,orgPool=null;
+  const ORGMAP={BirchTree_1:'betula',CommonTree_1:'carvalho',CommonTree_3:'bordo'},ORGR=mobile?22:34;
   function rebuild(px,pz){
    lastX=px;lastZ=pz;
    const nearCount=templates.map(()=>0),farCount=templates.map(()=>0);
+   // árvores orgânicas (carvalho, bordo, bétula) nas mais próximas; o resto segue como antes
+   const chosen=new Set();
+   if(!orgPool&&window.arcanoTrees&&window.arcanoTrees.pool)orgPool=window.arcanoTrees.pool(scene,mobile);
+   if(orgPool){const cand=[];for(const s of spots){const nm=ORGMAP[templates[s.t].name];if(!nm)continue;const d=Math.hypot(s.x-px,s.z-pz);if(d<ORGR)cand.push({s,d,nm});}
+    cand.sort((a,b)=>a.d-b.d);const list=[];for(const q of cand.slice(0,orgPool.cap)){chosen.add(q.s);list.push({x:q.s.x,y:q.s.y,z:q.s.z,rot:q.s.rot,type:q.nm,k:Math.floor(Math.abs(Math.sin(q.s.x*12.9+q.s.z*78.2))*4),sc:.9+(q.s.s-.8)*.5});}
+    orgPool.update(list);}
    for(const s of spots){
     const d=Math.hypot(s.x-px,s.z-pz),tpl=templates[s.t];
+    if(chosen.has(s.t===undefined?s:s))continue;
     if(d<NEAR&&nearCount[s.t]<nearMeshes[s.t][0].cap){
      const k=nearCount[s.t]++;
      for(const nm of nearMeshes[s.t]){M.compose(P.set(s.x,s.y-.08,s.z),Q.setFromEuler(E.set(0,s.rot,0)),S.setScalar(s.s)).multiply(nm.part.rel);nm.im.setMatrixAt(k,M);}
@@ -1174,7 +1182,7 @@ function install(){
   {const w=where();rebuild(w?w.x:0,w?w.z:0);}
   setInterval(()=>{const w=where();if(w&&Math.hypot(w.x-lastX,w.z-lastZ)>8)rebuild(w.x,w.z);},300);
   scene.add(group);
-  window.arcanoIsland.forest={group,count:spots.length,templates:templates.length,spots};
+  window.arcanoIsland.forest={group,count:spots.length,templates:templates.length,names:templates.map(t=>t.name),spots};
  }
  window.arcanoIsland={center:C,radius:R,cityRadius:CITY_R,castleRadius:CASTLE_R,height:window.arcanoIslandHeight,land,roads,lake:LAKE,port:PORT,portSite:{angle:PA,u:PU,v:PV,plaza:PLAZA,y:PORT_Y,uvOf:portUV,at:portXZ},inner:INNER,village:VILLAGE,streams:STREAMS};
  // Água fora da área detalhada (rio até a borda, canal e lago): nível e profundidade.
