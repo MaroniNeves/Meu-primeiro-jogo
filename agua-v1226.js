@@ -3870,6 +3870,9 @@ function gameCanStepOverStone(stone){
  return stone.top-terrainContact(stone.x,stone.z)<=.24||
   Math.max(stone.rx,stone.rz)<.16;
 }
+// Pisos extras sobre a água (ponte da ilha do lago, píer do castelo): window.arcanoExtraDecks = [{surfaceAt,blocksSegment}].
+function deckAt(x,z){const b=window.arcanoBridgeSolid;let y=b?b.surfaceAt(x,z):null;if(y!=null)return y;const ex=window.arcanoExtraDecks;if(ex)for(const d of ex){y=d.surfaceAt(x,z);if(y!=null)return y;}return null;}
+function extraDeckBlocks(x1,z1,x2,z2){const ex=window.arcanoExtraDecks;if(ex)for(const d of ex)if(d.blocksSegment&&d.blocksSegment(x1,z1,x2,z2))return true;return false;}
 // Chão do mundo: a área detalhada usa a malha do solo; fora dela, a ilha.
 function worldGround(x,z){
  let y=(Math.abs(x)>W*.5-.35||Math.abs(z)>L*.5-.35)&&window.arcanoIslandHeight?
@@ -3880,7 +3883,7 @@ function worldGround(x,z){
  return y;
 }
 function solidGameFootHeight(x,z){
- const bridgeY=window.arcanoBridgeSolid?.surfaceAt(x,z);
+ const bridgeY=deckAt(x,z);
  if(bridgeY!=null)return bridgeY;
  let support=worldGround(x,z);
  for(const stone of rockSolids){
@@ -3938,9 +3941,9 @@ function updateGame(dt){
   const bridge=window.arcanoBridgeSolid;
   const oldY=solidGameFootHeight(game.position.x,game.position.z);
   const canMoveTo=(tx,tz)=>{
-   const deck=bridge?.surfaceAt(tx,tz);
+   const deck=deckAt(tx,tz);
    const footY=deck==null?worldGround(tx,tz):deck;
-   if((Math.abs(footY-oldY)>1.05&&riverShore(tx,tz)>.20)||bridge?.blocksSegment(game.position.x,game.position.z,tx,tz))return false;
+   if((Math.abs(footY-oldY)>1.05&&riverShore(tx,tz)>.20)||bridge?.blocksSegment(game.position.x,game.position.z,tx,tz)||extraDeckBlocks(game.position.x,game.position.z,tx,tz))return false;
    // Colisao em elipses baseada nas pedras realmente desenhadas.
    // A altura do personagem conta apenas quando a pedra surge do piso.
    for(const stone of rockSolids){
@@ -3975,7 +3978,7 @@ function updateGame(dt){
  const walked=Math.hypot(game.position.x-previousX,game.position.z-previousZ);
  // Apenas leitura visual: a grama responde à velocidade real dos pés.
  game.grassSpeed=walked/Math.max(dt,.001);
- const onBridge=window.arcanoBridgeSolid?.surfaceAt(game.position.x,game.position.z)!=null;
+ const onBridge=deckAt(game.position.x,game.position.z)!=null;
  game.grassOnGround=!onBridge;
  const footWater=!onBridge&&
    riverDepthAt(game.position.x,game.position.z)>.055;

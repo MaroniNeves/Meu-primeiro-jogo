@@ -36,7 +36,7 @@ const CAMPS=[[-198,-446],[66,-403],[-306,-205],[167,-291],[134,-357],[288,-473],
 for(const s of SITES){const dx=CASTLE.x-s.x,dz=CASTLE.z-s.z,L=Math.hypot(dx,dz);s.rot=Math.atan2(-dz/L,dx/L);s.dist=L;s.conn=Math.min(Math.max(40,L-STOP),150);}
 
 /* ---------- Clareiras na floresta ---------- */
-const CLEAR=window.arcanoClearings=[];
+const CLEAR=window.arcanoClearings=window.arcanoClearings||[];
 for(const s of SITES){
  const c=Math.cos(s.rot),sn=Math.sin(s.rot),W=(lx,lz)=>({x:s.x+lx*c+lz*sn,z:s.z-lx*sn+lz*c});
  CLEAR.push({x:s.x,z:s.z,r:54});
