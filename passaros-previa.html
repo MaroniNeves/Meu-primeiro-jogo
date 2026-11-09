@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><title>Prévia 3D dos pássaros</title>
+<style>
+html,body{margin:0;height:100%;background:#bfe0f2;overflow:hidden;font-family:system-ui,sans-serif;touch-action:none}
+canvas{display:block;width:100%;height:100%}
+#ui{position:fixed;left:10px;top:10px;right:10px;display:flex;flex-wrap:wrap;gap:6px;pointer-events:none}
+#ui>*{pointer-events:auto}
+.b{font:600 13px system-ui;border:1px solid #2a4a2a55;background:#ffffffd0;color:#173017;border-radius:999px;padding:6px 12px;cursor:pointer}
+.b.on{background:#2f6a3a;color:#fff}
+#hint{position:fixed;left:10px;bottom:10px;font:12px system-ui;color:#123;background:#ffffffb0;padding:4px 10px;border-radius:8px}
+</style></head>
+<body><div id="ui"></div><div id="hint">Arraste: girar · Roda/pinça: zoom · Botão direito: mover</div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
+<script src="./passaros.js?v=1"></script>
+<script>
+const NAMES={pardal:'Pardal',gaio:'Gaio-azul',cardeal:'Cardeal'},SN={filhote:'Filhote',jovem:'Jovem',adulto:'Adulto'};
+const q=new URLSearchParams(location.search);
+const r=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});r.setPixelRatio(Math.min(2,devicePixelRatio));r.shadowMap.enabled=true;r.shadowMap.type=THREE.PCFSoftShadowMap;document.body.appendChild(r.domElement);
+const sc=new THREE.Scene();sc.background=new THREE.Color('#bfe0f2');
+sc.add(new THREE.HemisphereLight('#eef6ff','#7a8a60',1.05));
+const sun=new THREE.DirectionalLight('#fff3dc',2.0);sun.position.set(4,8,6);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-6,right:6,top:5,bottom:-3,near:1,far:30});sc.add(sun);
+const fill=new THREE.DirectionalLight('#cfe4ff',.6);fill.position.set(-5,2,-4);sc.add(fill);
+const gr=new THREE.Mesh(new THREE.CircleGeometry(40,48),new THREE.MeshStandardMaterial({color:'#6fa84e',roughness:1}));gr.rotation.x=-Math.PI/2;gr.position.y=-.02;gr.receiveShadow=true;sc.add(gr);
+const cam=new THREE.PerspectiveCamera(32,1,.05,200);
+const st={sp:q.get('s')||'cardeal',all:q.get('all')!=='0',stage:q.get('f')||'adulto',rot:q.get('rot')!=='0',yaw:+(q.get('yaw')||.5),pitch:+(q.get('pitch')||.12),dist:+(q.get('d')||0),tx:0,ty:.9,tz:0};
+let holder=new THREE.Group();sc.add(holder);
+function build(){
+ sc.remove(holder);holder=new THREE.Group();sc.add(holder);
+ if(st.all){const L=['filhote','jovem','adulto'];L.forEach((f,i)=>{const b=window.arcanoBirds.make(st.sp,f,{seed:3});b.position.x=(i-1)*2.9;holder.add(b);});st.tx=0;st.ty=.8;if(!q.get('d'))st.dist=12;}
+ else{const b=window.arcanoBirds.make(st.sp,st.stage,{seed:3});holder.add(b);st.tx=0;st.ty=.8;if(!q.get('d'))st.dist=5.2;}
+ ui();
+}
+function ui(){const u=document.getElementById('ui');u.innerHTML='';
+ const mk=(t,on,fn)=>{const b=document.createElement('button');b.className='b'+(on?' on':'');b.textContent=t;b.onclick=fn;u.appendChild(b);};
+ for(const s of window.arcanoBirds.species)mk(NAMES[s],st.sp===s,()=>{st.sp=s;build();});
+ mk('Três fases',st.all,()=>{st.all=true;build();});
+ for(const f of window.arcanoBirds.stages)mk(SN[f],!st.all&&st.stage===f,()=>{st.all=false;st.stage=f;build();});
+ mk(st.rot?'Girar: ligado':'Girar: desligado',st.rot,()=>{st.rot=!st.rot;ui();});}
+function size(){r.setSize(innerWidth,innerHeight);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();}
+addEventListener('resize',size);size();
+const el=r.domElement,P=new Map();
+el.addEventListener('pointerdown',e=>{el.setPointerCapture(e.pointerId);P.set(e.pointerId,{x:e.clientX,y:e.clientY,b:e.button});});
+el.addEventListener('pointerup',e=>P.delete(e.pointerId));el.addEventListener('pointercancel',e=>P.delete(e.pointerId));
+el.addEventListener('pointermove',e=>{const p=P.get(e.pointerId);if(!p)return;const dx=e.clientX-p.x,dy=e.clientY-p.y;
+ if(P.size===2){const a=[...P.values()],d0=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y);p.x=e.clientX;p.y=e.clientY;const b=[...P.values()],d1=Math.hypot(b[0].x-b[1].x,b[0].y-b[1].y);st.dist=Math.max(1,Math.min(40,st.dist*d0/Math.max(1,d1)));return;}
+ p.x=e.clientX;p.y=e.clientY;
+ if(p.b===2||e.shiftKey){const k=st.dist*.0016;st.tx-=dx*Math.cos(st.yaw)*k;st.tz+=dx*Math.sin(st.yaw)*k;st.ty=Math.max(0,st.ty+dy*k);}
+ else{st.yaw-=dx*.008;st.pitch=Math.max(-.2,Math.min(1.4,st.pitch+dy*.006));}});
+el.addEventListener('wheel',e=>{e.preventDefault();st.dist=Math.max(1,Math.min(40,st.dist*Math.exp(e.deltaY*.001)));},{passive:false});
+el.addEventListener('contextmenu',e=>e.preventDefault());
+let t0=performance.now();
+(function loop(now){requestAnimationFrame(loop);const dt=Math.min(.05,(now-t0)/1000);t0=now;if(st.rot&&!P.size)st.yaw+=dt*.4;
+ const cp=Math.cos(st.pitch);cam.position.set(st.tx+Math.sin(st.yaw)*cp*st.dist,st.ty+Math.sin(st.pitch)*st.dist,st.tz+Math.cos(st.yaw)*cp*st.dist);cam.lookAt(st.tx,st.ty,st.tz);r.render(sc,cam);})(t0);
+build();
+</script></body></html>
