@@ -1090,6 +1090,8 @@ function install(){
    if(z>INNER.z1-4&&Math.abs(x-river.center(z))<half(z)+7)return false;
    {const si=streamInfo(x,z);if(si&&si.d<STREAM_W+5)return false;}
    if(villageNear(x,z,3))return false;
+   // Clareiras das vilas da floresta (vilas-mundo.js): sem árvores nas vilas e ao longo das estradas delas.
+   {const cl=window.arcanoClearings;if(cl)for(let i=0;i<cl.length;i++){const q=cl[i];if(q.x1!=null){const dx=q.x2-q.x1,dz=q.z2-q.z1,l2=dx*dx+dz*dz||1;let t=((x-q.x1)*dx+(z-q.z1)*dz)/l2;t=Math.max(0,Math.min(1,t));if(Math.hypot(x-q.x1-dx*t,z-q.z1-dz*t)<q.r)return false;}else if(Math.hypot(x-q.x,z-q.z)<q.r)return false;}}
    if(lakeE(x,z)<1+7/LAKE.rz||(z<INNER.z0+2&&z>LAKE.z&&Math.abs(x-river.center(z))<half(z)+7))return false;
    return true;
   };
