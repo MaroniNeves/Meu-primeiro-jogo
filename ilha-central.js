@@ -922,12 +922,14 @@ function install(){
    g.beginPath();g.roundRect?g.roundRect(x+2,y+2,28,28,5):g.rect(x+2,y+2,28,28);g.fill();
    if(off&&c===7){g.beginPath();g.roundRect?g.roundRect(-14,y+2,28,28,5):g.rect(-14,y+2,28,28);g.fill();}
   }
-  const tex=new T.CanvasTexture(cv);tex.wrapS=tex.wrapT=T.RepeatWrapping;tex.colorSpace=T.SRGBColorSpace;
-  tex.repeat.set(CITY_R/1.5,CITY_R/1.5);tex.anisotropy=4;
+  let tex=new T.CanvasTexture(cv);tex.wrapS=tex.wrapT=T.RepeatWrapping;tex.colorSpace=T.SRGBColorSpace;
+  let pbump=null;
+  if(window.arcanoTex){const ct=window.arcanoTex.cobble({hue:34,sat:24,l0:54,l1:74,seed:77,n:7});tex=ct.map;pbump=ct.bump;}
+  tex.repeat.set(CITY_R/1.5,CITY_R/1.5);tex.anisotropy=4;if(pbump){pbump.repeat.copy(tex.repeat);}
   const ring=new T.RingGeometry(CASTLE_R+27,CITY_R-1.2,128,6);ring.rotateX(-Math.PI/2);
   const ruv=ring.attributes.uv,rp=ring.attributes.position;
   for(let i=0;i<rp.count;i++)ruv.setXY(i,rp.getX(i)/(2*CITY_R)+.5,rp.getZ(i)/(2*CITY_R)+.5);
-  const pave=new T.Mesh(ring,new T.MeshStandardMaterial({map:tex,roughness:1,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}));
+  const pave=new T.Mesh(ring,new T.MeshStandardMaterial({map:tex,bumpMap:pbump,bumpScale:.7,roughness:1,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}));
   pave.position.set(C.x,CITY_Y+.09,C.z); // 9 cm acima do terreno (antes 4: as duas superfícies brigavam)
   if(window.arcanoGroundOverrides)window.arcanoGroundOverrides.push((px,pz)=>{const d=Math.hypot(px-C.x,pz-C.z);return d>CASTLE_R+27&&d<CITY_R-1.2?CITY_Y+.09:null;});
   pave.receiveShadow=true;pave.name='Piso da cidade Aurora (área a construir)';

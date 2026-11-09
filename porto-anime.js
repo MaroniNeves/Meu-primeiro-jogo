@@ -43,6 +43,16 @@ const TX={
  rug:canvasTex(128,128,(g,w,h)=>{g.fillStyle='#8f2a2a';g.fillRect(0,0,w,h);g.strokeStyle='#e0b85a';g.lineWidth=6;g.strokeRect(8,8,w-16,h-16);g.lineWidth=2;g.strokeRect(20,20,w-40,h-40);g.fillStyle='#e0b85a';g.beginPath();g.moveTo(w/2,30);g.lineTo(w-30,h/2);g.lineTo(w/2,h-30);g.lineTo(30,h/2);g.closePath();g.fill();}),
  sack:canvasTex(64,64,(g,w,h)=>{g.fillStyle='#c9b088';g.fillRect(0,0,w,h);g.strokeStyle='rgba(120,90,50,.35)';for(let i=0;i<w;i+=4){g.beginPath();g.moveTo(i,0);g.lineTo(i,h);g.stroke();g.beginPath();g.moveTo(0,i);g.lineTo(w,i);g.stroke();}})
 };
+// Texturas pintadas à mão com relevo (texturas-anime.js).
+const AT=window.arcanoTex,TB={};
+if(AT){
+ const put=(k,t,sc)=>{TX[k]=t.map;TB[k]=[t.bump,sc];};
+ put('deck',AT.wood({hue:30,light:54,horizontal:true,seed:21}),.8);put('hull',AT.wood({hue:22,light:32,horizontal:true,seed:22}),.8);put('dark',AT.wood({hue:20,light:24,horizontal:true,seed:23}),.8);
+ put('door',AT.wood({hue:26,light:42,seed:24}),.8);put('light',AT.wood({hue:34,light:62,horizontal:true,seed:25}),.7);
+ put('tiles',AT.cobble({hue:34,sat:20,l0:60,l1:76,seed:41,n:12}),.6);
+ put('stone',AT.stone({hue:34,sat:10,l0:52,l1:68,seed:43}),.8);
+ put('plaster',AT.plaster({hue:38,sat:34,l:84}),.6);
+}
 for(const k of ['compass','sign','ticket','store','map'])TX[k].wrapS=TX[k].wrapT=T.ClampToEdgeWrapping;
 const mat=o=>new T.MeshStandardMaterial(Object.assign({roughness:1,metalness:0},o));
 const M={
@@ -59,6 +69,7 @@ const M={
  lamp:mat({color:'#fff1c8',emissive:new T.Color('#ffc566'),emissiveIntensity:.5}),
  crystal:mat({color:'#e8fbff',emissive:new T.Color('#5fd2ff'),emissiveIntensity:2.2,roughness:.2,transparent:true,opacity:.92})
 };
+if(AT)for(const [k,[b,sc]] of Object.entries(TB))if(M[k]){M[k].bumpMap=b;M[k].bumpScale=sc;}
 
 function boxUV(geo,w,h,d,tile){const uv=geo.attributes.uv,F=[[d,h],[d,h],[w,d],[w,d],[w,h],[w,h]];for(let f=0;f<6;f++)for(let v=0;v<4;v++){const i=f*4+v;uv.setXY(i,uv.getX(i)*F[f][0]/tile,uv.getY(i)*F[f][1]/tile);}return geo;}
 function box(g,w,h,d,m,x,y,z,ry=0,tile=2.5){const mm=new T.Mesh(boxUV(new T.BoxGeometry(w,h,d),w,h,d,tile),m);mm.position.set(x,y,z);mm.rotation.y=ry;g.add(mm);return mm;}

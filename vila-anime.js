@@ -35,6 +35,14 @@ const M={
  flower:[mat({color:'#ff7aa8'}),mat({color:'#ffd35a'}),mat({color:'#a98bff'}),mat({color:'#ff8c5a'})],
  leaf:mat({color:'#4e9a45'}),iron:mat({color:'#33343a'})
 };
+// Texturas pintadas à mão com relevo (texturas-anime.js).
+{const AT=window.arcanoTex;if(AT){
+ const set=(m,t,sc)=>{m.map=t.map;m.bumpMap=t.bump;m.bumpScale=sc;m.needsUpdate=true;};
+ {const wt=AT.windowTile();M.glass.map=wt.map;M.glass.emissiveMap=wt.emit;M.glass.color.set('#ffffff');M.glass.emissive.set('#ffffff');M.glass.needsUpdate=true;}
+ set(M.plaster,AT.plaster({hue:38,sat:38,l:84}),.6);set(M.stone,AT.stone({hue:32,sat:9,l0:50,l1:66,seed:51}),.8);
+ set(M.timber,AT.wood({hue:24,light:28,seed:52}),.8);set(M.wood,AT.wood({hue:30,light:46,seed:53}),.8);
+ [[8,55,38,54],[212,35,34,50],[160,30,32,48],[30,45,30,46],[350,40,28,44]].forEach(([h,s,a,b],i)=>set(M.roofs[i],AT.shingles({hue:h,sat:s,l0:a,l1:b,seed:60+i}),.9));
+}}
 
 // ---------- Peças ----------
 function boxUV(geo,w,h,d,tile){const uv=geo.attributes.uv,F=[[d,h],[d,h],[w,d],[w,d],[w,h],[w,h]];for(let f=0;f<6;f++)for(let v=0;v<4;v++){const i=f*4+v;uv.setXY(i,uv.getX(i)*F[f][0]/tile,uv.getY(i)*F[f][1]/tile);}return geo;}
@@ -55,7 +63,7 @@ function hip(g,w,d,y,rh,m,oh=.9){
  for(const sx of [-1,1])for(const sz of [-1,1]){const t=new T.Mesh(new T.ConeGeometry(.16,.9,5),M.gold);t.position.set(sx*(w/2+oh),y+.25,sz*(d/2+oh));t.rotation.z=-sx*.9;t.rotation.x=sz*.9;g.add(t);}
  box(g,.25,.5,.25,M.gold,0,y+rh+.15,0);
 }
-function windowAt(g,x,y,z,ry,shutter=true){box(g,.9,1.1,.12,M.glass,x,y,z,ry);box(g,1.1,.14,.2,M.timber,x,y-.62,z,ry);box(g,1.1,.14,.2,M.timber,x,y+.62,z,ry);
+function windowAt(g,x,y,z,ry,shutter=true){box(g,.9,1.1,.12,M.glass,x,y,z,ry,1);box(g,1.1,.14,.2,M.timber,x,y-.62,z,ry);box(g,1.1,.14,.2,M.timber,x,y+.62,z,ry);
  if(shutter){const c=Math.cos(ry),s=Math.sin(ry);for(const sd of [-1,1])box(g,.42,1.15,.06,M.timber,x+c*sd*.72,y,z-s*sd*.72,ry);}}
 function flowerBox(g,x,y,z,ry){box(g,1,.25,.3,M.wood,x,y,z,ry);for(let i=0;i<4;i++){const c=Math.cos(ry),s=Math.sin(ry),o=-.35+i*.23;const f=new T.Mesh(new T.IcosahedronGeometry(.13,0),M.flower[(i+Math.floor(x))&3]);f.position.set(x+c*o,y+.2,z-s*o);g.add(f);}}
 function door(g,w,z,frame=M.timber,leaf=M.wood){box(g,1.3,2.2,.14,leaf,0,1.1,z+.02);box(g,1.6,.2,.2,frame,0,2.3,z+.04);for(const s of [-1,1])box(g,.15,2.3,.2,frame,s*.72,1.15,z+.04);box(g,.12,.12,.1,M.gold,.4,1.1,z+.12);}
@@ -209,7 +217,7 @@ function build(api,V){
  const root=new T.Group();root.name='Vila da Montanha';scene.add(root);
  mergeInto(all,root,'Vila da Montanha · casas');
  setInterval(()=>{const s=window.arcanoAnimeSky&&window.arcanoAnimeSky.material.uniforms.uSunDir.value;const night=s?Math.min(1,Math.max(0,(-s.y+.02)/.2)):0;
-  M.glass.emissiveIntensity=.35+night*1.6;M.lamp.emissiveIntensity=.4+night*2.2;M.lantern.emissiveIntensity=.5+night*1.8;},1000);
+  M.glass.emissiveIntensity=.06+night*1.9;M.lamp.emissiveIntensity=.4+night*2.2;M.lantern.emissiveIntensity=.5+night*1.8;},1000);
  return root;
 }
 

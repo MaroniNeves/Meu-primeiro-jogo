@@ -570,8 +570,9 @@ function updateAtmosphere(dt){
  }
  const shade=Math.max(.72,1-atmCloudMean*.12*(.5+.5*Math.sin(weatherTime*.16+
     Math.sin(weatherTime*.065)*1.4)));
- light.intensity=Math.min(1.70,(weatherCfg?weatherCfg.sunPower:2.0)*.67)*dayLight*shade;
- ambientSky.intensity=Math.min(1.45,(weatherCfg?weatherCfg.ambientPower:2.1)*.68)*(.30+.70*dayLight);
+ // Luzes mais baixas: com a soma sol+céu acima de 3x o brilho da textura, pedra e piso estouravam em branco.
+ light.intensity=Math.min(1.22,(weatherCfg?weatherCfg.sunPower:2.0)*.50)*dayLight*shade;
+ ambientSky.intensity=Math.min(.98,(weatherCfg?weatherCfg.ambientPower:2.1)*.47)*(.30+.70*dayLight);
  renderer.toneMappingExposure=.86+.05*dayLight;
  if(typeof waterM!=='undefined'){
   waterM.uniforms.uSun.value.copy(skySunDir);

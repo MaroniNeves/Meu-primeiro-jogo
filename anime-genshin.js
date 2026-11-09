@@ -12,7 +12,7 @@ const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const OUTLINE_COLOR='#2b2140';
 
 /* ---------- 1. Cel-shading nos materiais ---------- */
-const STYLE_KEY='anime-genshin-v1';
+const STYLE_KEY='anime-genshin-v2';
 function stylize(material){
  if(!material||material.userData.animeStyled||!material.isMeshStandardMaterial)return;
  material.userData.animeStyled=true;
@@ -25,6 +25,9 @@ function stylize(material){
   if(!hook)return;
   const toon=`
    {
+    // Ombro suave: luz forte comprime em vez de estourar em branco (preserva o desenho da textura).
+    float animeL0=dot(outgoingLight,vec3(.299,.587,.114));
+    outgoingLight*=1.14/(1.+.62*animeL0);
     float animeL=dot(outgoingLight,vec3(.299,.587,.114));
     // Rampa de 4 degraus com transição curta (aparência pintada à mão).
     float animeSteps=4.;
