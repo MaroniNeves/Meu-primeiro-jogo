@@ -2,3 +2,12 @@ Modelos de aves por Quaternius — licença Public Domain (CC0), obtidos em Poly
 - passaro.glb  — "Bird"    https://poly.pizza/m/gYYC0gYMnw  (sem animação; pose de voo)
 - pombo.glb    — "Pigeon"  https://poly.pizza/m/9NGlBTpDEr  (animações: Idle, Walk, Jump, Bite_Front, Dance, Death, HitRecieve, No, Yes)
 - galinha.glb  — "Chicken" https://poly.pizza/m/ineV9pU5VL  (mesmas animações do pombo)
+
+Aves "Poly by Google" — licença CC-BY 3.0 (crédito obrigatório: "Poly by Google"), obtidas em Poly Pizza; animadas por código em aves-anime.js:
+- gaivota.glb   — "Flying seagull"   https://poly.pizza/m/6Tpj_vcWP3f
+- coruja.glb    — "Great horned owl" https://poly.pizza/m/fNkq9CwSG6d
+- beijaflor.glb — "Hummingbird"      https://poly.pizza/m/70NyKFt-vLF
+- pomba.glb     — "Mourning dove"    https://poly.pizza/m/1cF8DTp2sAi
+- pardal.glb    — "Sparrow"          https://poly.pizza/m/eVTHotZ9Bc_
+- aguia.glb     — "Eagle"            https://poly.pizza/m/d7CSLvsHULY
+- arara.glb     — "Scarlet macaw"    https://poly.pizza/m/7sfRRUS5F_v

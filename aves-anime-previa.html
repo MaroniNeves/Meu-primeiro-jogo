@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><title>Aves animadas</title>
+<style>
+html,body{margin:0;height:100%;background:#bfe0f2;overflow:hidden;font-family:system-ui,sans-serif;touch-action:none}
+canvas{display:block;width:100%;height:100%}
+#ui{position:fixed;left:10px;top:10px;right:10px;display:flex;flex-wrap:wrap;gap:6px;pointer-events:none}
+#ui>*{pointer-events:auto}
+.b{font:600 13px system-ui;border:1px solid #2a4a2a55;background:#ffffffd0;color:#173017;border-radius:999px;padding:6px 12px;cursor:pointer}
+.b.on{background:#2f6a3a;color:#fff}.sep{width:8px}
+#hint{position:fixed;left:10px;bottom:10px;font:12px system-ui;color:#123;background:#ffffffb0;padding:4px 10px;border-radius:8px}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js"}}</script>
+</head>
+<body><div id="ui"></div><div id="hint">Modelos: Poly by Google (CC-BY 3.0) via Poly Pizza · animação por código · Arraste: girar · Roda/pinça: zoom</div>
+<script type="module">
+import * as THREE from 'three';
+import {loadBird,ESPECIES} from './aves-anime.js?v=1';
+const q=new URLSearchParams(location.search);
+const r=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});r.setPixelRatio(Math.min(2,devicePixelRatio));r.shadowMap.enabled=true;r.outputColorSpace=THREE.SRGBColorSpace;document.body.appendChild(r.domElement);
+const sc=new THREE.Scene();sc.background=new THREE.Color('#bfe0f2');
+sc.add(new THREE.HemisphereLight('#eef6ff','#7a8a60',1.0));
+const sun=new THREE.DirectionalLight('#fff3dc',2.0);sun.position.set(2,4,3);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-3,right:3,top:3,bottom:-3,near:.1,far:12});sc.add(sun);
+const gr=new THREE.Mesh(new THREE.CircleGeometry(10,48),new THREE.MeshStandardMaterial({color:'#6fa84e',roughness:1}));gr.rotation.x=-Math.PI/2;gr.receiveShadow=true;sc.add(gr);
+const cam=new THREE.PerspectiveCamera(30,1,.01,60);
+const ids=Object.keys(ESPECIES);
+const st={mode:q.get('a')||'parado',one:q.get('s')||'',rot:q.get('rot')!=='0',yaw:+(q.get('yaw')||.6),pitch:+(q.get('pitch')||.25),dist:+(q.get('d')||0)};
+const MN={parado:'Parado',bicar:'Bicar',bater:'Bater asas',voar:'Voar',planar:'Planar',pousar:'Pousar'};
+const birds=[];let x=0;
+for(const id of ids){const b=await loadBird(THREE,id,{toon:true});const w=Math.max(b.size.half*2,b.size.Lz)+.12;b.root.position.x=x+w/2;b.root.userData.w=w;x+=w;sc.add(b.root);birds.push(b);}
+const total=x;birds.forEach(b=>b.root.position.x-=total/2);
+function ui(){const u=document.getElementById('ui');u.innerHTML='';const mk=(t,on,fn)=>{const b=document.createElement('button');b.className='b'+(on?' on':'');b.textContent=t;b.onclick=fn;u.appendChild(b);};
+ mk('Todas',!st.one,()=>{st.one='';ui();});for(const b of birds)mk(b.cfg.nome,st.one===b.cfg.id,()=>{st.one=b.cfg.id;ui();});
+ const s=document.createElement('div');s.className='sep';u.appendChild(s);
+ for(const m in MN)mk(MN[m],st.mode===m,()=>{st.mode=m;ui();});
+ mk(st.rot?'Girar: ligado':'Girar: desligado',st.rot,()=>{st.rot=!st.rot;ui();});}
+ui();
+function size(){r.setSize(innerWidth,innerHeight);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();}
+addEventListener('resize',size);size();
+const el=r.domElement,P=new Map();
+el.addEventListener('pointerdown',e=>{el.setPointerCapture(e.pointerId);P.set(e.pointerId,{x:e.clientX,y:e.clientY});});
+el.addEventListener('pointerup',e=>P.delete(e.pointerId));
+el.addEventListener('pointermove',e=>{const p=P.get(e.pointerId);if(!p)return;const dx=e.clientX-p.x,dy=e.clientY-p.y;p.x=e.clientX;p.y=e.clientY;if(P.size===2)return;st.yaw-=dx*.008;st.pitch=Math.max(-.2,Math.min(1.4,st.pitch+dy*.006));});
+el.addEventListener('wheel',e=>{e.preventDefault();st.dist=Math.max(.1,Math.min(20,(st.dist||3)*Math.exp(e.deltaY*.001)));},{passive:false});
+const clock=new THREE.Clock(),T0=q.get('t')!==null?+q.get('t'):null;
+(function loop(){requestAnimationFrame(loop);const dt=T0!==null?0:clock.getDelta();if(st.rot&&!P.size)st.yaw+=dt*.3;
+ let target=new THREE.Vector3(0,.2,0),dist=st.dist||total*.9;
+ for(const b of birds){b.root.visible=!st.one||st.one===b.cfg.id;b.update(T0!==null?0:dt,st.mode);if(T0!==null&&!b.__t){b.update(T0,st.mode);b.__t=1;}
+  const fly=st.mode==='voar'||st.mode==='planar';b.root.position.y=fly||(b.cfg.voo&&st.mode!=='bicar')?b.cfg.len*.6+.1:0;
+  if(st.one===b.cfg.id){target.set(b.root.position.x,b.root.position.y+b.size.H*.5,0);dist=st.dist||Math.max(b.cfg.len*3,.5);}}
+ const cp=Math.cos(st.pitch);cam.position.set(target.x+Math.sin(st.yaw)*cp*dist,target.y+Math.sin(st.pitch)*dist,target.z+Math.cos(st.yaw)*cp*dist);cam.lookAt(target);r.render(sc,cam);})();
+</script></body></html>
