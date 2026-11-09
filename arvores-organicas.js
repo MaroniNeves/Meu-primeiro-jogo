@@ -27,14 +27,29 @@ function barkTex(kind){
 }
 function leafTex(kind){
  const k='l'+kind;if(cache[k])return cache[k];
- const c=canvas(128,128),g=c.getContext('2d');g.translate(64,64);
+ const SZ=kind==='oakleaf'?256:128,c=canvas(SZ,SZ),g=c.getContext('2d');g.translate(SZ/2,SZ/2);g.scale(SZ/128,SZ/128);
  const vein=(col)=>{g.strokeStyle=col;g.lineWidth=2;g.beginPath();g.moveTo(0,-54);g.lineTo(0,56);g.stroke();for(let i=-3;i<=3;i++){g.beginPath();g.moveTo(0,i*14);g.lineTo(24,i*14-12);g.moveTo(0,i*14);g.lineTo(-24,i*14-12);g.stroke();}};
  if(kind==='blossom'){
   const petal=ang=>{g.save();g.rotate(ang);g.beginPath();g.moveTo(0,-4);g.bezierCurveTo(-26,-18,-24,-52,-7,-56);g.lineTo(0,-48);g.lineTo(7,-56);g.bezierCurveTo(24,-52,26,-18,0,-4);g.closePath();
    const gr=g.createLinearGradient(0,-4,0,-56);gr.addColorStop(0,'#e0608a');gr.addColorStop(.35,'#ff9cbd');gr.addColorStop(1,'#fff2f6');g.fillStyle=gr;g.fill();g.strokeStyle='rgba(150,40,80,.55)';g.lineWidth=2.2;g.stroke();g.strokeStyle='rgba(190,70,110,.4)';g.lineWidth=1.3;g.beginPath();g.moveTo(0,-8);g.lineTo(0,-40);g.stroke();g.restore();};
   for(let i=0;i<5;i++)petal(i*TAU/5);g.fillStyle='#c0305f';g.beginPath();g.arc(0,0,7,0,6.3);g.fill();
   for(let i=0;i<9;i++){const an=i/9*TAU;g.strokeStyle='#ffe27a';g.lineWidth=2;g.beginPath();g.moveTo(0,0);g.lineTo(Math.cos(an)*16,Math.sin(an)*16);g.stroke();g.fillStyle='#ffd24a';g.beginPath();g.arc(Math.cos(an)*16,Math.sin(an)*16,2.4,0,6.3);g.fill();}
- }else if(kind==='broad'||kind==='oakleaf'){
+ }else if(kind==='oakleaf'){
+  // folha de carvalho: 3 a 4 lóbulos arredondados de cada lado, seios fundos, nervuras que entram em cada lóbulo
+  const N=90,side=sg=>{const pts=[];for(let i=0;i<=N;i++){const t=i/N,y=-56+t*104,env=Math.pow(Math.sin(Math.PI*Math.pow(t,.85)),.75),lob=Math.pow(Math.abs(Math.sin(Math.PI*3.5*t+(sg>0?0:.4))),.7),w=env*(5+36*lob*(.6+.4*Math.sin(Math.PI*Math.min(1,t*1.2))));pts.push([sg*w,y]);}return pts;};
+  const R1=side(1),L1=side(-1);
+  g.beginPath();g.moveTo(0,-58);for(const [x,y] of R1)g.lineTo(x,y);g.lineTo(0,50);for(let i=L1.length-1;i>=0;i--)g.lineTo(L1[i][0],L1[i][1]);g.closePath();
+  const gr=g.createLinearGradient(-30,-50,30,50);gr.addColorStop(0,'#d0ef80');gr.addColorStop(.45,'#7cc24a');gr.addColorStop(1,'#3e8a38');g.fillStyle=gr;g.fill();
+  g.save();g.clip();
+  g.fillStyle='rgba(255,255,200,.18)';g.beginPath();g.ellipse(-10,-20,10,34,.2,0,6.3);g.fill();
+  g.fillStyle='rgba(20,70,30,.13)';g.beginPath();g.ellipse(14,26,14,30,-.2,0,6.3);g.fill();
+  g.strokeStyle='rgba(30,90,40,.65)';g.lineWidth=2.6;g.beginPath();g.moveTo(0,-56);g.lineTo(0,52);g.stroke();
+  g.lineWidth=1.5;for(let i=0;i<7;i++){const y=-42+i*13;for(const sg of [-1,1]){g.beginPath();g.moveTo(0,y+6);g.quadraticCurveTo(sg*14,y+2,sg*28,y-5);g.stroke();}}
+  for(let i=0;i<60;i++){g.fillStyle='rgba(30,80,30,'+(.05+Math.random()*.08)+')';g.beginPath();g.arc((Math.random()-.5)*50,(Math.random()-.5)*100,.8+Math.random()*1.4,0,6.3);g.fill();}
+  g.restore();
+  g.lineJoin='round';g.lineWidth=2.6;g.strokeStyle='rgba(22,64,28,.92)';g.beginPath();g.moveTo(0,-58);for(const [x,y] of R1)g.lineTo(x,y);g.lineTo(0,50);for(let i=L1.length-1;i>=0;i--)g.lineTo(L1[i][0],L1[i][1]);g.closePath();g.stroke();
+  g.strokeStyle='#5a4a2a';g.lineWidth=3;g.beginPath();g.moveTo(0,50);g.lineTo(0,62);g.stroke();
+ }else if(kind==='broad'){
   g.beginPath();if(kind==='oakleaf'){g.moveTo(0,-58);for(let i=0;i<5;i++){const y=-46+i*21;g.quadraticCurveTo(30,y-4,18+ (i%2)*8,y+10);g.quadraticCurveTo(26,y+16,4,y+22);} g.lineTo(0,58);for(let i=4;i>=0;i--){const y=-46+i*21;g.quadraticCurveTo(-4,y+22,-26,y+16);g.quadraticCurveTo(-18-(i%2)*8,y+10,-30,y-4);}g.closePath();}
   else{g.moveTo(0,-58);g.bezierCurveTo(40,-36,38,30,0,58);g.bezierCurveTo(-38,30,-40,-36,0,-58);g.closePath();}
   const gr=g.createLinearGradient(0,-58,0,58);gr.addColorStop(0,'#c4ea78');gr.addColorStop(.5,'#7fc24e');gr.addColorStop(1,'#3f8f3c');g.fillStyle=gr;g.fill();g.save();g.clip();vein('rgba(20,70,30,.55)');g.fillStyle='rgba(255,255,210,.2)';g.beginPath();g.ellipse(-12,-22,9,24,.25,0,6.3);g.fill();g.restore();g.lineWidth=3.5;g.strokeStyle='rgba(18,54,26,.9)';g.stroke();
