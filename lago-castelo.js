@@ -11,7 +11,7 @@ function install(){
  const api=window.arcanoWaterV1226,VM=window.__vm,O=window.arcanoObstacles,H=window.arcanoIslandHeight,I=window.arcanoIsland,AT=window.arcanoTex;
  if(!api||!api.scene||!H||!O||!I||!I.lake||!VM||!VM.makeMats||!AT){setTimeout(install,500);return;}
  const scene=api.scene,L=I.lake,M=VM.makeMats(),{box,cyl,sph,rod}=VM;
- const X0=L.x,ZS=-84.4,ZE=-96.6,N=30,W=4.4,WATER=L.y,DY=WATER+.5;
+ const X0=0,ZS=-84.4,ZE=-96.6,N=30,W=4.4,WATER=L.y,DY=WATER+.5;
  const g=new T.Group(),root=new T.Group();root.name='Píer e escada do lago do castelo';scene.add(root);
 
  /* ---------- Escada: degraus que acompanham o barranco ---------- */
@@ -71,16 +71,39 @@ function install(){
   (window.arcanoExtraDecks=window.arcanoExtraDecks||[]).push({
    surfaceAt(x,z){if(z>=PZ0&&z<=PZ1&&Math.abs(x-X0)<=PW/2)return DY+.03;if(z>PZ1&&z<=TZ1&&Math.abs(x-X0)<=TW/2)return DY+.03;return null;},blocksSegment(){return false;}});
  }
+ /* ---------- Duas passarelas que saem do píer pelos lados do lago ---------- */
+ {const BW=2.6,decks=[];
+  for(const s of [-1,1]){
+   const pts=[[s*1.8,-79],[s*9,-78],[s*17,-74.6],[s*24.5,-70],[s*29,-64.5]];
+   for(let k=0;k<pts.length-1;k++){const x0=X0+pts[k][0],z0=pts[k][1],x1=X0+pts[k+1][0],z1=pts[k+1][1],dx=x1-x0,dz=z1-z0,len=Math.hypot(dx,dz),ry=Math.atan2(dx,dz),cx=(x0+x1)/2,cz=(z0+z1)/2,nx=Math.cos(ry),nz=-Math.sin(ry);
+    box(g,BW,.2,len+.5,M.deck,cx,DY-.2,cz,ry,2);
+    box(g,BW+.2,.22,.3,M.woodDark,cx,DY-.42,cz,ry,1.5);
+    for(const e of [-1,1]){const o=BW/2-.08,px=cx+nx*e*o,pz=cz+nz*e*o,ax=x0+nx*e*o,az=z0+nz*e*o,bx=x1+nx*e*o,bz=z1+nz*e*o;
+     if(k===0&&e===-s)continue;
+     cyl(g,.09,.1,1.15,M.woodDark,ax,DY,az,6,1);
+     rod(g,ax,DY+1.05,az,bx,DY+1.05,bz,.045,M.woodDark,5);
+     O.addBox({x:px,z:pz,hw:.12,hd:len/2,rot:ry});}
+    for(const e of [-1,1]){const ex=x1+nx*e*(BW/2-.1),ez=z1+nz*e*(BW/2-.1),h2=H(ex,ez);cyl(g,.15,.18,DY+.95-h2+.4,M.log,ex,h2-.4,ez,7,1.4);}
+    decks.push({x0,z0,x1,z1,len});}
+   const lx=X0+pts[pts.length-1][0],lz=pts[pts.length-1][1];
+   box(g,BW+1.2,.2,2.2,M.deck,lx,DY-.2,lz-.6,0,1.5);
+   cyl(g,.06,.08,1.9,M.iron,lx,DY,lz,6,1);box(g,.32,.4,.32,M.lantern,lx,DY+1.85,lz,0,1);
+   decks.push({x0:lx,z0:lz-.6,len:0,end:true});
+   cyl(g,.06,.08,1.9,M.iron,X0+s*10,DY,-77.4,6,1);box(g,.32,.4,.32,M.lantern,X0+s*10,DY+1.85,-77.4,0,1);
+  }
+  const dist=(x,z,d)=>{if(d.end)return Math.max(Math.abs(x-d.x0)-(BW+1.2)/2,Math.abs(z-d.z0)-1.1);const ux=(d.x1-d.x0)/d.len,uz=(d.z1-d.z0)/d.len,t=Math.max(-.25,Math.min(d.len+.25,(x-d.x0)*ux+(z-d.z0)*uz));return Math.hypot(x-(d.x0+ux*t),z-(d.z0+uz*t))-BW/2;};
+  (window.arcanoExtraDecks=window.arcanoExtraDecks||[]).push({surfaceAt(x,z){for(const d of decks)if(dist(x,z,d)<=0)return DY+.03;return null;},blocksSegment(){return false;}});
+ }
  VM.mergeInto(g,root,'Píer e escada do lago do castelo');
 
  /* ---------- Barquinho amarrado ---------- */
- {const boat=new T.Group();boat.position.set(X0+4.0,WATER-.08,-77);boat.rotation.y=.12;root.add(boat);
+ {const boat=new T.Group();boat.position.set(X0+5.4,WATER-.08,-70);boat.rotation.y=.12;root.add(boat);
   const hull=new T.Mesh(new T.SphereGeometry(1,22,10,0,TAU,PI/2,PI/2),M.woodH||M.deck);hull.rotation.x=PI;hull.scale.set(.95,.62,2.5);hull.material=new T.MeshStandardMaterial({map:M.deck.map,bumpMap:M.deck.bumpMap,bumpScale:.8,side:T.DoubleSide,roughness:1});boat.add(hull);
   for(const z of [-.8,.3,1.2]){const b=new T.Mesh(new T.BoxGeometry(1.7,.08,.28),M.woodDark);b.position.set(0,.12,z);boat.add(b);}
   for(const s of [-1,1]){const o=new T.Mesh(new T.CylinderGeometry(.03,.03,2.2,5),M.woodDark);o.rotation.z=PI/2.5*s;o.position.set(s*.95,.35,.1);boat.add(o);}
   const t0=performance.now();(function bob(now){requestAnimationFrame(bob);const t=(now-t0)/1000;boat.position.y=WATER-.08+Math.sin(t*1.3)*.035;boat.rotation.z=Math.sin(t*1.1)*.025;boat.rotation.x=Math.sin(t*.9+1)*.018;})(t0);
   // corda até o poste do píer
-  const rp=new T.Mesh(new T.CylinderGeometry(.015,.015,3.4,4),M.cloth);rp.position.set(X0+2.4,WATER+.25,-79.4);rp.rotation.z=PI/2-.15;rp.rotation.y=.4;root.add(rp);
+  const rp=new T.Mesh(new T.CylinderGeometry(.015,.015,3.4,4),M.cloth);rp.position.set(X0+3.4,WATER+.25,-69.6);rp.rotation.z=PI/2-.15;rp.rotation.y=0;root.add(rp);
  }
  window.arcanoPierCastelo={x:X0,zStart:ZS,zEnd:PZ1,topY:tops[N-1]};
  console.info('[Lago do castelo] píer e escada prontos');
