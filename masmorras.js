@@ -75,7 +75,7 @@ function generate(rnd){
    for(const [di,dj] of DIRS){const i=ui+di,j=uj+dj;if(blockedFor(k,i,j))continue;const q=j*N+i,c=bd+(P[k][j][i]===1?.35:1+rnd()*1.7);if(c<dist[q]){dist[q]=c;prev[q]=u;}}}
   if(dist[bi]>=1e9)return false;
   for(let q=bi;q>=0;q=prev[q]){const i=q%N,j=(q/N)|0;if(P[k][j][i]===0)P[k][j][i]=1;if(q===ai)break;}return true;}
- function cavern(k,ci,cj,w,h){let n=0;for(let j=cj;j<cj+h;j++)for(let i=ci;i<ci+w;i++){if(!inner(i,j)||P[k][j][i]===2||R[k][j][i]===1)continue;if(rnd()<.12&&(w>2||h>2))continue;if(P[k][j][i]===0){P[k][j][i]=1;n++;}}return n;}
+ function cavern(k,ci,cj,w,h){let n=0;for(let j=cj;j<cj+h;j++)for(let i=ci;i<ci+w;i++){if(!inner(i,j)||P[k][j][i]===2||R[k][j][i]===1)continue;if(rnd()<.05&&(w>3||h>3))continue;if(P[k][j][i]===0){P[k][j][i]=1;n++;}}return n;}
  const anchors=[E,stairs[0].B,stairs[1].B],targets=[stairs[0].T,stairs[1].T,null],rooms=[[],[],[]];
  // andar 2: sala do fundo (3x3) no ponto mais longe da escada
  let far=null,fd=-1;for(let j=2;j<N-3;j++)for(let i=2;i<N-3;i++){const d=Math.abs(i-anchors[2][0])+Math.abs(j-anchors[2][1]);if(d>fd&&P[2][j][i]===0&&R[2][j][i]===0){fd=d;far=[i,j];}}
@@ -83,8 +83,8 @@ function generate(rnd){
  for(let k=0;k<3;k++){
   route(k,anchors[k],targets[k]);
   if(k===2){cavern(2,targets[2][0]-1,targets[2][1]-1,3,3);rooms[2].push({i:targets[2][0],j:targets[2][1],boss:true});}
-  for(let q=0;q<(k===2?2:3);q++){
-   const w=2+Math.floor(rnd()*2),h=2+Math.floor(rnd()*2),ci=1+Math.floor(rnd()*(N-2-w)),cj=1+Math.floor(rnd()*(N-2-h));
+  for(let q=0;q<(k===2?3:4);q++){
+   const w=3+Math.floor(rnd()*3),h=3+Math.floor(rnd()*2),ci=1+Math.floor(rnd()*(N-2-w)),cj=1+Math.floor(rnd()*(N-2-h));
    if(cavern(k,ci,cj,w,h)>2){const m=[Math.floor(ci+w/2),Math.floor(cj+h/2)];if(P[k][m[1]][m[0]]===1){route(k,m,anchors[k]);rooms[k].push({i:m[0],j:m[1]});}}}
   for(let q=0;q<3;q++){const t=[1+Math.floor(rnd()*(N-2)),1+Math.floor(rnd()*(N-2))];if(P[k][t[1]][t[0]]===0&&!blockedFor(k,t[0],t[1]))route(k,anchors[k],t);}
   for(let q=0;q<2;q++){const o=[];for(let j=1;j<N-1;j++)for(let i=1;i<N-1;i++)if(P[k][j][i]===1)o.push([i,j]);if(o.length>6)route(k,o[Math.floor(rnd()*o.length)],o[Math.floor(rnd()*o.length)]);}
@@ -173,10 +173,21 @@ function install(){
     for(const [di,dj] of DIRS){
      const nb=st(k,i+di,j+dj);
      if(nb===0){ if(k===0&&i===E[0]&&j===E[1]&&dj===1)continue;
+      {const ax=cx(i),az=cz(j);if(v===1){if(di===1)overlay(i,j,di,dj,ax+C/2,az-C/2,ax+C/2,az+C/2,-1,0);else if(di===-1)overlay(i,j,di,dj,ax-C/2,az-C/2,ax-C/2,az+C/2,1,0);else if(dj===1)overlay(i,j,di,dj,ax-C/2,az+C/2,ax+C/2,az+C/2,0,-1);else overlay(i,j,di,dj,ax-C/2,az-C/2,ax+C/2,az-C/2,0,1);}}
       if(di===1)wall(x+C/2,z-C/2,x+C/2,z+C/2,-1,0);else if(di===-1)wall(x-C/2,z-C/2,x-C/2,z+C/2,1,0);else if(dj===1)wall(x-C/2,z+C/2,x+C/2,z+C/2,0,-1);else wall(x-C/2,z-C/2,x+C/2,z-C/2,0,1);}
      else if(nb===2&&v===1){const ex=x+di*C/2,ez=z+dj*C/2,px=-dj*C/2,pz=di*C/2;grid(RM,1,1,(u,vv)=>[ex+px*(u?1:-1),y0-vv*SLAB,ez+pz*(u?1:-1),u,vv,.55,.55,.55]);}
     }
    }
+   function overlay(i,j,di,dj,x0,z0,x1,z1,nx,nz){
+    const hsh=(i*7+j*13+k*5+di*3+dj*11+site.seed)%7,mx=(x0+x1)/2+nx*.13,mz=(z0+z1)/2+nz*.13,alongZ=nx!==0,len=C-.2;
+    if(hsh<3){ // parede forrada de tábuas com escoras
+     box(tmp,alongZ?.14:len,HEAD-.15,alongZ?len:.14,M.wood,mx,y0,mz,0,2);
+     for(const q of [-1,0,1]){const px=mx+(alongZ?nx*.1:q*len*.4),pz=mz+(alongZ?q*len*.4:nz*.1);box(tmp,.26,HEAD-.1,.26,M.woodDark,px,y0,pz,0,1.2);}
+     box(tmp,alongZ?.2:len,.18,alongZ?len:.2,M.woodDark,mx+nx*.05,y0+1.6,mz+nz*.05,0,1.2);
+    }else if(hsh===3||hsh===4){ // alvenaria de pedra até a altura do peito + rocha em cima
+     box(tmp,alongZ?.3:len,3.1,alongZ?len:.3,M.stone,mx+nx*.05,y0,mz+nz*.05,0,1.5);
+     box(tmp,alongZ?.4:len+.1,.2,alongZ?len+.1:.4,M.stoneDark,mx+nx*.05,y0+3.1,mz+nz*.05,0,1.5);
+    }}
    const mkMesh=(m,mat,name,shadow)=>{const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(m.P,3));g.setAttribute('uv',new T.Float32BufferAttribute(m.U,2));g.setAttribute('color',new T.Float32BufferAttribute(m.C,3));g.setIndex(m.I);g.computeVertexNormals();const me=new T.Mesh(g,mat);me.name=name;me.receiveShadow=true;me.castShadow=!!shadow;lg.add(me);return me;};
    mkMesh(RM,M.rock,'Rocha');mkMesh(FM,M.mfloor,'Piso');const ceil=mkMesh(CM,M.rockCeil,'Teto');
 
@@ -243,6 +254,7 @@ function install(){
     else if(n===2&&e[2]===e[3]){
      if((i+j)%2===0){for(const sg of [-1,1])box(levels[k].tmp,.35,HEAD-.35,.35,M.wood,x,LV[k],z+sg*(C/2-.3),0,1.2);box(levels[k].tmp,.4,.38,C-.1,M.wood,x,LV[k]+HEAD-.55,z,0,1.2);}
      if(rnd()<.7)rails(k,x,z,true);}
+    else if(n<=1&&(i+j)%2===0){const px=x,pz=z,yt=LV[k]+HEAD;box(levels[k].tmp,.5,HEAD-.4,.5,M.wood,px-.25+.25,LV[k],pz,0,1.2);box(levels[k].tmp,1.7,.34,.4,M.woodDark,px,yt-.55,pz,0,1.2);box(levels[k].tmp,.4,.34,1.7,M.woodDark,px,yt-.55,pz,0,1.2);for(const sg of [-1,1]){rod(levels[k].tmp,px+sg*.2,yt-1.1,pz,px+sg*1.2,yt-.45,pz,.07,M.wood,5);rod(levels[k].tmp,px,yt-1.1,pz+sg*.2,px,yt-.45,pz+sg*1.2,.07,M.wood,5);}colCircle(px,pz,.45,k);}
     if(e[0])spots.push([x+C/2-.45,z,-1,0]);if(e[1])spots.push([x-C/2+.45,z,1,0]);if(e[2])spots.push([x,z+C/2-.45,0,-1]);if(e[3])spots.push([x,z-C/2+.45,0,1]);}
    // tochas nas paredes
    for(let q=0;q<7&&spots.length;q++){const sp=spots.splice(Math.floor(rnd()*spots.length),1)[0];torch(k,...sp);}
