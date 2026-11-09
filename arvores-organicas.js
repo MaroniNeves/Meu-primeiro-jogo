@@ -79,19 +79,57 @@ function Builder(kind,R){
   const hs=size/2,asp=orient&&orient.asp?orient.asp:1,p=[[-hs,-hs*asp],[hs,-hs*asp],[hs,hs*asp],[-hs,hs*asp]].map(([u,v])=>[px+ux[0]*u+uy[0]*v,py+ux[1]*u+uy[1]*v,pz+ux[2]*u+uy[2]*v]);
   L.push({p,n:nrm,c:col});
  }
+ const twigs={P:[],U:[],I:[]};
+ function twig(a,b,r){ // galhinho reto de 5 lados, base grossa e ponta fina
+  const dx=b[0]-a[0],dy=b[1]-a[1],dz=b[2]-a[2],L=Math.hypot(dx,dy,dz)||1,dir=[dx/L,dy/L,dz/L];
+  let ux=Math.abs(dir[1])>.9?[1,0,0]:[0,1,0];const nx=[dir[1]*ux[2]-dir[2]*ux[1],dir[2]*ux[0]-dir[0]*ux[2],dir[0]*ux[1]-dir[1]*ux[0]],nl=Math.hypot(...nx)||1;nx[0]/=nl;nx[1]/=nl;nx[2]/=nl;
+  const bx=[dir[1]*nx[2]-dir[2]*nx[1],dir[2]*nx[0]-dir[0]*nx[2],dir[0]*nx[1]-dir[1]*nx[0]],S=5,base=twigs.P.length/3;
+  for(let ring=0;ring<2;ring++){const rr=ring?r*.35:r,c=ring?b:a;for(let j=0;j<=S;j++){const an=j/S*TAU,ca=Math.cos(an),sa=Math.sin(an);twigs.P.push(c[0]+(nx[0]*ca+bx[0]*sa)*rr,c[1]+(nx[1]*ca+bx[1]*sa)*rr,c[2]+(nx[2]*ca+bx[2]*sa)*rr);twigs.U.push(j/S,ring*Math.max(.3,L));}}
+  for(let j=0;j<S;j++){const q=base+j;twigs.I.push(q,q+S+1,q+1,q+1,q+S+1,q+S+2);}
+ }
+ const ALIGNED={oakleaf:1,small:1,lance:1,maple:1,acacia:1,broad:1};
+ /* Massa de folhagem com "cumes": vários lóbulos, cada um com galhinhos que saem do miolo e folhas ao longo deles. */
  function clump(lk,cx,cy,cz,rx,ry,rz,n,size,palette,opt){
-  opt=opt||{};
-  for(let i=0;i<n;i++){let vx=R()-.5,vy=R()-.5,vz=R()-.5;const l=Math.hypot(vx,vy,vz)||1;vx/=l;vy/=l;vz/=l;if(vy<0)vy*=opt.flat?.3:.8;
-   const sh=(opt.inner||.45)+(1-(opt.inner||.45))*Math.pow(R(),.5),px=cx+vx*rx*sh,py=cy+vy*ry*sh,pz=cz+vz*rz*sh;
-   const pc=palette[Math.floor(R()*palette.length)],br=.84+.16*sh+.08*Math.max(0,vy);
-   card(lk,px,py,pz,size*(.8+R()*.5),[vx*.6,vy*.6+.6,vz*.6],pc.map(v=>Math.min(1.2,v*br)));}
+  opt=opt||{};if(ALIGNED[lk]){n*=2.4;size*=1.3;}const lobes=[{x:0,y:0,z:0,r:.62,w:1.3}];
+  const nl=opt.lobes||(5+Math.floor(R()*3));
+  for(let i=0;i<nl;i++){let vx=R()-.5,vy=R()-.15,vz=R()-.5;if(opt.flat)vy*=.25;const l=Math.hypot(vx,vy,vz)||1;lobes.push({x:vx/l*.62,y:vy/l*.5,z:vz/l*.62,r:.42+R()*.2,w:1});}
+  const wsum=lobes.reduce((a,b)=>a+b.w*b.r*b.r,0),per=9;
+  for(const lb of lobes){
+   const share=n*lb.w*lb.r*lb.r/wsum,sprigs=Math.max(2,Math.round(share/per));
+   // galho principal do lóbulo (do centro da massa até o centro do lóbulo)
+   const c0=[cx,cy,cz],c1=[cx+lb.x*rx,cy+lb.y*ry,cz+lb.z*rz];
+   if(lb.x||lb.y||lb.z)twig(c0,c1,size*.14);
+   for(let sp=0;sp<sprigs;sp++){
+    let vx=R()-.5,vy=R()-.5,vz=R()-.5;const l=Math.hypot(vx,vy,vz)||1;vx/=l;vy/=l;vz/=l;if(vy<0)vy*=opt.flat?.3:.8;
+    const sh=(opt.inner||.5)+(1-(opt.inner||.5))*Math.pow(R(),.45);
+    const e=[c1[0]+vx*lb.r*rx*sh,c1[1]+vy*lb.r*ry*sh,c1[2]+vz*lb.r*rz*sh],s0=[c1[0]+vx*lb.r*rx*sh*.3,c1[1]+vy*lb.r*ry*sh*.3,c1[2]+vz*lb.r*rz*sh*.3];
+    twig(s0,e,size*.05);
+    const dx=e[0]-s0[0],dy=e[1]-s0[1],dz=e[2]-s0[2],dl=Math.hypot(dx,dy,dz)||1,dir=[dx/dl,dy/dl,dz/dl];
+    // cor: alto e perto da casca = claro; dentro e embaixo = escuro (dá volume a cada lóbulo)
+    const rad=Math.hypot(vx*.9,vz*.9)*0,top=Math.max(0,vy),low=Math.max(0,-vy);
+    const br=Math.max(.45,.5+.42*sh+.22*top-.16*low-(lb.x===0&&lb.y===0&&lb.z===0?.1:0));
+    for(let k=0;k<per;k++){
+     const t=.45+.55*R(),px=s0[0]+dx*t+(R()-.5)*size*.5,py=s0[1]+dy*t+(R()-.5)*size*.5,pz=s0[2]+dz*t+(R()-.5)*size*.5;
+     const pc=palette[Math.floor(R()*palette.length)],col=pc.map(v=>Math.min(1.2,v*(br+(R()-.5)*.08))),sz=size*(1.0+R()*.5);
+     const nrm=[vx*.8,vy*.8+.35,vz*.8];
+     if(ALIGNED[lk]){ // folha presa ao galhinho, apontando para fora e abrindo para os lados
+      const ang=(R()-.5)*1.6,ca=Math.cos(ang),sa=Math.sin(ang);let sx=R()-.5,sy=R()-.5,sz2=R()-.5;const dd=sx*dir[0]+sy*dir[1]+sz2*dir[2];sx-=dd*dir[0];sy-=dd*dir[1];sz2-=dd*dir[2];const sl=Math.hypot(sx,sy,sz2)||1;sx/=sl;sy/=sl;sz2/=sl;
+      const v=[dir[0]*ca+sx*sa,dir[1]*ca+sy*sa-.12,dir[2]*ca+sz2*sa],vl=Math.hypot(...v);v[0]/=vl;v[1]/=vl;v[2]/=vl;
+      let u=[v[1]*sz2-v[2]*sy,v[2]*sx-v[0]*sz2,v[0]*sy-v[1]*sx];const ul=Math.hypot(...u)||1;u=[u[0]/ul,u[1]/ul,u[2]/ul];
+      // o cartão nasce na ponta do galho: base em (px,py,pz) e cresce para fora
+      card(lk,px+v[0]*sz*.5,py+v[1]*sz*.5,pz+v[2]*sz*.5,sz,nrm,col,{u,v,asp:1});
+     }else card(lk,px,py,pz,sz,nrm,col);
+    }
+   }
+  }
  }
  function finish(){
+  if(twigs.P.length){const gg=new T.BufferGeometry();gg.setAttribute('position',new T.Float32BufferAttribute(twigs.P,3));gg.setAttribute('uv',new T.Float32BufferAttribute(twigs.U,2));gg.setIndex(twigs.I);gg.computeVertexNormals();const m=new T.Mesh(gg,barkMat(kind));m.castShadow=true;m.receiveShadow=true;g.add(m);}
   for(const lk in leaves){const list=leaves[lk],n=list.length;if(!n)continue;
    const P=new Float32Array(n*12),U=new Float32Array(n*8),C=new Float32Array(n*12),Nn=new Float32Array(n*12),I=new Uint32Array(n*6);
    list.forEach((q,i)=>{for(let k=0;k<4;k++){P.set(q.p[k],i*12+k*3);Nn.set(q.n,i*12+k*3);C.set(q.c,i*12+k*3);}U.set([0,0,1,0,1,1,0,1],i*8);I.set([i*4,i*4+1,i*4+2,i*4,i*4+2,i*4+3],i*6);});
    const gg=new T.BufferGeometry();gg.setAttribute('position',new T.BufferAttribute(P,3));gg.setAttribute('uv',new T.BufferAttribute(U,2));gg.setAttribute('color',new T.BufferAttribute(C,3));gg.setAttribute('normal',new T.BufferAttribute(Nn,3));gg.setIndex(new T.BufferAttribute(I,1));
-   const m=new T.Mesh(gg,leafMat(lk));m.castShadow=false;m.receiveShadow=true;g.add(m);}
+   const m=new T.Mesh(gg,leafMat(lk));m.castShadow=true;m.receiveShadow=true;m.customDepthMaterial=new T.MeshDepthMaterial({depthPacking:T.RGBADepthPacking,map:leafTex(lk),alphaTest:.45});g.add(m);}
   return g;
  }
  return {g,tube,card,clump,finish,R};
