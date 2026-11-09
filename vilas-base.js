@@ -185,7 +185,9 @@ VM.mergeInto=function(group,parent,name,shadow){
  for(const [m,list] of buckets){let n=0;for(const g of list)n+=g.attributes.position.count;
   const P=new Float32Array(n*3),N=new Float32Array(n*3),U=new Float32Array(n*2);let off=0;
   for(const g of list){P.set(g.attributes.position.array,off*3);N.set(g.attributes.normal.array,off*3);U.set(g.attributes.uv.array.subarray(0,g.attributes.position.count*2),off*2);off+=g.attributes.position.count;g.dispose();}
-  const geo=new T.BufferGeometry();geo.setAttribute('position',new T.BufferAttribute(P,3));geo.setAttribute('normal',new T.BufferAttribute(N,3));geo.setAttribute('uv',new T.BufferAttribute(U,2));geo.computeBoundingSphere();
-  const mesh=new T.Mesh(geo,m);mesh.name=name;mesh.castShadow=shadow!==false&&!m.emissiveMap&&!m.transparent;mesh.receiveShadow=true;parent.add(mesh);}
+  const geo=new T.BufferGeometry();geo.setAttribute('position',new T.BufferAttribute(P,3));geo.setAttribute('normal',new T.BufferAttribute(N,3));geo.setAttribute('uv',new T.BufferAttribute(U,2));
+  if(list.some(g=>g.attributes.color)){const Cc=new Float32Array(n*3).fill(1);let o2=0;for(const g of list){const cnt=g.attributes.position.count;if(g.attributes.color)Cc.set(g.attributes.color.array.subarray(0,cnt*3),o2*3);o2+=cnt;}geo.setAttribute('color',new T.BufferAttribute(Cc,3));}
+  geo.computeBoundingSphere();
+  const mesh=new T.Mesh(geo,m);mesh.name=name;mesh.castShadow=shadow!==false&&!m.emissiveMap&&!m.transparent&&!m.alphaTest;mesh.receiveShadow=true;parent.add(mesh);}
 };
 })();

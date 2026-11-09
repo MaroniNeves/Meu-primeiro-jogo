@@ -11,11 +11,11 @@ if(!T)return;
 const PI=Math.PI,TAU=PI*2,CASTLE={x:0,z:-230};
 const G0=16.45,N=11,C=4.5,HALF=N*C/2,HF=HALF+.6,LV=[-6,-13.5,-21],HEAD=5,SLAB=2.5,BED=-26.5,TRL=-6.8;
 const SITES=[
- {id:'cripta',nome:'Mina dos Esquecidos',x:248,z:-495,seed:11,tint:[.55,.85,1]},
- {id:'prisao',nome:'Mina da Colina',x:204,z:-373,seed:22,tint:[.8,.55,1]},
- {id:'cofre',nome:'Mina do Dragão',x:77,z:-576,seed:33,tint:[1,.78,.4]},
- {id:'mina',nome:'Mina Abandonada',x:-236,z:-466,seed:44,tint:[.5,.9,1]},
- {id:'gruta',nome:'Gruta Cristalina',x:177,z:-531,seed:55,tint:[.9,.6,1]}
+ {id:'cripta',nome:'Mina dos Esquecidos',x:330,z:-390,g:17.9,seed:11,tint:[.55,.85,1]},
+ {id:'prisao',nome:'Mina da Colina',x:-180,z:-90,g:11.6,seed:22,tint:[.8,.55,1]},
+ {id:'cofre',nome:'Mina do Dragão',x:-140,z:-560,g:17.8,seed:33,tint:[1,.78,.4]},
+ {id:'mina',nome:'Mina Abandonada',x:-330,z:-130,g:10.3,seed:44,tint:[.5,.9,1]},
+ {id:'gruta',nome:'Gruta Cristalina',x:190,z:-110,g:10.1,seed:55,tint:[.9,.6,1]}
 ];
 const sm=(a,b,t)=>{t=Math.min(1,Math.max(0,(t-a)/(b-a)));return t*t*(3-2*t);};
 for(const s of SITES){s.rot=Math.atan2(CASTLE.x-s.x,CASTLE.z-s.z);s.c=Math.cos(s.rot);s.s=Math.sin(s.rot);}
@@ -31,9 +31,9 @@ window.arcanoPits=(x,z,y0)=>{
   const lx=dx*s.c-dz*s.s,lz=dx*s.s+dz*s.c;let y=y0;
   const ax=Math.abs(lx),inT=sm(HALF-2.5,HALF-1.5,lz);
   const dBox=Math.max(ax,Math.abs(lz))-HF,core=inT*(1-sm(3.2,4.6,ax));
-  const wp=(1-sm(0,7,dBox))*(1-core),bed=G0+BED;
+  const wp=(1-sm(0,7,dBox))*(1-core),bed=s.g+BED;
   if(wp>0&&y>bed)y+=(bed-y)*wp;
-  if(lz>0&&lz<95){const tl=G0+TRL+Math.max(0,lz-33)*.2,wl=(1-sm(3.2,8.2,ax))*inT;if(tl<y)y+=(tl-y)*wl;}
+  if(lz>0&&lz<95){const tl=s.g+TRL+Math.max(0,lz-33)*.2,wl=(1-sm(3.2,8.2,ax))*inT;if(tl<y)y+=(tl-y)*wl;}
   return y;}
  return y0;};
 const mkRng=seed=>{let s=(seed>>>0)||1;return()=>{s=(s*1664525+1013904223)>>>0;return s/4294967296;};};
@@ -110,6 +110,7 @@ function rockTex(sd,hue,sat,l0,gravel){
  for(let i=0;i<260;i++){g.fillStyle=R()<.7?'rgba(255,255,255,.06)':'rgba(150,210,255,.28)';g.fillRect(R()*S,R()*S,1+R()*2,1+R()*2);}
  const m=new T.CanvasTexture(a),bp=new T.CanvasTexture(b);for(const t of [m,bp]){t.wrapS=t.wrapT=T.RepeatWrapping;t.anisotropy=4;}m.colorSpace=T.SRGBColorSpace;return {map:m,bump:bp};
 }
+const nzP=(x,y,z)=>Math.sin(x*1.7+y*.9)*Math.cos(z*1.5-y*1.1)+.6*Math.sin(x*3.1-z*2.7+y*2);
 function install(){
  const api=window.arcanoWaterV1226,VM=window.__vm,O=window.arcanoObstacles,H=window.arcanoIslandHeight,AT=window.arcanoTex;
  if(!api||!api.scene||!H||!O||!VM||!VM.makeMats||!AT){setTimeout(install,500);return;}
@@ -133,10 +134,11 @@ function install(){
  const root=new T.Group();root.name='Minas de cristal';scene.add(root);
  const label=document.createElement('div');label.id='masmorraLabel';label.style.cssText='position:fixed;top:92px;left:50%;transform:translateX(-50%);z-index:45;display:none;font:600 15px Georgia,serif;color:#fff5dc;background:rgba(30,24,40,.82);border:1px solid #9a8ac8;border-radius:10px;padding:6px 16px;pointer-events:none';document.body.appendChild(label);
  const dungeons=[];
+ const boulder=(parent,x,y,z,r,seed)=>{const g=new T.IcosahedronGeometry(r,2),p=g.attributes.position;for(let i=0;i<p.count;i++){const vx=p.getX(i),vy=p.getY(i),vz=p.getZ(i),k=1+.2*nzP(vx*2+seed,vy*2,vz*2+seed);p.setXYZ(i,vx*k,vy*k*.85,vz*k);}g.computeVertexNormals();const m=new T.Mesh(g,M.rockPlain);m.position.set(x,y+r*.7,z);m.rotation.y=seed;m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;};
  const barrel=(g,x,y,z)=>cyl(g,.4,.4,.8,M.woodDark,x,y,z,10,1.2);
 
  for(const site of SITES){
-  const rnd=mkRng(site.seed*977+13);
+  const G0=site.g,rnd=mkRng(site.seed*977+13);
   let L=null;for(let t=0;t<30&&!L;t++)L=generate(rnd);
   if(!L){console.warn('[Minas] sorteio falhou em '+site.id);continue;}
   const {P,stairs,E,rooms}=L,rot=site.rot,c=site.c,s=site.s;
@@ -287,7 +289,7 @@ function install(){
   /* ----- boca da mina: piso e paredões da entrada ----- */
   {const fw=Math.abs(0);const ent=new T.Group();fixed.add(ent);
    box(ent,6.6,.9,37.5-HALF+.2,M.mfloor,0,LV[0]-.9,(HALF-.2+37.5)/2,0,2);
-   for(const sg of [-1,1]){const lx=sg*3.9;box(ent,1.8,9.2,38-HALF+.4,M.rockPlain,lx,-8.2,(HALF-.4+38)/2,0,2);
+   for(const sg of [-1,1]){const lx=sg*3.9;for(let zz=HALF;zz<38;zz+=2.4)for(let yy=-7.4;yy<1.5;yy+=2.4)boulder(ent,lx+sg*(.55+rnd()*.4),yy,zz+rnd()*.8,1.35+rnd()*.5,rnd()*6);
     const w=W(lx,(HALF+38)/2);O.addBox({x:w.x,z:w.z,hw:.9,hd:(38-HALF)/2,rot:rot,ymin:G0-8.5,ymax:G0+2});
     torch(0,sg*3.0,HALF+3.2,-sg,0);torch(0,sg*3.0,HALF+10,-sg,0);}
    // o chão da entrada é plano até o terreno subir (vala)
@@ -312,17 +314,16 @@ function install(){
    const sector=(phi,t)=>Math.abs(Math.atan2(Math.sin(phi),Math.cos(phi)))<.2&&t>.55;
    for(let i=0;i<=NA;i++)for(let j=0;j<=NR;j++){
     const phi=i/NA*TAU,t=j/NR,r=rs(phi)*(t<.001?0:Math.max(.02,t)),x=Math.sin(phi)*r,z=Math.cos(phi)*r;
-    let h=Hmax*Math.pow(1-Math.pow(t,2.6),.8)+noise(x,z)*(.35+.5*Math.sin(t*PI))*1.5;if(t>.985)h=-1;
-    Pp.push(x,Math.max(-1,h),z);Uu.push(x*.16,z*.16+h*.12);
+    let h=Hmax*Math.pow(1-Math.pow(t,2.6),.8)+noise(x,z)*(.35+.5*Math.sin(t*PI))*1.5;if(t>.985)h=-5;
+    Pp.push(x,Math.max(-5,h),z);Uu.push(x*.16,z*.16+h*.12);
     const mo=Math.max(0,Math.min(1,(h/Hmax)*.9+.15*Math.sin(x*.4)));Cc.push(1-mo*.35,1,1-mo*.5);}
    const ring=NR+1;
    for(let i=0;i<NA;i++)for(let j=0;j<NR;j++){const t=(j+.5)/NR,phi=(i+.5)/NA*TAU;if(sector(phi,t))continue;const q=i*ring+j,q2=(i+1)*ring+j;I.push(q,q+1,q2,q2,q+1,q2+1);}
    const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(Pp,3));g.setAttribute('uv',new T.Float32BufferAttribute(Uu,2));g.setAttribute('color',new T.Float32BufferAttribute(Cc,3));g.setIndex(I);g.computeVertexNormals();
    const mat=M.rock.clone();mat.side=T.DoubleSide;const mound=new T.Mesh(g,mat);mound.name=site.nome+' · colina';mound.castShadow=true;mound.receiveShadow=true;shell.add(mound);
    // pilares e verga na boca; rochas soltas; anel de colisão
-   const rockBox=(w,h,d,x,y,z,ry)=>{const b=new T.Mesh(new T.BoxGeometry(w,h,d),M.rockPlain);b.position.set(x,y+h/2,z);b.rotation.y=ry||0;b.castShadow=true;shell.add(b);return b;};
-   for(const sg of [-1,1])rockBox(2.4,9,3.2,sg*5.2,-1,35,0.08*sg);
-   rockBox(13,2.6,3.4,0,5.4,35,0);
+   for(const sg of [-1,1])for(let q=0;q<4;q++)boulder(shell,sg*(5.0+rnd()*.9),-.2+q*2.2,34.5+rnd()*1.6,1.7-q*.1+rnd()*.4,rnd()*6);
+   for(let q=0;q<7;q++)boulder(shell,-5.6+q*1.9,5.6+rnd()*.6,35+rnd()*.8,1.5+rnd()*.5,rnd()*6);
    for(let q=0;q<7;q++){const o=cone(shell,.22+rnd()*.12,.9+rnd()*1.0,M.rockPlain,(rnd()-.5)*7,5.4-1.2,34+rnd()*2,5,1);o.rotation.x=PI;}
    for(let q=0;q<18;q++){const ang=rnd()*TAU,r=rs(ang)*(.9+rnd()*.08);if(Math.abs(Math.atan2(Math.sin(ang),Math.cos(ang)))<.3)continue;const rk=new T.Mesh(new T.IcosahedronGeometry(1.4+rnd()*1.8,1),M.rockPlain);rk.position.set(Math.sin(ang)*r,.2+rnd()*.6,Math.cos(ang)*r);rk.scale.set(1,.7,1);rk.rotation.set(rnd()*3,rnd()*3,rnd()*3);rk.castShadow=true;shell.add(rk);}
    for(let q=0;q<48;q++){const ang=q/48*TAU;if(Math.abs(Math.atan2(Math.sin(ang),Math.cos(ang)))<.25)continue;const r=rs(ang)*.94;colCircle(Math.sin(ang)*r,Math.cos(ang)*r,2.4);}
@@ -342,7 +343,7 @@ function install(){
   let found=null,lvl=0;
   for(const d of dungeons){const [lx,lz]=d.lx(p.position.x,p.position.z);
    const near=lx*lx+lz*lz<95*95;for(const l of d.levels)l.group.visible=near;
-   if(Math.abs(lx)<HALF-.2&&Math.abs(lz)<HALF-.2){found=d;lvl=Math.min(2,Math.max(0,Math.round((G0+LV[0]-p.position.y)/7.5)));}}
+   if(Math.abs(lx)<HALF-.2&&Math.abs(lz)<HALF-.2){found=d;lvl=Math.min(2,Math.max(0,Math.round((d.site.g+LV[0]-p.position.y)/7.5)));}}
   if(found!==cur){
    if(cur){cur.shell.visible=true;}
    cur=found;

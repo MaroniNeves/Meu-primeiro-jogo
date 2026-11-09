@@ -297,8 +297,40 @@ KIT.oriental={
   for(let i=0;i<4;i++){const a=i*1.7+.5,f=sph(g,.13,M.redLacquer,x+Math.cos(a)*r*.4,y+.32,z+Math.sin(a)*r*.4,1.8,.5,.8,6);f.rotation.y=a;}
   ctx.colCircle(x,z,r+.4);ctx.noGrassC(x,z,r+2.5);},
  cerejeira(ctx,x,z,s){const M=ctx.M,y=ctx.gy(x,z),g=ctx.g;s=s||1;
-  rod(g,x,y,z,x+.2*s,y+2.0*s,z,.22*s,M.bark,6);rod(g,x+.2*s,y+1.6*s,z,x+1.0*s,y+2.7*s,z+.3,.12*s,M.bark,5);rod(g,x+.2*s,y+1.8*s,z,x-.9*s,y+2.6*s,z-.2,.12*s,M.bark,5);
-  for(const [dx,dy,dz,r] of [[.3,3.2,0,1.3],[1.1,2.9,.4,1.0],[-1.0,2.8,-.3,1.05],[.2,3.9,.1,.9]])sph(g,r*s,M.pink,x+dx*s,y+dy*s,z+dz*s,1,.8,1,8);
+  const lite=/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)||innerWidth<700;
+  // tronco torto e galhos finos (tubos que afinam), folhas e flores desenhadas uma a uma
+  const limb=(p,q,r0,r1,segs)=>{let prev=p;for(let i=1;i<=segs;i++){const t=i/segs,bend=Math.sin(t*3.1)*.12*s,np=[p[0]+(q[0]-p[0])*t+bend,p[1]+(q[1]-p[1])*t,p[2]+(q[2]-p[2])*t-bend*.6];rod(g,prev[0],prev[1],prev[2],np[0],np[1],np[2],r0+(r1-r0)*t,M.bark,6);prev=np;}};
+  limb([x,y-.1,z],[x+.15*s,y+1.1*s,z+.1*s],.26*s,.2*s,3);limb([x+.15*s,y+1.1*s,z+.1*s],[x+.3*s,y+2.3*s,z],.2*s,.15*s,3);
+  const tips=[[1.05,3.0,.45],[-1.0,2.9,-.4],[.35,3.9,.1],[.1,3.0,-1.0],[-.2,3.2,1.0]];
+  for(const [dx,dy,dz] of tips){const st=[x+.3*s,y+(1.7+rnd()*.5)*s,z],en=[x+dx*s,y+dy*s,z+dz*s];limb(st,en,.12*s,.04*s,3);
+   for(let k=0;k<2;k++){const sub=[en[0]+(rnd()-.5)*1.1*s,en[1]+(rnd()*.7)*s,en[2]+(rnd()-.5)*1.1*s];limb(en,sub,.05*s,.02*s,2);}}
+  if(!M.cherryLeaf){const c=document.createElement('canvas');c.width=c.height=128;const gx=c.getContext('2d');gx.translate(64,64);
+   const petal=ang=>{gx.save();gx.rotate(ang);gx.beginPath();gx.moveTo(0,-4);gx.bezierCurveTo(-26,-18,-24,-52,-7,-56);gx.lineTo(0,-48);gx.lineTo(7,-56);gx.bezierCurveTo(24,-52,26,-18,0,-4);gx.closePath();
+    const gr=gx.createLinearGradient(0,-4,0,-56);gr.addColorStop(0,'#e0608a');gr.addColorStop(.35,'#ff9cbd');gr.addColorStop(1,'#fff2f6');gx.fillStyle=gr;gx.fill();gx.strokeStyle='rgba(150,40,80,.55)';gx.lineWidth=2.2;gx.stroke();
+    gx.strokeStyle='rgba(190,70,110,.4)';gx.lineWidth=1.3;gx.beginPath();gx.moveTo(0,-8);gx.lineTo(0,-40);gx.stroke();gx.restore();};
+   for(let i=0;i<5;i++)petal(i*Math.PI*2/5);
+   gx.fillStyle='#c0305f';gx.beginPath();gx.arc(0,0,7,0,6.3);gx.fill();for(let i=0;i<9;i++){const an=i/9*6.283;gx.strokeStyle='#ffe27a';gx.lineWidth=2;gx.beginPath();gx.moveTo(0,0);gx.lineTo(Math.cos(an)*16,Math.sin(an)*16);gx.stroke();gx.fillStyle='#ffd24a';gx.beginPath();gx.arc(Math.cos(an)*16,Math.sin(an)*16,2.4,0,6.3);gx.fill();}
+   const tx=new T.CanvasTexture(c);tx.colorSpace=T.SRGBColorSpace;tx.anisotropy=4;
+   const lc=document.createElement('canvas');lc.width=lc.height=64;const lx=lc.getContext('2d');lx.translate(32,32);lx.beginPath();lx.moveTo(0,-30);lx.bezierCurveTo(20,-18,18,16,0,30);lx.bezierCurveTo(-18,16,-20,-18,0,-30);const lgr=lx.createLinearGradient(0,-30,0,30);lgr.addColorStop(0,'#9ed46a');lgr.addColorStop(1,'#4d9a3e');lx.fillStyle=lgr;lx.fill();lx.strokeStyle='rgba(30,80,30,.7)';lx.lineWidth=2;lx.stroke();lx.beginPath();lx.moveTo(0,-28);lx.lineTo(0,28);lx.stroke();
+   const lt=new T.CanvasTexture(lc);lt.colorSpace=T.SRGBColorSpace;
+   M.cherryLeaf=new T.MeshStandardMaterial({map:tx,alphaTest:.45,side:T.DoubleSide,vertexColors:true,roughness:1,name:'cherry leaf blossom'});
+   M.cherryGreen=new T.MeshStandardMaterial({map:lt,alphaTest:.45,side:T.DoubleSide,vertexColors:true,roughness:1,name:'cherry leaf green'});}
+  const build=(list,mat)=>{const n=list.length,P=new Float32Array(n*12),U=new Float32Array(n*8),Cc=new Float32Array(n*12),Nn=new Float32Array(n*12),I=new Uint32Array(n*6);
+   list.forEach((q,i)=>{for(let k=0;k<4;k++){P.set(q.p[k],i*12+k*3);Nn.set(q.n,i*12+k*3);Cc.set(q.c,i*12+k*3);}U.set([0,0,1,0,1,1,0,1],i*8);I.set([i*4,i*4+1,i*4+2,i*4,i*4+2,i*4+3],i*6);});
+   const gg=new T.BufferGeometry();gg.setAttribute('position',new T.BufferAttribute(P,3));gg.setAttribute('uv',new T.BufferAttribute(U,2));gg.setAttribute('color',new T.BufferAttribute(Cc,3));gg.setAttribute('normal',new T.BufferAttribute(Nn,3));gg.setIndex(new T.BufferAttribute(I,1));
+   const m=new T.Mesh(gg,mat);m.castShadow=false;m.receiveShadow=true;g.add(m);};
+  const blossoms=[],greens=[];
+  const clump=(cx,cy,cz,r)=>{const n=Math.round(520*r*r*(lite?.55:1));
+   for(let i=0;i<n;i++){let vx=rnd()-.5,vy=rnd()-.5,vz=rnd()-.5;const l=Math.hypot(vx,vy,vz)||1;vx/=l;vy/=l;vz/=l;if(vy<0)vy*=.55;
+    const sh=.45+.55*Math.pow(rnd(),.5),px=cx+vx*r*s*sh,py=cy+vy*r*s*sh*.85,pz=cz+vz*r*s*sh;
+    const sz=(.26+rnd()*.2)*s,a=rnd()*6.283,ca=Math.cos(a),sa=Math.sin(a),tl=rnd()*1.4-.7;
+    // cartão voltado mais ou menos para fora da copa
+    const ux=[ca,0,sa],uy=[-sa*Math.sin(tl),Math.cos(tl),ca*Math.sin(tl)];
+    const hs=sz/2,p=[[-hs,-hs],[hs,-hs],[hs,hs],[-hs,hs]].map(([u,v])=>[px+ux[0]*u+uy[0]*v,py+ux[1]*u+uy[1]*v,pz+ux[2]*u+uy[2]*v]);
+    const t=rnd(),bright=.72+.28*sh,col=t<.35?[1,.95,.97]:t<.75?[1,.82,.9]:[.98,.7,.82];
+    (rnd()<.035?greens:blossoms).push({p,n:[vx,vy*.8+.2,vz],c:col.map(v=>v*bright)});}};
+  for(const [dx,dy,dz,r] of [[.3,3.2,0,1.3],[1.1,2.9,.4,1.0],[-1.0,2.8,-.3,1.05],[.2,3.9,.1,.9],[.1,3.0,-1.0,.85],[-.2,3.2,1.0,.85]])clump(x+dx*s,y+dy*s,z+dz*s,r);
+  build(blossoms,M.cherryLeaf);if(greens.length)build(greens.map(q=>({p:q.p,n:q.n,c:[.55,.8,.45]})),M.cherryGreen);
   const p=new T.Mesh(new T.CircleGeometry(2.4*s,14),M.petals||(M.petals=new T.MeshStandardMaterial({color:'#f7c0d4',roughness:1,transparent:true,opacity:.75,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1})));p.rotation.x=-PI/2;p.position.set(x,y+.09,z);g.add(p);
   ctx.colCircle(x,z,.4*s);},
  pagode(ctx,x,z,ry){const M=ctx.M,w=4.6,bg=base(ctx,x,z,ry,w+1,w+1,M.stoneDark);
