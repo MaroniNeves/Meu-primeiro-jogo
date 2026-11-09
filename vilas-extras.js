@@ -12,7 +12,9 @@ const ANIM=VM.anim={flames:[],smoke:[],embers:[],glows:[],sails:[],night:[]};
 
 /* ---------- Estradas de terra ---------- */
 // pts: polilinha em coordenadas locais da vila; w: largura. Segue o relevo.
-VM.road=function(ctx,pts,w){
+const ROAD_TILE={dirt:0,mud:0,gravel:2.4,flag:3.2,cobble:2.8,plank:2.4};
+VM.road=function(ctx,pts,w,type){
+ type=type||'dirt';const tileM=ROAD_TILE[type]||0;
  const P=[],U=[],idx=[];let run=0;
  const samples=[];
  for(let i=1;i<pts.length;i++){const a=pts[i-1],b=pts[i],L=Math.hypot(b.x-a.x,b.z-a.z),n=Math.max(1,Math.ceil(L/2.2));
@@ -22,11 +24,11 @@ VM.road=function(ctx,pts,w){
   // normal média entre segmentos vizinhos
   const p=samples[Math.max(0,i-1)],q=samples[Math.min(samples.length-1,i+1)];let dx=q.x-p.x,dz=q.z-p.z;const l=Math.hypot(dx,dz)||1;dx/=l;dz/=l;
   const nx=-dz,nz=dx;
-  for(const e of [-1,1]){const x=s.x+nx*e*w/2,z=s.z+nz*e*w/2;P.push(x,ctx.gy(x,z)+.07,z);U.push(e<0?0:1,run/3);}
+  for(const e of [-1,1]){const x=s.x+nx*e*w/2,z=s.z+nz*e*w/2;P.push(x,ctx.gy(x,z)+.07,z);U.push(e<0?0:(tileM?w/tileM:1),run/(tileM||3));}
   if(i>0){const a=(i-1)*2,b=i*2;idx.push(a,b,a+1,a+1,b,b+1);}
  }
  const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(P,3));geo.setAttribute('uv',new T.Float32BufferAttribute(U,2));geo.setIndex(idx);geo.computeVertexNormals();
- const m=new T.Mesh(geo,ctx.M.dirt);m.name='Estrada de terra';m.receiveShadow=true;
+ const m=new T.Mesh(geo,ctx.M['rd'+type.charAt(0).toUpperCase()+type.slice(1)]||ctx.M.dirt);m.name='Estrada ('+type+')';m.receiveShadow=true;
  ctx.live.add(m);
  for(const s of samples.filter((_,i)=>i%2===0))ctx.noGrassC(s.x,s.z,w/2+1.4);
 };

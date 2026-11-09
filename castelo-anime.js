@@ -78,6 +78,7 @@ const M={
  leaf:mat({color:'#4f8f45'}),paint:[mat({color:'#3d6d8f'}),mat({color:'#8f6a3d'}),mat({color:'#5f8f4a'}),mat({color:'#8f3d5a'})]
 };
 if(AT)for(const [k,[b,sc]] of Object.entries(TB))if(M[k]){M[k].bumpMap=b;M[k].bumpScale=sc;}
+{const CLm=window.arcanoCloth;if(CLm)M.red=new T.MeshStandardMaterial({map:CLm.tex('red'),side:T.DoubleSide,roughness:.95});}
 // Quadros: paisagens e retratos pintados em canvas (estilo anime, cores suaves).
 function artTex(kind,seedHue){return canvasTex(128,96,(g,w,h)=>{
  if(kind===0){const sky=g.createLinearGradient(0,0,0,h);sky.addColorStop(0,`hsl(${200+seedHue},60%,72%)`);sky.addColorStop(1,`hsl(${30+seedHue},70%,85%)`);g.fillStyle=sky;g.fillRect(0,0,w,h);
@@ -399,6 +400,7 @@ function build(api,site){
  const ang=(a,b)=>Math.abs(Math.atan2(Math.sin(a-b),Math.cos(a-b)));
 
  // ===== Exterior fixo (fundido): muralha, torres, campanário, pórtico =====
+ const EXTCLOTH=[];
  const ext=new T.Group();
  box(ext,38,1.2,30,M.base,0,-.66,-4);
  const RW=29,GATE=Math.PI/2,segs=60;
@@ -413,7 +415,7 @@ function build(api,site){
  {const s=new T.Shape();s.moveTo(-5,0);s.lineTo(5,0);s.lineTo(5,9);s.lineTo(-5,9);s.lineTo(-5,0);const hole=new T.Path();hole.moveTo(-2.3,0);hole.lineTo(2.3,0);hole.lineTo(2.3,4.4);hole.absarc(0,4.4,2.3,0,Math.PI,false);hole.lineTo(-2.3,0);s.holes.push(hole);
   const geo=new T.ExtrudeGeometry(s,{depth:2.6,bevelEnabled:false});geo.translate(0,0,-1.3);const uv=geo.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)/4,uv.getY(i)/4);
   const arch=new T.Mesh(geo,M.wall);arch.position.set(0,0,RW);ext.add(arch);box(ext,10.4,.5,3,M.trim,0,9.2,RW);
-  for(const sx of [-1,1]){box(ext,1.3,3.4,.08,M.red,sx*3.6,5.4,RW+1.35);box(ext,.4,.4,.08,M.gold,sx*3.6,5.4,RW+1.4);}}
+  for(const sx of [-1,1]){EXTCLOTH.push([1.3,3.4,'red',sx*3.6,7.1,RW+1.42]);box(ext,1.6,.14,.2,M.gold,sx*3.6,7.12,RW+1.4);for(const e of [-1,1]){const kn=new T.Mesh(new T.SphereGeometry(.1,8,6),M.gold);kn.position.set(sx*3.6+e*.82,7.15,RW+1.4);ext.add(kn);}}}
  // Torres de canto do prédio (mais altas que ele).
  for(const [x,z] of [[-BX,BZ1],[BX,BZ1],[-BX,BZ0],[BX,BZ0]]){squareTower(ext,x,z,6,TOP+8);obsBox(x,z,3.15,3.15);}
  // Contrafortes nas laterais.
@@ -430,9 +432,10 @@ function build(api,site){
  // Pórtico com colunas na entrada.
  box(ext,10,.5,4,M.trim,0,.25,BZ1+2);for(const sx of [-1,1])for(const dx of [1.8,4.2])cyl(ext,.45,.55,7.5,M.trim,sx*dx,.5,BZ1+3.3,12);
  box(ext,10.6,.9,4.4,M.trim,0,8.4,BZ1+2.2);prismZ(ext,4.6,11,3.2,M.slate,0,8.85,BZ1+2.2);
- for(const sx of [-1,1]){box(ext,1.8,7,.1,M.red,sx*3,4.6,BZ1+.56);box(ext,.6,.6,.12,M.gold,sx*3,5.8,BZ1+.6);}
+ for(const sx of [-1,1]){EXTCLOTH.push([1.8,7,'red',sx*3,8.1,BZ1+.64]);box(ext,2.1,.16,.22,M.gold,sx*3,8.12,BZ1+.6);}
  if(O)for(const sx of [-1,1])for(const dx of [1.8,4.2]){const w=W(sx*dx,BZ1+3.3);O.addCircle(w.x,w.z,.55);}
  mergeInto(ext,root,'Castelo de Aurora · exterior');
+ {const CLm=window.arcanoCloth;if(CLm)for(const b of EXTCLOTH){const m=CLm.banner(b[0],b[1],{kind:b[2]});m.position.set(b[3],b[4],b[5]);root.add(m);}}
 
  // Telhado do prédio (some ao entrar).
  const roof=new T.Group();root.add(roof);
@@ -458,7 +461,7 @@ function build(api,site){
   mergeInto(r,roof,'Telhado do castelo');}
 
  // ===== Mobília de cada andar =====
- function furnish(g,k,y0,H,FL){
+ function furnish(g,k,y0,H,FL,BN){
   const Y=y=>y0+y;
   const F=.4;   // altura do piso acima de y0
   // Colisão dos móveis (só neste andar).
@@ -529,7 +532,7 @@ function build(api,site){
    box(g,6,.45,4,M.velvet,0,Y(6.1),tz);for(const sx of [-1,1])box(g,.1,3,3.8,M.red,sx*2.95,Y(4.6),tz);
    box(g,6.2,.15,.1,M.gold,0,Y(5.85),tz+2.02);
    solid(0,tz+.4,8,4.4);
-   for(const sx of [-1,1]){cyl(g,.35,.5,1.5,M.iron,sx*4.2,Y(.4),tz+1.6,10);box(g,.7,.5,.7,M.fire,sx*4.2,Y(2.1),tz+1.6);FL.push([sx*4.2,Y(2.4),tz+1.6,2.4]);box(g,1.5,5,.08,sx>0?M.blue:M.red,sx*4.6,Y(3.4),BZ0+.6);solid(sx*4.2,tz+1.6,.9,.9);}
+   for(const sx of [-1,1]){cyl(g,.35,.5,1.5,M.iron,sx*4.2,Y(.4),tz+1.6,10);box(g,.7,.5,.7,M.fire,sx*4.2,Y(2.1),tz+1.6);FL.push([sx*4.2,Y(2.4),tz+1.6,2.4]);BN.push([1.5,5,sx>0?'blue':'red',sx*4.6,Y(5.9),BZ0+.66]);box(g,1.8,.12,.14,M.gold,sx*4.6,Y(5.92),BZ0+.62);solid(sx*4.2,tz+1.6,.9,.9);}
    // Quadros grandes e armaduras ao longo do salão.
    for(const sx of [-1,1]){paint(sx*5.7,-5.5,-sx*Math.PI/2,sx>0?1:4,2.2,1.6,3.2);paint(sx*5.7,5.6,-sx*Math.PI/2,sx>0?0:6,1.6,1.2,3);armor(sx*5.2,-1,-sx*Math.PI/2);}
    // ---- Biblioteca (oeste, fundo) ----
@@ -554,7 +557,7 @@ function build(api,site){
    for(const x of [-3.5,3.5]){box(g,.7,1.1,.7,M.trim,x,Y(F+.55),6.6);const bust=new T.Mesh(new T.SphereGeometry(.3,12,10),M.cloth);bust.position.set(x,Y(F+1.45),6.6);g.add(bust);solid(x,6.6,.7,.7);}
    // ---- Sala do Conselho (centro, fundo) ----
    {const t=new T.Mesh(new T.CylinderGeometry(2.2,2.2,.15,24),M.wood);t.position.set(0,Y(1.3),-10);g.add(t);cyl(g,.35,.45,.9,M.woodDark,0,Y(.4),-10,8);for(let i=0;i<8;i++){const a=i/8*Math.PI*2;chair(Math.cos(a)*3,-10+Math.sin(a)*3,-a-Math.PI/2);}chandelier(0,-10);solid(0,-10,4.4,4.4);}
-   paint(0,BZ0+.55,0,1,3,2,3.3);box(g,1.5,5,.08,M.blue,-4.2,Y(3.4),BZ0+.6);box(g,1.5,5,.08,M.red,4.2,Y(3.4),BZ0+.6);
+   paint(0,BZ0+.55,0,1,3,2,3.3);BN.push([1.5,5,'blue',-4.2,Y(5.9),BZ0+.66]);BN.push([1.5,5,'red',4.2,Y(5.9),BZ0+.66]);for(const bx of [-4.2,4.2])box(g,1.8,.12,.14,M.gold,bx,Y(5.92),BZ0+.62);
    // ---- Escritório (oeste, frente) ----
    rug(-11,2,4,3);table(-11,2.4,2.4,1.2);chair(-11,1.4,0);shelf(-BX+.8,2,3,4,Math.PI/2);candle(-10.4,1.35,2.4);paint(-10,-3.7,0,3);plant(-7,6.6);
    // ---- Sala de Mapas (oeste, fundo) ----
@@ -713,9 +716,10 @@ function build(api,site){
    cyl(tmp,.5,.5,H,M.trim,ST.x,y0,ST.z,10);
    if(k<NF-1){const n=18;for(let i=0;i<n;i++){const t=(i+.5)/n,a=ST.door+t*Math.PI*2,y=y0+t*FH;
      box(tmp,ST.r-.6,.3,1.05,M.wood,ST.x+Math.cos(a)*(.5+(ST.r-.6)/2),y+.25,ST.z+Math.sin(a)*(.5+(ST.r-.6)/2),-a,2);}}}
-  const FL=[];furnish(tmp,k,y0,H,FL);
+  const FL=[],BN=[];furnish(tmp,k,y0,H,FL,BN);
   mergeInto(tmp,inn,'Interior do castelo · andar '+k);
   addLife(inn,k,y0,H,FL);
+  {const CLm=window.arcanoCloth;if(CLm)for(const b of BN){const m=CLm.banner(b[0],b[1],{kind:b[2],indoor:true});m.position.set(b[3],b[4],b[5]);inn.add(m);}}
  }
  if(O){const w=W(ST.x,ST.z);O.addCircle(w.x,w.z,.55);}
 
@@ -888,7 +892,11 @@ function buildGarden(api,site){
   const court=new T.Mesh(rg,mat({color:'#ffffff',map:cob,polygonOffset:true,polygonOffsetFactor:-3,polygonOffsetUnits:-3}));court.position.set(site.x,Y+.06,site.z);court.receiveShadow=true;court.name='Pátio do castelo';scene.add(court);}
  // Sebes baixas dos dois lados do caminho principal (aberturas no cruzamento).
  const hedgeM=mat({color:'#3f7a3a'});
- for(const sx of [-1,1])for(const [z0,z1] of [[12.6,18.4],[21.6,27.4]]){box(g,.8,1,z1-z0,hedgeM,sx*2.9,Y+.5,(z0+z1)/2);solidW(sx*2.9,(z0+z1)/2,.4,(z1-z0)/2);}
+ for(const sx of [-1,1])for(const [z0,z1] of [[12.6,18.4],[21.6,27.4]]){
+  const AB=window.arcanoBush;
+  if(AB){const bush=AB.make({w:.95,h:1.1,d:z1-z0,leaf:.15,density:190,hue:108,seed:4000+(sx>0?7:0)+z0});bush.position.set(site.x+sx*2.9,Y+.07,site.z+(z0+z1)/2);scene.add(bush);}
+  else box(g,.8,1,z1-z0,hedgeM,sx*2.9,Y+.5,(z0+z1)/2);
+  solidW(sx*2.9,(z0+z1)/2,.4,(z1-z0)/2);}
  // Canteiros de flores com borda de pedra.
  const flowerM=[mat({color:'#ff7aa8'}),mat({color:'#ffd35a'}),mat({color:'#a98bff'}),mat({color:'#ff8c5a'}),mat({color:'#ffffff'})];
  for(const b of BEDS){

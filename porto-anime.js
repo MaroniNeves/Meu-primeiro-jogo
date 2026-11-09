@@ -239,7 +239,8 @@ function build(api,isl){
  box(g,.4,.14,9.8,M.gold,U0+1,Y+8.47,0);box(g,.4,.14,9.8,M.gold,U0+1,Y+6.03,0);
  for(const s of [-1,1]){box(g,.4,2.3,.14,M.gold,U0+1,Y+7.25,s*4.8);sph(g,.28,M.gold,U0+1,Y+8.7,s*4.8);}
  for(const f of [-1,1]){const sg=new T.Mesh(new T.PlaneGeometry(8.9,2.0),M.sign);sg.position.set(U0+1+f*.18,Y+7.25,0);sg.rotation.y=f<0?-Math.PI/2:Math.PI/2;g.add(sg);}
- for(const s of [-1,1])box(g,.06,3.2,1.4,s>0?M.blue:M.red,U0+.6,Y+3.4,s*3.6);
+ for(const s of [-1,1]){const CLm=window.arcanoCloth;box(g,.12,.1,1.7,M.gold,U0+.6,Y+5.02,s*3.6);
+  if(CLm){const bm=CLm.banner(1.4,3.2,{kind:s>0?'blue':'red'});bm.position.set(U0+.6,Y+5.0,s*3.6);bm.rotation.y=-Math.PI/2;root.add(bm);}else box(g,.06,3.2,1.4,s>0?M.blue:M.red,U0+.6,Y+3.4,s*3.6);}
  cyl(g,1.4,1.7,.6,M.stone,R-30,Y,0,16);cyl(g,.7,.9,2.2,M.tiles,R-30,Y+.6,0,12);cyl(g,1.0,.8,.25,M.gold,R-30,Y+2.8,0,16);obsC(R-30,0,1.8);
  for(let i=0;i<4;i++){const a=i*Math.PI/2;const r=new T.Mesh(new T.TorusGeometry(.55,.04,5,16,Math.PI),M.gold);r.position.set(R-30+Math.cos(a)*.75,Y+2.1,Math.sin(a)*.75);r.rotation.y=-a;g.add(r);}
  for(const [u,v,ry] of [[R-20,-7.5,0],[R-20,7.5,Math.PI],[R-42,-6.5,0],[R-42,6.5,Math.PI]]){bench(g,u,Y,v,ry);obs(u,v,1,.4);}

@@ -174,6 +174,8 @@ big.addEventListener('click',e=>{
   ['Mirante',()=>{const v=info&&info.village;return v?[v.peakPad.x+2,v.peakPad.z]:null;}],
   // Vilas da floresta (vilas-mundo.js): cai na praça de cada uma.
   ...[['Moinho','moinho'],['Lenhadores','lenhadores'],['V. Branca','mediterranea'],['V. Norte','nordica'],['Cerejeiras','oriental'],['Cogumelos','cogumelos']].map(([n,id])=>[n,()=>{const v=(window.arcanoVilas||[]).find(q=>q.id===id);return v?[v.x,v.z+6]:null;}]),
+  ['Acamp. aceso',()=>{const c=(window.arcanoAcampamentos||[]).find(q=>q.lit);return c?[c.x+5,c.z+5]:null;}],
+  ['Acamp. apagado',()=>{const c=(window.arcanoAcampamentos||[]).find(q=>!q.lit);return c?[c.x+5,c.z+5]:null;}],
   ['Porto',()=>{const p=info&&info.portSite;if(!p)return null;const w=p.at(info.radius-30,-3);return [w.x,w.z];}],
   ['Navio',()=>{const p=info&&info.portSite;if(!p)return null;const w=p.at(info.radius+25,13.2);return [w.x,w.z];}]
  ];
