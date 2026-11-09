@@ -32,7 +32,11 @@ const TX={
   for(let i=0;i<4;i++){g.save();g.translate(w/2,h/2);g.rotate(i*Math.PI/2+.3);g.beginPath();g.moveTo(0,-8);g.quadraticCurveTo(40,-50,10,-80);g.quadraticCurveTo(20,-40,-6,-6);g.fill();g.restore();}
   g.fillStyle='#d8b45a';g.beginPath();g.arc(w/2,h/2,12,0,6.3);g.fill();g.strokeStyle='#d8b45a';g.lineWidth=6;g.strokeRect(6,6,w-12,h-12);}),
  wing:canvasTex(128,128,(g,w,h)=>{const gr=g.createLinearGradient(0,0,w,0);gr.addColorStop(0,'#5d9fd6');gr.addColorStop(1,'#bfe3ff');g.fillStyle=gr;g.fillRect(0,0,w,h);g.strokeStyle='rgba(255,255,255,.5)';g.lineWidth=2;for(let y=0;y<h;y+=16){g.beginPath();g.moveTo(0,y);g.lineTo(w,y);g.stroke();}}),
- sign:canvasTex(512,128,(g,w,h)=>{g.fillStyle='#2b3f5f';g.fillRect(0,0,w,h);g.strokeStyle='#d8b45a';g.lineWidth=8;g.strokeRect(8,8,w-16,h-16);g.fillStyle='#f5e6c0';g.font='bold 54px Georgia,serif';g.textAlign='center';g.textBaseline='middle';g.fillText('PORTO DOS VENTOS',w/2,h/2+4);}),
+ sign:canvasTex(1024,230,(g,w,h)=>{const gr=g.createLinearGradient(0,0,0,h);gr.addColorStop(0,'#35507a');gr.addColorStop(1,'#1f3252');g.fillStyle=gr;g.fillRect(0,0,w,h);
+  g.strokeStyle='#d8b45a';g.lineWidth=10;g.strokeRect(10,10,w-20,h-20);g.lineWidth=3;g.strokeRect(26,26,w-52,h-52);
+  let fs=112;g.textAlign='center';g.textBaseline='middle';const txt='PORTO DOS VENTOS';do{g.font='bold '+fs+'px Georgia,serif';fs-=4;}while(g.measureText(txt).width>w-250&&fs>40);
+  g.lineJoin='round';g.lineWidth=10;g.strokeStyle='rgba(20,14,34,.85)';g.strokeText(txt,w/2,h/2+6);g.fillStyle='#f6e7b8';g.fillText(txt,w/2,h/2+6);
+  for(const sx of [90,w-90]){g.fillStyle='#d8b45a';g.beginPath();for(let i=0;i<8;i++){const a=i/8*Math.PI*2,r=i%2?10:30;g.lineTo(sx+Math.cos(a)*r,h/2+Math.sin(a)*r);}g.closePath();g.fill();}}),
  ticket:canvasTex(256,64,(g,w,h)=>{g.fillStyle='#7a2a2a';g.fillRect(0,0,w,h);g.strokeStyle='#d8b45a';g.lineWidth=4;g.strokeRect(4,4,w-8,h-8);g.fillStyle='#f5e6c0';g.font='bold 30px Georgia,serif';g.textAlign='center';g.textBaseline='middle';g.fillText('BILHETERIA',w/2,h/2+2);}),
  store:canvasTex(256,64,(g,w,h)=>{g.fillStyle='#3d5a3a';g.fillRect(0,0,w,h);g.strokeStyle='#d8b45a';g.lineWidth=4;g.strokeRect(4,4,w-8,h-8);g.fillStyle='#f5e6c0';g.font='bold 30px Georgia,serif';g.textAlign='center';g.textBaseline='middle';g.fillText('ARMAZÉM',w/2,h/2+2);}),
  map:canvasTex(256,192,(g,w,h)=>{g.fillStyle='#9cc7d8';g.fillRect(0,0,w,h);for(let i=0;i<5;i++){g.fillStyle=`hsl(${90+i*8},35%,${55+i*4}%)`;g.beginPath();g.ellipse(40+i*45,60+((i*37)%80),18+i*3,14+i*2,i,0,6.3);g.fill();}
@@ -70,9 +74,31 @@ const M={
  crystal:mat({color:'#e8fbff',emissive:new T.Color('#5fd2ff'),emissiveIntensity:2.2,roughness:.2,transparent:true,opacity:.92})
 };
 if(AT)for(const [k,[b,sc]] of Object.entries(TB))if(M[k]){M[k].bumpMap=b;M[k].bumpScale=sc;}
+// Telhas pintadas (vermelha e azul) em materiais próprios, visíveis dos dois lados (beiral visto por baixo).
+{const mkS=(h,s,a,b,seed)=>{if(!AT)return null;const t=AT.shingles({hue:h,sat:s,l0:a,l1:b,seed});return mat({map:t.map,bumpMap:t.bump,bumpScale:.9,side:T.DoubleSide});};
+ M.roofRedS=mkS(6,55,40,56,71)||M.roofRed;M.roofBlueS=mkS(218,38,34,50,72)||M.roofBlue;}
 
 function boxUV(geo,w,h,d,tile){const uv=geo.attributes.uv,F=[[d,h],[d,h],[w,d],[w,d],[w,h],[w,h]];for(let f=0;f<6;f++)for(let v=0;v<4;v++){const i=f*4+v;uv.setXY(i,uv.getX(i)*F[f][0]/tile,uv.getY(i)*F[f][1]/tile);}return geo;}
 function box(g,w,h,d,m,x,y,z,ry=0,tile=2.5){const mm=new T.Mesh(boxUV(new T.BoxGeometry(w,h,d),w,h,d,tile),m);mm.position.set(x,y,z);mm.rotation.y=ry;g.add(mm);return mm;}
+// Telhado de duas águas com cumeeira ao longo de x: as águas se encontram na cumeeira, o triângulo da empena
+// preenche a parede e o beiral passa igual dos dois lados. UV em metros (telhas do tamanho certo).
+function roofMesh(g,P,U,m,x,y,z){const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(P,3));geo.setAttribute('uv',new T.Float32BufferAttribute(U,2));geo.computeVertexNormals();const mm=new T.Mesh(geo,m);mm.position.set(x,y,z);g.add(mm);return mm;}
+function pushTri(P,U,a,b,c,ua,ub,uc){P.push(...a,...b,...c);U.push(...ua,...ub,...uc);}
+function pushQuad(P,U,a,b,c,d,ua,ub,uc,ud){pushTri(P,U,a,b,c,ua,ub,uc);pushTri(P,U,a,c,d,ua,uc,ud);}
+function gableX(g,L,D,rise,roofM,faceM,y,over,ovE,tile){tile=tile||3.2;
+ const hw=D/2+over,hl=L/2+ovE,sl=Math.hypot(hw,rise),k=sl/rise/tile,P=[],U=[];
+ pushQuad(P,U,[hl,0,-hw],[-hl,0,-hw],[-hl,rise,0],[hl,rise,0],[hl/tile,0],[-hl/tile,0],[-hl/tile,rise*k],[hl/tile,rise*k]);
+ pushQuad(P,U,[-hl,0,hw],[hl,0,hw],[hl,rise,0],[-hl,rise,0],[-hl/tile,0],[hl/tile,0],[hl/tile,rise*k],[-hl/tile,rise*k]);
+ roofMesh(g,P,U,roofM,0,y,0);
+ // triângulos das empenas, rente à parede (x=±L/2), sob o beiral
+ const ra=rise*over/hw;
+ for(const sx of [-1,1]){const Q=[],V=[],x=sx*L/2,hd=D/2,uvf=(z,yy)=>[z/2.5,yy/2.5];
+  if(sx>0){pushTri(Q,V,[x,0,hd],[x,0,-hd],[x,ra,hd],uvf(hd,0),uvf(-hd,0),uvf(hd,ra));pushTri(Q,V,[x,0,-hd],[x,rise,0],[x,ra,hd],uvf(-hd,0),uvf(0,rise),uvf(hd,ra));pushTri(Q,V,[x,0,-hd],[x,ra,-hd],[x,rise,0],uvf(-hd,0),uvf(-hd,ra),uvf(0,rise));}
+  else{pushTri(Q,V,[x,0,hd],[x,0,-hd],[x,ra,-hd],uvf(hd,0),uvf(-hd,0),uvf(-hd,ra));pushTri(Q,V,[x,0,hd],[x,ra,-hd],[x,rise,0],uvf(hd,0),uvf(-hd,ra),uvf(0,rise));pushTri(Q,V,[x,0,hd],[x,rise,0],[x,ra,hd],uvf(hd,0),uvf(0,rise),uvf(hd,ra));}
+  roofMesh(g,Q,V,faceM,0,y,0);}
+ // friso do beiral e da cumeeira
+ for(const s of [-1,1])box(g,2*hl+.1,.26,.16,M.dark,0,y-.02,s*(hw-.04),0,2);
+ box(g,2*hl+.2,.26,.5,M.dark,0,y+rise+.08,0,0,2);}
 function cyl(g,r1,r2,h,m,x,y,z,seg=12,tile=2.5){const geo=new T.CylinderGeometry(r1,r2,h,seg),uv=geo.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)*2*Math.PI*Math.max(r1,r2)/tile,uv.getY(i)*h/tile);const mm=new T.Mesh(geo,m);mm.position.set(x,y+h/2,z);g.add(mm);return mm;}
 function sph(g,r,m,x,y,z,sx=1,sy=1,sz=1){const s=new T.Mesh(new T.SphereGeometry(r,10,8),m);s.position.set(x,y,z);s.scale.set(sx,sy,sz);g.add(s);return s;}
 // Funde por material, mantendo a posição/rotação do grupo de origem.
@@ -206,8 +232,13 @@ function build(api,isl){
  for(const [v0,v1] of [[-HW,-5.2],[5.2,HW]]){const vc=(v0+v1)/2,len=v1-v0;
   box(g,.5,.3,len,M.stone,E-.3,Y+.15,vc,0,2);for(let v=v0+.4;v<v1;v+=.6){const pts=[];for(let i=0;i<=6;i++){const t=i/6;pts.push(new T.Vector2(.07+.06*Math.sin(Math.PI*t*1.2),t*.7));}const bl=new T.Mesh(new T.LatheGeometry(pts,8),M.stone);bl.position.set(E-.3,Y+.3,v);g.add(bl);}
   box(g,.6,.16,len,M.tiles,E-.3,Y+1.08,vc,0,2);obs(E-.3,vc,.3,len/2);}
- for(const s of [-1,1]){box(g,1.4,5.2,1.4,M.stone,U0+1,Y+2.6,s*5,0,2);box(g,1.7,.4,1.7,M.tiles,U0+1,Y+5.4,s*5,0,2);sph(g,.35,M.gold,U0+1,Y+5.95,s*5);obs(U0+1,s*5,.7,.7);}
- box(g,.6,1.4,11.4,M.dark,U0+1,Y+5.9,0,0,2);{const sg=new T.Mesh(new T.PlaneGeometry(9,2.2),M.sign);sg.position.set(U0+.68,Y+5.9,0);sg.rotation.y=-Math.PI/2;g.add(sg);}
+ for(const s of [-1,1]){box(g,1.4,5.2,1.4,M.stone,U0+1,Y+2.6,s*5,0,2);box(g,1.7,.4,1.7,M.tiles,U0+1,Y+5.4,s*5,0,2);obs(U0+1,s*5,.7,.7);}
+ // Placa do portal: viga sobre os pilares, tabuleiro de madeira com moldura dourada e texto dos dois lados.
+ box(g,.9,.5,10.8,M.dark,U0+1,Y+5.85,0,0,2);
+ box(g,.34,2.3,9.4,M.dark,U0+1,Y+7.25,0,0,2);
+ box(g,.4,.14,9.8,M.gold,U0+1,Y+8.47,0);box(g,.4,.14,9.8,M.gold,U0+1,Y+6.03,0);
+ for(const s of [-1,1]){box(g,.4,2.3,.14,M.gold,U0+1,Y+7.25,s*4.8);sph(g,.28,M.gold,U0+1,Y+8.7,s*4.8);}
+ for(const f of [-1,1]){const sg=new T.Mesh(new T.PlaneGeometry(8.9,2.0),M.sign);sg.position.set(U0+1+f*.18,Y+7.25,0);sg.rotation.y=f<0?-Math.PI/2:Math.PI/2;g.add(sg);}
  for(const s of [-1,1])box(g,.06,3.2,1.4,s>0?M.blue:M.red,U0+.6,Y+3.4,s*3.6);
  cyl(g,1.4,1.7,.6,M.stone,R-30,Y,0,16);cyl(g,.7,.9,2.2,M.tiles,R-30,Y+.6,0,12);cyl(g,1.0,.8,.25,M.gold,R-30,Y+2.8,0,16);obsC(R-30,0,1.8);
  for(let i=0;i<4;i++){const a=i*Math.PI/2;const r=new T.Mesh(new T.TorusGeometry(.55,.04,5,16,Math.PI),M.gold);r.position.set(R-30+Math.cos(a)*.75,Y+2.1,Math.sin(a)*.75);r.rotation.y=-a;g.add(r);}
@@ -246,10 +277,9 @@ function build(api,isl){
   const up=new T.Group();
   box(up,L+.4,.3,D+.4,M.dark,0,H+.15,0);box(up,L,3,D,M.plaster,0,H+1.8,0,0,3);
   for(const du of [-3.5,0,3.5]){box(up,1.2,1.3,.12,M.glass,du,H+1.8,-D/2-.06);box(up,1.4,.12,.25,M.dark,du,H+1.1,-D/2-.12);}
-  for(const s of [-1,1]){const r=box(up,L+1,.25,D/2/Math.cos(.55)+.7,M.roofBlue,0,H+3.75,s*D/4.4,0,2);r.rotation.x=s*.55;}
-  box(up,L+1.1,.3,.4,M.dark,0,H+4.95,0);
+  gableX(up,L,D,2.7,M.roofBlueS,M.plaster,H+3.3,.6,.5);
   box(up,3,6,3,M.plaster,L/2-1.5,H+5.4,0,0,2);{const cl=new T.Mesh(new T.CircleGeometry(1,24),M.compass);cl.position.set(L/2-1.5,H+6.8,-1.52);cl.rotation.y=Math.PI;up.add(cl);}
-  {const c=new T.Mesh(new T.ConeGeometry(2.3,2.6,4),M.roofBlue);c.rotation.y=Math.PI/4;c.position.set(L/2-1.5,H+9.7,0);up.add(c);}
+  {const cg=new T.ConeGeometry(2.3,2.6,4);{const uv=cg.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)*13/3.2,uv.getY(i)*3.8/3.2);}const c=new T.Mesh(cg,M.roofBlueS);c.rotation.y=Math.PI/4;c.position.set(L/2-1.5,H+9.7,0);up.add(c);}
   box(up,.08,1.8,.08,M.gold,L/2-1.5,H+11.8,0);box(up,1.2,.06,.06,M.gold,L/2-1.5,H+12.3,0);
   mergeInto(up,b.upper,'Capitania · andar de cima');
  }
@@ -273,9 +303,7 @@ function build(api,isl){
   for(let i=0;i<3;i++)barrel(ig,9-i*.85,0,D/2+1.2);obs(cu+8.15,cv+D/2+1.2,1.3,.45);
   mergeInto(ig,b.bg,'Armazém · interior');
   const up=new T.Group();
-  for(const s of [-1,1]){const r=box(up,L+1.2,.25,D/2/Math.cos(.5)+.8,M.roofRed,0,H+1.25,s*D/4.2,0,2);r.rotation.x=s*.5;}
-  box(up,L+1.3,.3,.4,M.dark,0,H+2.3,0);
-  for(const s of [-1,1]){const tri=new T.Shape();tri.moveTo(-D/2,0);tri.lineTo(D/2,0);tri.lineTo(0,2.3);tri.lineTo(-D/2,0);const tm=new T.Mesh(new T.ExtrudeGeometry(tri,{depth:.25,bevelEnabled:false}),M.dark);tm.rotation.y=Math.PI/2;tm.position.set(s*(L/2)-(s>0?.25:0),H,0);up.add(tm);}
+  gableX(up,L,D,2.5,M.roofRedS,M.dark,H,.7,.6);
   mergeInto(up,b.upper,'Armazém · telhado');
  }
  // ---------- Guindaste com roldana ----------

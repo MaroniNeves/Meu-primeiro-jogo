@@ -57,8 +57,10 @@ function gable(g,w,d,y,rh,m,oh=.6,wallM=null){
   for(const sx of [-1,1]){const geo=new T.ExtrudeGeometry(s,{depth:.3,bevelEnabled:false});const uv=geo.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)/2.5,uv.getY(i)/2.5);const t=new T.Mesh(geo,wallM);t.rotation.y=Math.PI/2;t.position.set(sx*(w/2)-(sx>0?.3:0),y,0);g.add(t);}}
 }
 // Telhado de quatro águas com pontas curvadas (pagode).
+// UV em metros: telha do tamanho certo em cones e pirâmides (antes a textura esticava).
+function shingleUV(geo,perim,slant,tile){const uv=geo.attributes.uv;tile=tile||2.6;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)*perim/tile,uv.getY(i)*slant/tile);}
 function hip(g,w,d,y,rh,m,oh=.9){
- const c=new T.Mesh(new T.ConeGeometry(Math.SQRT1_2,1,4,1,true),m);c.geometry.rotateY(Math.PI/4);c.scale.set(w+oh*2,rh,d+oh*2);c.position.set(0,y+rh/2,0);g.add(c);
+ const c=new T.Mesh(new T.ConeGeometry(Math.SQRT1_2,1,4,1,true),m);c.geometry.rotateY(Math.PI/4);shingleUV(c.geometry,2*(w+d+4*oh),Math.hypot(rh,(Math.min(w,d)+2*oh)/2));c.scale.set(w+oh*2,rh,d+oh*2);c.position.set(0,y+rh/2,0);g.add(c);
  const under=new T.Mesh(new T.PlaneGeometry(w+oh*2,d+oh*2),M.timber);under.rotation.x=Math.PI/2;under.position.y=y+.01;g.add(under);
  for(const sx of [-1,1])for(const sz of [-1,1]){const t=new T.Mesh(new T.ConeGeometry(.16,.9,5),M.gold);t.position.set(sx*(w/2+oh),y+.25,sz*(d/2+oh));t.rotation.z=-sx*.9;t.rotation.x=sz*.9;g.add(t);}
  box(g,.25,.5,.25,M.gold,0,y+rh+.15,0);
@@ -106,7 +108,7 @@ function housePagode(g,w,d,roof){
 function houseTorre(g,w,d,roof){
  const r=Math.min(w,d)*.42;
  cyl(g,r+.2,r+.35,1,M.stone,0,0,0,16);cyl(g,r,r,6.4,M.stone,0,1,0,16);cyl(g,r+.3,r+.3,.3,M.timber,0,7.4,0,16);
- const c=new T.Mesh(new T.ConeGeometry(r+.8,3.8,16),roof);c.position.set(0,9.6,0);g.add(c);box(g,.2,1,.2,M.gold,0,12,0);
+ const cg=new T.ConeGeometry(r+.8,3.8,16);shingleUV(cg,2*Math.PI*(r+.8),Math.hypot(3.8,r+.8));const c=new T.Mesh(cg,roof);c.position.set(0,9.6,0);g.add(c);box(g,.2,1,.2,M.gold,0,12,0);
  // Anexo baixo ao lado, com telhado próprio.
  box(g,w*.55,2.8,d*.7,M.plaster,w*.42,1.4,d*.05);gable(g,w*.55,d*.7,2.8,1.4,roof,.4,M.plaster);g.children.slice(-5).forEach(o=>o.position.x+=w*.42);
  door(g,w,r+.03,M.timber,M.wood);

@@ -134,9 +134,29 @@ function valanceGeo(len){
 function boxUV(geo,w,h,d,tile){const uv=geo.attributes.uv,F=[[d,h],[d,h],[w,d],[w,d],[w,h],[w,h]];for(let f=0;f<6;f++)for(let v=0;v<4;v++){const i=f*4+v;uv.setXY(i,uv.getX(i)*F[f][0]/tile,uv.getY(i)*F[f][1]/tile);}return geo;}
 function box(g,w,h,d,m,x,y,z,ry=0,tile=4){const mm=new T.Mesh(boxUV(new T.BoxGeometry(w,h,d),w,h,d,tile),m);mm.position.set(x,y,z);mm.rotation.y=ry;g.add(mm);return mm;}
 function cyl(g,r1,r2,h,m,x,y,z,seg=16,tile=4){const geo=new T.CylinderGeometry(r1,r2,h,seg),uv=geo.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)*2*Math.PI*Math.max(r1,r2)/tile,uv.getY(i)*h/tile);const mm=new T.Mesh(geo,m);mm.position.set(x,y+h/2,z);g.add(mm);return mm;}
-function pyramid(g,w,d,h,m,x,y,z){const geo=new T.ConeGeometry(Math.SQRT1_2,1,4,1);geo.rotateY(Math.PI/4);const mm=new T.Mesh(geo,m);mm.scale.set(w,h,d);mm.position.set(x,y+h/2,z);g.add(mm);return mm;}
+function shingleUV(geo,perim,slant,tile){const uv=geo.attributes.uv;tile=tile||3.5;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)*perim/tile,uv.getY(i)*slant/tile);}
+function pyramid(g,w,d,h,m,x,y,z){const geo=new T.ConeGeometry(Math.SQRT1_2,1,4,1);geo.rotateY(Math.PI/4);shingleUV(geo,2*(w+d),Math.hypot(h,Math.min(w,d)/2));const mm=new T.Mesh(geo,m);mm.scale.set(w,h,d);mm.position.set(x,y+h/2,z);g.add(mm);return mm;}
 function prismX(g,len,w,h,m,x,y,z){const s=new T.Shape();s.moveTo(-w/2,0);s.lineTo(w/2,0);s.lineTo(0,h);s.lineTo(-w/2,0);const geo=new T.ExtrudeGeometry(s,{depth:len,bevelEnabled:false});geo.translate(0,0,-len/2);geo.rotateY(Math.PI/2);const uv=geo.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)/3,uv.getY(i)/3);const mm=new T.Mesh(geo,m);mm.position.set(x,y,z);g.add(mm);return mm;}
 function prismZ(g,len,w,h,m,x,y,z){const s=new T.Shape();s.moveTo(-w/2,0);s.lineTo(w/2,0);s.lineTo(0,h);s.lineTo(-w/2,0);const geo=new T.ExtrudeGeometry(s,{depth:len,bevelEnabled:false});geo.translate(0,0,-len/2);const uv=geo.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)/3,uv.getY(i)/3);const mm=new T.Mesh(geo,m);mm.position.set(x,y,z);g.add(mm);return mm;}
+// Malha simples (posições + UV em metros), normais calculadas por face.
+function roofMesh(g,P,U,m,x,y,z){const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(P,3));geo.setAttribute('uv',new T.Float32BufferAttribute(U,2));geo.computeVertexNormals();const mm=new T.Mesh(geo,m);mm.position.set(x,y,z);g.add(mm);return mm;}
+function pushTri(P,U,a,b,c,ua,ub,uc){P.push(...a,...b,...c);U.push(...ua,...ub,...uc);}
+function pushQuad(P,U,a,b,c,d,ua,ub,uc,ud){pushTri(P,U,a,b,c,ua,ub,uc);pushTri(P,U,a,c,d,ua,uc,ud);}
+// Telhado de quatro águas (cumeeira ao longo de x, 45 graus nos cantos): W x D no beiral, altura h.
+function hipRoof(g,W,D,h,m,x,y,z,tile){tile=tile||3.5;const hw=W/2,hd=D/2,rl=Math.max(0,hw-hd),sl=Math.hypot(hd,h),k=sl/h/tile,P=[],U=[];
+ const A=[-hw,0,-hd],B=[hw,0,-hd],C=[hw,0,hd],Dd=[-hw,0,hd],R1=[-rl,h,0],R2=[rl,h,0];
+ pushQuad(P,U,Dd,C,R2,R1,[(-hw)/tile,0],[hw/tile,0],[rl/tile,h*k],[-rl/tile,h*k]);
+ pushQuad(P,U,B,A,R1,R2,[hw/tile,0],[(-hw)/tile,0],[-rl/tile,h*k],[rl/tile,h*k]);
+ pushTri(P,U,C,B,R2,[hd/tile,0],[-hd/tile,0],[0,h*k]);
+ pushTri(P,U,A,Dd,R1,[-hd/tile,0],[hd/tile,0],[0,h*k]);
+ return roofMesh(g,P,U,m,x,y,z);}
+// Empena (cumeeira ao longo de z): duas águas na cor do telhado e o triângulo da frente em outro material (parede).
+function gablePrism(g,len,w,h,roofM,faceM,x,y,zc,tile){tile=tile||3.5;const hw=w/2,zf=zc+len/2,zb=zc-len/2,sl=Math.hypot(hw,h),k=sl/h/tile,P=[],U=[];
+ pushQuad(P,U,[-hw,0,zb],[-hw,0,zf],[0,h,zf],[0,h,zb],[zb/tile,0],[zf/tile,0],[zf/tile,h*k],[zb/tile,h*k]);
+ pushQuad(P,U,[hw,0,zf],[hw,0,zb],[0,h,zb],[0,h,zf],[zf/tile,0],[zb/tile,0],[zb/tile,h*k],[zf/tile,h*k]);
+ roofMesh(g,P,U,roofM,x,y,0);
+ const Q=[],V=[];pushTri(Q,V,[-hw,0,zf],[hw,0,zf],[0,h,zf],[-hw/2.5,0],[hw/2.5,0],[0,h/2.5]);
+ return roofMesh(g,Q,V,faceM,x,y,0);}
 function crenels(g,x0,x1,z0,z1,y,step=1.6){for(let x=x0;x<=x1+1e-3;x+=step){box(g,.8,1,.6,M.wall,x,y+.5,z0);box(g,.8,1,.6,M.wall,x,y+.5,z1);}for(let z=z0+step;z<=z1-step+1e-3;z+=step){box(g,.6,1,.8,M.wall,x0,y+.5,z);box(g,.6,1,.8,M.wall,x1,y+.5,z);}}
 function squareTower(g,x,z,s,h){box(g,s+.6,2,s+.6,M.base,x,1,z);box(g,s,h,s,M.wall,x,h/2,z);for(const y of [h*.35,h*.7])box(g,s+.3,.5,s+.3,M.trim,x,y,z);box(g,s+.6,.7,s+.6,M.trim,x,h-.35,z);crenels(g,x-s/2,x+s/2,z-s/2,z+s/2,h,1.4);
  for(let lv=0;lv<Math.floor(h/6.5);lv++)for(const [dx,dz,r] of [[0,s/2+.02,0],[0,-s/2-.02,0],[s/2+.02,0,Math.PI/2],[-s/2-.02,0,Math.PI/2]])box(g,.8,1.8,.1,M.winTile||M.glass,x+dx,3.5+lv*6.5,z+dz,r,1);
@@ -405,7 +425,7 @@ function build(api,site){
   for(const sx of [-1,1])for(const sz of [-1,1])box(ext,1.6,8,1.6,M.wall,sx*4.2,48,BZB+sz*4.2);
   box(ext,10.6,1.1,10.6,M.trim,0,52.5,BZB);crenels(ext,-5.1,5.1,BZB-5.1,BZB+5.1,53);pyramid(ext,8,8,9,M.slate,0,53,BZB);
   cyl(ext,1,1.2,2.4,M.copper,0,62,BZB,8);pyramid(ext,2.4,2.4,2.6,M.copper,0,64.4,BZB);box(ext,.16,1.6,.16,M.gold,0,67.8,BZB);
-  for(const sx of [-1,1])for(const sz of [-1,1]){cyl(ext,.9,.9,4.5,M.wall,sx*5.1,53,BZB+sz*5.1,10);const c=new T.Mesh(new T.ConeGeometry(1.15,2.4,10),M.copper);c.position.set(sx*5.1,58.7,BZB+sz*5.1);ext.add(c);}
+  for(const sx of [-1,1])for(const sz of [-1,1]){cyl(ext,.9,.9,4.5,M.wall,sx*5.1,53,BZB+sz*5.1,10);const cg=new T.ConeGeometry(1.15,2.4,10);shingleUV(cg,7.2,2.7);const c=new T.Mesh(cg,M.copper);c.position.set(sx*5.1,58.7,BZB+sz*5.1);ext.add(c);}
   if(O){const w=W(0,BZB);O.addBox({x:w.x,z:w.z,hw:5.5,hd:5.5,rot:0});}}
  // Pórtico com colunas na entrada.
  box(ext,10,.5,4,M.trim,0,.25,BZ1+2);for(const sx of [-1,1])for(const dx of [1.8,4.2])cyl(ext,.45,.55,7.5,M.trim,sx*dx,.5,BZ1+3.3,12);
@@ -419,10 +439,22 @@ function build(api,site){
  // Laje de teto do térreo (só de fora): sem ela se veria o telhado por baixo pela porta.
  const lid=new T.Mesh(boxUV(new T.BoxGeometry(2*BX-1,.4,BZ1-BZ0-1),2*BX-1,.4,BZ1-BZ0-1,3),M.dark);lid.position.set(0,Fy(1)-.2,(BZ0+BZ1)/2);root.add(lid);
  {const r=new T.Group();
-  box(r,2*BX+.6,.8,BZ1-BZ0+.6,M.trim,0,TOP+.4,(BZ0+BZ1)/2);
-  prismX(r,2*BX-4,BZ1-BZ0+1.2,9,M.slate,0,TOP+.8,(BZ0+BZ1)/2);
-  prismZ(r,6,9,6.5,M.slate,0,TOP+.8,BZ1-2);box(r,1.6,2.2,.2,M.winTile||M.glass,0,TOP+2.4,BZ1+.92,0,1);
-  for(const sx of [-1,1]){prismZ(r,3,3.4,2.6,M.slate,sx*8,TOP+5,BZ1-4);box(r,2.6,2.6,1,M.wall,sx*8,TOP+3.8,BZ1-3.2);box(r,1,1.6,.1,M.winTile||M.glass,sx*8,TOP+3.9,BZ1-2.65,0,1);}
+  // Telhado de quatro águas: cai sobre a laje de pedra sem triângulos nus nas pontas.
+  const E=1.2,Wd=2*BX+2*E,Dd=(BZ1-BZ0)+2*E,hh=8,zc=(BZ0+BZ1)/2,Y0=TOP+.8,hd=Dd/2,gz=BZ1+E;
+  box(r,2*BX+.6,.8,BZ1-BZ0+.6,M.trim,0,TOP+.4,zc);
+  hipRoof(r,Wd,Dd,hh,M.slate,0,Y0,zc);
+  for(const s of [-1,1]){box(r,Wd+.2,.3,.45,M.trim,0,Y0+.1,zc+s*hd);box(r,.45,.3,Dd+.2,M.trim,s*Wd/2,Y0+.1,zc);}
+  {const rl=(Wd-Dd)/2;box(r,2*rl+.9,.3,.6,M.trim,0,Y0+hh+.12,zc);}
+  // Empena central da frente: triângulo em pedra, janela e friso; o telhado entra no telhado principal.
+  gablePrism(r,9.4,9,4.5,M.slate,M.wall,0,Y0,gz-4.7);
+  box(r,1.6,2.2,.16,M.winTile||M.glass,0,Y0+1.6,gz+.02,0,1);box(r,2.0,.2,.3,M.trim,0,Y0+2.8,gz+.06);
+  // Lucarnas: parede sobe do telhado, janela na frente, duas águas por cima.
+  for(const sx of [-1,1]){
+   const zf=BZ1-.9,run=gz-zf,hRoof=run*hh/hd,wallH=2.3;
+   box(r,3,wallH+.4,4.4,M.wall,sx*8,Y0+hRoof-.4+(wallH+.4)/2,zf-2.2);
+   box(r,1,1.6,.1,M.winTile||M.glass,sx*8,Y0+hRoof+1.2,zf+.04,0,1);
+   gablePrism(r,7.6,3.6,1.8,M.slate,M.wall,sx*8,Y0+hRoof+wallH,zf+.3-3.8);
+  }
   mergeInto(r,roof,'Telhado do castelo');}
 
  // ===== Mobília de cada andar =====
