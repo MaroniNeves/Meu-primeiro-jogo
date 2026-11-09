@@ -31,6 +31,11 @@ VM.road=function(ctx,pts,w,type){
  const m=new T.Mesh(geo,ctx.M['rd'+type.charAt(0).toUpperCase()+type.slice(1)]||ctx.M.dirt);m.name='Estrada ('+type+')';m.receiveShadow=true;
  ctx.live.add(m);
  for(const s of samples.filter((_,i)=>i%2===0))ctx.noGrassC(s.x,s.z,w/2+1.4);
+ // o personagem pisa na superfície da estrada (decalque a 7 cm do chão), sem afundar
+ if(ctx.W&&window.arcanoIslandHeight){const ws=samples.map(q=>ctx.W(q.x,q.z)),hw=w/2+.05;let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;for(const q of ws){x0=Math.min(x0,q.x);x1=Math.max(x1,q.x);z0=Math.min(z0,q.z);z1=Math.max(z1,q.z);}
+  (window.arcanoGroundOverrides=window.arcanoGroundOverrides||[]).push((x,z)=>{if(x<x0-hw||x>x1+hw||z<z0-hw||z>z1+hw)return null;
+   for(let i=1;i<ws.length;i++){const A=ws[i-1],B=ws[i],dx=B.x-A.x,dz=B.z-A.z,L2=dx*dx+dz*dz||1,t=Math.max(0,Math.min(1,((x-A.x)*dx+(z-A.z)*dz)/L2)),ex=A.x+dx*t-x,ez=A.z+dz*t-z;if(ex*ex+ez*ez<hw*hw)return window.arcanoIslandHeight(x,z)+.07;}
+   return null;});}
 };
 
 /* ---------- Grades de madeira ---------- */

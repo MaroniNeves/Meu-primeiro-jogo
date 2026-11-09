@@ -298,12 +298,26 @@ KIT.oriental={
   ctx.colCircle(x,z,r+.4);ctx.noGrassC(x,z,r+2.5);},
  cerejeira(ctx,x,z,s){const M=ctx.M,y=ctx.gy(x,z),g=ctx.g;s=s||1;
   const lite=/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)||innerWidth<700;
-  // tronco torto e galhos finos (tubos que afinam), folhas e flores desenhadas uma a uma
-  const limb=(p,q,r0,r1,segs)=>{let prev=p;for(let i=1;i<=segs;i++){const t=i/segs,bend=Math.sin(t*3.1)*.12*s,np=[p[0]+(q[0]-p[0])*t+bend,p[1]+(q[1]-p[1])*t,p[2]+(q[2]-p[2])*t-bend*.6];rod(g,prev[0],prev[1],prev[2],np[0],np[1],np[2],r0+(r1-r0)*t,M.bark,6);prev=np;}};
-  limb([x,y-.1,z],[x+.15*s,y+1.1*s,z+.1*s],.26*s,.2*s,3);limb([x+.15*s,y+1.1*s,z+.1*s],[x+.3*s,y+2.3*s,z],.2*s,.15*s,3);
+  // tronco orgânico: tubo suave com raiz alargada, caroços na casca e galhos que afinam; casca com lenticelas horizontais
+  if(!M.cherryBark){const c=document.createElement('canvas');c.width=128;c.height=256;const cg=c.getContext('2d');cg.fillStyle='#5b3a30';cg.fillRect(0,0,128,256);
+   for(let i=0;i<60;i++){const x=Math.random()*128,w=2+Math.random()*7,l=36+Math.random()*28;cg.fillStyle='rgba('+(Math.random()<.5?'40,24,20':'110,76,62')+','+(.18+Math.random()*.3)+')';cg.fillRect(x,0,w,256);}
+   for(let i=0;i<150;i++){const x=Math.random()*128,y=Math.random()*256,w=6+Math.random()*16;cg.strokeStyle='rgba(190,170,160,'+(.25+Math.random()*.3)+')';cg.lineWidth=1.6;cg.beginPath();cg.moveTo(x,y);cg.lineTo(x+w,y+(Math.random()-.5)*2);cg.stroke();}
+   for(let i=0;i<24;i++){const x=Math.random()*128,y=Math.random()*256;const gr=cg.createRadialGradient(x,y,0,x,y,10);gr.addColorStop(0,'rgba(120,140,100,.35)');gr.addColorStop(1,'rgba(120,140,100,0)');cg.fillStyle=gr;cg.fillRect(x-10,y-10,20,20);}
+   const bt=new T.CanvasTexture(c);bt.wrapS=bt.wrapT=T.RepeatWrapping;bt.colorSpace=T.SRGBColorSpace;M.cherryBark=new T.MeshStandardMaterial({map:bt,roughness:1});}
+  const organic=(pts,rad,flare,sd)=>{const curve=new T.CatmullRomCurve3(pts.map(p=>new T.Vector3(p[0],p[1],p[2]))),N=18,S=10,fr=curve.computeFrenetFrames(N,false),len=curve.getLength();
+   const P=[],U=[],I=[];
+   for(let i=0;i<=N;i++){const t=i/N,pos=curve.getPoint(t),f=t*(rad.length-1),k=Math.min(rad.length-2,Math.floor(f)),rr=(rad[k]+(rad[k+1]-rad[k])*(f-k))*(1+flare*Math.exp(-t*8)),nn=fr.normals[i],bb=fr.binormals[i];
+    for(let j=0;j<=S;j++){const an=j/S*Math.PI*2,lump=1+.1*Math.sin(an*3+t*8+sd)+.07*Math.sin(an*5-t*13+sd*2)+(flare>0?.16*Math.max(0,Math.sin(an*4+sd))*Math.exp(-t*7):0),dx=nn.x*Math.cos(an)+bb.x*Math.sin(an),dy=nn.y*Math.cos(an)+bb.y*Math.sin(an),dz=nn.z*Math.cos(an)+bb.z*Math.sin(an);
+     P.push(pos.x+dx*rr*lump,pos.y+dy*rr*lump,pos.z+dz*rr*lump);U.push(j/S*Math.max(1,rr*5),t*len/1.1);}}
+   for(let i=0;i<N;i++)for(let j=0;j<S;j++){const q=i*(S+1)+j;I.push(q,q+S+1,q+1,q+1,q+S+1,q+S+2);}
+   const gg=new T.BufferGeometry();gg.setAttribute('position',new T.Float32BufferAttribute(P,3));gg.setAttribute('uv',new T.Float32BufferAttribute(U,2));gg.setIndex(I);gg.computeVertexNormals();
+   const m=new T.Mesh(gg,M.cherryBark);m.castShadow=true;m.receiveShadow=true;g.add(m);};
+  organic([[x,y-.2,z],[x+.04*s,y+.9*s,z+.05*s],[x+.22*s,y+1.7*s,z-.04*s],[x+.14*s,y+2.5*s,z+.03*s]],[.36*s,.26*s,.21*s,.16*s],.9,rnd()*6);
+  for(let q=0;q<5;q++){const a2=q/5*6.283+rnd()*.5,dx=Math.cos(a2),dz=Math.sin(a2);organic([[x+dx*.2*s,y+.35*s,z+dz*.2*s],[x+dx*.7*s,y+.08*s,z+dz*.7*s],[x+dx*1.25*s,y-.12*s,z+dz*1.25*s]],[.17*s,.1*s,.04*s],0,rnd()*6);}
   const tips=[[1.05,3.0,.45],[-1.0,2.9,-.4],[.35,3.9,.1],[.1,3.0,-1.0],[-.2,3.2,1.0]];
-  for(const [dx,dy,dz] of tips){const st=[x+.3*s,y+(1.7+rnd()*.5)*s,z],en=[x+dx*s,y+dy*s,z+dz*s];limb(st,en,.12*s,.04*s,3);
-   for(let k=0;k<2;k++){const sub=[en[0]+(rnd()-.5)*1.1*s,en[1]+(rnd()*.7)*s,en[2]+(rnd()-.5)*1.1*s];limb(en,sub,.05*s,.02*s,2);}}
+  for(const [dx,dy,dz] of tips){const st=[x+.16*s,y+(1.8+rnd()*.5)*s,z+.02*s],en=[x+dx*s,y+dy*s,z+dz*s],mid=[(st[0]+en[0])/2+(rnd()-.5)*.3*s,(st[1]+en[1])/2-.15*s,(st[2]+en[2])/2+(rnd()-.5)*.3*s];
+   organic([st,mid,en],[.13*s,.09*s,.045*s],.15,rnd()*6);
+   for(let k=0;k<2;k++){const sub=[en[0]+(rnd()-.5)*1.1*s,en[1]+(rnd()*.7)*s,en[2]+(rnd()-.5)*1.1*s];organic([en,[(en[0]+sub[0])/2,(en[1]+sub[1])/2+.1*s,(en[2]+sub[2])/2],sub],[.05*s,.035*s,.018*s],0,rnd()*6);}}
   if(!M.cherryLeaf){const c=document.createElement('canvas');c.width=c.height=128;const gx=c.getContext('2d');gx.translate(64,64);
    const petal=ang=>{gx.save();gx.rotate(ang);gx.beginPath();gx.moveTo(0,-4);gx.bezierCurveTo(-26,-18,-24,-52,-7,-56);gx.lineTo(0,-48);gx.lineTo(7,-56);gx.bezierCurveTo(24,-52,26,-18,0,-4);gx.closePath();
     const gr=gx.createLinearGradient(0,-4,0,-56);gr.addColorStop(0,'#e0608a');gr.addColorStop(.35,'#ff9cbd');gr.addColorStop(1,'#fff2f6');gx.fillStyle=gr;gx.fill();gx.strokeStyle='rgba(150,40,80,.55)';gx.lineWidth=2.2;gx.stroke();

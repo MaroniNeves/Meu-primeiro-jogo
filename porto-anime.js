@@ -53,7 +53,7 @@ if(AT){
  const put=(k,t,sc)=>{TX[k]=t.map;TB[k]=[t.bump,sc];};
  put('deck',AT.wood({hue:30,light:54,horizontal:true,seed:21}),.8);put('hull',AT.wood({hue:22,light:32,horizontal:true,seed:22}),.8);put('dark',AT.wood({hue:20,light:24,horizontal:true,seed:23}),.8);
  put('door',AT.wood({hue:26,light:42,seed:24}),.8);put('light',AT.wood({hue:34,light:62,horizontal:true,seed:25}),.7);
- put('tiles',AT.cobble({hue:34,sat:20,l0:60,l1:76,seed:41,n:12}),.6);
+ put('tiles',AT.cobble({hue:34,sat:20,l0:60,l1:76,seed:41,n:6,style:'flag'}),.6);
  put('stone',AT.stone({hue:34,sat:10,l0:52,l1:68,seed:43}),.8);
  put('plaster',AT.plaster({hue:38,sat:34,l:84}),.6);
 }

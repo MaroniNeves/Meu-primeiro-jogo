@@ -114,7 +114,7 @@ VM.makeMats=function(){
   M.roofShake=tex(AT.shingles({hue:28,sat:20,l0:28,l1:42,seed:94}),.9,{side:T.DoubleSide});
  }else{for(const k of ['stone','stoneDark','plaster','white','wood','woodDark','woodH','log','deck','cobble','roofTerra','roofSlate','roofRed','roofTeal','roofShake'])M[k]=flat('#9a8a78');}
  let t=TEX.thatch();M.thatch=tex(t,1.1,{side:T.DoubleSide});t=TEX.turf();M.turf=tex(t,1,{side:T.DoubleSide});
- t=TEX.dirt();M.dirt=tex(t,.8,{side:T.DoubleSide,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
+ t=TEX.dirt();M.dirt=tex(t,.8,{side:T.DoubleSide,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1});
  t=TEX.wheat();M.wheat=tex(t,1.2,{polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1});
  const sh=TEX.shoji();M.shoji=mat({map:sh.map,emissive:new T.Color('#ffffff'),emissiveMap:sh.emit,emissiveIntensity:.05});
  const gt=AT&&AT.windowTile?AT.windowTile():null;M.glass=gt?mat({map:gt.map,emissive:new T.Color('#ffffff'),emissiveMap:gt.emit,emissiveIntensity:.05}):mat({color:'#bcd8ea'});
@@ -125,7 +125,7 @@ VM.makeMats=function(){
  M.window=M.glass;
  {const rd=(t,sc)=>tex(t,sc,{side:T.DoubleSide,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
   M.rdDirt=M.dirt;M.rdMud=rd(TEX.mud(),1.2);M.rdGravel=rd(TEX.gravel(),1.1);
-  if(AT){M.rdFlag=rd(AT.stone({hue:30,sat:6,l0:54,l1:70,rows:3,seed:101,cracks:.3}),.8);M.rdCobble=rd(AT.cobble({hue:34,sat:18,l0:54,l1:72,seed:103,n:9}),.8);M.rdPlank=rd(AT.wood({hue:28,light:48,horizontal:true,boards:6,seed:102}),.8);}
+  if(AT){M.rdFlag=rd(AT.stone({hue:30,sat:6,l0:54,l1:70,rows:3,seed:101,cracks:.3}),.8);M.rdCobble=rd(AT.cobble({hue:30,sat:10,l0:44,l1:62,seed:103,n:7,style:'rubble'}),.8);M.rdPlank=rd(AT.wood({hue:28,light:48,horizontal:true,boards:6,seed:102}),.8);}
   else{M.rdFlag=M.rdCobble=M.rdPlank=M.rdDirt;}}
  M.tentA=mat({map:TEX.canvas('#d9a441','#b8452c',true),side:T.DoubleSide});M.tentB=mat({map:TEX.canvas('#4a79a8','#e8dcc2',true),side:T.DoubleSide});M.tentC=mat({map:TEX.canvas('#5a8f4a','#d9c88a',true),side:T.DoubleSide});M.tentD=mat({map:TEX.canvas('#a8423c','#e8dcc2',true),side:T.DoubleSide});
  M.tipi=mat({map:TEX.tipi(),side:T.DoubleSide});M.inside=mat({color:'#2a2018',side:T.DoubleSide});

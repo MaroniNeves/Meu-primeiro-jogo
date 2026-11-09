@@ -216,105 +216,113 @@ function lathe(a,pts,m,x,y,z,sx=1,sz=1,seg=18){
 }
 function ball(a,r,m,x,y,z,sx=1,sy=1,sz=1){const s=new T.Mesh(new T.SphereGeometry(r,14,10),m);s.position.set(x,y,z);s.scale.set(sx,sy,sz);a.add(s);return s;}
 function ring(a,r,tube,m,x,y,z,rx=Math.PI/2){const t=new T.Mesh(new T.TorusGeometry(r,tube,6,22),m);t.position.set(x,y,z);t.rotation.x=rx;a.add(t);return t;}
-function armorModel(variant){
+/* Superfícies "loftadas": seções superelípticas empilhadas (peitoral com quilha, grevas com cume, elmo bicudo...). */
+function loftGeo(secs,N,cap){
+ N=N||22;const P=[],U=[],I=[],R=N+1;
+ secs.forEach((s,i)=>{for(let k=0;k<=N;k++){const t=k/N*Math.PI*2,c=Math.cos(t),sn=Math.sin(t),n=s.n||2.2,ex=Math.sign(c)*Math.pow(Math.abs(c),2/n),ez=Math.sign(sn)*Math.pow(Math.abs(sn),2/n);
+  let x=(s.ox||0)+s.rx*ex,z=(s.oz||0)+s.rz*ez;
+  if(s.fr&&sn>0)z+=s.fr*s.rz*Math.exp(-Math.pow(ex*3,2))*sn;
+  if(s.bk&&sn<0)z+=s.bk*s.rz*Math.exp(-Math.pow(ex*3,2))*sn;
+  P.push(x,s.y,z);U.push(k/N*2,i/(secs.length-1)*2);}});
+ for(let i=0;i<secs.length-1;i++)for(let k=0;k<N;k++){const q=i*R+k;I.push(q,q+R,q+1,q+1,q+R,q+R+1);}
+ if(cap!==false){for(const [i,top] of [[0,false],[secs.length-1,true]]){const s=secs[i],c0=P.length/3;P.push(s.ox||0,s.y,s.oz||0);U.push(1,i?2:0);for(let k=0;k<N;k++){const q=i*R+k;if(top)I.push(c0,q+1,q);else I.push(c0,q,q+1);}}}
+ const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(P,3));g.setAttribute('uv',new T.Float32BufferAttribute(U,2));g.setIndex(I);g.computeVertexNormals();return g;
+}
+const ARM_BUILD=function(variant){
  const a=new T.Group(),S=M.steel,D=M.steelDark,G=M.goldM;
- // Pedestal de pedra com friso dourado.
+ for(const m of [S,D,G,M.leather,M.woodDark,M.plume])if(m)m.side=T.DoubleSide;
+ const Y=V3(0,1,0);
+ const part=(m,secs,x,y,z,o)=>{o=o||{};const me=new T.Mesh(loftGeo(secs,o.N,o.cap),m);me.position.set(x,y,z);if(o.rx)me.rotation.x=o.rx;if(o.ry)me.rotation.y=o.ry;if(o.rz)me.rotation.z=o.rz;a.add(me);return me;};
+ const partAB=(m,A,B,secs,o)=>{o=o||{};const d=new T.Vector3().subVectors(B,A),L=d.length(),me=new T.Mesh(loftGeo(secs.map(q=>Object.assign({},q,{y:q.t*L})),o.N,o.cap),m);me.position.copy(A);me.quaternion.setFromUnitVectors(Y,d.normalize());a.add(me);return me;};
+ const extrude=(m,shape,depth,bevel,x,y,z,o)=>{o=o||{};const g=new T.ExtrudeGeometry(shape,{depth,bevelEnabled:true,bevelSize:bevel,bevelThickness:bevel,bevelSegments:2,curveSegments:14});g.translate(0,0,-depth/2);const me=new T.Mesh(g,m);me.position.set(x,y,z);if(o.rx)me.rotation.x=o.rx;if(o.ry)me.rotation.y=o.ry;if(o.rz)me.rotation.z=o.rz;a.add(me);return me;};
+ const gem=(m,r,x,y,z,sx,sy,sz)=>{const me=new T.Mesh(new T.IcosahedronGeometry(r,1),m);me.position.set(x,y,z);me.scale.set(sx||1,sy||1,sz||1);a.add(me);return me;};
  box(a,1.0,.2,1.0,M.base,0,.1,0,0,2);box(a,.86,.1,.86,M.trim,0,.25,0,0,2);box(a,.9,.03,.9,G,0,.31,0);
  const yb=.32;
  for(const s of [-1,1]){
   const fx=s*.17;
-  // Botas: casco + biqueira pontuda + 3 lâminas sobrepostas sobre o peito do pé.
-  lathe(a,[[0,0],[.095,0],[.108,.04],[.1,.14],[.085,.2],[0,.2]],S,fx,yb,0,1,1.25);
-  ball(a,.075,S,fx,yb+.06,.14,.95,.7,1.7);
-  for(let i=0;i<3;i++)ball(a,.07-i*.006,D,fx,yb+.075+i*.025,.07+i*.035,1,.28,1.1);
-  // Grevas: perna em dois tubos (canela larga + barra frontal) com nervura.
-  limb(a,V3(fx,yb+.2,0),V3(fx,yb+.6,0),.08,.098,S);
-  box(a,.035,.4,.03,D,fx,yb+.4,.095);
-  // Joelheira: cúpula + disco + espinho.
-  ball(a,.108,S,fx,yb+.66,.025,1.05,.95,1.05);
-  const sp=new T.Mesh(new T.ConeGeometry(.026,.09,8),G);sp.rotation.x=Math.PI/2;sp.position.set(fx,yb+.66,.15);a.add(sp);
-  // Coxotes: placas em anéis encaixados.
-  limb(a,V3(fx,yb+.72,0),V3(fx,yb+1.08,0),.1,.12,S);
+  part(S,[{y:0,rx:.068,rz:.068,n:2.4},{y:.09,rx:.078,rz:.078,n:2.4},{y:.17,rx:.07,rz:.056,oz:-.01,n:2.4},{y:.25,rx:.04,rz:.032,oz:-.02,n:2.4},{y:.3,rx:.006,rz:.008,oz:-.025}],fx,yb+.07,-.09,{rx:Math.PI/2});
+  part(D,[{y:0,rx:.078,rz:.058,n:2.6},{y:.07,rx:.085,rz:.063,n:2.6},{y:.11,rx:.07,rz:.05,n:2.6}],fx,yb+.07,.02,{rx:Math.PI/2,cap:false});
+  part(S,[{y:0,rx:.07,rz:.075,n:2.4},{y:.05,rx:.08,rz:.085,n:2.4},{y:.1,rx:.088,rz:.095,n:2.4}],fx,yb+.12,-.005,{cap:false});
+  partAB(S,V3(fx,yb+.2,0),V3(fx,yb+.62,0),[{t:0,rx:.062,rz:.064,n:2.6,fr:.25},{t:.28,rx:.082,rz:.088,n:2.7,fr:.55,bk:.1},{t:.7,rx:.088,rz:.085,n:2.7,fr:.5},{t:1,rx:.07,rz:.07,n:2.5,fr:.25}]);
+  part(S,[{y:0,rx:.1,rz:.092,n:2.4},{y:.04,rx:.104,rz:.096,n:2.4},{y:.085,rx:.075,rz:.07,n:2.4},{y:.12,rx:.03,rz:.03,n:2.4},{y:.15,rx:.004,rz:.004}],fx,yb+.66,.01,{rx:Math.PI/2});
+  partAB(D,V3(fx+s*.07,yb+.66,.02),V3(fx+s*.19,yb+.7,-.02),[{t:0,rx:.05,rz:.07,n:3},{t:.5,rx:.06,rz:.08,n:3},{t:1,rx:.004,rz:.012,n:3}]);
+  partAB(S,V3(fx,yb+.72,0),V3(fx,yb+1.12,0),[{t:0,rx:.088,rz:.092,n:2.5,fr:.15},{t:.4,rx:.112,rz:.118,n:2.6,fr:.35},{t:1,rx:.122,rz:.126,n:2.5,fr:.15}]);
+  partAB(D,V3(fx,yb+.74,0),V3(fx,yb+.76,0),[{t:0,rx:.094,rz:.098,n:2.5},{t:1,rx:.097,rz:.101,n:2.5}],{cap:false});
  }
- // Tassetes: saia de 4 camadas escalonadas + cinto dourado.
- for(let i=0;i<4;i++){
-  const tc=new T.Mesh(new T.CylinderGeometry(.215+i*.003,.255+i*.012,.15,20,1,true),i%2?D:S);tc.position.y=yb+1.0-i*.065+.1;tc.rotation.x=.04;a.add(tc);
- }
- ring(a,.225,.026,G,0,yb+1.2,0);ball(a,.04,G,0,yb+1.2,.225);
- // Peitoral: casco em duas camadas (ventre + tórax) com quilha central e friso.
- lathe(a,[[.19,0],[.205,.1],[.225,.2],[.235,.3],[.215,.4],[.16,.47],[.115,.5]],S,0,yb+1.2,0,1,.8,22);
- lathe(a,[[.205,0],[.215,.045],[.205,.1]],D,0,yb+1.2,0,1.01,.84,22);
- const keel=box(a,.022,.36,.04,G,0,yb+1.55,.19);keel.rotation.x=-.12;
- for(const s of [-1,1])ball(a,.09,S,s*.095,yb+1.58,.12,1.15,1,.8);
- ring(a,.17,.014,G,0,yb+1.66,.0,Math.PI/2);
- // Gorjal: 3 anéis.
- for(let i=0;i<3;i++)lathe(a,[[.105+i*.006,0],[.115+i*.006,.03]],i%2?D:S,0,yb+1.66+i*.03,0);
- // Ombreiras: 4 lâminas que se sobrepõem, a de cima com aro dourado.
+ for(let i=0;i<4;i++)part(i%2?D:S,[{y:0,rx:.225+i*.012,rz:.175+i*.01,n:2.5},{y:.07,rx:.247+i*.016,rz:.195+i*.012,n:2.5},{y:.13,rx:.262+i*.02,rz:.208+i*.015,n:2.5}],0,yb+1.1-i*.07,0,{cap:false});
+ partAB(S,V3(0,yb+.92,.21),V3(0,yb+1.18,.19),[{t:0,rx:.045,rz:.016,n:3,fr:.6},{t:.5,rx:.07,rz:.02,n:3,fr:.8},{t:1,rx:.09,rz:.018,n:3,fr:.4}]);
+ ring(a,.235,.026,G,0,yb+1.2,0);gem(G,.036,0,yb+1.2,.24);
+ part(S,[{y:0,rx:.19,rz:.15,n:2.4,bk:.1},{y:.12,rx:.215,rz:.165,n:2.5,fr:.08,bk:.12},{y:.25,rx:.245,rz:.185,n:2.6,fr:.14,bk:.15},{y:.36,rx:.272,rz:.205,n:2.8,fr:.36,bk:.15},{y:.46,rx:.268,rz:.19,n:2.8,fr:.3,bk:.1},{y:.53,rx:.21,rz:.15,n:2.5},{y:.575,rx:.13,rz:.115,n:2.3}],0,yb+1.2,0,{cap:false});
+ part(G,[{y:0,rx:.012,rz:.012,oz:.205,n:2},{y:.2,rx:.016,rz:.012,oz:.24,n:2},{y:.36,rx:.012,rz:.012,oz:.255,n:2}],0,yb+1.2,0,{cap:false,N:8});
+ for(const s of [-1,1])part(D,[{y:0,rx:.08,rz:.03,ox:s*.1,oz:.15,n:3},{y:.1,rx:.095,rz:.035,ox:s*.1,oz:.2,n:3},{y:.2,rx:.07,rz:.03,ox:s*.1,oz:.2,n:3}],0,yb+1.43,0,{cap:false,N:14});
+ for(let i=0;i<3;i++)part(i%2?D:S,[{y:0,rx:.095+i*.01,rz:.09+i*.01,n:2.3},{y:.03,rx:.115+i*.012,rz:.108+i*.012,n:2.3},{y:.055,rx:.14+i*.012,rz:.128+i*.012,n:2.3}],0,yb+1.7+i*.032,0,{cap:false});
  for(const s of [-1,1]){
-  for(let i=0;i<4;i++){
-   const sh=new T.Mesh(new T.SphereGeometry(.17-i*.014,16,8,0,Math.PI*2,0,Math.PI*.52),i%2?D:S);
-   sh.position.set(s*(.285+i*.012),yb+1.7-i*.055,0);sh.rotation.z=-s*(.35+i*.06);sh.scale.set(1,.62,1.12);a.add(sh);
-  }
-  const rim=ring(a,.15,.014,G,s*.285,yb+1.7,0,Math.PI/2);rim.rotation.z=-s*.35;rim.rotation.x=Math.PI/2;
+  for(let i=0;i<4;i++){const k=1-i*.1;part(i%2?D:S,[{y:0,rx:.15*k,rz:.14*k,n:2.3},{y:.045,rx:.165*k,rz:.15*k,n:2.3},{y:.1,rx:.125*k,rz:.12*k,n:2.3},{y:.145,rx:.07*k,rz:.07*k,n:2.3},{y:.17,rx:.01,rz:.01,n:2.3}],s*(.27+i*.012),yb+1.66-i*.055,0,{rz:-s*(1.1-i*.05)});}
+  const sp=new T.Mesh(new T.ConeGeometry(.02,.1,6),G);sp.position.set(s*.38,yb+1.8,0);sp.rotation.z=-s*.5;a.add(sp);
  }
- // Braços: braçal, cotoveleira, antebraço com 2 anéis, manoplas.
- const hands=[];
  const W=variant===1?[V3(.52,yb+1.12,.3),V3(-.3,yb+1.02,.16)]:variant===2?[V3(.44,yb+1.1,.26),V3(-.2,yb+1.14,.3)]:[V3(.07,yb+1.17,.35),V3(-.07,yb+1.17,.35)];
  [1,-1].forEach((s,i)=>{
   const sh=V3(s*.31,yb+1.62,0),el=V3(s*(variant===1&&s<0?.4:.37),yb+1.36,.08),wr=W[i];
-  limb(a,sh,el,.062,.054,S);ball(a,.07,S,el.x,el.y,el.z+.015,1,1,1.1);
-  limb(a,el,wr,.058,.048,S);
-  // Manopla: palma + 4 dedos articulados + polegar.
+  partAB(S,sh,el,[{t:0,rx:.056,rz:.058,n:2.3},{t:.45,rx:.07,rz:.068,n:2.5,fr:.2},{t:1,rx:.054,rz:.055,n:2.3}]);
+  part(S,[{y:0,rx:.062,rz:.058,n:2.4},{y:.035,rx:.066,rz:.062,n:2.4},{y:.07,rx:.04,rz:.04,n:2.4},{y:.1,rx:.006,rz:.006}],el.x,el.y,el.z-.02,{rx:-Math.PI/2});
+  partAB(S,el,wr,[{t:0,rx:.052,rz:.05,n:2.3},{t:.35,rx:.064,rz:.06,n:2.5,fr:.32},{t:.85,rx:.05,rz:.05,n:2.4,fr:.2},{t:1,rx:.046,rz:.046,n:2.3}]);
   const hg=new T.Group();hg.position.copy(wr);a.add(hg);
-  box(hg,.075,.06,.085,S,0,0,0,0,1);
-  for(let f=0;f<4;f++)box(hg,.016,.016,.06,D,-.027+f*.018,.012,.07,0,1);
-  box(hg,.016,.016,.04,D,s*.045,-.005,.03,0,1);
-  hands.push(wr);
+  const hpart=(m,A,B,rad0,rad1)=>{const d=new T.Vector3().subVectors(B,A),L=d.length(),me=new T.Mesh(loftGeo([{y:0,rx:rad0,rz:rad0,n:2.2},{y:L*.5,rx:(rad0+rad1)/2*1.1,rz:(rad0+rad1)/2*1.1,n:2.2},{y:L,rx:rad1,rz:rad1,n:2.2}],10,true),m);me.position.copy(A);me.quaternion.setFromUnitVectors(Y,d.normalize());hg.add(me);};
+  hpart(S,V3(0,0,-.02),V3(0,0,.07),.04,.036);
+  for(let f=0;f<4;f++){const fxx=-.027+f*.018;hpart(D,V3(fxx,.008,.06),V3(fxx,.004,.105),.01,.009);hpart(D,V3(fxx,.004,.105),V3(fxx,-.014,.14),.009,.007);}
+  hpart(D,V3(s*.035,-.005,.01),V3(s*.055,-.008,.07),.011,.008);
  });
- // Elmo: casco em 2 peças + viseira com fendas + gola + crista com penacho.
  const hy=yb+1.76;
- lathe(a,[[.118,0],[.128,.05],[.126,.12],[.1,.19],[.055,.23],[0,.245]],S,0,hy,0,1.3,1.36,24);
- lathe(a,[[.131,.0],[.131,.06]],D,0,hy-.0,0,1.3,1.38,24);
- const visor=box(a,.27,.1,.045,D,0,hy+.075,.175,0,1);visor.rotation.x=-.1;
- for(let i=0;i<3;i++)box(a,.2,.012,.012,M.iron,0,hy+.09-i*.0,.2,0,1).position.y=hy+.1-i*.02;
- for(const s of [-1,1]){const ch=box(a,.05,.14,.2,S,s*.145,hy+.0,.1,0,1);ch.rotation.y=-s*.18;}
- const chin=box(a,.2,.08,.055,D,0,hy-.03,.17,0,1);chin.rotation.x=.25;
- ring(a,.165,.013,G,0,hy+.01,0);
- box(a,.035,.085,.4,G,0,hy+.28,0,0,1);
- // Penacho caindo para trás: 5 gomos.
- for(let i=0;i<5;i++)ball(a,.05-i*.003,M.plume,0,hy+.3-i*.045,-.17-i*.06,.8,1.2,1.1);
- // Arma (muda por variante).
+ part(S,[{y:0,rx:.112,rz:.122,n:2.2},{y:.06,rx:.126,rz:.138,n:2.3},{y:.13,rx:.122,rz:.134,n:2.3},{y:.19,rx:.1,rz:.114,oz:-.01,n:2.3},{y:.235,rx:.06,rz:.08,oz:-.02,n:2.3},{y:.268,rx:.02,rz:.03,oz:-.03,n:2.3},{y:.28,rx:.003,rz:.004,oz:-.032}],0,hy,0);
+ part(D,[{y:0,rx:.1,rz:.075,n:2.5},{y:.06,rx:.092,rz:.07,n:2.5},{y:.12,rx:.062,rz:.055,n:2.4},{y:.165,rx:.03,rz:.036,n:2.4},{y:.18,rx:.004,rz:.006}],0,hy+.055,.07,{rx:Math.PI/2});
+ for(let i=0;i<3;i++)box(a,.17-i*.02,.01,.012,M.iron,0,hy+.095-i*.022,.185-i*.012,0,1);
+ for(const s of [-1,1])partAB(S,V3(s*.118,hy+.07,.0),V3(s*.1,hy-.1,.08),[{t:0,rx:.016,rz:.075,n:3},{t:.6,rx:.02,rz:.085,n:3,fr:.3},{t:1,rx:.012,rz:.04,n:3}]);
+ part(D,[{y:0,rx:.098,rz:.108,n:2.3},{y:.05,rx:.12,rz:.13,n:2.3},{y:.1,rx:.145,rz:.155,n:2.3}],0,hy-.085,0,{cap:false});
+ ring(a,.14,.013,G,0,hy+.025,0);
+ part(G,[{y:-.15,rx:.014,rz:.01,n:3},{y:-.07,rx:.014,rz:.04,n:3},{y:.06,rx:.014,rz:.062,n:3},{y:.16,rx:.014,rz:.045,n:3},{y:.2,rx:.012,rz:.012,n:3}],0,hy+.215,0,{rx:Math.PI/2,N:12});
+ for(let i=0;i<3;i++)partAB(M.plume,V3(0,hy+.27,-.12-i*.02),V3((i-1)*.03,hy+.06-i*.04,-.4-i*.04),[{t:0,rx:.016,rz:.04,n:2.6},{t:.45,rx:.026,rz:.07,n:2.6},{t:1,rx:.004,rz:.01,n:2.6}]);
  if(variant===0){
-  // Espada fincada no pedestal, mãos no punho.
-  const bz=.35;box(a,.07,1.05,.014,S,0,yb+.55,bz,0,1);box(a,.014,1.0,.016,D,0,yb+.55,bz+.004,0,1);
-  const tip=new T.Mesh(new T.ConeGeometry(.0495,.14,4),S);tip.rotation.y=Math.PI/4;tip.scale.set(1,1,.2);tip.position.set(0,yb-.02,bz);tip.rotation.x=Math.PI;a.add(tip);
-  box(a,.34,.03,.04,G,0,yb+1.1,bz,0,1);ball(a,.032,G,.17,yb+1.1,bz);ball(a,.032,G,-.17,yb+1.1,bz);
-  limb(a,V3(0,yb+1.12,bz),V3(0,yb+1.3,bz),.022,.022,M.leather,8);ball(a,.04,G,0,yb+1.33,bz);
+  const bz=.35;
+  part(S,[{y:0,rx:.003,rz:.003,n:1.3},{y:.1,rx:.026,rz:.0065,n:1.2},{y:.5,rx:.034,rz:.0075,n:1.2},{y:1.05,rx:.036,rz:.008,n:1.2}],0,yb+.05,bz,{N:8});
+  part(D,[{y:.1,rx:.006,rz:.0095,n:2},{y:.55,rx:.007,rz:.0098,n:2},{y:1.0,rx:.006,rz:.0092,n:2}],0,yb+.05,bz,{N:8});
+  part(G,[{y:0,rx:.012,rz:.012,n:2.2},{y:.06,rx:.016,rz:.02,n:2.2},{y:.14,rx:.022,rz:.024,n:2.2},{y:.24,rx:.022,rz:.024,n:2.2},{y:.3,rx:.016,rz:.02,n:2.2},{y:.34,rx:.012,rz:.012,n:2.2}],.17,yb+1.1,bz,{rz:Math.PI/2,N:10});
+  part(M.leather,[{y:0,rx:.02,rz:.02},{y:.06,rx:.024,rz:.024},{y:.12,rx:.02,rz:.02},{y:.19,rx:.024,rz:.024},{y:.22,rx:.018,rz:.018}],0,yb+1.12,bz,{N:10});
+  gem(G,.04,0,yb+1.36,bz);
  }else if(variant===1){
-  // Alabarda: haste de madeira com anéis, lâmina em meia-lua, ponta e gancho.
-  const px=.52,pz=.3;limb(a,V3(px,yb,pz),V3(px,yb+2.35,pz),.022,.022,M.woodDark,8);
-  for(const yy of [.6,1.3,2.0])ring(a,.026,.01,G,px,yb+yy,pz,Math.PI/2);
-  const sp=new T.Mesh(new T.ConeGeometry(.04,.34,4),S);sp.position.set(px,yb+2.5,pz);sp.rotation.y=Math.PI/4;sp.scale.set(1,1,.35);a.add(sp);
-  const blade=new T.Mesh(new T.CylinderGeometry(.22,.22,.025,20,1,false,Math.PI*.1,Math.PI*.8),S);blade.rotation.set(Math.PI/2,0,-Math.PI/2);blade.position.set(px+.1,yb+2.15,pz);a.add(blade);
-  box(a,.03,.2,.015,D,px-.03,yb+2.15,pz,0,1);const hook=box(a,.03,.14,.02,S,px-.07,yb+2.2,pz,0,1);hook.rotation.z=.5;
-  ball(a,.035,G,px,yb+2.3,pz);
+  const px=.52,pz=.3;
+  part(M.woodDark,[{y:0,rx:.02,rz:.02},{y:.8,rx:.024,rz:.024},{y:1.6,rx:.022,rz:.022},{y:2.35,rx:.021,rz:.021}],px,yb,pz,{N:10});
+  for(const yy of [.6,1.3,2.0])part(G,[{y:0,rx:.03,rz:.03},{y:.025,rx:.034,rz:.034},{y:.05,rx:.03,rz:.03}],px,yb+yy,pz,{N:10});
+  part(S,[{y:0,rx:.03,rz:.03,n:2},{y:.05,rx:.034,rz:.012,n:1.3},{y:.2,rx:.05,rz:.012,n:1.2},{y:.3,rx:.012,rz:.006,n:1.2},{y:.34,rx:.002,rz:.002}],px,yb+2.34,pz,{N:10});
+  const sh=new T.Shape();sh.moveTo(0,0);sh.bezierCurveTo(.3,.01,.36,.26,.05,.38);sh.bezierCurveTo(.2,.24,.16,.1,0,.1);sh.lineTo(0,0);
+  extrude(S,sh,.014,.006,px,yb+1.9,pz,{});
+  const hk=new T.Shape();hk.moveTo(0,0);hk.lineTo(-.12,.04);hk.lineTo(-.14,.14);hk.lineTo(-.09,.1);hk.lineTo(0,.1);hk.lineTo(0,0);
+  extrude(S,hk,.014,.005,px,yb+2.08,pz,{});
+  gem(G,.035,px,yb+2.3,pz);
  }else{
-  // Escudo de brasão (camadas) + maça de cabeça com espigões.
   const sx=-.34,sz=.28;
-  const shield=new T.Mesh(new T.CylinderGeometry(.27,.1,.05,6,1),S);shield.rotation.set(Math.PI/2,0,0);shield.scale.set(1,1,1.5);shield.position.set(sx,yb+1.2,sz);a.add(shield);
-  const sh2=shield.clone();sh2.material=D;sh2.scale.set(.82,1,1.28);sh2.position.z=sz+.03;a.add(sh2);
-  box(a,.06,.4,.02,G,sx,yb+1.2,sz+.062,0,1);box(a,.3,.06,.02,G,sx,yb+1.28,sz+.062,0,1);
-  ball(a,.045,G,sx,yb+1.28,sz+.075);
-  limb(a,V3(.44,yb+.45,.26),V3(.44,yb+1.3,.26),.02,.02,M.woodDark,8);
-  ball(a,.07,S,.44,yb+1.36,.26);
-  for(let i=0;i<8;i++){const t=i/8*Math.PI*2,sp=new T.Mesh(new T.ConeGeometry(.018,.07,6),D);sp.position.set(.44+Math.cos(t)*.07,yb+1.36,.26+Math.sin(t)*.07);sp.rotation.z=-Math.cos(t)*Math.PI/2;sp.rotation.x=Math.sin(t)*Math.PI/2;a.add(sp);}
-  const top=new T.Mesh(new T.ConeGeometry(.02,.08,6),D);top.position.set(.44,yb+1.46,.26);a.add(top);
+  const hs=new T.Shape();hs.moveTo(-.21,.3);hs.lineTo(.21,.3);hs.lineTo(.21,.08);hs.bezierCurveTo(.2,-.12,.08,-.27,0,-.34);hs.bezierCurveTo(-.08,-.27,-.2,-.12,-.21,.08);hs.closePath();
+  extrude(S,hs,.03,.014,sx,yb+1.2,sz,{rx:-.08,ry:.25});
+  const hs2=new T.Shape();hs2.moveTo(-.15,.22);hs2.lineTo(.15,.22);hs2.lineTo(.15,.07);hs2.bezierCurveTo(.14,-.08,.06,-.18,0,-.24);hs2.bezierCurveTo(-.06,-.18,-.14,-.08,-.15,.07);hs2.closePath();
+  extrude(D,hs2,.02,.01,sx,yb+1.2,sz+.03,{rx:-.08,ry:.25});
+  gem(G,.05,sx+.012,yb+1.22,sz+.075,1,1,.7);
+  part(G,[{y:-.17,rx:.013,rz:.007,n:3},{y:.17,rx:.013,rz:.007,n:3}],sx+.012,yb+1.2,sz+.062,{N:6});
+  part(G,[{y:-.12,rx:.011,rz:.007,n:3},{y:.12,rx:.011,rz:.007,n:3}],sx+.012,yb+1.26,sz+.062,{rz:Math.PI/2,N:6});
+  part(M.woodDark,[{y:0,rx:.02,rz:.02},{y:.4,rx:.024,rz:.024},{y:.85,rx:.021,rz:.021}],.44,yb+.45,.26,{N:10});
+  gem(S,.075,.44,yb+1.37,.26);
+  for(let i=0;i<10;i++){const t=i/10*Math.PI*2,sp=new T.Mesh(new T.ConeGeometry(.016,.075,5),D);sp.position.set(.44+Math.cos(t)*.075,yb+1.37+Math.sin(t*3)*.03,.26+Math.sin(t)*.075);sp.rotation.z=-Math.cos(t)*Math.PI/2;sp.rotation.x=Math.sin(t)*Math.PI/2;a.add(sp);}
+  const top=new T.Mesh(new T.ConeGeometry(.02,.1,6),D);top.position.set(.44,yb+1.48,.26);a.add(top);
  }
-
- const ink=new T.MeshBasicMaterial({color:'#2a2038',side:T.BackSide});const parts=[];a.traverse(o=>{if(o.isMesh)parts.push(o);});
- for(const m of parts){const o=new T.Mesh(m.geometry,ink);o.position.copy(m.position);o.quaternion.copy(m.quaternion);o.scale.copy(m.scale).multiplyScalar(1.09);m.parent.add(o);}
- return a;
-}
+ a.updateMatrixWorld(true);const buckets=new Map(),inkList=[];
+ a.traverse(o=>{if(!o.isMesh)return;let g=o.geometry.index?o.geometry.toNonIndexed():o.geometry.clone();g.applyMatrix4(o.matrixWorld);if(!g.attributes.normal)g.computeVertexNormals();if(!g.attributes.uv)g.setAttribute('uv',new T.BufferAttribute(new Float32Array(g.attributes.position.count*2),2));
+  if(!buckets.has(o.material))buckets.set(o.material,[]);buckets.get(o.material).push(g);
+  const gi=g.clone(),p=gi.attributes.position,n=gi.attributes.normal;for(let i=0;i<p.count;i++)p.setXYZ(i,p.getX(i)+n.getX(i)*.0075,p.getY(i)+n.getY(i)*.0075,p.getZ(i)+n.getZ(i)*.0075);inkList.push(gi);});
+ const out=new T.Group(),mergeG=list=>{let n=0;for(const g of list)n+=g.attributes.position.count;const P=new Float32Array(n*3),N=new Float32Array(n*3),U=new Float32Array(n*2);let off=0;for(const g of list){P.set(g.attributes.position.array,off*3);N.set(g.attributes.normal.array,off*3);U.set(g.attributes.uv.array.subarray(0,g.attributes.position.count*2),off*2);off+=g.attributes.position.count;}const r=new T.BufferGeometry();r.setAttribute('position',new T.BufferAttribute(P,3));r.setAttribute('normal',new T.BufferAttribute(N,3));r.setAttribute('uv',new T.BufferAttribute(U,2));r.computeBoundingSphere();return r;};
+ for(const [m,list] of buckets){const me=new T.Mesh(mergeG(list),m);me.castShadow=true;me.receiveShadow=true;out.add(me);}
+ const ink=new T.MeshBasicMaterial({color:'#2a2038',side:T.BackSide});out.add(new T.Mesh(mergeG(inkList),ink));
+ return out;
+};
+const ARM_CACHE={};
+function armorModel(variant){return (ARM_CACHE[variant]||(ARM_CACHE[variant]=ARM_BUILD(variant))).clone();}
 
 // ---------- Vida do castelo: chamas, raios de luz, poeira e tapeçarias ----------
 const LIFE={flames:[],shafts:[],dust:[],t0:performance.now()};

@@ -936,7 +936,7 @@ function install(){
   }
   let tex=new T.CanvasTexture(cv);tex.wrapS=tex.wrapT=T.RepeatWrapping;tex.colorSpace=T.SRGBColorSpace;
   let pbump=null;
-  if(window.arcanoTex){const ct=window.arcanoTex.cobble({hue:34,sat:24,l0:54,l1:74,seed:77,n:7});tex=ct.map;pbump=ct.bump;}
+  if(window.arcanoTex){const ct=window.arcanoTex.cobble({hue:34,sat:24,l0:54,l1:74,seed:77,n:8,style:'setts'});tex=ct.map;pbump=ct.bump;}
   tex.repeat.set(CITY_R/1.5,CITY_R/1.5);tex.anisotropy=4;if(pbump){pbump.repeat.copy(tex.repeat);}
   const ring=new T.RingGeometry(CASTLE_R+27,CITY_R-1.2,128,6);ring.rotateX(-Math.PI/2);
   const ruv=ring.attributes.uv,rp=ring.attributes.position;

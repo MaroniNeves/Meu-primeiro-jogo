@@ -71,13 +71,13 @@ function cobble(o){
  const hue=o.hue!=null?o.hue:36,sat=o.sat!=null?o.sat:22,l0=o.l0!=null?o.l0:44,l1=o.l1!=null?o.l1:66;
  const cm=mk(S),ch=mk(S),g=cm.getContext('2d'),h=ch.getContext('2d');
  g.fillStyle=o.dirt||`hsl(${hue+4},${sat-4}%,${l0-24}%)`;g.fillRect(0,0,S,S);h.fillStyle='#505050';h.fillRect(0,0,S,S);
- const c=S/n,pts=[];
- for(let j=0;j<n;j++)for(let i=0;i<n;i++)pts.push([(i+.5+(R()-.5)*.35)*c,(j+.5+(R()-.5)*.35)*c,c*(.40+R()*.08),c*(.34+R()*.09),R()*Math.PI]);
+ const style=o.style||'round',c=S/n,pts=[];
+ for(let j=0;j<n;j++)for(let i=0;i<n;i++){const stag=style==='setts'?(j%2?.5:0):0,big=style==='rubble'?.62+R()*.5:1,jit=style==='setts'?.08:.35;pts.push([(i+.5+stag+(R()-.5)*jit)*c,(j+.5+(R()-.5)*jit)*c,c*(style==='setts'?.47:style==='flag'?.48:.40+R()*.08)*big,c*(style==='setts'?.3:style==='flag'?.4:.34+R()*.09)*big,style==='setts'?0:style==='flag'?(R()-.5)*.25:R()*Math.PI]);}
  // pedras maiores primeiro; cada uma é desenhada nas 9 posições de ladrilho para repetir sem emenda
  for(const [x,y,rx,ry,a] of pts){
-  const wob=[];for(let k=0;k<10;k++)wob.push(.9+R()*.2);
+  const NP=style==='rubble'?7:(style==='flag'||style==='setts')?4:10,wob=[];for(let k=0;k<NP;k++)wob.push(style==='rubble'?.62+R()*.5:(style==='flag'||style==='setts')?.9+R()*.18:.9+R()*.2);
   const L=l0+R()*(l1-l0),H=hue+(R()-.5)*18,Sa=sat+(R()-.5)*12;
-  const path=(gg,ox,oy,sc)=>{gg.beginPath();for(let k=0;k<=10;k++){const t=k/10*Math.PI*2,r=wob[k%10]*sc,px=Math.cos(t)*rx*r,py=Math.sin(t)*ry*r;gg[k?'lineTo':'moveTo'](x+ox+px*Math.cos(a)-py*Math.sin(a),y+oy+px*Math.sin(a)+py*Math.cos(a));}gg.closePath();};
+  const path=(gg,ox,oy,sc)=>{gg.beginPath();for(let k=0;k<=NP;k++){const t=k/NP*Math.PI*2+((style==='flag'||style==='setts')?Math.PI/4:0),r=wob[k%NP]*sc*((style==='flag'||style==='setts')?1.35:1),px=Math.cos(t)*rx*r,py=Math.sin(t)*ry*r;gg[k?'lineTo':'moveTo'](x+ox+px*Math.cos(a)-py*Math.sin(a),y+oy+px*Math.sin(a)+py*Math.cos(a));}gg.closePath();};
   for(const ox of [-S,0,S])for(const oy of [-S,0,S]){
    if(x+ox<-c||x+ox>S+c||y+oy<-c||y+oy>S+c)continue;
    const gr=g.createRadialGradient(x+ox-rx*.25,y+oy-ry*.35,2,x+ox,y+oy,Math.max(rx,ry));
