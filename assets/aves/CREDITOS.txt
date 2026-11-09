@@ -1,0 +1,4 @@
+Modelos de aves por Quaternius — licença Public Domain (CC0), obtidos em Poly Pizza:
+- passaro.glb  — "Bird"    https://poly.pizza/m/gYYC0gYMnw  (sem animação; pose de voo)
+- pombo.glb    — "Pigeon"  https://poly.pizza/m/9NGlBTpDEr  (animações: Idle, Walk, Jump, Bite_Front, Dance, Death, HitRecieve, No, Yes)
+- galinha.glb  — "Chicken" https://poly.pizza/m/ineV9pU5VL  (mesmas animações do pombo)

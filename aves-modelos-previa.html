@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><title>Aves Quaternius</title>
+<style>
+html,body{margin:0;height:100%;background:#bfe0f2;overflow:hidden;font-family:system-ui,sans-serif;touch-action:none}
+canvas{display:block;width:100%;height:100%}
+#ui{position:fixed;left:10px;top:10px;right:10px;display:flex;flex-wrap:wrap;gap:6px;pointer-events:none}
+#ui>*{pointer-events:auto}
+.b{font:600 13px system-ui;border:1px solid #2a4a2a55;background:#ffffffd0;color:#173017;border-radius:999px;padding:6px 12px;cursor:pointer}
+.b.on{background:#2f6a3a;color:#fff}
+#hint{position:fixed;left:10px;bottom:10px;font:12px system-ui;color:#123;background:#ffffffb0;padding:4px 10px;border-radius:8px}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js"}}</script>
+</head>
+<body><div id="ui"></div><div id="hint">Modelos: Quaternius (CC0) via Poly Pizza · Arraste: girar · Roda/pinça: zoom</div>
+<script type="module">
+import * as THREE from 'three';
+import {GLTFLoader} from 'https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/loaders/GLTFLoader.js';
+const MODELS=[{id:'passaro',nome:'Pássaro (gaio)',alt:.16},{id:'pombo',nome:'Pombo',alt:.22},{id:'galinha',nome:'Galinha',alt:.4}];
+const NOMES={Idle:'Parado',Walk:'Andar',Jump:'Pular',Bite_Front:'Bicar',Dance:'Dançar',Death:'Morrer',HitRecieve:'Levar golpe',No:'Não',Yes:'Sim'};
+const q=new URLSearchParams(location.search);
+const r=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});r.setPixelRatio(Math.min(2,devicePixelRatio));r.shadowMap.enabled=true;r.outputColorSpace=THREE.SRGBColorSpace;document.body.appendChild(r.domElement);
+const sc=new THREE.Scene();sc.background=new THREE.Color('#bfe0f2');
+sc.add(new THREE.HemisphereLight('#eef6ff','#7a8a60',1.1));
+const sun=new THREE.DirectionalLight('#fff3dc',2.2);sun.position.set(1,2,1.5);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-1,right:1,top:1,bottom:-1,near:.1,far:6});sc.add(sun);
+const gr=new THREE.Mesh(new THREE.CircleGeometry(8,48),new THREE.MeshStandardMaterial({color:'#6fa84e',roughness:1}));gr.rotation.x=-Math.PI/2;gr.receiveShadow=true;sc.add(gr);
+const cam=new THREE.PerspectiveCamera(30,1,.01,50);
+const st={anim:q.get('a')||'Idle',rot:q.get('rot')!=='0',yaw:+(q.get('yaw')||.5),pitch:+(q.get('pitch')||.25),dist:+(q.get('d')||1.6)};
+const loader=new GLTFLoader(),items=[];window.__items=items;window.__cam=cam;
+MODELS.forEach((m,i)=>{loader.load('./assets/aves/'+m.id+'.glb',g=>{
+ const o=g.scene;o.traverse(n=>{if(n.isMesh){n.castShadow=true;n.receiveShadow=true;n.frustumCulled=false;}});
+ o.updateMatrixWorld(true);const box=new THREE.Box3().setFromObject(o),h=box.max.y-box.min.y,s=m.alt/h;o.scale.setScalar(s);o.updateMatrixWorld(true);
+ const b2=new THREE.Box3().setFromObject(o);o.position.y-=b2.min.y;
+ const holder=new THREE.Group();holder.add(o);holder.position.x=(i-1)*.5;sc.add(holder);
+ const mixer=g.animations.length?new THREE.AnimationMixer(o):null,clips={};
+ g.animations.forEach(c=>{clips[c.name.split('|').pop()]=c;});
+ items.push({m,o,mixer,clips,cur:null});play();ui();});});
+function play(){for(const it of items){if(!it.mixer)continue;const c=it.clips[st.anim]||it.clips.Idle;if(it.cur&&it.cur._clip===c)continue;if(it.cur)it.cur.fadeOut(.2);it.cur=it.mixer.clipAction(c);it.cur.reset().fadeIn(.2).play();}}
+function ui(){const u=document.getElementById('ui');u.innerHTML='';
+ const names=new Set();items.forEach(it=>Object.keys(it.clips).forEach(n=>names.add(n)));
+ for(const n of names){const b=document.createElement('button');b.className='b'+(st.anim===n?' on':'');b.textContent=NOMES[n]||n;b.onclick=()=>{st.anim=n;play();ui();};u.appendChild(b);}
+ const b=document.createElement('button');b.className='b'+(st.rot?' on':'');b.textContent=st.rot?'Girar: ligado':'Girar: desligado';b.onclick=()=>{st.rot=!st.rot;ui();};u.appendChild(b);}
+function size(){r.setSize(innerWidth,innerHeight);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();}
+addEventListener('resize',size);size();
+const el=r.domElement,P=new Map();
+el.addEventListener('pointerdown',e=>{el.setPointerCapture(e.pointerId);P.set(e.pointerId,{x:e.clientX,y:e.clientY});});
+el.addEventListener('pointerup',e=>P.delete(e.pointerId));
+el.addEventListener('pointermove',e=>{const p=P.get(e.pointerId);if(!p)return;const dx=e.clientX-p.x,dy=e.clientY-p.y;p.x=e.clientX;p.y=e.clientY;
+ if(P.size===2)return;st.yaw-=dx*.008;st.pitch=Math.max(-.2,Math.min(1.4,st.pitch+dy*.006));});
+el.addEventListener('wheel',e=>{e.preventDefault();st.dist=Math.max(.2,Math.min(8,st.dist*Math.exp(e.deltaY*.001)));},{passive:false});
+const clock=new THREE.Clock();
+(function loop(){requestAnimationFrame(loop);const dt=clock.getDelta();if(st.rot&&!P.size)st.yaw+=dt*.3;items.forEach(it=>it.mixer&&it.mixer.update(dt));
+ const cp=Math.cos(st.pitch);cam.position.set(Math.sin(st.yaw)*cp*st.dist,.12+Math.sin(st.pitch)*st.dist,Math.cos(st.yaw)*cp*st.dist);cam.lookAt(0,.12,0);r.render(sc,cam);})();
+</script></body></html>
