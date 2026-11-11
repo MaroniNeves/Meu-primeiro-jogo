@@ -153,12 +153,12 @@ function leafGeos(ctx,kind,w,h,side){const key=kind+w.toFixed(2)+h.toFixed(2)+si
  const r={wood:mergeGeos(fl,1/1.4),glass:mergeGeos(glass,1)};ctx.cache[key]=r;return r;}
 /* cria as duas folhas articuladas na posição atual (x,y,z na moldura corrente) */
 function addLeaves(B,ctx,M,kind,x,y,z,w,h,dir,maxA){
- const m=B.mat().multiply(new T.Matrix4().makeTranslation(x,y,z));const base=new T.Group();m.decompose(base.position,base.quaternion,base.scale);ctx.root.add(base);
+ const m=B.mat().multiply(new T.Matrix4().makeTranslation(x,y,z));const base=new T.Group();m.decompose(base.position,base.quaternion,base.scale);ctx.root.add(base);const id=ctx.n=(ctx.n||0)+1;
  for(const side of[-1,1]){const hinge=new T.Group();hinge.position.set(side*w/2,0,0);base.add(hinge);const pivot=new T.Group();hinge.add(pivot);
   const gs=leafGeos(ctx,kind,w,h,side);
-  const wm=new T.Mesh(gs.wood,kind==='door'?M.sashDoor:M.sashWood);wm.castShadow=true;wm.receiveShadow=true;pivot.add(wm);
-  if(gs.glass){const gl=new T.Mesh(gs.glass,M.sashGlass);gl.receiveShadow=true;pivot.add(gl);}
-  ctx.list.push({kind,pivot,side,dir,max:maxA,open:0,tgt:0});}}
+  const wm=new T.Mesh(gs.wood,kind==='door'?M.sashDoor:M.sashWood);wm.castShadow=true;wm.receiveShadow=true;wm.userData.openId=id;pivot.add(wm);
+  if(gs.glass){const gl=new T.Mesh(gs.glass,M.sashGlass);gl.receiveShadow=true;gl.userData.openId=id;pivot.add(gl);}
+  ctx.list.push({kind,id,pivot,side,dir,max:maxA,open:0,tgt:0});}}
 function wallPanel(B,w,H,holes,t){const sh=new T.Shape();sh.moveTo(-w/2,0);sh.lineTo(w/2,0);sh.lineTo(w/2,H);sh.lineTo(-w/2,H);sh.lineTo(-w/2,0);
  for(const hl of holes){const p=new T.Path(),x0=hl.cx-hl.w/2,x1=hl.cx+hl.w/2;
   if(hl.rect){p.moveTo(x0,hl.y0);p.lineTo(x1,hl.y0);p.lineTo(x1,hl.y0+hl.h);p.lineTo(x0,hl.y0+hl.h);p.lineTo(x0,hl.y0);}
@@ -260,13 +260,14 @@ function spire(B,S,R,Hh,p,y0,sides){
  const n=sides||8;for(let k=0;k<n;k++){const a=k*TAU/n;let prev=null;for(let i=0;i<=14;i++){const t=i/14,r=R*Math.pow(1-t,p),y=Hh*t;if(prev){const dx=r-prev.r,dy=y-prev.y,L=Math.hypot(dx,dy);B.add('timber',new T.BoxGeometry(.11,L+.03,.13),Math.sin(a)*(r+prev.r)/2,y0+(y+prev.y)/2,Math.cos(a)*(r+prev.r)/2,a,{rx:Math.atan2(dx,dy)});}prev={r,y};}}
  B.add('cap',new T.ConeGeometry(.16,.7,8),0,y0+Hh+.3,0,0);B.add('cap',new T.SphereGeometry(.14,8,6),0,y0+Hh+.72,0,0);}
 
-/* lucarna (mini-empena com janela) sobre o telhado */
-function dormer(B,S,x,yRoof,z,ry,w){B.push(x,yRoof,z,ry);
- B.box('plaster',w,w*.95,.5,0,w*.47,-.1);
+/* lucarna (mini-empena) com janela que abre */
+function dormer(B,S,x,yRoof,z,ry,w,ctx,M){B.push(x,yRoof,z,ry);
+ const ww=w*.56,hh=w*.72;
+ B.push(0,0,.15,0);wallPanel(B,w,w*.95,[{cx:0,y0:.12,w:ww,h:hh}],.3);
+ if(ctx)windowArch(B,S,0,.12,0,ww,hh,{ctx,M});else B.add('glass',archGeo(ww,hh,.04),0,.12,-.1,0);
+ B.pop();
  B.box('timber',.18,w*.95,.2,-w/2,w*.47,.1);B.box('timber',.18,w*.95,.2,w/2,w*.47,.1);
  B.box('timberH',w+.15,.16,.22,0,.02,.1);
- B.add('glass',new T.BoxGeometry(w*.56,w*.5,.05),0,w*.42,.16,0);B.box('timber',.05,w*.5,.06,0,w*.42,.2);B.box('timber',w*.56,.05,.06,0,w*.42,.2);
- // telhadinho
  const sh=new T.Shape();sh.moveTo(-w*.68,0);sh.lineTo(w*.68,0);sh.lineTo(0,w*.62);sh.lineTo(-w*.68,0);
  const g=new T.ExtrudeGeometry(sh,{depth:w*1.0,bevelEnabled:false});B.add('roof',g,0,w*.92,-w*.8,0,{us:.5,vs:.5,keepUV:true});
  B.pop();}
@@ -378,41 +379,55 @@ function build(o){o=o||{};
   B.push(0,0,zf-.05,0);
   {const sh=new T.Shape(),y0=wallTop-.4,prof=[];for(let i=0;i<=18;i++){const dd=Dc*i/18;prof.push([dd,yprof(dd,Dc,Hrc,1.55)]);}
    sh.moveTo(-sc,y0);sh.lineTo(sc,y0);for(let i=18;i>=0;i--){const [dd,y]=prof[i];if(dd<=sc+1e-6)sh.lineTo(dd,baseC+y-.2);}for(let i=1;i<=18;i++){const [dd,y]=prof[i];if(dd<=sc+1e-6)sh.lineTo(-dd,baseC+y-.2);}
+   {const hp=new T.Path(),gx=.4,gy=wallTop+.15,gh=1.0;hp.moveTo(-gx,gy);hp.lineTo(gx,gy);hp.lineTo(gx,gy+gh-gx);hp.absarc(0,gy+gh-gx,gx,0,PI,false);hp.lineTo(-gx,gy);sh.holes.push(hp);}
    B.add('plaster',new T.ExtrudeGeometry(sh,{depth:.16,bevelEnabled:false}),0,0,-.06,0);
    B.box('timber',.22,Hrc*.8,.2,0,wallTop+Hrc*.35,.14);B.box('timberH',sc*2,.22,.2,0,wallTop-.1,.14);
    for(const sg of[-1,1])B.box('timber',.16,Hrc*.55,.16,sg*sc*.5,wallTop+Hrc*.25,.14,0,{rz:-sg*.7});
-   windowArch(B,S,0,wallTop+.15,.12,.8,1.0,{});
+   windowArch(B,S,0,wallTop+.15,.12,.8,1.0,{ctx,M});
    ivy(B,R,0,wallTop+Hrc*.85,.3,3.2,2.2,119,1,0);}
   B.pop();
  }
- // ---- torre octogonal no canto (maciça)
- if(tower){const r=o.towerR||1.9,tx=towerSide*(W/2+.2),tz=D/2-.5,th=H+1.1,sides=8;
+ // ---- torre octogonal no canto (oca, com janelas e porta que abrem)
+ if(tower){const r=o.towerR||1.9,tx=towerSide*(W/2+.2),tz=D/2-.5,th=H+1.1,sides=8,ap=r*Math.cos(PI/sides),fw=2*r*Math.sin(PI/sides);
   B.push(tx,0,tz,0);
   B.add('stone',new T.CylinderGeometry(r+.3,r+.35,Y0,sides),0,Y0/2,0,0);
-  B.add('plaster',new T.CylinderGeometry(r,r,th,sides),0,Y0+th/2,0,0);
+  for(let k=0;k<sides;k++){const a=(k+.5)*TAU/sides,nx=Math.sin(a),nz=Math.cos(a),toHouse=nx*towerSide<-.5,front=k===(towerSide>0?7:0);
+   const holes=[],wins=[];
+   if(!toHouse&&!front&&nz>-.5)for(let f=0;f<floors;f++){holes.push({cx:0,y0:f*fh+.9,w:.9,h:1.6});wins.push(f);}
+   if(front)holes.push({cx:0,y0:.04,w:.95,h:2.1});
+   B.push(nx*ap,Y0,nz*ap,a);wallPanel(B,fw,th,holes,.3);
+   for(const f of wins)windowArch(B,S,0,f*fh+.9,.14,.9,1.6,{ctx,M});
+   if(front){B.add('timber',archFrame(.95,2.1,.16,.26),0,.04,.04);addLeaves(B,ctx,M,'door',0,.04,-.15,.95,2.1,1,1.75);}
+   B.pop();}
   for(let k=0;k<sides;k++){const a=k*TAU/sides;B.box('timber',.3,th,.3,Math.sin(a)*(r+.02),Y0+th/2,Math.cos(a)*(r+.02),a);}
   for(let f=0;f<=floors;f++)B.add('timberH',new T.CylinderGeometry(r+.16,r+.16,.28,sides),0,Y0+f*fh+.1,0,0);
   B.add('timberH',new T.CylinderGeometry(r+.34,r+.2,.34,sides),0,Y0+th,0,0);
-  for(let k=0;k<sides;k++){const a=(k+.5)*TAU/sides;if(Math.abs(Math.sin(a))>.9&&Math.cos(a)<0)continue;
-   for(let f=0;f<floors;f++){B.push(Math.sin(a)*(r*.93),Y0+f*fh+.9,Math.cos(a)*(r*.93),a);windowArch(B,S,0,0,.0,.95,1.7,{});B.pop();}}
+  for(let f=0;f<floors;f++)B.add('plank',new T.CylinderGeometry(r-.25,r-.25,.2,sides),0,Y0+f*fh-.05,0,0);
+  B.add('ceil',new T.CylinderGeometry(r-.25,r-.25,.2,sides),0,Y0+th-.25,0,0);
+  B.add('cloth',new T.CylinderGeometry(.9,.9,.04,16),0,Y0+.14,0,0,{color:col('#b44a3e')});
+  B.add('lamp',new T.SphereGeometry(.15,10,8),0,Y0+fh-.8,0,0);
   spire(B,S,r*1.62,4.9,1.6,Y0+th+.2,sides);
-  for(const a of[0,PI/2,-PI/2]){const rr=r*1.62*Math.pow(1-.3,1.6),yy=Y0+th+.2+4.9*.3;dormer(B,S,Math.sin(a)*rr*.98,yy,Math.cos(a)*rr*.98,a,.8);}
+  for(const a of[0,PI/2,-PI/2]){const rr=r*1.62*Math.pow(1-.3,1.6),yy=Y0+th+.2+4.9*.3;dormer(B,S,Math.sin(a)*rr*.98,yy,Math.cos(a)*rr*.98,a,.8,ctx,M);}
   ivy(B,R,0,Y0+th-.2,r+.2,2.6,3.4,102,1,0.0);ivy(B,R,0,Y0+th-.2,r+.2,2.6,3.4,102,1,PI/4);
   B.pop();}
- // ---- anexo lateral baixo
+ // ---- anexo lateral baixo (oco, com porta e janelas que abrem)
  if(o.annex&&floors>=2){const side=towerSide?-towerSide:(o.annex==='left'?-1:1),aw=3.8,ad=D*.78,ah=fh+.2,ax=side*(W/2+aw/2-.15),az=-(D-ad)/2-.1;
   B.push(ax,0,az,0);
-  B.box('stone',aw+.4,Y0,ad+.4,0,Y0/2,0);B.box('plaster',aw,ah,ad,0,Y0+ah/2,0);
+  B.box('stone',aw+.4,Y0,ad+.4,0,Y0/2,0);
+  const AF=[{ry:0,w:aw,dz:ad/2,holes:[{cx:-.6,y0:.9,w:.9,h:1.5},{cx:1.0,y0:.04,w:1.1,h:2.1}],front:true},{ry:PI,w:aw,dz:ad/2,holes:[]},{ry:side*PI/2,w:ad-.6,dz:aw/2,holes:[{cx:0,y0:.9,w:.9,h:1.5}],outer:true},{ry:-side*PI/2,w:ad-.6,dz:aw/2,holes:[]}];
+  for(const F of AF){B.push(0,Y0,0,F.ry);B.push(0,0,F.dz,0);wallPanel(B,F.w,ah,F.holes,TH);
+   for(const hl of F.holes)if(hl.y0>.5)windowArch(B,S,hl.cx,hl.y0,.14,hl.w,hl.h,{ctx,M,shutters:F.front});
+   if(F.front){B.add('timber',archFrame(1.1,2.1,.16,.26),1.0,.04,.04);addLeaves(B,ctx,M,'door',1.0,.04,-.15,1.1,2.1,1,1.75);}
+   B.pop();B.pop();}
   for(const sx of[-1,1])for(const sz of[-1,1])B.box('timber',.28,ah,.28,sx*aw/2,Y0+ah/2,sz*ad/2);
   B.box('timberH',aw+.3,.24,ad+.3,0,Y0+.02,0);B.box('timberH',aw+.3,.24,ad+.3,0,Y0+ah-.05,0);
-  B.push(0,Y0,ad/2,0);windowArch(B,S,-.6,.9,.14,.9,1.5,{shutters:true});B.pop();
-  B.push(0,Y0,ad/2,0);B.add('timber',archFrame(1.1,2.1,.16,.26),1.1,0,.06);B.add('door',archGeo(1.1,2.1,.1),1.1,0,.1);B.pop();
-  B.push(side*aw/2,Y0,0,side*PI/2);windowArch(B,S,0,.9,.14,.9,1.5,{});B.pop();
+  slab(B,'plank',aw-.55,ad-.55,Y0-.02,.12,null);slab(B,'ceil',aw-.55,ad-.55,Y0+ah-.2,.2,null);
+  B.box('plank',1.2,.75,.5,side*.2,Y0+.45,-ad/2+.5);B.add('lamp',new T.SphereGeometry(.14,10,8),0,Y0+ah-.7,0,0);
   B.pop();
   B.push(ax,0,az,PI/2);roofGable(B,S,ad,aw/2,.75,2.1,qq,Y0+ah,.15);B.pop();
   barrelLike(B,ax+side*.2,az+ad/2+.7,0);
  }
- if(o.dormers!==0)for(const sx of(o.dormers===1?[W*.28]:[-W*.28,W*.28])){const dd=sMain*.55,y=roof.yAt(dd);dormer(B,S,sx,y-.2,dd-.1,0,1.0);}
+ if(o.dormers!==0)for(const sx of(o.dormers===1?[W*.28]:[-W*.28,W*.28])){const dd=sMain*.55,y=roof.yAt(dd);dormer(B,S,sx,y-.2,dd-.1,0,1.0,ctx,M);}
  {const cx=W*.32,dd=sMain*.2,y=roof.yAt(dd);B.box('stone',.9,2.2,.9,cx,y+.7,-dd);B.box('cap',1.1,.18,1.1,cx,y+1.85,-dd);B.box('stone',.7,.3,.7,cx,y+2.05,-dd);}
  ivy(B,R,W*.22,wallTop-.1,D/2+.05,3.4,3.2,153,1,0);
  ivy(B,R,-W*.1,wallTop-.1,D/2+.05,2.4,2.0,85,1,0);
@@ -424,6 +439,8 @@ function build(o){o=o||{};
  // API: abrir/fechar portas e janelas
  g.userData.casa={ctx,
   set(kind,open){for(const it of ctx.list)if(!kind||it.kind===kind)it.tgt=open?1:0;},
+  toggleId(id){const it=ctx.list.filter(i=>i.id===id);const any=it.some(i=>i.tgt>0);it.forEach(i=>i.tgt=any?0:1);},
+  pick(ray){const hit=ray.intersectObjects(ctx.root.children,true)[0];if(!hit||!hit.object.userData.openId)return 0;const others=g.children.filter(c=>c!==ctx.root&&c.isMesh&&c.visible),wall=ray.intersectObjects(others,false)[0];if(wall&&wall.distance<hit.distance-.02)return 0;return hit.object.userData.openId;},
   toggle(kind){const any=ctx.list.some(it=>it.kind===kind&&it.tgt>0);this.set(kind,!any);},
   update(dt){for(const it of ctx.list){if(it.open===it.tgt)continue;it.open+=(it.tgt-it.open)*Math.min(1,dt*6);if(Math.abs(it.tgt-it.open)<.002)it.open=it.tgt;it.pivot.rotation.y=it.open*it.max*it.dir*(it.side<0?-1:1);}},
   roof(v){g.traverse(m=>{if(m.name==='casa roof'||m.name==='casa ceil')m.visible=v;});}};
