@@ -20,7 +20,7 @@ const R=new T.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});R.setPi
 const sc=new T.Scene();sc.fog=new T.Fog('#cfe6f5',90,420);
 const cam=new T.PerspectiveCamera(42,1,.1,800);
 sc.add(new T.HemisphereLight('#e2f1ff','#8aa8dc',.7));
-const sun=new T.DirectionalLight('#fff0d0',.95);sun.position.set(-12,18,14);sun.castShadow=true;sun.shadow.mapSize.set(4096,4096);Object.assign(sun.shadow.camera,{left:-24,right:24,top:22,bottom:-16,near:1,far:80});sun.shadow.bias=-.0005;sun.shadow.normalBias=.04;sc.add(sun);
+const sun=new T.DirectionalLight('#fff0d0',.95);sun.position.set(-12,18,14);sun.castShadow=true;sun.shadow.mapSize.set(4096,4096);Object.assign(sun.shadow.camera,{left:-44,right:44,top:40,bottom:-34,near:1,far:120});sun.shadow.bias=-.0005;sun.shadow.normalBias=.04;sc.add(sun);
 // céu
 {const m=new T.ShaderMaterial({side:T.BackSide,depthWrite:false,fog:false,vertexShader:'varying vec3 p;void main(){p=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
  fragmentShader:'varying vec3 p;void main(){float h=normalize(p).y;vec3 c=mix(vec3(.84,.93,.98),vec3(.50,.76,.95),smoothstep(-.02,.2,h));c=mix(c,vec3(.22,.50,.86),smoothstep(.16,.7,h));gl_FragColor=vec4(c,1.);}'});
@@ -43,7 +43,11 @@ const gm=new T.DataTexture(new Uint8Array([105,105,105,255,185,185,185,255,255,2
  const pt=new T.CanvasTexture(pc);pt.colorSpace=T.SRGBColorSpace;pt.wrapS=pt.wrapT=T.RepeatWrapping;pt.repeat.set(2,14);
  const path=new T.Mesh(new T.PlaneGeometry(3.2,26),new T.MeshToonMaterial({map:pt,gradientMap:gm}));path.rotation.x=-Math.PI/2;path.position.set(0,.02,13+4);path.receiveShadow=true;sc.add(path);}
 let grp=null;
-function build(){if(grp)sc.remove(grp);grp=new T.Group();sc.add(grp);
+function buildGrid(){if(grp)sc.remove(grp);grp=new T.Group();sc.add(grp);const n=state.n||4,cols=2,sp=28;
+ for(let i=0;i<n;i++){const cfg=arcanoCasas.random(state.gs+i);cfg.leafShadow=false;const h=arcanoCasas.build(cfg);h.position.set((i%cols-.5)*sp,0,-Math.floor(i/cols)*26);grp.add(h);
+  const tr=arcanoTrees.make(i%2?'carvalho':'bordo',{h:i%2?8:6.5,seed:40+i,density:.3,shadows:false});tr.position.set(h.position.x+(i%2?-8:8.5),0,h.position.z-11);grp.add(tr);
+  console.log('casa',state.gs+i,JSON.stringify({s:cfg.style,f:cfg.floors,t:cfg.tower,b:cfg.bay,a:cfg.annex}));}}
+function build(){if(state.grid)return buildGrid();if(grp)sc.remove(grp);grp=new T.Group();sc.add(grp);
  const st=state.style;const h=arcanoCasas.build({style:st,floors:st==='porto'?3:2,w:st==='porto'?10.5:9.5,d:6.6,tower:state.tower,seed:state.seed,leafShadow:false});grp.add(h);
  // árvores ao redor
  const tr=(type,x,z,hh,seed)=>{const t=arcanoTrees.make(type,{h:hh,seed,density:.4,shadows:true});t.position.set(x,0,z);grp.add(t);};
@@ -51,11 +55,12 @@ function build(){if(grp)sc.remove(grp);grp=new T.Group();sc.add(grp);
  // arbustos simples nas laterais
  const bm=new T.MeshToonMaterial({color:'#4c9a42',gradientMap:gm});for(const [x,z,s] of[[-6.5,3.8,1.1],[-5.2,4.2,.8],[6.2,3.9,1.0],[7.6,3.6,.9],[3.2,4.2,.7],[-3.4,4.4,.75]]){const m=new T.Mesh(new T.SphereGeometry(s,10,8),bm);m.scale.y=.7;m.position.set(x,s*.5,z);m.castShadow=m.receiveShadow=true;grp.add(m);}
 }
-const state={style:q.get('s')||'mond',tower:q.get('t')!=='0',seed:+(q.get('seed')||5)};
+const state={grid:q.get('grid')==='1',gs:+(q.get('gs')||1),n:+(q.get('n')||4),style:q.get('s')||'mond',tower:q.get('t')!=='0',seed:+(q.get('seed')||5)};
 const st={yaw:+(q.get('yaw')||.45),pitch:+(q.get('pitch')||.17),dist:+(q.get('d')||22),tx:0,ty:3.8,tz:1};
 function ui(){const u=document.getElementById('ui');u.innerHTML='';const mk=(t,on,fn)=>{const b=document.createElement('button');b.className='b'+(on?' on':'');b.textContent=t;b.onclick=fn;u.appendChild(b);};
  mk('Estilo Mondstadt',state.style==='mond',()=>{state.style='mond';build();ui();});mk('Estilo Porto',state.style==='porto',()=>{state.style='porto';build();ui();});
- mk(state.tower?'Torre: sim':'Torre: não',state.tower,()=>{state.tower=!state.tower;build();ui();});mk('Outra variação',false,()=>{state.seed=(state.seed*7+3)%997;build();});}
+ mk(state.tower?'Torre: sim':'Torre: não',state.tower,()=>{state.tower=!state.tower;build();ui();});mk('Outra variação',false,()=>{state.seed=(state.seed*7+3)%997;build();});
+ mk(state.grid?'Vista única':'Ver 4 variações',state.grid,()=>{state.grid=!state.grid;build();ui();});if(state.grid)mk('Mais 4',false,()=>{state.gs+=4;build();});}
 if(q.get('ui')!=='0')ui();else document.getElementById('hint').style.display='none';
 build();
 function size(){R.setSize(innerWidth,innerHeight);cam.aspect=innerWidth/innerHeight;cam.fov=cam.aspect<1?64:42;cam.updateProjectionMatrix();}addEventListener('resize',size);size();
@@ -68,6 +73,6 @@ el.addEventListener('pointermove',e=>{const p=P.get(e.pointerId);if(!p)return;co
 el.addEventListener('wheel',e=>{e.preventDefault();st.dist=Math.max(4,Math.min(80,st.dist*Math.exp(e.deltaY*.001)));},{passive:false});
 function frame(){const cp=Math.cos(st.pitch);cam.position.set(st.tx+Math.sin(st.yaw)*cp*st.dist,Math.max(.8,st.ty+Math.sin(st.pitch)*st.dist),st.tz+Math.cos(st.yaw)*cp*st.dist);cam.lookAt(st.tx,st.ty,st.tz);R.render(sc,cam);}
 (function loop(){requestAnimationFrame(loop);frame();})();
-window.__shot=async(name,o)=>{o=o||{};if(o.style!==undefined||o.tower!==undefined||o.seed!==undefined){if(o.style)state.style=o.style;if(o.tower!==undefined)state.tower=o.tower;if(o.seed)state.seed=o.seed;build();}['yaw','pitch','dist','tx','ty','tz'].forEach(k=>{if(o[k]!==undefined)st[k]=o[k];});
+window.__shot=async(name,o)=>{o=o||{};if(o.grid!==undefined){state.grid=o.grid;if(o.gs)state.gs=o.gs;if(o.n)state.n=o.n;build();}if(o.style!==undefined||o.tower!==undefined||o.seed!==undefined){if(o.style)state.style=o.style;if(o.tower!==undefined)state.tower=o.tower;if(o.seed)state.seed=o.seed;build();}['yaw','pitch','dist','tx','ty','tz'].forEach(k=>{if(o[k]!==undefined)st[k]=o[k];});
  const w=1600,h=900;R.setPixelRatio(1);R.setSize(w,h,false);cam.aspect=w/h;cam.fov=42;cam.updateProjectionMatrix();frame();const d=R.domElement.toDataURL('image/jpeg',.93);await fetch('/?n='+name,{method:'POST',body:d});R.setPixelRatio(Math.min(2,devicePixelRatio));size();return d.length;};
 </script></body></html>
