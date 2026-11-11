@@ -49,8 +49,9 @@ function woodpile(ctx,x,z,ry,len){
 }
 function hayBale(ctx,x,z,ry){const y=ctx.gy(x,z),g=ctx.g,M=ctx.M,b=cyl(g,.5,.5,.95,M.hay,x,y+.5,z,10,.8);b.rotation.x=PI/2;b.rotation.z=ry;b.position.y=y+.5;ctx.colCircle(x,z,.6);}
 function tree(ctx,x,z,s,crown,trunkM){
- const M=ctx.M,y=ctx.gy(x,z),g=ctx.g;cyl(g,.16*s,.24*s,2.2*s,trunkM||M.bark,x,y,z,7,1.5);
- for(const [dx,dy,dz,r] of [[0,2.7,0,1.35],[.8,2.2,.3,.95],[-.7,2.35,-.3,1.0],[.1,3.3,.2,.85]])sph(g,r*s,crown||M.leaf,x+dx*s,y+dy*s,z+dz*s,1,.85,1,8);
+ const M=ctx.M,y=ctx.gy(x,z),g=ctx.g;
+ if(!(window.arcanoVillageTree&&window.arcanoVillageTree(g,x,y,z,s,crown===M.leafDark))){cyl(g,.16*s,.24*s,2.2*s,trunkM||M.bark,x,y,z,7,1.5);
+ for(const [dx,dy,dz,r] of [[0,2.7,0,1.35],[.8,2.2,.3,.95],[-.7,2.35,-.3,1.0],[.1,3.3,.2,.85]])sph(g,r*s,crown||M.leaf,x+dx*s,y+dy*s,z+dz*s,1,.85,1,8);}
  ctx.colCircle(x,z,.45*s);ctx.noGrassC(x,z,1.4*s);
 }
 function well(ctx,x,z,o){
@@ -328,7 +329,7 @@ KIT.oriental={
    const lc=document.createElement('canvas');lc.width=lc.height=64;const lx=lc.getContext('2d');lx.translate(32,32);lx.beginPath();lx.moveTo(0,-30);lx.bezierCurveTo(20,-18,18,16,0,30);lx.bezierCurveTo(-18,16,-20,-18,0,-30);const lgr=lx.createLinearGradient(0,-30,0,30);lgr.addColorStop(0,'#9ed46a');lgr.addColorStop(1,'#4d9a3e');lx.fillStyle=lgr;lx.fill();lx.strokeStyle='rgba(30,80,30,.7)';lx.lineWidth=2;lx.stroke();lx.beginPath();lx.moveTo(0,-28);lx.lineTo(0,28);lx.stroke();
    const lt=new T.CanvasTexture(lc);lt.colorSpace=T.SRGBColorSpace;
    M.cherryLeaf=new T.MeshStandardMaterial({map:tx,alphaTest:.45,side:T.DoubleSide,vertexColors:true,roughness:1,name:'cherry leaf blossom'});
-   M.cherryGreen=new T.MeshStandardMaterial({map:lt,alphaTest:.45,side:T.DoubleSide,vertexColors:true,roughness:1,name:'cherry leaf green'});}
+   M.cherryGreen=new T.MeshStandardMaterial({map:lt,alphaTest:.45,side:T.DoubleSide,vertexColors:true,roughness:1,name:'cherry leaf green'});if(window.arcanoPaintLeaf){window.arcanoPaintLeaf(M.cherryLeaf);window.arcanoPaintLeaf(M.cherryGreen);}}
   const build=(list,mat)=>{const n=list.length,P=new Float32Array(n*12),U=new Float32Array(n*8),Cc=new Float32Array(n*12),Nn=new Float32Array(n*12),I=new Uint32Array(n*6);
    list.forEach((q,i)=>{for(let k=0;k<4;k++){P.set(q.p[k],i*12+k*3);Nn.set(q.n,i*12+k*3);Cc.set(q.c,i*12+k*3);}U.set([0,0,1,0,1,1,0,1],i*8);I.set([i*4,i*4+1,i*4+2,i*4,i*4+2,i*4+3],i*6);});
    const gg=new T.BufferGeometry();gg.setAttribute('position',new T.BufferAttribute(P,3));gg.setAttribute('uv',new T.BufferAttribute(U,2));gg.setAttribute('color',new T.BufferAttribute(Cc,3));gg.setAttribute('normal',new T.BufferAttribute(Nn,3));gg.setIndex(new T.BufferAttribute(I,1));

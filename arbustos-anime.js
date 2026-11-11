@@ -24,7 +24,7 @@ const leafTex=(()=>{
  shape();g.lineWidth=4;g.strokeStyle='rgba(18,54,26,.9)';g.stroke();
  const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;t.anisotropy=4;return t;
 })();
-const leafMat=new T.MeshStandardMaterial({map:leafTex,alphaTest:.5,side:T.DoubleSide,vertexColors:true,roughness:1,name:'bush leaf'});
+const leafMat=new T.MeshStandardMaterial({map:leafTex,alphaTest:.5,side:T.DoubleSide,vertexColors:true,roughness:1,name:'bush leaf'});if(window.arcanoPaintLeaf)window.arcanoPaintLeaf(leafMat);
 const coreMat=new T.MeshStandardMaterial({color:'#2a5a2e',roughness:1,name:'bush core'});
 const twigMat=new T.MeshStandardMaterial({color:'#5a3c24',roughness:1,name:'bush twig'});
 

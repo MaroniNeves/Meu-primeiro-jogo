@@ -90,7 +90,7 @@ function install(){
    colBox(lx,lz,hw,hd,ang){const w=W(lx,lz);O.addBox({x:w.x,z:w.z,hw,hd,rot:rot+(ang||0)});},
    colCircle(lx,lz,r){const w=W(lx,lz);O.addCircle(w.x,w.z,r);},
    noGrassC(lx,lz,r){const w=W(lx,lz);NG.push([w.x,w.z,r]);}};
-  ctx.K.tree=(cx,px,pz,sc,crown)=>{const y=gy(px,pz);VM.cyl(tmp,.16*sc,.24*sc,2.2*sc,M.bark,px,y,pz,7,1.5);for(const [dx,dy,dz,r] of [[0,2.7,0,1.35],[.8,2.2,.3,.95],[-.7,2.35,-.3,1.0],[.1,3.3,.2,.85]])VM.sph(tmp,r*sc,crown||M.leaf,px+dx*sc,y+dy*sc,pz+dz*sc,1,.85,1,8);ctx.colCircle(px,pz,.45*sc);ctx.noGrassC(px,pz,1.5*sc);};
+  ctx.K.tree=(cx,px,pz,sc,crown)=>{const y=gy(px,pz);if(!(window.arcanoVillageTree&&window.arcanoVillageTree(tmp,px,y,pz,sc,crown===M.leafDark))){VM.cyl(tmp,.16*sc,.24*sc,2.2*sc,M.bark,px,y,pz,7,1.5);for(const [dx,dy,dz,r] of [[0,2.7,0,1.35],[.8,2.2,.3,.95],[-.7,2.35,-.3,1.0],[.1,3.3,.2,.85]])VM.sph(tmp,r*sc,crown||M.leaf,px+dx*sc,y+dy*sc,pz+dz*sc,1,.85,1,8);}ctx.colCircle(px,pz,.45*sc);ctx.noGrassC(px,pz,1.5*sc);};
   return ctx;
  }
 

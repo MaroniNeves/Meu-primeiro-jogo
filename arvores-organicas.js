@@ -72,7 +72,7 @@ function leafTex(kind){
 }
 const matCache={};
 function barkMat(kind){return matCache['b'+kind]||(matCache['b'+kind]=new T.MeshStandardMaterial({map:barkTex(kind),roughness:1,side:T.DoubleSide}));}
-function leafMat(kind){return matCache['l'+kind]||(matCache['l'+kind]=new T.MeshStandardMaterial({map:leafTex(kind),alphaTest:.45,side:T.DoubleSide,vertexColors:true,roughness:1,name:'tree leaf '+kind}));}
+function leafMat(kind){if(matCache['l'+kind])return matCache['l'+kind];const m=matCache['l'+kind]=new T.MeshStandardMaterial({map:leafTex(kind),alphaTest:.45,side:T.DoubleSide,vertexColors:true,roughness:1,name:'tree leaf '+kind});if(window.arcanoPaintLeaf)window.arcanoPaintLeaf(m);return m;}
 
 /* ---------- Construção ---------- */
 function Builder(kind,R){
@@ -227,12 +227,19 @@ const TYPES={
   return B.finish();}
 };
 
+// Árvore de vila (folha por folha), no lugar das antigas copas de esfera. Devolve false se não puder criar.
+const vilaVars={};let vilaN=0;
+window.arcanoVillageTree=function(g,x,y,z,s,dark){
+ try{const type=dark?'carvalho':(vilaN%3===1?'betula':'carvalho'),vi=vilaN++%3,k=type+vi;
+  const v=vilaVars[k]||(vilaVars[k]=window.arcanoTrees.make(type,{h:type==='betula'?6.5:7,seed:500+vi*53+type.length,density:.14,shadows:false}));
+  const o=v.clone();o.position.set(x,y-.05,z);o.rotation.y=vilaN*2.4;o.scale.setScalar(s*(type==='betula'?.85:.78));g.add(o);return true;}catch(e){return false;}
+};
 window.arcanoTrees={
  types:Object.keys(TYPES),
  make(type,o){o=o||{};const f=TYPES[type];if(!f)return null;CUR.density=o.density||1;CUR.shadows=o.shadows!==false;const R=mkRng(o.seed||(type.length*131+7));const g=f(o.h||({cerejeira:5,carvalho:8,pinheiro:10,betula:7,salgueiro:7,bordo:6.5,acacia:7})[type],R);g.name='Árvore '+type;CUR.density=1;CUR.shadows=true;return g;},
- pool(scene,lite){
-  const cap=lite?7:16,VAR={carvalho:[7,9.5,12,8.5],bordo:[5,6.5,8.5,5.8],betula:[5.5,7,9,6.5]},vars={},items=[],group=new T.Group();group.name='Árvores orgânicas (perto)';scene.add(group);
-  const variant=(type,vi)=>{const k=type+vi;return vars[k]||(vars[k]=window.arcanoTrees.make(type,{h:VAR[type][vi],seed:1000+vi*37+type.length*11,density:lite?.22:.4,shadows:false}));};
+ pool(scene,lite,o){
+  o=o||{};const cap=o.cap||(lite?7:16),dens=o.density||(lite?.22:.4),VAR={carvalho:[7,9.5,12,8.5],bordo:[5,6.5,8.5,5.8],betula:[5.5,7,9,6.5]},vars={},items=[],group=new T.Group();group.name=o.name||'Árvores orgânicas (perto)';scene.add(group);
+  const variant=(type,vi)=>{const k=type+vi;return vars[k]||(vars[k]=window.arcanoTrees.make(type,{h:VAR[type][vi],seed:1000+vi*37+type.length*11,density:dens,shadows:false}));};
   return {cap,update(list){
    for(const it of items)it.obj.visible=false;const used={};
    for(const s of list){const vi=s.k%4,key=s.type+vi;used[key]=(used[key]||0);let it=items.filter(q=>q.key===key)[used[key]];used[key]++;

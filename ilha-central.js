@@ -1153,17 +1153,18 @@ function install(){
   const leafColor=name=>/Birch/i.test(name)?'#d6c65c':/Maple|CommonTree_3/i.test(name)?'#d77a45':/Pine/i.test(name)?'#3f7a4a':'#4f8f42';
   const farMeshes=templates.map((tpl,t)=>{const im=new T.InstancedMesh(tpl.pine?pineGeo:roundGeo,[/Birch/i.test(tpl.name)?new T.MeshStandardMaterial({color:'#ece6d6',roughness:1}):trunkMat,new T.MeshStandardMaterial({color:leafColor(tpl.name),roughness:1})],Math.max(1,perT[t]));
    im.name='Floresta distante (árvores leves)';im.count=0;im.castShadow=false;im.receiveShadow=false;im.frustumCulled=false;group.add(im);return im;});
-  let lastX=1e9,lastZ=1e9,orgPool=null;
-  const ORGMAP={BirchTree_1:'betula',CommonTree_1:'carvalho',CommonTree_3:'bordo'},ORGR=mobile?22:34;
+  let lastX=1e9,lastZ=1e9,orgPool=null,orgMid=null;
+  const ORGMAP={BirchTree_1:'betula',CommonTree_1:'carvalho',CommonTree_3:'bordo'},ORGR=mobile?22:34,ORGR2=mobile?55:95;
   function rebuild(px,pz){
    lastX=px;lastZ=pz;
    const nearCount=templates.map(()=>0),farCount=templates.map(()=>0);
    // árvores orgânicas (carvalho, bordo, bétula) nas mais próximas; o resto segue como antes
    const chosen=new Set();
-   if(!orgPool&&window.arcanoTrees&&window.arcanoTrees.pool)orgPool=window.arcanoTrees.pool(scene,mobile);
-   if(orgPool){const cand=[];for(const s of spots){const nm=ORGMAP[templates[s.t].name];if(!nm)continue;const d=Math.hypot(s.x-px,s.z-pz);if(d<ORGR)cand.push({s,d,nm});}
-    cand.sort((a,b)=>a.d-b.d);const list=[];for(const q of cand.slice(0,orgPool.cap)){chosen.add(q.s);list.push({x:q.s.x,y:q.s.y,z:q.s.z,rot:q.s.rot,type:q.nm,k:Math.floor(Math.abs(Math.sin(q.s.x*12.9+q.s.z*78.2))*4),sc:.9+(q.s.s-.8)*.5});}
-    orgPool.update(list);}
+   if(!orgPool&&window.arcanoTrees&&window.arcanoTrees.pool){orgPool=window.arcanoTrees.pool(scene,mobile);orgMid=window.arcanoTrees.pool(scene,mobile,{cap:mobile?40:240,density:mobile?.1:.12,name:'Árvores orgânicas (meia distância)'});}
+   if(orgPool){const cand=[];for(const s of spots){const nm=ORGMAP[templates[s.t].name];if(!nm)continue;const d=Math.hypot(s.x-px,s.z-pz);if(d<ORGR2)cand.push({s,d,nm});}
+    cand.sort((a,b)=>a.d-b.d);const list=[],mid=[];let nn=0;while(nn<cand.length&&nn<orgPool.cap&&cand[nn].d<ORGR)nn++;
+    cand.slice(0,nn+orgMid.cap).forEach((q,i)=>{chosen.add(q.s);(i<nn?list:mid).push({x:q.s.x,y:q.s.y,z:q.s.z,rot:q.s.rot,type:q.nm,k:Math.floor(Math.abs(Math.sin(q.s.x*12.9+q.s.z*78.2))*4),sc:.9+(q.s.s-.8)*.5});});
+    orgPool.update(list);orgMid.update(mid);}
    for(const s of spots){
     const d=Math.hypot(s.x-px,s.z-pz),tpl=templates[s.t];
     if(chosen.has(s.t===undefined?s:s))continue;
