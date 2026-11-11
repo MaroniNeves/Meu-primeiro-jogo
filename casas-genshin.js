@@ -308,6 +308,7 @@ function build(o){o=o||{};
  const floors=o.floors||2,fh=2.9,W=o.w||9.5,D=o.d||6.4,Y0=.55,H=floors*fh,wallTop=Y0+H,TH=.3;
  const towerSide=o.tower===false||o.tower==='none'?0:(o.tower==='right'?1:-1),tower=!!towerSide,bay=o.bay!==false;
  const sxS=towerSide===1?-1:1; // lado da escada
+ const colls=[];
  // base de pedra
  B.box('stone',W+.5,Y0,D+.5,0,Y0/2,0);
  const Wc=bay?(o.bayW||4.6):0;
@@ -389,7 +390,7 @@ function build(o){o=o||{};
   B.pop();
  }
  // ---- torre octogonal no canto (oca, com janelas e porta que abrem)
- if(tower){const r=o.towerR||1.9,tx=towerSide*(W/2+.2),tz=D/2-.5,th=H+1.1,sides=8,ap=r*Math.cos(PI/sides),fw=2*r*Math.sin(PI/sides);
+ if(tower){const r=o.towerR||1.9,tx=towerSide*(W/2+.2),tz=D/2-.5,th=H+1.1,sides=8,ap=r*Math.cos(PI/sides),fw=2*r*Math.sin(PI/sides);colls.push({c:[tx,tz,r+.15]});
   B.push(tx,0,tz,0);
   B.add('stone',new T.CylinderGeometry(r+.3,r+.35,Y0,sides),0,Y0/2,0,0);
   for(let k=0;k<sides;k++){const a=(k+.5)*TAU/sides,nx=Math.sin(a),nz=Math.cos(a),toHouse=nx*towerSide<-.5,front=k===(towerSide>0?7:0);
@@ -412,7 +413,7 @@ function build(o){o=o||{};
   ivy(B,R,0,Y0+th-.2,r+.2,2.6,3.4,102,1,0.0);ivy(B,R,0,Y0+th-.2,r+.2,2.6,3.4,102,1,PI/4);
   B.pop();}
  // ---- anexo lateral baixo (oco, com porta e janelas que abrem)
- if(o.annex&&floors>=2){const side=towerSide?-towerSide:(o.annex==='left'?-1:1),aw=3.8,ad=D*.78,ah=fh+.2,ax=side*(W/2+aw/2-.15),az=-(D-ad)/2-.1;
+ if(o.annex&&floors>=2){const side=towerSide?-towerSide:(o.annex==='left'?-1:1),aw=3.8,ad=D*.78,ah=fh+.2,ax=side*(W/2+aw/2-.15),az=-(D-ad)/2-.1;colls.push({b:[ax,az,aw/2+.1,ad/2+.1]});
   B.push(ax,0,az,0);
   B.box('stone',aw+.4,Y0,ad+.4,0,Y0/2,0);
   const AF=[{ry:0,w:aw,dz:ad/2,holes:[{cx:-.6,y0:.9,w:.9,h:1.5},{cx:1.0,y0:.04,w:1.1,h:2.1}],front:true},{ry:PI,w:aw,dz:ad/2,holes:[]},{ry:side*PI/2,w:ad-.6,dz:aw/2,holes:[{cx:0,y0:.9,w:.9,h:1.5}],outer:true},{ry:-side*PI/2,w:ad-.6,dz:aw/2,holes:[]}];
@@ -452,6 +453,11 @@ function build(o){o=o||{};
   toggle(kind){const any=ctx.list.some(it=>it.kind===kind&&it.tgt>0);this.set(kind,!any);},
   update(dt){for(const it of ctx.list){if(it.open===it.tgt)continue;it.open+=(it.tgt-it.open)*Math.min(1,dt*6);if(Math.abs(it.tgt-it.open)<.002)it.open=it.tgt;it.pivot.rotation.y=it.open*it.max*it.dir*(it.side<0?-1:1);}},
   roof(v){g.traverse(m=>{if(m.name==='casa roof'||m.name==='casa ceil')m.visible=v;});}};
+ // colisão das paredes (com vão da porta) e chão interno, em coordenadas da casa
+  colls.push({b:[0,-D/2+.15,W/2,.22]},{b:[-(W/2-.15),0,.22,D/2]},{b:[W/2-.15,0,.22,D/2]},{b:[-(W/2+.85)/2,D/2-.15,(W/2-.85)/2,.22]},{b:[(W/2+.85)/2,D/2-.15,(W/2-.85)/2,.22]});
+ if(bay)for(const px of[-Wc/2+.1,-Wc/4,Wc/4,Wc/2-.1])colls.push({c:[px,D/2+1.3,.2]});
+ g.userData.colliders=colls;
+ g.userData.floor={W,D,y:Y0+.1,step:{x0:-1.1,x1:1.1,z0:D/2-.3,z1:D/2+1.2,y:.12}};
  const bb=new T.Box3().setFromObject(g);g.userData.size=bb.getSize(new T.Vector3());
  return g;}
 

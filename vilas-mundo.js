@@ -66,7 +66,7 @@ const mkRng=seed=>{let s=(seed>>>0)||1;return()=>{s=(s*1664525+1013904223)>>>0;r
 
 function install(){
  const api=window.arcanoWaterV1226,VM=window.__vm,O=window.arcanoObstacles,H=window.arcanoIslandHeight;
- if(!api||!api.scene||!H||!O||!window.arcanoIsland||!VM||!VM.KIT||!VM.campfire){setTimeout(install,400);return;}
+ if(!api||!api.scene||!H||!O||!window.arcanoIsland||!VM||!VM.KIT||!VM.campfire||!window.arcanoCasas){setTimeout(install,400);return;}
  const scene=api.scene,KITS=VM.KIT;
  const M=VM.mats=VM.makeMats();
  const tx=VM.TEX,sp={
@@ -183,12 +183,22 @@ function install(){
     many(7,rr(5.8,6.8),rr(4.8,5.6),{},(x,z,ry,w,d)=>K.casa(ctx,x,z,ry,{w,d}));
     for(let i=0;i<2;i++){const r=3.3+R()*.8;place(r*2+1.6,r*2+1.6,{mode:'free',door:false,r0:14,r1:28},(x,z)=>K.lago(ctx,x,z,r));}
     free(9,1.4,(x,z)=>K.cerejeira(ctx,x,z,.9+R()*.3));free(4,1.2,(x,z)=>K.bambu(ctx,x,z,8));cabanas();break;}
-   case 'cogumelos':{
-    K.anel(ctx,0,0,3.6,14);K.poco(ctx,0,0.01);
-    const caps=[M.capRed,M.capPurple,M.capTeal,M.capOrange,M.capPink];let ci=0;
-    many(3,()=>6.4,()=>6.4,{},(x,z,ry)=>K.grande(ctx,x,z,ry,{cap:caps[(ci++)%5]}));
-    many(5,()=>4.8,()=>4.8,{},(x,z,ry)=>K.casa(ctx,x,z,ry,{cap:caps[(ci++)%5],sr:1.8+R()*.3,sh:3+R()*.5,cr:3.5+R()*.4}));
-    free(11,1.4,(x,z)=>K.brilho(ctx,x,z,6));free(6,.5,(x,z)=>K.flor(ctx,x,z));cabanas();break;}
+   case 'cogumelos':{ // casas de enxaimel (estilo Mondstadt / Porto) com portas e janelas que abrem
+    if(KITS.moinho&&KITS.moinho.poco)KITS.moinho.poco(ctx,0,0);
+    const CS=window.arcanoCasas;
+    const casa=(cfg)=>{const tw=cfg.tower!=='none',an=!tw&&cfg.annex&&cfg.floors>=2;cfg.annex=an;
+     const w=cfg.w+(tw?4.6:an?4.2:0)*2,d=cfg.d+3.6;
+     place(w,d,{gap:2.2,maxR:48},(x,z,ry)=>{
+      const pd=ctx.pad(x,z,cfg.w+1,cfg.d+1,ry),h=CS.build(Object.assign({},cfg,{leafShadow:false}));
+      h.position.set(x,pd.y-.32,z);h.rotation.y=ry;ctx.live.add(h);
+      if(pd.depth>.2){const sk=new T.Mesh(new T.BoxGeometry(cfg.w+.5,pd.depth+.4,cfg.d+.5),M.stone);sk.position.set(0,-(pd.depth+.4)/2+.08,0);sk.receiveShadow=true;h.add(sk);}
+      const c=Math.cos(ry),s2=Math.sin(ry),L=(ox,oz)=>[x+ox*c+oz*s2,z-ox*s2+oz*c];
+      for(const k of h.userData.colliders){if(k.b){const [lx,lz]=L(k.b[0],k.b[1]);ctx.colBox(lx,lz,k.b[2],k.b[3],ry);}else{const [lx,lz]=L(k.c[0],k.c[1]);ctx.colCircle(lx,lz,k.c[2]);}}
+      ctx.noGrassC(x,z,Math.max(cfg.w,cfg.d)/2+1.5);
+      (window.arcanoCasasJogo=window.arcanoCasasJogo||[]).push(h);});};
+    for(let i=0;i<7;i++){const cfg=CS.random(Math.abs(site.x*31+site.z*17)+i*977);cfg.floors=Math.min(cfg.floors,i<5?3:1);if(i>=5){cfg.tower='none';cfg.bay=false;cfg.annex=false;cfg.w=7+R()*1.2;cfg.d=5.6;}casa(cfg);}
+    free(10,1.6,(x,z)=>ctx.K.tree(ctx,x,z,.9+R()*.4,R()<.5?M.leaf:M.leafDark));
+    break;}
   }
   // ----- grades de madeira só em trechos das margens das estradas -----
   const offsetLine=(pts,off)=>pts.map((p,i)=>{const a=pts[Math.max(0,i-1)],b=pts[Math.min(pts.length-1,i+1)];let dx=b.x-a.x,dz=b.z-a.z;const l=Math.hypot(dx,dz)||1;dx/=l;dz/=l;return {x:p.x-dz*off,z:p.z+dx*off};});
@@ -210,7 +220,38 @@ function install(){
   VM.mergeInto(ctx.g,ctx.group,'Acampamento '+(i+1));
  }
  VM.startAnim();
+ casasInteracao();
  console.info('[Vilas] 6 vilas e '+CAMPS.length+' acampamentos montados');
+}
+/* ---- portas e janelas das casas novas: chão interno, tecla E / botão, animação ---- */
+function casasInteracao(){
+ const list=window.arcanoCasasJogo||[];if(!list.length)return;
+ const api=window.arcanoWaterV1226,inv=new Map(),tmp=new T.Vector3();
+ const refresh=()=>{for(const h of list){h.updateWorldMatrix(true,false);inv.set(h,h.matrixWorld.clone().invert());}};refresh();setInterval(refresh,2000);
+ // chão de dentro da casa (e degrau da porta) para o personagem andar no piso, não no terreno
+ (window.arcanoGroundOverrides=window.arcanoGroundOverrides||[]).push((x,z)=>{for(const h of list){const f=h.userData.floor;tmp.set(x,0,z).applyMatrix4(inv.get(h));
+   if(Math.abs(tmp.x)<f.W/2-.1&&Math.abs(tmp.z)<f.D/2-.1)return h.matrixWorld.elements[13]+f.y;
+   const st=f.step;if(tmp.x>st.x0&&tmp.x<st.x1&&tmp.z>st.z0&&tmp.z<st.z1)return h.matrixWorld.elements[13]+f.y*.55;}return null;});
+ const css=document.createElement('style');css.textContent='#casaInteract{position:fixed;left:50%;bottom:120px;transform:translateX(-50%);z-index:45;display:none;font:600 14px system-ui,Segoe UI,sans-serif;color:#fff8e6;background:rgba(32,24,16,.82);border:1px solid #e8c56a;border-radius:12px;padding:10px 16px;cursor:pointer;pointer-events:auto}';document.head.appendChild(css);
+ const btn=document.createElement('button');btn.id='casaInteract';btn.type='button';document.body.appendChild(btn);
+ let near=null;const toggle=()=>{if(near)near.h.userData.casa.toggleId(near.id);};
+ btn.addEventListener('click',toggle);
+ addEventListener('keydown',e=>{if(e.key&&e.key.toLowerCase()==='e'&&near&&!e.repeat)toggle();});
+ // clique direto na porta/janela (quando o cursor está livre)
+ addEventListener('pointerup',e=>{if(document.pointerLockElement)return;const cam=api.getMainCamera&&api.getMainCamera(),r=api.renderer&&api.renderer.domElement;if(!cam||!r||e.target!==r)return;
+  const b=r.getBoundingClientRect(),rc=new T.Raycaster();rc.setFromCamera(new T.Vector2((e.clientX-b.left)/b.width*2-1,-((e.clientY-b.top)/b.height*2-1)),cam);rc.far=30;
+  for(const h of list){const id=h.userData.casa.pick(rc);if(id){h.userData.casa.toggleId(id);break;}}});
+ let last=performance.now(),acc=0;
+ (function frame(now){requestAnimationFrame(frame);const dt=Math.min(.1,(now-last)/1000);last=now;
+  for(const h of list)h.userData.casa.update(dt);
+  acc+=dt;if(acc<.15)return;acc=0;
+  const p=api.getGrassPlayer&&api.getGrassPlayer();if(!p||!document.body.classList.contains('play-active')){btn.style.display='none';near=null;return;}
+  let best=null,bd=2.6;
+  for(const h of list){const hp=h.matrixWorld.elements;if(Math.hypot(hp[12]-p.position.x,hp[14]-p.position.z)>16)continue;const C=h.userData.casa.ctx.centers;
+   for(const id in C){tmp.copy(C[id].p);h.localToWorld(tmp);const dy=tmp.y-(p.position.y+1);if(Math.abs(dy)>1.8)continue;const d=Math.hypot(tmp.x-p.position.x,tmp.z-p.position.z);if(d<bd){bd=d;best={h,id:+id};}}}
+  near=best;if(!best){btn.style.display='none';return;}
+  const it=best.h.userData.casa.ctx.list.find(i=>i.id===best.id),open=it&&it.tgt>0,kind=it&&it.kind==='door'?'porta':'janela';
+  btn.textContent='E · '+(open?'Fechar ':'Abrir ')+kind;btn.style.display='block';})(last);
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install();
 })();
