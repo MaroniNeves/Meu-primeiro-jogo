@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><title>Madeira pintada</title>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#9fd0f0;touch-action:none;font-family:system-ui,sans-serif}
+canvas{display:block}
+#ui{position:fixed;left:8px;top:8px;display:flex;gap:6px;flex-wrap:wrap}
+.b{font:600 13px system-ui;border:1px solid #2a3a5a55;background:#ffffffd8;color:#16243a;border-radius:999px;padding:6px 12px;cursor:pointer}
+.b.on{background:#2f4f8a;color:#fff}
+#hint{position:fixed;left:8px;bottom:8px;font:12px system-ui;color:#123;background:#ffffffb8;padding:4px 10px;border-radius:8px}
+</style></head>
+<body><div id="ui"></div><div id="hint">Arraste: girar · Roda/pinça: zoom</div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
+<script src="./texturas-anime.js?v=5"></script>
+<script src="./madeira-pintada.js?v=1"></script>
+<script>
+const q=new URLSearchParams(location.search),T=THREE;
+const R=new T.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});R.setPixelRatio(Math.min(2,devicePixelRatio));R.outputColorSpace=T.SRGBColorSpace;R.shadowMap.enabled=true;R.shadowMap.type=T.PCFSoftShadowMap;document.body.appendChild(R.domElement);
+const sc=new T.Scene();sc.background=new T.Color('#a9d8f2');sc.fog=new T.Fog('#cfe8f6',60,220);
+const cam=new T.PerspectiveCamera(42,1,.1,500);
+sc.add(new T.HemisphereLight('#e2f1ff','#8aa8dc',.62));
+const sun=new T.DirectionalLight('#fff0d0',.95);sun.position.set(-9,14,10);sun.castShadow=true;sun.shadow.mapSize.set(4096,4096);Object.assign(sun.shadow.camera,{left:-16,right:16,top:14,bottom:-14,near:1,far:60});sun.shadow.bias=-.0005;sun.shadow.normalBias=.03;sc.add(sun);
+const gm=new T.DataTexture(new Uint8Array([105,105,105,255,185,185,185,255,255,255,255,255]),3,1,T.RGBAFormat);gm.minFilter=gm.magFilter=T.NearestFilter;gm.needsUpdate=true;
+// chão pintado simples
+{const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');g.fillStyle='#55ae4c';g.fillRect(0,0,256,256);
+ let s=3;const r=()=>(s=(s*1664525+1013904223)>>>0)/4294967296;const cols=['#35905a','#7dc84e','#acdc5e','#6cbc4c'];
+ for(let i=0;i<260;i++){g.fillStyle=cols[i%4];g.globalAlpha=.55;const x=r()*256,y=r()*256;for(const ox of[0,-256,256])for(const oy of[0,-256,256]){g.beginPath();g.ellipse(x+ox,y+oy,10+r()*22,4+r()*8,-.5,0,7);g.fill();}}
+ const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;t.wrapS=t.wrapT=T.RepeatWrapping;t.repeat.set(10,10);
+ const m=new T.Mesh(new T.PlaneGeometry(200,200),new T.MeshToonMaterial({map:t,gradientMap:gm}));m.rotation.x=-Math.PI/2;m.receiveShadow=true;sc.add(m);}
+const PAL={
+ quente:['#6b4228','#8a5733','#a76f3f','#c58b50'],
+ claro:['#8f6a45','#b58a58','#d4aa72','#ecc98c'],
+ escuro:['#3f2a22','#5b3b2b','#7a5238','#9a6a46']};
+const cache={};
+function wood(mode,horiz,pal){const k=mode+horiz+(pal||'');if(cache[k])return cache[k];
+ const t=mode==='pintada'?arcanoWoodPainted({horizontal:horiz,seed:horiz?11:5,palette:PAL[pal||'quente']}):arcanoTex.wood({horizontal:horiz,seed:horiz?11:3});
+ return cache[k]=t;}
+function mat(mode,horiz,pal,color){const t=wood(mode,horiz,pal);return new T.MeshToonMaterial({map:t.map,bumpMap:mode==='pintada'?null:t.bump,bumpScale:2,gradientMap:gm,color:color||'#ffffff'});}
+const TILE=1.4;
+function box(root,w,h,d,m,x,y,z,o){o=o||{};const g=new T.BoxGeometry(w,h,d),uv=g.attributes.uv,dims=[[d,h],[d,h],[w,d],[w,d],[w,h],[w,h]];
+ for(let f=0;f<6;f++)for(let i=0;i<4;i++){const k=f*4+i,[a,b]=dims[f];uv.setXY(k,uv.getX(k)*a/TILE,uv.getY(k)*b/TILE);}
+ const me=new T.Mesh(g,m);me.position.set(x,y,z);if(o.ry)me.rotation.y=o.ry;if(o.rz)me.rotation.z=o.rz;me.castShadow=me.receiveShadow=true;root.add(me);return me;}
+function cyl(root,r0,r1,h,m,x,y,z,seg){const g=new T.CylinderGeometry(r0,r1,h,seg||14),uv=g.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)*(2*Math.PI*r0/TILE),uv.getY(i)*h/TILE);const me=new T.Mesh(g,m);me.position.set(x,y,z);me.castShadow=me.receiveShadow=true;root.add(me);return me;}
+function roofMat(){const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');g.fillStyle='#d6553a';g.fillRect(0,0,256,256);const cols=['#ea6c4a','#bd4330','#f2845c','#c94c34'];let s=9;const r=()=>(s=(s*1664525+1013904223)>>>0)/4294967296;
+ for(let i=0;i<90;i++){g.fillStyle=cols[i%4];g.globalAlpha=.55;g.beginPath();g.ellipse(r()*256,r()*256,12+r()*20,5+r()*8,r()*3,0,7);g.fill();}g.globalAlpha=1;
+ g.strokeStyle='#8c2c22';g.lineWidth=3;for(let rr=0;rr<8;rr++)for(let k=-1;k<5;k++){g.beginPath();g.arc((k+(rr%2)*.5)*64+32,rr*32,32,0,Math.PI);g.stroke();}
+ const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;t.wrapS=t.wrapT=T.RepeatWrapping;return new T.MeshToonMaterial({map:t,gradientMap:gm});}
+const stoneM=(()=>{const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d');g.fillStyle='#e8dabc';g.fillRect(0,0,128,128);g.strokeStyle='#a08c70';g.lineWidth=3;for(let r=0;r<4;r++){g.beginPath();g.moveTo(0,r*32);g.lineTo(128,r*32);g.stroke();for(let k=0;k<2;k++){const x=(k+(r%2)*.5)*64;g.beginPath();g.moveTo(x,r*32);g.lineTo(x,r*32+32);g.stroke();}}
+ const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;t.wrapS=t.wrapT=T.RepeatWrapping;return new T.MeshToonMaterial({map:t,gradientMap:gm});})();
+const glowM=new T.MeshBasicMaterial({color:'#ffe9a8'});
+
+let scene3=null;
+function build(mode,pal){
+ if(scene3)sc.remove(scene3);const g=scene3=new T.Group();sc.add(g);
+ const V=mat(mode,false,pal),H=mat(mode,true,pal),Vd=mat(mode,false,pal==='escuro'?'quente':'escuro');
+ // casa: parede de tábuas verticais, vigas, porta, janela, telhado
+ const hx=-3.2,hz=-2;
+ box(g,7,.7,5.6,stoneM,hx,.35,hz);
+ box(g,6.6,3.2,5.2,V,hx,2.3,hz);
+ for(const sx of[-1,1])for(const sz of[-1,1])box(g,.35,3.3,.35,Vd,hx+sx*3.3,2.3,hz+sz*2.6);
+ for(const sz of[-1,1]){box(g,6.9,.3,.3,Vd,hx,3.95,hz+sz*2.6);box(g,6.9,.3,.3,Vd,hx,.9,hz+sz*2.6);}
+ box(g,1.3,2.2,.2,Vd,hx-1.4,1.8,hz+2.62);box(g,1.1,2.0,.1,H,hx-1.4,1.8,hz+2.7);
+ box(g,1.9,1.3,.18,Vd,hx+1.6,2.5,hz+2.62);box(g,1.5,.95,.12,glowM,hx+1.6,2.5,hz+2.68);box(g,.12,.95,.14,Vd,hx+1.6,2.5,hz+2.7);
+ {const sh=new T.Shape();sh.moveTo(-3.8,0);sh.lineTo(3.8,0);sh.lineTo(0,2.9);const e=new T.ExtrudeGeometry(sh,{depth:6,bevelEnabled:false}),U=e.attributes.uv;for(let i=0;i<U.count;i++)U.setXY(i,U.getX(i)*.3,U.getY(i)*.3);const m=new T.Mesh(e,roofMat());m.position.set(hx,3.9,hz-3);m.castShadow=m.receiveShadow=true;g.add(m);}
+ box(g,.9,2.2,.9,stoneM,hx+2,5.1,hz-.5);
+ // cercado
+ const fx0=1.2,fz=2.2;
+ for(let i=0;i<9;i++){const x=fx0+i*1.25;box(g,.22,1.35,.22,V,x,.67,fz);if(i){for(const hh of[.55,1.0])box(g,1.25,.14,.1,H,x-.62,hh,fz);}}
+ for(let i=0;i<5;i++){const z=fz-i*1.25;if(i){box(g,.22,1.35,.22,V,fx0+10,.67,z);for(const hh of[.55,1.0])box(g,.1,.14,1.25,H,fx0+10,hh,z+.62);}}
+ // mesa e cadeiras
+ const mx=2.5,mz=-1.2;
+ box(g,2.0,.12,1.1,H,mx,.95,mz);for(const sx of[-1,1])for(const sz of[-1,1])box(g,.12,.9,.12,V,mx+sx*.85,.47,mz+sz*.42);
+ box(g,1.8,.06,.14,H,mx,.6,mz);
+ for(const sz of[-1,1]){const cz=mz+sz*1.0;box(g,.55,.08,.55,H,mx-.4,.55,cz);for(const sx of[-1,1])for(const dz of[-1,1])box(g,.07,.55,.07,V,mx-.4+sx*.23,.27,cz+dz*.23);box(g,.55,.5,.07,H,mx-.4,.9,cz+sz*.24);}
+ // baú, barril, caixote, banco
+ const cx=5.5,cz=-3;
+ box(g,1.3,.7,.8,H,cx,.35,cz);box(g,1.34,.18,.84,Vd,cx,.78,cz);box(g,.1,.72,.84,Vd,cx-.4,.36,cz);box(g,.1,.72,.84,Vd,cx+.4,.36,cz);box(g,.16,.2,.1,stoneM,cx,.55,cz+.42);
+ const bx=6,bz=.2;cyl(g,.5,.5,1,V,bx,.5,bz,16);for(const hh of[.2,.8]){const r=cyl(g,.52,.52,.08,Vd,bx,hh,bz,16);}
+ box(g,.9,.9,.9,V,.2,.45,-5);box(g,.9,.9,.9,V,1.2,.45,-5.2,{ry:.4});box(g,.9,.9,.9,V,.7,1.35,-5.1,{ry:.2});
+ box(g,1.8,.1,.5,H,-5.5,.55,3.6);for(const sx of[-1,1])box(g,.1,.55,.45,V,-5.5+sx*.7,.27,3.6);
+}
+const st={mode:q.get('m')||'pintada',pal:q.get('pal')||'quente',yaw:+(q.get('yaw')||.5),pitch:+(q.get('pitch')||.28),dist:+(q.get('d')||20),tx:1.5,ty:1.6,tz:-0.5};
+function ui(){const u=document.getElementById('ui');u.innerHTML='';const mk=(t,on,fn)=>{const b=document.createElement('button');b.className='b'+(on?' on':'');b.textContent=t;b.onclick=fn;u.appendChild(b);};
+ mk('Madeira atual',st.mode==='atual',()=>{st.mode='atual';build(st.mode,st.pal);ui();});
+ mk('Madeira pintada',st.mode==='pintada',()=>{st.mode='pintada';build(st.mode,st.pal);ui();});
+ if(st.mode==='pintada')for(const p of['quente','claro','escuro'])mk(p[0].toUpperCase()+p.slice(1),st.pal===p,()=>{st.pal=p;build(st.mode,st.pal);ui();});}
+if(q.get('ui')!=='0')ui();else document.getElementById('hint').style.display='none';
+build(st.mode,st.pal);
+function size(){R.setSize(innerWidth,innerHeight);cam.aspect=innerWidth/innerHeight;cam.fov=cam.aspect<1?64:42;cam.updateProjectionMatrix();}addEventListener('resize',size);size();
+const el=R.domElement,P=new Map();
+el.addEventListener('pointerdown',e=>{el.setPointerCapture(e.pointerId);P.set(e.pointerId,{x:e.clientX,y:e.clientY});});
+el.addEventListener('pointerup',e=>P.delete(e.pointerId));el.addEventListener('pointercancel',e=>P.delete(e.pointerId));
+el.addEventListener('pointermove',e=>{const p=P.get(e.pointerId);if(!p)return;const dx=e.clientX-p.x,dy=e.clientY-p.y;
+ if(P.size===2){const a=[...P.values()],d0=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y);p.x=e.clientX;p.y=e.clientY;const b=[...P.values()],d1=Math.hypot(b[0].x-b[1].x,b[0].y-b[1].y);st.dist=Math.max(3,Math.min(60,st.dist*d0/Math.max(1,d1)));return;}
+ p.x=e.clientX;p.y=e.clientY;st.yaw-=dx*.006;st.pitch=Math.max(.02,Math.min(1.3,st.pitch+dy*.004));});
+el.addEventListener('wheel',e=>{e.preventDefault();st.dist=Math.max(3,Math.min(60,st.dist*Math.exp(e.deltaY*.001)));},{passive:false});
+function frame(){const cp=Math.cos(st.pitch);cam.position.set(st.tx+Math.sin(st.yaw)*cp*st.dist,st.ty+Math.sin(st.pitch)*st.dist,st.tz+Math.cos(st.yaw)*cp*st.dist);cam.lookAt(st.tx,st.ty,st.tz);R.render(sc,cam);}
+(function loop(){requestAnimationFrame(loop);frame();})();
+window.__shot=async(name,o)=>{o=o||{};if(o.mode){st.mode=o.mode;}if(o.pal)st.pal=o.pal;['yaw','pitch','dist','tx','ty','tz'].forEach(k=>{if(o[k]!==undefined)st[k]=o[k];});build(st.mode,st.pal);const w=1600,h=900;R.setPixelRatio(1);R.setSize(w,h,false);cam.aspect=w/h;cam.fov=42;cam.updateProjectionMatrix();frame();const d=R.domElement.toDataURL('image/jpeg',.93);await fetch('/?n='+name,{method:'POST',body:d});R.setPixelRatio(Math.min(2,devicePixelRatio));size();return d.length;};
+</script></body></html>
