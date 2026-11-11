@@ -19,10 +19,26 @@ float animeNoise(vec2 p){
 }
 float animeFbm(vec2 p){return animeNoise(p)*.55+animeNoise(p*2.3+7.1)*.3+animeNoise(p*5.1-3.7)*.15;}
 vec3 animeLin(vec3 c){return pow(c,vec3(2.2));}
+// Gramado pintado: 4 tons de verde em manchas de borda recortada (anime pintado).
+vec3 animePaintLawn(vec2 w){
+ float n=animeFbm(w*.035+vec2(3.,7.))+(animeNoise(w*.16)-.5)*.2;
+ vec3 g0=animeLin(vec3(.21,.56,.35)),g1=animeLin(vec3(.33,.68,.30)),g2=animeLin(vec3(.49,.78,.31)),g3=animeLin(vec3(.67,.86,.37));
+ vec3 c=mix(g0,g1,smoothstep(.39,.41,n));c=mix(c,g2,smoothstep(.51,.53,n));c=mix(c,g3,smoothstep(.65,.67,n));
+ return c;
+}
+// Sombras de nuvem azuladas, grandes e de borda definida.
+float animeCloudShade(vec2 w){return smoothstep(.553,.567,animeFbm(w*.011+vec2(20.,9.)));}
+// Pinceladas: riscos alongados e inclinados, claros e escuros.
+float animeStroke(vec2 w){
+ vec2 s=mat2(.94,-.34,.34,.94)*w;
+ float a=smoothstep(.60,.63,animeNoise(vec2(s.x*.55,s.y*2.4)));
+ float b=smoothstep(.62,.65,animeNoise(vec2(s.x*1.3+9.,s.y*5.+4.)));
+ return 1.+a*.09-b*.08;
+}
 `;
 
 /* ---------- Grama ---------- */
-const GRASS_KEY='anime-grass-v1';
+const GRASS_KEY='anime-grass-v2';
 function patchGrass(material){
  if(material.userData.animeGrass)return;
  material.userData.animeGrass=true;
@@ -36,7 +52,7 @@ function patchGrass(material){
    `#include <begin_vertex>
    vAnimeTip=clamp((position.y-uArcGrassBase)*uArcGrassInvHeight,0.0,1.0);
    #ifdef USE_INSTANCING
-    vAnimeRoot=instanceMatrix[3].xz;
+    vAnimeRoot=(modelMatrix*instanceMatrix*vec4(0.,0.,0.,1.)).xz;
    #else
     vAnimeRoot=(modelMatrix*vec4(position,1.0)).xz;
    #endif`);
@@ -44,20 +60,12 @@ function patchGrass(material){
    '#include <color_fragment>',
    `#include <color_fragment>
    {
-    float tex=dot(diffuseColor.rgb,vec3(.299,.587,.114));
-    // Manchas grandes de cor espalhadas pelo campo.
-    float patchA=animeFbm(vAnimeRoot*.07);
-    float patchB=animeNoise(vAnimeRoot*.21+3.3);
-    vec3 baseC=animeLin(vec3(.18,.43,.22));
-    vec3 midC=mix(animeLin(vec3(.40,.71,.27)),animeLin(vec3(.33,.66,.36)),patchB);
-    vec3 tipC=mix(animeLin(vec3(.78,.90,.38)),animeLin(vec3(.62,.86,.42)),patchA);
-    float h=smoothstep(0.,1.,vAnimeTip);
-    vec3 grass=mix(baseC,midC,smoothstep(.0,.55,h));
-    grass=mix(grass,tipC,smoothstep(.55,1.,h));
-    // Variação amarelada e leve, como flores-do-campo ao sol.
-    grass=mix(grass,animeLin(vec3(.86,.88,.42)),smoothstep(.68,.86,patchA)*h*.45);
-    // Mantém só um pouco do detalhe da textura original.
-    grass*=mix(1.,clamp(tex*2.2,.75,1.2),.25);
+    // Grama pintada: cada tufo pega o tom da mancha de chão onde nasce;
+    // base igual ao solo, pontas mais claras e amareladas.
+    vec3 lawn=animePaintLawn(vAnimeRoot);
+    lawn=mix(lawn,mix(lawn,animeLin(vec3(.18,.42,.47)),.36),animeCloudShade(vAnimeRoot));
+    float h=smoothstep(.15,.95,vAnimeTip);
+    vec3 grass=mix(lawn*.96,lawn*1.38+animeLin(vec3(.22,.24,.02)),h);
     diffuseColor.rgb=grass*.80;
    }`);
  };
@@ -67,7 +75,7 @@ function patchGrass(material){
 }
 
 /* ---------- Terra ---------- */
-const LAND_KEY='anime-land-v2';
+const LAND_KEY='anime-land-v3';
 // Relógio das cáusticas no fundo do rio.
 const landTime={value:0};
 (function tick(t){landTime.value=t/1000;requestAnimationFrame(tick);})(0);
@@ -131,23 +139,25 @@ function patchLand(material){
     float green=smoothstep(.12,.88,vAnimeGreen+(animeFbm(w*.45)-.5)*.30);
     // Terra: rampa de 3 tons quentes, suavizada como pintura.
     float t=clamp(lum*3.2+(big-.5)*.55+(small-.5)*.10,0.,1.);
-    vec3 dirtDark=animeLin(vec3(.58,.44,.33));
-    vec3 dirtMid=animeLin(vec3(.80,.68,.50));
-    vec3 dirtLight=animeLin(vec3(.92,.85,.68));
-    vec3 dirt=mix(dirtDark,dirtMid,smoothstep(.18,.42,t));
-    dirt=mix(dirt,dirtLight,smoothstep(.62,.86,t));
+    vec3 dirtDark=animeLin(vec3(.72,.58,.40));
+    vec3 dirtMid=animeLin(vec3(.88,.78,.56));
+    vec3 dirtLight=animeLin(vec3(.95,.88,.68));
+    float stroke=animeStroke(w);
+    vec3 dirt=mix(dirtDark,dirtMid,smoothstep(.27,.30,t));
+    dirt=mix(dirt,dirtLight,smoothstep(.70,.73,t));
+    dirt*=stroke;
     // Gramado do chão: verde suave e um pouco dessaturado, perto da base dos tufos.
     vec3 lawnA=animeLin(vec3(.42,.60,.31)),lawnB=animeLin(vec3(.52,.68,.36));
-    vec3 lawn=mix(lawnA,lawnB,smoothstep(.3,.8,big));
-    lawn=mix(lawn,animeLin(vec3(.36,.54,.30)),smoothstep(.6,.9,small)*.2);
+    vec3 lawn=animePaintLawn(w)*stroke;
     // Na transição o verde se mistura à terra (tom oliva) antes de sumir.
     vec3 edgeTone=mix(dirtMid,lawnA,.45);
-    float g1=smoothstep(.0,.55,green),g2=smoothstep(.45,1.,green);
+    float g1=smoothstep(.30,.36,green),g2=smoothstep(.52,.58,green);
     vec3 outC=mix(dirt,edgeTone,g1);
     outC=mix(outC,lawn,g2);
     // Partes úmidas/escuras (barro do rio) continuam mais escuras.
     float wet=1.-smoothstep(.05,.16,lum);
     outC*=mix(1.,.80,wet*(1.-green));
+    outC=mix(outC,mix(outC,animeLin(vec3(.18,.42,.47)),.36),animeCloudShade(w));
     // ---------- Margens do rio ----------
     // x = distância até a borda da água (m, negativo = dentro), y = altura acima da água.
     float sd=vAnimeShore.x,hw=vAnimeShore.y;
