@@ -153,7 +153,7 @@ function leafGeos(ctx,kind,w,h,side){const key=kind+w.toFixed(2)+h.toFixed(2)+si
  const r={wood:mergeGeos(fl,1/1.4),glass:mergeGeos(glass,1)};ctx.cache[key]=r;return r;}
 /* cria as duas folhas articuladas na posição atual (x,y,z na moldura corrente) */
 function addLeaves(B,ctx,M,kind,x,y,z,w,h,dir,maxA){
- const m=B.mat().multiply(new T.Matrix4().makeTranslation(x,y,z));const base=new T.Group();m.decompose(base.position,base.quaternion,base.scale);ctx.root.add(base);const id=ctx.n=(ctx.n||0)+1;
+ const m=B.mat().multiply(new T.Matrix4().makeTranslation(x,y,z));const base=new T.Group();m.decompose(base.position,base.quaternion,base.scale);ctx.root.add(base);const id=ctx.n=(ctx.n||0)+1;(ctx.centers||(ctx.centers={}))[id]={p:new T.Vector3(0,h*.5,0).applyMatrix4(m),n:new T.Vector3(0,0,1).transformDirection(m),r:Math.max(w,h)*.62+.25};
  for(const side of[-1,1]){const hinge=new T.Group();hinge.position.set(side*w/2,0,0);base.add(hinge);const pivot=new T.Group();hinge.add(pivot);
   const gs=leafGeos(ctx,kind,w,h,side);
   const wm=new T.Mesh(gs.wood,kind==='door'?M.sashDoor:M.sashWood);wm.castShadow=true;wm.receiveShadow=true;wm.userData.openId=id;pivot.add(wm);
@@ -205,7 +205,7 @@ function wallFrame(B,S,w,h,floors,fh,o){o=o||{};
  for(let f=0;f<floors;f++)for(let i=0;i<nx;i++){
   const cx=(xs[i]+xs[i+1])/2,pw=xs[i+1]-xs[i],yb=f*fh+.14,yt=(f+1)*fh-.12;
   if(o.skip&&o.skip(cx,f))continue;
-  if(S.braces==='x'){const L=Math.hypot(pw-post,fh-.3),an=Math.atan2(fh-.3,pw-post);for(const sg of[-1,1])B.box('timber',L*.98,.15,.14,cx,yb+(fh-.3)/2,.08,0,{rz:sg*an});}
+  if(S.braces==='x'){const win=o.hasWin&&o.hasWin(cx,f);if(win)continue;const hh=fh-.3,ww=pw-post,L=Math.hypot(ww,hh),an=Math.atan2(hh,ww);for(const sg of[-1,1])B.box('timber',L*.98,.13,.14,cx,yb+hh/2,.08,0,{rz:sg*an});}
   else{const k=Math.min(.6,(pw-post)*.2,(fh-.3)*.2),xl=xs[i]+post/2,xr=xs[i+1]-post/2;
    arcBrace(B,xl+k,yt-k,k,PI/2,PI,.08);arcBrace(B,xr-k,yt-k,k,0,PI/2,.08);arcBrace(B,xl+k,yb+k,k,PI,PI*1.5,.08);arcBrace(B,xr-k,yb+k,k,PI*1.5,PI*2,.08);}
  }
@@ -325,7 +325,8 @@ function build(o){o=o||{};
   B.push(0,Y0,0,F.ry);B.push(0,0,F.dz,0);
   wallPanel(B,F.front||F.ry===PI?F.w:F.w-.6,H,holes,TH);
   const skip=F.front&&bay?((cx,f)=>Math.abs(cx)<Wc/2+.1&&f===0):null;
-  wallFrame(B,S,F.w,H,floors,fh,{skip,xs});
+  const ws=new Set(wins.map(w=>w.cx.toFixed(2)+'_'+w.f));
+  wallFrame(B,S,F.w,H,floors,fh,{skip,xs,hasWin:(cx,f)=>ws.has(cx.toFixed(2)+'_'+f)||(F.front&&f===0&&Math.abs(cx)<.01)});
   for(const w of wins)win(B,w.cx,w.f,w.w,1.6,w.opt);
   if(F.front){ // porta de duas folhas
    B.add('timber',archFrame(1.5,2.5,.2,.3),0,.04,.04);
@@ -440,7 +441,14 @@ function build(o){o=o||{};
  g.userData.casa={ctx,
   set(kind,open){for(const it of ctx.list)if(!kind||it.kind===kind)it.tgt=open?1:0;},
   toggleId(id){const it=ctx.list.filter(i=>i.id===id);const any=it.some(i=>i.tgt>0);it.forEach(i=>i.tgt=any?0:1);},
-  pick(ray){const hit=ray.intersectObjects(ctx.root.children,true)[0];if(!hit||!hit.object.userData.openId)return 0;const others=g.children.filter(c=>c!==ctx.root&&c.isMesh&&c.visible),wall=ray.intersectObjects(others,false)[0];if(wall&&wall.distance<hit.distance-.02)return 0;return hit.object.userData.openId;},
+  pick(ray){const others=g.children.filter(c=>c!==ctx.root&&c.isMesh&&c.visible&&c.name!=='casa leaf'),wall=ray.intersectObjects(others,false)[0];
+   // escolhe a abertura cujo centro o raio passa mais perto (relativo ao tamanho), sem parede na frente
+   let best=0,bs=1e9;const wp=new T.Vector3();
+   for(const id in ctx.centers){const c=ctx.centers[id];wp.copy(c.p);g.localToWorld(wp);const t=wp.clone().sub(ray.ray.origin).dot(ray.ray.direction);if(t<0)continue;
+    const sc=ray.ray.distanceToPoint(wp)/c.r;if(sc<.62&&(!wall||t<wall.distance+.45)&&sc<bs){bs=sc;best=+id;}}
+   if(best)return best;
+   const hit=ray.intersectObjects(ctx.root.children,true)[0];if(hit&&hit.object.userData.openId&&(!wall||wall.distance>=hit.distance-.05))return hit.object.userData.openId;
+   return best;},
   toggle(kind){const any=ctx.list.some(it=>it.kind===kind&&it.tgt>0);this.set(kind,!any);},
   update(dt){for(const it of ctx.list){if(it.open===it.tgt)continue;it.open+=(it.tgt-it.open)*Math.min(1,dt*6);if(Math.abs(it.tgt-it.open)<.002)it.open=it.tgt;it.pivot.rotation.y=it.open*it.max*it.dir*(it.side<0?-1:1);}},
   roof(v){g.traverse(m=>{if(m.name==='casa roof'||m.name==='casa ceil')m.visible=v;});}};
