@@ -11,11 +11,11 @@ if(!T)return;
 const PI=Math.PI,TAU=PI*2,CASTLE={x:0,z:-230};
 const G0=16.45,N=11,C=4.5,HALF=N*C/2,HF=HALF+.6,LV=[-6,-13.5,-21],HEAD=5,SLAB=2.5,BED=-26.5,TRL=-6.8;
 const SITES=[
- {id:'cripta',nome:'Mina dos Esquecidos',x:330,z:-390,g:17.9,seed:11,tint:[.55,.85,1]},
- {id:'prisao',nome:'Mina da Colina',x:-180,z:-90,g:11.6,seed:22,tint:[.8,.55,1]},
- {id:'cofre',nome:'Mina do Dragão',x:-140,z:-560,g:17.8,seed:33,tint:[1,.78,.4]},
- {id:'mina',nome:'Mina Abandonada',x:-330,z:-130,g:10.3,seed:44,tint:[.5,.9,1]},
- {id:'gruta',nome:'Gruta Cristalina',x:190,z:-110,g:10.1,seed:55,tint:[.9,.6,1]}
+ {id:'cripta',nome:'Mina dos Esquecidos',x:188,z:-338,g:17.6,seed:11,tint:[.55,.85,1]},
+ {id:'prisao',nome:'Mina da Colina',x:-252,z:-26,g:4.65,seed:22,tint:[.8,.55,1]},
+ {id:'cofre',nome:'Mina do Dragão',x:-260,z:-394,g:23.23,seed:33,tint:[1,.78,.4]},
+ {id:'mina',nome:'Mina Abandonada',x:148,z:78,g:-6.47,seed:44,tint:[.5,.9,1]},
+ {id:'gruta',nome:'Gruta Cristalina',x:348,z:-106,g:11.01,seed:55,tint:[.9,.6,1]}
 ];
 const sm=(a,b,t)=>{t=Math.min(1,Math.max(0,(t-a)/(b-a)));return t*t*(3-2*t);};
 for(const s of SITES){s.rot=Math.atan2(CASTLE.x-s.x,CASTLE.z-s.z);s.c=Math.cos(s.rot);s.s=Math.sin(s.rot);}
