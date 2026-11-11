@@ -159,7 +159,9 @@ function addLeaves(B,ctx,M,kind,x,y,z,w,h,dir,maxA){
   const wm=new T.Mesh(gs.wood,kind==='door'?M.sashDoor:M.sashWood);wm.castShadow=true;wm.receiveShadow=true;wm.userData.openId=id;pivot.add(wm);
   if(gs.glass){const gl=new T.Mesh(gs.glass,M.sashGlass);gl.receiveShadow=true;gl.userData.openId=id;pivot.add(gl);}
   ctx.list.push({kind,id,pivot,side,dir,max:maxA,open:0,tgt:0});}}
-function wallPanel(B,w,H,holes,t){const sh=new T.Shape();sh.moveTo(-w/2,0);sh.lineTo(w/2,0);sh.lineTo(w/2,H);sh.lineTo(-w/2,H);sh.lineTo(-w/2,0);
+let HOLEBOX=null;
+function regHole(B,cx,y0,w,h){if(!HOLEBOX)return;const m=B.mat(),bx=new T.Box3();for(const x of[cx-w/2,cx+w/2])for(const y of[y0,y0+h])for(const z of[-.7,.5])bx.expandByPoint(new T.Vector3(x,y,z).applyMatrix4(m));bx.expandByScalar(.22);HOLEBOX.push(bx);}
+function wallPanel(B,w,H,holes,t){for(const hl of holes)regHole(B,hl.cx,hl.y0,hl.w,hl.h);const sh=new T.Shape();sh.moveTo(-w/2,0);sh.lineTo(w/2,0);sh.lineTo(w/2,H);sh.lineTo(-w/2,H);sh.lineTo(-w/2,0);
  for(const hl of holes){const p=new T.Path(),x0=hl.cx-hl.w/2,x1=hl.cx+hl.w/2;
   if(hl.rect){p.moveTo(x0,hl.y0);p.lineTo(x1,hl.y0);p.lineTo(x1,hl.y0+hl.h);p.lineTo(x0,hl.y0+hl.h);p.lineTo(x0,hl.y0);}
   else{p.moveTo(x0,hl.y0);p.lineTo(x1,hl.y0);p.lineTo(x1,hl.y0+hl.h-hl.w/2);p.absarc(hl.cx,hl.y0+hl.h-hl.w/2,hl.w/2,0,PI,false);p.lineTo(x0,hl.y0);}
@@ -274,12 +276,13 @@ function dormer(B,S,x,yRoof,z,ry,w,ctx,M){B.push(x,yRoof,z,ry);
 
 /* hera: cartões de folha pendendo */
 function ivy(B,R,x0,y0,z0,w,hang,n,nrm,ry){
- const pg=new T.PlaneGeometry(.24,.29);
+ const pg=new T.PlaneGeometry(.24,.29),pv=new T.Vector3();
  for(let i=0;i<n;i++){
   const fx=(R()-.5)*w,len=hang*(.2+.8*Math.pow(R(),.8)),fy=-R()*len,sway=Math.sin(fx*2.1+i)*.15;
   const c=new T.Color().setHSL(.23+R()*.08,.6,.26+R()*.22);
-  B.push(x0,y0,z0,ry);
-  B.add('leaf',pg,fx+sway,fy,.08+R()*.16,0,{rx:(R()-.5)*1.2-.2,rz:(R()-.5)*2.4,sx:.7+R()*.6,sy:.7+R()*.6,color:c,keepUV:true});
+  B.push(x0,y0,z0,ry);const zz=.14+R()*.14;
+  if(HOLEBOX){pv.set(fx+sway,fy,zz).applyMatrix4(B.mat());if(HOLEBOX.some(b=>b.containsPoint(pv))){B.pop();continue;}}
+  B.add('leaf',pg,fx+sway,fy,zz,0,{rx:(R()-.5)*1.2-.2,rz:(R()-.5)*2.4,sx:.7+R()*.6,sy:.7+R()*.6,color:c,keepUV:true});
   B.pop();}}
 
 /* barril com arcos de ferro */
@@ -304,15 +307,16 @@ const STYLES={
 /* ---------- Casa completa ---------- */
 function build(o){o=o||{};
  const S=STYLES[o.style||'mond'],M=mats(S),R=rng(o.seed||5),B=Builder();
- const ctx={root:new T.Group(),list:[],cache:{}};ctx.root.name='partes móveis';
+ const ctx={root:new T.Group(),list:[],cache:{}};ctx.root.name='partes móveis';HOLEBOX=[];
  const floors=o.floors||2,fh=2.9,W=o.w||9.5,D=o.d||6.4,Y0=.55,H=floors*fh,wallTop=Y0+H,TH=.3;
  const towerSide=o.tower===false||o.tower==='none'?0:(o.tower==='right'?1:-1),tower=!!towerSide,bay=o.bay!==false;
  const sxS=towerSide===1?-1:1; // lado da escada
- const colls=[];
+ const colls=[],rooms=[];
  // base de pedra
  B.box('stone',W+.5,Y0,D+.5,0,Y0/2,0);
  const Wc=bay?(o.bayW||4.6):0;
  const win=(B2,fx,f,w,h,opt)=>windowArch(B2,S,fx,f*fh+.85,.22,w,h,Object.assign({ctx,M},opt));
+ const annexOn=!!(o.annex&&floors>=2),annexSide=towerSide?-towerSide:(o.annex==='left'?-1:1),annexD=D*.78,annexZ=-(D-annexD)/2-.1;let innerDoor=null;
  const faces=[{ry:0,w:W,dz:D/2,front:true},{ry:PI,w:W,dz:D/2},{ry:PI/2,w:D,dz:W/2},{ry:-PI/2,w:D,dz:W/2}];
  for(const F of faces){
   const xs=framePos(F.w,F.front?3.2:3.0,!!F.front),wins=[],holes=[];
@@ -322,6 +326,10 @@ function build(o){o=o||{};
     if(F.front&&f===0&&Math.abs(cx)<.01)continue;
     if(!F.front&&f===0&&R()<.35)continue;
     const w=Math.min(.9,pw*.27);wins.push({cx,f,w,opt:{shutters:R()<(o.shut==null?.4:o.shut),flowers:f===0&&R()<.5}});holes.push({cx,y0:f*fh+.85,w,h:1.6});}}
+  if(annexOn&&Math.abs(F.ry-annexSide*PI/2)<1e-6){ // parede lateral do lado do anexo: porta interna
+   const want=annexSide>0?-annexZ:annexZ;let bc=0,bd=1e9;for(let i=0;i<xs.length-1;i++){const c=(xs[i]+xs[i+1])/2;if(Math.abs(c-want)<bd&&Math.abs(c-want)<annexD/2-.7){bd=Math.abs(c-want);bc=c;}}
+   for(let i=wins.length-1;i>=0;i--)if(wins[i].f===0&&Math.abs(wins[i].cx-bc)<1.3){wins.splice(i,1);holes.splice(i,1);}
+   holes.push({cx:bc,y0:.04,w:1.0,h:2.2});innerDoor={fx:bc,hz:annexSide>0?-bc:bc};}
   if(F.front){holes.push({cx:0,y0:.04,w:1.5,h:2.46});if(bay)for(let f=1;f<floors;f++)holes.push({cx:0,y0:f*fh+.25,w:Wc-.7,h:fh-.8,rect:true});}
   B.push(0,Y0,0,F.ry);B.push(0,0,F.dz,0);
   wallPanel(B,F.front||F.ry===PI?F.w:F.w-.6,H,holes,TH);
@@ -329,6 +337,7 @@ function build(o){o=o||{};
   const ws=new Set(wins.map(w=>w.cx.toFixed(2)+'_'+w.f));
   wallFrame(B,S,F.w,H,floors,fh,{skip,xs,hasWin:(cx,f)=>ws.has(cx.toFixed(2)+'_'+f)||(F.front&&f===0&&Math.abs(cx)<.01)});
   for(const w of wins)win(B,w.cx,w.f,w.w,1.6,w.opt);
+  if(innerDoor&&Math.abs(F.ry-annexSide*PI/2)<1e-6)B.add('timber',archFrame(1.0,2.2,.14,.36),innerDoor.fx,.04,.04);
   if(F.front){ // porta de duas folhas
    B.add('timber',archFrame(1.5,2.5,.2,.3),0,.04,.04);
    addLeaves(B,ctx,M,'door',0,.04,-.15,1.5,2.46,1,1.75);
@@ -381,7 +390,7 @@ function build(o){o=o||{};
   B.push(0,0,zf-.05,0);
   {const sh=new T.Shape(),y0=wallTop-.4,prof=[];for(let i=0;i<=18;i++){const dd=Dc*i/18;prof.push([dd,yprof(dd,Dc,Hrc,1.55)]);}
    sh.moveTo(-sc,y0);sh.lineTo(sc,y0);for(let i=18;i>=0;i--){const [dd,y]=prof[i];if(dd<=sc+1e-6)sh.lineTo(dd,baseC+y-.2);}for(let i=1;i<=18;i++){const [dd,y]=prof[i];if(dd<=sc+1e-6)sh.lineTo(-dd,baseC+y-.2);}
-   {const hp=new T.Path(),gx=.4,gy=wallTop+.15,gh=1.0;hp.moveTo(-gx,gy);hp.lineTo(gx,gy);hp.lineTo(gx,gy+gh-gx);hp.absarc(0,gy+gh-gx,gx,0,PI,false);hp.lineTo(-gx,gy);sh.holes.push(hp);}
+   {const hp=new T.Path(),gx=.4,gy=wallTop+.15,gh=1.0;regHole(B,0,gy,.8,gh);hp.moveTo(-gx,gy);hp.lineTo(gx,gy);hp.lineTo(gx,gy+gh-gx);hp.absarc(0,gy+gh-gx,gx,0,PI,false);hp.lineTo(-gx,gy);sh.holes.push(hp);}
    B.add('plaster',new T.ExtrudeGeometry(sh,{depth:.16,bevelEnabled:false}),0,0,-.06,0);
    B.box('timber',.22,Hrc*.8,.2,0,wallTop+Hrc*.35,.14);B.box('timberH',sc*2,.22,.2,0,wallTop-.1,.14);
    for(const sg of[-1,1])B.box('timber',.16,Hrc*.55,.16,sg*sc*.5,wallTop+Hrc*.25,.14,0,{rz:-sg*.7});
@@ -390,7 +399,7 @@ function build(o){o=o||{};
   B.pop();
  }
  // ---- torre octogonal no canto (oca, com janelas e porta que abrem)
- if(tower){const r=o.towerR||1.9,tx=towerSide*(W/2+.2),tz=D/2-.5,th=H+1.1,sides=8,ap=r*Math.cos(PI/sides),fw=2*r*Math.sin(PI/sides);colls.push({c:[tx,tz,r+.15]});
+ if(tower){const r=o.towerR||1.9,tx=towerSide*(W/2+.2),tz=D/2-.5,th=H+1.1,sides=8,ap=r*Math.cos(PI/sides),fw=2*r*Math.sin(PI/sides);
   B.push(tx,0,tz,0);
   B.add('stone',new T.CylinderGeometry(r+.3,r+.35,Y0,sides),0,Y0/2,0,0);
   for(let k=0;k<sides;k++){const a=(k+.5)*TAU/sides,nx=Math.sin(a),nz=Math.cos(a),toHouse=nx*towerSide<-.5,front=k===(towerSide>0?7:0);
@@ -400,6 +409,7 @@ function build(o){o=o||{};
    B.push(nx*ap,Y0,nz*ap,a);wallPanel(B,fw,th,holes,.3);
    for(const f of wins)windowArch(B,S,0,f*fh+.9,.14,.9,1.6,{ctx,M});
    if(front){B.add('timber',archFrame(.95,2.1,.16,.26),0,.04,.04);addLeaves(B,ctx,M,'door',0,.04,-.15,.95,2.1,1,1.75);}
+   if(!front&&!toHouse)colls.push({b:[tx+nx*(ap-.15),tz+nz*(ap-.15),fw/2+.05,.2,a]});
    B.pop();}
   for(let k=0;k<sides;k++){const a=k*TAU/sides;B.box('timber',.3,th,.3,Math.sin(a)*(r+.02),Y0+th/2,Math.cos(a)*(r+.02),a);}
   for(let f=0;f<=floors;f++)B.add('timberH',new T.CylinderGeometry(r+.16,r+.16,.28,sides),0,Y0+f*fh+.1,0,0);
@@ -408,15 +418,17 @@ function build(o){o=o||{};
   B.add('ceil',new T.CylinderGeometry(r-.25,r-.25,.2,sides),0,Y0+th-.25,0,0);
   B.add('cloth',new T.CylinderGeometry(.9,.9,.04,16),0,Y0+.14,0,0,{color:col('#b44a3e')});
   B.add('lamp',new T.SphereGeometry(.15,10,8),0,Y0+fh-.8,0,0);
+  rooms.push({x:tx,z:tz,hw:r*.72,hd:r*.72,y:Y0+.05,top:Y0+fh-.3});
   spire(B,S,r*1.62,4.9,1.6,Y0+th+.2,sides);
   for(const a of[0,PI/2,-PI/2]){const rr=r*1.62*Math.pow(1-.3,1.6),yy=Y0+th+.2+4.9*.3;dormer(B,S,Math.sin(a)*rr*.98,yy,Math.cos(a)*rr*.98,a,.8,ctx,M);}
   ivy(B,R,0,Y0+th-.2,r+.2,2.6,3.4,102,1,0.0);ivy(B,R,0,Y0+th-.2,r+.2,2.6,3.4,102,1,PI/4);
   B.pop();}
  // ---- anexo lateral baixo (oco, com porta e janelas que abrem)
- if(o.annex&&floors>=2){const side=towerSide?-towerSide:(o.annex==='left'?-1:1),aw=3.8,ad=D*.78,ah=fh+.2,ax=side*(W/2+aw/2-.15),az=-(D-ad)/2-.1;colls.push({b:[ax,az,aw/2+.1,ad/2+.1]});
+ if(o.annex&&floors>=2){const side=towerSide?-towerSide:(o.annex==='left'?-1:1),aw=3.8,ad=D*.78,ah=fh+.2,ax=side*(W/2+aw/2-.15),az=-(D-ad)/2-.1;{const fz=az+ad/2-.15,dl=1.0-.6,dr=1.0+.6;colls.push({b:[ax+(-aw/2+dl)/2,fz,(dl+aw/2)/2,.2]},{b:[ax+(dr+aw/2)/2,fz,(aw/2-dr)/2,.2]},{b:[ax,az-ad/2+.15,aw/2,.2]},{b:[ax+side*(aw/2-.15),az,.2,ad/2]});
+  const ix=ax-side*(aw/2-.15);if(innerDoor){const z0=innerDoor.hz;colls.push({b:[ix,(az-ad/2+z0-.55)/2,.2,(z0-.55-(az-ad/2))/2]},{b:[ix,(az+ad/2+z0+.55)/2,.2,(az+ad/2-z0-.55)/2]});}else colls.push({b:[ix,az,.2,ad/2]});}rooms.push({x:ax,z:az,hw:aw/2-.3,hd:ad/2-.3,y:Y0+.1,top:Y0+ah-.3});
   B.push(ax,0,az,0);
   B.box('stone',aw+.4,Y0,ad+.4,0,Y0/2,0);
-  const AF=[{ry:0,w:aw,dz:ad/2,holes:[{cx:-.6,y0:.9,w:.9,h:1.5},{cx:1.0,y0:.04,w:1.1,h:2.1}],front:true},{ry:PI,w:aw,dz:ad/2,holes:[]},{ry:side*PI/2,w:ad-.6,dz:aw/2,holes:[{cx:0,y0:.9,w:.9,h:1.5}],outer:true},{ry:-side*PI/2,w:ad-.6,dz:aw/2,holes:[]}];
+  const AF=[{ry:0,w:aw,dz:ad/2,holes:[{cx:-.6,y0:.9,w:.9,h:1.5},{cx:1.0,y0:.04,w:1.1,h:2.1}],front:true},{ry:PI,w:aw,dz:ad/2,holes:[]},{ry:side*PI/2,w:ad-.6,dz:aw/2,holes:[{cx:0,y0:.9,w:.9,h:1.5}],outer:true},{ry:-side*PI/2,w:ad-.6,dz:aw/2,holes:innerDoor?[{cx:side>0?(innerDoor.hz-az):-(innerDoor.hz-az),y0:.04,w:1.0,h:2.2}]:[]}];
   for(const F of AF){B.push(0,Y0,0,F.ry);B.push(0,0,F.dz,0);wallPanel(B,F.w,ah,F.holes,TH);
    for(const hl of F.holes)if(hl.y0>.5)windowArch(B,S,hl.cx,hl.y0,.14,hl.w,hl.h,{ctx,M,shutters:F.front});
    if(F.front){B.add('timber',archFrame(1.1,2.1,.16,.26),1.0,.04,.04);addLeaves(B,ctx,M,'door',1.0,.04,-.15,1.1,2.1,1,1.75);}
@@ -454,9 +466,11 @@ function build(o){o=o||{};
   update(dt){for(const it of ctx.list){if(it.open===it.tgt)continue;it.open+=(it.tgt-it.open)*Math.min(1,dt*6);if(Math.abs(it.tgt-it.open)<.002)it.open=it.tgt;it.pivot.rotation.y=it.open*it.max*it.dir*(it.side<0?-1:1);}},
   roof(v){g.traverse(m=>{if(m.name==='casa roof'||m.name==='casa ceil')m.visible=v;});}};
  // colisão das paredes (com vão da porta) e chão interno, em coordenadas da casa
-  colls.push({b:[0,-D/2+.15,W/2,.22]},{b:[-(W/2-.15),0,.22,D/2]},{b:[W/2-.15,0,.22,D/2]},{b:[-(W/2+.85)/2,D/2-.15,(W/2-.85)/2,.22]},{b:[(W/2+.85)/2,D/2-.15,(W/2-.85)/2,.22]});
+  for(const sg of[-1,1]){const x=sg*(W/2-.15);if(innerDoor&&sg===annexSide){const z0=innerDoor.hz;colls.push({b:[x,(-D/2+z0-.55)/2,.22,(z0-.55+D/2)/2]},{b:[x,(D/2+z0+.55)/2,.22,(D/2-z0-.55)/2]});}else colls.push({b:[x,0,.22,D/2]});}
+ colls.push({b:[0,-D/2+.15,W/2,.22]},{b:[-(W/2+.85)/2,D/2-.15,(W/2-.85)/2,.22]},{b:[(W/2+.85)/2,D/2-.15,(W/2-.85)/2,.22]});
  if(bay)for(const px of[-Wc/2+.1,-Wc/4,Wc/4,Wc/2-.1])colls.push({c:[px,D/2+1.3,.2]});
- g.userData.colliders=colls;
+ g.userData.colliders=colls.filter(c=>!c.b||c.b[2]>0);
+ rooms.unshift({x:0,z:0,hw:W/2-.3,hd:D/2-.3,y:Y0+.1,top:Y0+fh-.25});g.userData.rooms=rooms;HOLEBOX=null;
  g.userData.floor={W,D,y:Y0+.1,step:{x0:-1.1,x1:1.1,z0:D/2-.3,z1:D/2+1.2,y:.12}};
  const bb=new T.Box3().setFromObject(g);g.userData.size=bb.getSize(new T.Vector3());
  return g;}

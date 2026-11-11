@@ -4127,6 +4127,8 @@ function applyGameCamera(){
  gameCameraSmooth.floor=Number.isFinite(gameCameraSmooth.floor)?gameCameraSmooth.floor+(floorUnder-gameCameraSmooth.floor)*.15:floorUnder;
  camera.position.y=Math.max(camera.position.y,Math.max(gameCameraSmooth.floor,floorUnder-.25));
  gameCameraActualDistance=game.camDistance;
+ // Casas com interior: a câmera não atravessa paredes (vilas-mundo.js).
+ if(window.arcanoCameraLimit)window.arcanoCameraLimit(gameCameraFocus,camera.position);
  camera.lookAt(gameCameraFocus);
  updateGameCameraOcclusion(gameCameraFocus,camera.position);
 }
