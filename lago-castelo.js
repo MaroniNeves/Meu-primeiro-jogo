@@ -58,8 +58,13 @@ function install(){
    for(const dx of xs){const x=X0+dx,hh=H(x,z);cyl(g,.15,.18,DY+.95-hh+.4,M.log,x,hh-.4,z,7,1.4);}}
   // corrimãos
   const post=(x,z)=>{cyl(g,.09,.1,1.15,M.woodDark,x,DY,z,6,1);};
-  for(const s of [-1,1]){const x=X0+s*(PW/2-.08);for(let z=PZ0+.6;z<=PZ1;z+=2.4)post(x,z);rod(g,x,DY+1.05,PZ0+.6,x,DY+1.05,PZ1,.045,M.woodDark,5);rod(g,x,DY+.55,PZ0+.6,x,DY+.55,PZ1,.04,M.woodDark,5);
-   O.addBox({x:x+s*.05,z:(PZ0+PZ1)/2,hw:.12,hd:len/2,rot:0});}
+  // vão nos dois lados onde saem as passarelas laterais (antes o corrimão fechava a passagem)
+  const G0=-80.6,G1=-77.2;
+  for(const s of [-1,1]){const x=X0+s*(PW/2-.08);
+   for(const [za,zb] of [[PZ0+.6,G0],[G1,PZ1]]){
+    for(let z=za;z<zb-.6;z+=2.4)post(x,z);post(x,zb);if(za===G1)post(x,za);
+    rod(g,x,DY+1.05,za,x,DY+1.05,zb,.045,M.woodDark,5);rod(g,x,DY+.55,za,x,DY+.55,zb,.04,M.woodDark,5);
+    O.addBox({x:x+s*.05,z:(za+zb)/2,hw:.12,hd:(zb-za)/2,rot:0});}}
   // cabeça em T: bordas (sem corrimão na frente, para a água)
   for(const s of [-1,1]){const x=X0+s*(TW/2-.1);for(let z=PZ1+.5;z<=TZ1;z+=2.2)post(x,z);rod(g,x,DY+1.05,PZ1+.5,x,DY+1.05,TZ1,.045,M.woodDark,5);O.addBox({x,z:(PZ1+TZ1)/2,hw:.12,hd:(TZ1-PZ1)/2,rot:0});}
   for(let x=-TW/2+.2;x<=TW/2;x+=2.2)post(X0+x,TZ1-.1);rod(g,X0-TW/2+.1,DY+1.05,TZ1-.1,X0+TW/2-.1,DY+1.05,TZ1-.1,.045,M.woodDark,5);O.addBox({x:X0,z:TZ1-.1,hw:TW/2,hd:.12,rot:0});

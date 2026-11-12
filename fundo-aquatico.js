@@ -80,7 +80,7 @@ function install(){
  const M=new T.Matrix4(),Q=new T.Quaternion(),E=new T.Euler(),V=new T.Vector3(),S=new T.Vector3(),C=new T.Color();
 
  // ---------- pedras (o estilo de pedra do jogo pinta o musgo no topo) ----------
- {const g=new T.IcosahedronGeometry(1,1),p=g.attributes.position;
+ {const g=new T.SphereGeometry(1,11,8),p=g.attributes.position;
   for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),z=p.getZ(i),f=1+.2*Math.sin(x*2.3+1)*Math.cos(y*2.1)+.14*Math.sin(z*2.9+x*1.7)+.06*Math.sin(x*6+z*5+y*4);p.setXYZ(i,x*f,y*f*.72,z*f);}
   g.computeVertexNormals();
   const n=rocks.length/4,im=new T.InstancedMesh(g,new T.MeshStandardMaterial({color:'#9c988e',roughness:1}),n);im.name='Pedras do fundo d\'água';
@@ -92,7 +92,7 @@ function install(){
   im.frustumCulled=false;root.add(im);}
  // ---------- algas, plantas, juncos e taboas (fitas que balançam) ----------
  const U={uTime:{value:0},uDay:{value:1},uFogColor:{value:new T.Color('#b6c6bc')},uFogNear:{value:45},uFogFar:{value:120}};
- {const base=new T.PlaneGeometry(1,1,1,7);base.translate(0,.5,0);
+ function makeRibbons(blades,name){const base=new T.PlaneGeometry(1,1,1,7);base.translate(0,.5,0);
   const g=new T.InstancedBufferGeometry();g.index=base.index;g.setAttribute('position',base.attributes.position);g.setAttribute('uv',base.attributes.uv);
   const n=blades.length/10,a=new Float32Array(n*3),b=new Float32Array(n*4),c=new Float32Array(n*3);
   for(let i=0;i<n;i++){a.set(blades.slice(i*10,i*10+3),i*3);b.set(blades.slice(i*10+3,i*10+7),i*4);c.set(blades.slice(i*10+7,i*10+10),i*3);}
@@ -101,8 +101,9 @@ function install(){
    vertexShader:`attribute vec3 iPos;attribute vec4 iDat;attribute vec3 iLean;uniform float uTime,uFogNear,uFogFar;
    varying float vT;varying float vKind;varying float vTone;varying float vFog;varying float vX;
    void main(){float t=uv.y,kind=iDat.w,h=iDat.y;
-    float wid=kind<.5?.05:kind<1.5?.17:kind<2.5?.12:.04;
-    float taper=kind<2.5?sin(clamp(t,0.,1.)*3.1416)*.85+.15*(1.-t):(1.-t*.8);
+    float wid=kind<.5?.05:kind<1.5?.17:kind<2.5?.12:kind>4.5?.34:.04;
+    float taper=(kind<2.5||kind>4.5)?sin(clamp(t,0.,1.)*3.1416)*.85+.15*(1.-t):(1.-t*.8);
+    if(kind>4.5)taper=pow(sin(clamp(t*.92+.06,0.,1.)*3.1416),.7);
     if(kind>3.5)taper=mix(taper,2.4,smoothstep(.72,.75,t)*smoothstep(.95,.92,t));
     float x=(uv.x-.5)*wid*(.7+.3*h)*taper;
     if(kind>.5&&kind<1.5)x+=sin(t*10.+iDat.z)*.025;
@@ -110,7 +111,7 @@ function install(){
     float s1=sin(uTime*sp+iDat.z+t*2.4),s2=sin(uTime*sp*.73+iDat.z*1.7+t*1.6);
     float c=cos(iDat.x),s=sin(iDat.x);
     vec3 p=vec3(x*c,t*h,-x*s);
-    vec2 off=(vec2(s1,s2)*amp+iLean.xy*under)*h*t*t;
+    vec2 off=(vec2(s1,s2)*amp+iLean.xy*(under+step(4.5,kind)))*h*t*t;
     p.xz+=off;p.y-=dot(off,off)*.25/max(h,.1);
     vT=t;vKind=kind;vTone=iLean.z;vX=uv.x;
     vec4 mv=viewMatrix*vec4(iPos+p,1.);vFog=smoothstep(uFogNear,uFogFar,-mv.z);gl_Position=projectionMatrix*mv;}`,
@@ -119,13 +120,16 @@ function install(){
     if(vKind<.5){a=mix(vec3(.06,.24,.16),vec3(.12,.30,.10),vTone);b=vTone<.33?vec3(.22,.58,.30):vTone<.66?vec3(.46,.70,.22):vec3(.16,.52,.44);}
     else if(vKind<1.5){a=vec3(.20,.26,.10);b=mix(vec3(.62,.60,.22),vec3(.44,.62,.24),vTone);}
     else if(vKind<2.5){a=vec3(.30,.10,.20);b=mix(vec3(.86,.36,.46),vec3(.74,.30,.62),vTone);}
+    else if(vKind>4.5){a=vec3(.10,.34,.14);b=mix(vec3(.30,.64,.22),vec3(.44,.72,.26),vTone);}
     else{a=vec3(.22,.40,.16);b=mix(vec3(.66,.82,.38),vec3(.80,.84,.46),vTone);}
     vec3 col=mix(a,b,smoothstep(.05,.95,vT));
     if(vKind>.5&&vKind<2.5)col*=mix(.72,1.,smoothstep(.0,.2,abs(vX-.5)));      // nervura central
-    if(vKind>3.5){float hd=smoothstep(.72,.75,vT)*smoothstep(.95,.92,vT);col=mix(col,vec3(.40,.23,.12)*(.8+.4*vX),hd);}
+    if(vKind>4.5){float vn=abs(fract(vT*7.-abs(vX-.5)*5.)-.5);col*=mix(.74,1.,smoothstep(.0,.12,abs(vX-.5)))*mix(.86,1.,smoothstep(.05,.2,vn));}
+    else if(vKind>3.5){float hd=smoothstep(.72,.75,vT)*smoothstep(.95,.92,vT);col=mix(col,vec3(.40,.23,.12)*(.8+.4*vX),hd);}
     col*=mix(.28,1.,uDay);
     gl_FragColor=vec4(mix(col,uFogColor,vFog),1.);}`}));
-  m.name='Algas e juncos';m.frustumCulled=false;root.add(m);}
+  m.name=name;m.frustumCulled=false;root.add(m);return m;}
+ makeRibbons(blades,'Algas e juncos');
  // ---------- vitórias-régias e flores ----------
  {const g=new T.CircleGeometry(1,20,.22,TAU-.44);g.rotateX(-PI/2);
   const n=pads.length/5,im=new T.InstancedMesh(g,new T.MeshStandardMaterial({color:'#ffffff',roughness:1,side:T.DoubleSide}),n);im.name='Vitórias-régias';
@@ -142,7 +146,8 @@ function install(){
  // relógio, dia/noite e neblina iguais aos da água
  (function tick(t){requestAnimationFrame(tick);U.uTime.value=t/1000;
   const rv=window.arcanoAnimeRiver&&window.arcanoAnimeRiver.material.uniforms;if(rv){const s=rv.uSun.value;U.uDay.value=Math.min(1,Math.max(0,(s.y+.1)/.28));U.uFogColor.value.copy(rv.fogColor.value);U.uFogNear.value=rv.fogNear.value;U.uFogFar.value=rv.fogFar.value;}})(0);
- window.arcanoFundoAquatico={root,counts:{pedras:rocks.length/4,musgo:moss.length/4,fitas:blades.length/10,regias:pads.length/5,flores:flowers.length/5}};
+ const ground=(x,z)=>(x>B.x0+.5&&x<B.x1-.5&&z>B.z0+.5&&z<B.z1-.5)?G.heightAt(x,z):H(x,z);
+ window.arcanoFundoAquatico={water,ground,regions,makeRibbons,pads,U,root,counts:{pedras:rocks.length/4,musgo:moss.length/4,fitas:blades.length/10,regias:pads.length/5,flores:flowers.length/5}};
  console.info('[Vida aquática]',JSON.stringify(window.arcanoFundoAquatico.counts));
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(install,2500));else setTimeout(install,2500);
