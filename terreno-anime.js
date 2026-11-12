@@ -75,7 +75,7 @@ function patchGrass(material){
 }
 
 /* ---------- Terra ---------- */
-const LAND_KEY='anime-land-v3';
+const LAND_KEY='anime-land-v4';
 // Relógio das cáusticas no fundo do rio.
 const landTime={value:0};
 (function tick(t){landTime.value=t/1000;requestAnimationFrame(tick);})(0);
@@ -164,7 +164,7 @@ function patchLand(material){
     if(sd<9.){
      // Leito submerso: tons frios e escuros, com manchas.
      float under=(1.-smoothstep(-.04,.02,hw))*(1.-smoothstep(.3,.8,sd));
-     vec3 bed=mix(animeLin(vec3(.50,.46,.36)),animeLin(vec3(.32,.38,.34)),smoothstep(.0,1.2,-hw));
+     vec3 bed=mix(animeLin(vec3(.74,.68,.50)),animeLin(vec3(.52,.54,.44)),smoothstep(.0,2.5,-hw));
      outC=mix(outC,bed*(.85+.3*big),under);
      // Cáusticas: redes de luz dançando no leito, só debaixo d'água.
      // Areia do leito com marcas de ondulação da correnteza.

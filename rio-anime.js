@@ -190,7 +190,7 @@ void main(){
  if(uSceneReady>.5&&gl_FrontFacing){
   // Refração: o leito de verdade (pedras, musgo, areia) visto através da superfície, balançando com as ondas.
   vec3 nv=(viewMatrix*vec4(n.x,0.,n.z,0.)).xyz;
-  vec2 suv=gl_FragCoord.xy/uRes+nv.xy*(1.6/max(vFogDepth,1.))*clamp(vDepth*5.,0.,1.);
+  vec2 suv=gl_FragCoord.xy/uRes+nv.xy*(.75/max(vFogDepth,1.))*clamp(vDepth*5.,0.,1.);
   vec3 bed=texture2D(uScene,clamp(suv,vec2(.002),vec2(.998))).rgb;
   // Cáusticas no ponto do leito que está sendo visto.
   vec2 bp=vWorld.xz-viewDir.xz/max(viewDir.y,.3)*vDepth;
@@ -198,8 +198,8 @@ void main(){
   bed+=uSunColor*cs*.3*smoothstep(.03,.25,vDepth)*exp(-vDepth*.7)*sunUp0*uSunPower;
   // Profundidade: cristalina no raso, mais escura e verde no fundo.
   float pathR=vDepth/max(viewDir.y,.38);
-  vec3 tr=exp(-pathR*vec3(.62,.2,.36));
-  vec3 deepC=vec3(.03,.2,.15)*(.25+.75*dayK);
+  vec3 tr=exp(-pathR*vec3(.2,.065,.105));
+  vec3 deepC=vec3(.03,.17,.19)*(.25+.75*dayK);
   vec3 bodyR=bed*tr+deepC*(1.-tr);
   bodyR+=vec3(.04,.14,.11)*max(vCrest,0.)*(1.-tr.g)*dayK;
   col=mix(bodyR,refl,fres);a=1.;

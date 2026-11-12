@@ -321,7 +321,7 @@ function install(){
   const dl=(lakeE(x,z)-1)*LAKE.rz;
   if(dl<sd&&z<INNER.z0+2){sd=dl;hw=y-LAKE.y;}
   // grande lago da floresta (lago-grande.js): margem e praia da ilha sem grama dentro d'água
-  {const LG=window.arcanoLagoGrande;if(LG){const dd=Math.hypot(x-LG.x,z-LG.z);if(dd<LG.r+16){const sdl=dd>(LG.ri+LG.r)/2?dd-LG.r:(LG.ri+2.5)-dd;if(sdl<sd){sd=sdl;hw=y-LG.level;}}}}
+  {const LG=window.arcanoLagoGrande;if(LG){const dd=Math.hypot(x-LG.x,z-LG.z);if(dd<LG.r+16){const sdl=(y-LG.level)/.45;if(sdl<sd){sd=sdl;hw=y-LG.level;}}}}
   {const si=streamInfo(x,z);if(si&&si.d-STREAM_W<sd){sd=si.d-STREAM_W;hw=y-si.level;}}
   if(sd<14)g*=sm(2.6,4.6,sd)*sm(.55,1.1,hw);
   {const q=portUV(x,z);if(q.u>PLAZA.u0-4&&Math.abs(q.v)<PLAZA.hw+4)g*=Math.max(sm(0,3,PLAZA.u0-q.u),sm(PLAZA.hw,PLAZA.hw+3,Math.abs(q.v)));} // praça do porto
@@ -776,10 +776,10 @@ function install(){
   // ---------- Grande lago da floresta (lago-grande.js): uma malha de água com a mesma água dos outros ----------
   {const LG=window.arcanoLagoGrande;
    if(LG){
-    const S=1.1,A=LG.r+5,nx=Math.round(2*A/S)+1,nz=nx,p=new Float32Array(nx*nz*3),uvA=new Float32Array(nx*nz*2),dep=new Float32Array(nx*nz),fl=new Float32Array(nx*nz*2),okg=new Uint8Array(nx*nz),ix=[];
+    const S=1.1,A=LG.r+17,nx=Math.round(2*A/S)+1,nz=nx,p=new Float32Array(nx*nz*3),uvA=new Float32Array(nx*nz*2),dep=new Float32Array(nx*nz),fl=new Float32Array(nx*nz*2),okg=new Uint8Array(nx*nz),ix=[];
     for(let j=0;j<nz;j++)for(let i=0;i<nx;i++){const k=j*nx+i,x=LG.x-A+i*S,z=LG.z-A+j*S;p[k*3]=x;p[k*3+1]=LG.level+.003;p[k*3+2]=z;uvA[k*2]=i/(nx-1);uvA[k*2+1]=j/(nz-1);
-     const h=window.arcanoIslandHeight(x,z);dep[k]=Math.max(0,LG.level-h);okg[k]=Math.hypot(x-LG.x,z-LG.z)<LG.r+3?1:0;}
-    for(let j=0;j<nz-1;j++)for(let i=0;i<nx-1;i++){const a=j*nx+i,b=a+1,c2=a+nx,d=c2+1;if(!(okg[a]&&okg[b]&&okg[c2]&&okg[d]))continue;ix.push(a,c2,b,b,c2,d);}   // a água passa por baixo da margem: o encontro com o terreno fica liso
+     const h=window.arcanoIslandHeight(x,z);dep[k]=Math.max(0,LG.level-h);okg[k]=Math.hypot(x-LG.x,z-LG.z)<LG.r+15?1:0;}
+    for(let j=0;j<nz-1;j++)for(let i=0;i<nx-1;i++){const a=j*nx+i,b=a+1,c2=a+nx,d=c2+1;if(!(okg[a]&&okg[b]&&okg[c2]&&okg[d]))continue;if(dep[a]+dep[b]+dep[c2]+dep[d]<=0)continue;ix.push(a,c2,b,b,c2,d);}   // a água passa por baixo da margem: o encontro com o terreno fica liso
     const gg=new T.BufferGeometry();gg.setAttribute('position',new T.BufferAttribute(p,3));gg.setAttribute('uv',new T.BufferAttribute(uvA,2));gg.setAttribute('waterDepth',new T.BufferAttribute(dep,1));gg.setAttribute('waterFlow',new T.BufferAttribute(fl,2));gg.setIndex(ix);
     const big=new T.Mesh(gg,shareMat(-9999));big.name='Lago grande da floresta';big.frustumCulled=false;big.renderOrder=3;scene.add(big);
    }}
@@ -1191,7 +1191,7 @@ function install(){
  window.arcanoOuterWater=(x,z)=>{
   let level=null;
   if(z>INNER.z1&&Math.abs(x-river.center(z))<half(z)+.2)level=river.levelAt(z);
-  else{const LG=window.arcanoLagoGrande;if(LG&&LG.inside(x,z,2))level=LG.level;else{const w=pondWater(x,z);if(w)level=w.level;}}
+  else{const LG=window.arcanoLagoGrande;if(LG&&LG.inside(x,z,15))level=LG.level;else{const w=pondWater(x,z);if(w)level=w.level;}}
   if(level==null)return null;
   const depth=level-window.arcanoIslandHeight(x,z);
   return depth>0?{level,depth}:null;
