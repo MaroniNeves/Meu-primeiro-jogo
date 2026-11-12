@@ -88,6 +88,8 @@ uniform float uClock;
 uniform sampler2D uRefl;
 uniform mat4 uReflMatrix;
 uniform float uReflReady,uMirrorY;
+// Cena já desenhada (leito, pedras, musgo) para a refração, e pedras próximas para a espuma da correnteza.
+uniform sampler2D uScene;uniform vec2 uRes;uniform float uSceneReady;uniform vec4 uRocks[8];
 uniform vec3 fogColor;
 uniform float fogNear,fogFar;
 varying vec3 vWorld;
@@ -105,6 +107,10 @@ float noise(vec2 p){
  return mix(mix(hash1(i),hash1(i+vec2(1,0)),u.x),mix(hash1(i+vec2(0,1)),hash1(i+vec2(1,1)),u.x),u.y);
 }
 float fbm(vec2 p){return noise(p)*.55+noise(p*2.1+3.7)*.3+noise(p*4.3-1.9)*.15;}
+// Cáusticas: redes de luz que dançam no leito.
+float caust(vec2 p,float t){vec2 q=mod(p,6.2831853)-250.;vec2 i=q;float c=1.;float inten=.005;
+ for(int k=0;k<4;k++){float tt=t*(1.-(3.5/float(k+1)));i=q+vec2(cos(tt-i.x)+sin(tt+i.y),sin(tt-i.y)+cos(tt+i.x));c+=1./length(vec2(q.x/(sin(i.x+tt)/inten),q.y/(cos(i.y+tt)/inten)));}
+ c/=4.;c=1.17-pow(c,1.4);return clamp(pow(abs(c),8.),0.,1.);}
 // Gradiente da altura das micro-ondas (diferenças finitas).
 vec2 ripple(vec2 p){
  float e=.08,c=fbm(p);
@@ -178,6 +184,26 @@ void main(){
  // ---------- Corpo d'água: absorção pela profundidade ----------
  // Caminho da luz dentro d'água: olhando de lado ela atravessa mais água,
  // então fica mais densa (dá volume em vez de parecer uma película).
+ vec3 sunD0=normalize(uSun);float sunUp0=smoothstep(-.05,.2,sunD0.y)*(1.-uCloudiness*.65);
+ float dayK=clamp(uSkyHorizon.g*1.2,0.,1.);
+ vec3 col;float a;
+ if(uSceneReady>.5&&gl_FrontFacing){
+  // Refração: o leito de verdade (pedras, musgo, areia) visto através da superfície, balançando com as ondas.
+  vec3 nv=(viewMatrix*vec4(n.x,0.,n.z,0.)).xyz;
+  vec2 suv=gl_FragCoord.xy/uRes+nv.xy*(1.6/max(vFogDepth,1.))*clamp(vDepth*5.,0.,1.);
+  vec3 bed=texture2D(uScene,clamp(suv,vec2(.002),vec2(.998))).rgb;
+  // Cáusticas no ponto do leito que está sendo visto.
+  vec2 bp=vWorld.xz-viewDir.xz/max(viewDir.y,.3)*vDepth;
+  float cs=caust(bp*1.7-flow*uTime*.2,uTime*.7)*.8+caust(bp*3.1+5.,uTime*.9+3.)*.35;
+  bed+=uSunColor*cs*.3*smoothstep(.03,.25,vDepth)*exp(-vDepth*.7)*sunUp0*uSunPower;
+  // Profundidade: cristalina no raso, mais escura e verde no fundo.
+  float pathR=vDepth/max(viewDir.y,.38);
+  vec3 tr=exp(-pathR*vec3(.62,.2,.36));
+  vec3 deepC=vec3(.03,.2,.15)*(.25+.75*dayK);
+  vec3 bodyR=bed*tr+deepC*(1.-tr);
+  bodyR+=vec3(.04,.14,.11)*max(vCrest,0.)*(1.-tr.g)*dayK;
+  col=mix(bodyR,refl,fres);a=1.;
+ }else{
  float path=vDepth/max(viewDir.y,.18);
  float thick=1.-exp(-path*1.6);
  vec3 body=mix(uShallow,uDeep,thick);
@@ -185,14 +211,17 @@ void main(){
  body+=vec3(.05,.20,.16)*max(vCrest,0.)*(1.-thick*.6);
  float bodyA=mix(.30,.90,smoothstep(0.,.9,thick));
 
- vec3 col=mix(body,refl,fres);
- float a=mix(bodyA,1.,fres*.85);
+ col=mix(body,refl,fres);
+ a=mix(bodyA,1.,fres*.85);
+ }
 
  // ---------- Sol ----------
  vec3 sunDir=normalize(uSun);
  vec3 hv=normalize(sunDir+viewDir);
  float sunUp=smoothstep(-.05,.2,sunDir.y)*(1.-uCloudiness*.65);
- float spec=pow(max(dot(n,hv),0.),260.)*4.+pow(max(dot(n,hv),0.),40.)*.12;
+ vec3 ng=normalize(n+vec3(noise(vWorld.xz*40.+uTime*1.3)-.5,0.,noise(vWorld.xz*40.-uTime*1.1+9.)-.5)*.3);
+ float spk=pow(max(dot(reflect(-viewDir,ng),sunDir),0.),260.);
+ float spec=smoothstep(.3,.55,spk)*1.3+pow(max(dot(n,hv),0.),260.)*2.+pow(max(dot(n,hv),0.),40.)*.12;
  col+=uSunColor*spec*uSunPower*sunUp;
  a=max(a,min(1.,spec*uSunPower*sunUp));
 
@@ -202,6 +231,22 @@ void main(){
  float foamBank=bank*smoothstep(.40,.70,fn+.25);
  float foamFast=smoothstep(.8,1.2,speed)*smoothstep(.62,.80,fbm(vWorld.xz*vec2(4.,1.2)-flow*uTime*2.));
  float foam=clamp(foamBank*.85+foamFast*.5+max(ringW,0.)*.35+bodyPush*.35,0.,1.);
+ {
+  vec2 perp=vec2(-flow.y,flow.x);vec2 fq=vec2(dot(vWorld.xz,flow),dot(vWorld.xz,perp));
+  float deepK=smoothstep(.05,.3,vDepth),spK=smoothstep(.08,.5,speed);
+  float streak=smoothstep(.74,.84,noise(vec2(fq.x*.7-uTime*(.5+speed*1.3),fq.y*6.+noise(vWorld.xz*1.3)*1.5)))*spK*deepK;
+  float specks=smoothstep(.83,.9,noise(vec2(fq.x*2.2-uTime*(1.1+speed*2.2),fq.y*9.)))*spK*deepK;
+  float rockFoam=0.,rockLines=0.;
+  for(int i=0;i<8;i++){vec4 rk=uRocks[i];if(rk.z<=0.)continue;vec2 d=vWorld.xz-rk.xy;float l=length(d),rd=l-rk.z;if(rd>rk.z*4.+1.2)continue;
+   float up=-dot(d/max(l,1e-3),flow),al=dot(d,flow),ac=dot(d,perp);
+   rockLines+=smoothstep(.7,.95,sin(rd*22.-uTime*2.6+fn*5.))*smoothstep(.8,.05,rd)*smoothstep(-.4,.5,up)*spK;
+   rockFoam+=smoothstep(.28,.02,rd)*smoothstep(.3,.6,fn+up*.2+.1)*(.35+.65*spK);
+   float wake=smoothstep(0.,rk.z,al)*smoothstep(rk.z*4.,rk.z,al)*smoothstep(rk.z*(.9+al*.12),0.,abs(ac));
+   rockFoam+=wake*smoothstep(.5,.68,fn)*.6*spK;
+   rockLines+=wake*smoothstep(.8,.93,sin((fq.x-uTime*(.5+speed))*5.+ac*4.+fn*7.))*.6*spK;}
+  col+=uFoam*(streak*.1+specks*.22+rockLines*.42)*(.3+.7*dayK);
+  foam=clamp(foam+rockFoam,0.,1.);
+ }
  col=mix(col,uFoam,foam);a=max(a,foam*.9);
 
  // ---------- Cachoeira ----------
@@ -270,6 +315,7 @@ function install(){
    uPlayer:{value:new T.Vector3(0,-999,0)},uPlayerWet:{value:0},
    uRings:{value:Array.from({length:12},()=>new T.Vector4(0,0,-99,0))},uClock:{value:0},
    uRefl:{value:null},uReflMatrix:{value:new T.Matrix4()},uReflReady:{value:0},uMirrorY:{value:0},
+   uScene:{value:null},uRes:{value:new T.Vector2(1,1)},uSceneReady:{value:0},uRocks:{value:Array.from({length:8},()=>new T.Vector4(0,0,0,0))},
    uFallZ:{value:profile&&profile.fall?profile.fall.z:-999},
    uFallTop:{value:profile&&profile.fall?profile.levelAt(profile.fall.z-.6):-999},
    uFallDrop:{value:profile&&profile.fall?profile.levelAt(profile.fall.z-.6)-profile.levelAt(profile.fall.z+.8):1},
@@ -346,6 +392,20 @@ function install(){
   }
  }
 
+ // ---------- Refração: cópia da tela já desenhada (leito e margens) antes de pintar a água ----------
+ // Barato: uma cópia da imagem por quadro, sem desenhar a cena outra vez.
+ let sceneTex=null,grabbed=false,rockTick=0;const gsz=new T.Vector2(),gzero=new T.Vector2(0,0);
+ (function tick(){grabbed=false;requestAnimationFrame(tick);})();
+ function grab(r){
+  if(grabbed||r.getRenderTarget()||!T.FramebufferTexture)return;grabbed=true;
+  try{r.getDrawingBufferSize(gsz);
+   if(!sceneTex||sceneTex.image.width!==gsz.x||sceneTex.image.height!==gsz.y){if(sceneTex)sceneTex.dispose();sceneTex=new T.FramebufferTexture(gsz.x,gsz.y,T.RGBAFormat);sceneTex.minFilter=sceneTex.magFilter=T.LinearFilter;u.uScene.value=sceneTex;}
+   u.uRes.value.copy(gsz);r.copyFramebufferToTexture(gzero,sceneTex);u.uSceneReady.value=1;
+  }catch(e){u.uSceneReady.value=0;}
+ }
+ // As outras águas (lagos, afluentes, rio até a borda) usam o mesmo material: também pedem a cópia.
+ setInterval(()=>{scene.traverse(o=>{if(!o.isMesh||o===water||o.userData.aguaGrab||!o.material||!o.material.uniforms||o.material.uniforms.uRings!==u.uRings)return;
+   o.userData.aguaGrab=true;const prev=o.onBeforeRender;o.onBeforeRender=function(r,sc,cam){if(prev)prev.apply(this,arguments);const main=api.getMainCamera&&api.getMainCamera();if(cam===main)grab(r);};});},2000);
  let wet=0,ringIndex=0;const lastRing={x:0,z:0,t:0};
  const sunTmp=new T.Color();
  water.onBeforeRender=function(r,sc,camera){
@@ -358,6 +418,11 @@ function install(){
    rendering=true;
    try{renderReflection(camera);}finally{rendering=false;}
   }
+  grab(r);
+  // Pedras dentro d'água perto de quem joga: a correnteza faz espuma e ondas nelas.
+  if((rockTick++%30)===0&&api.rockSolids){const cp=(api.getGrassPlayer&&api.getGrassPlayer()||camera).position;
+   const L=[];for(const st of api.rockSolids){const d=Math.hypot(st.x-cp.x,st.z-cp.z);if(d>45)continue;if(st._wet===undefined){const lv=window.arcanoWaterLevelAt?window.arcanoWaterLevelAt(st.x,st.z):null;st._wet=!!(profile&&profile.depthAt&&profile.depthAt(st.x,st.z)>.05&&lv!=null&&st.top>lv+.06);}if(st._wet)L.push({st,d});}
+   L.sort((a,b)=>a.d-b.d);u.uRocks.value.forEach((v,i)=>{const o=L[i];if(o)v.set(o.st.x,o.st.z,Math.max(o.st.rx,o.st.rz)*.9,1);else v.set(0,0,0,0);});}
   const f=scene.fog;
   if(f&&f.isFog){u.fogColor.value.copy(f.color).convertLinearToSRGB();u.fogNear.value=f.near;u.fogFar.value=f.far;}
   // Céu refletido acompanha dia, pôr do sol e noite.
