@@ -190,7 +190,7 @@ void main(){
  if(uSceneReady>.5&&gl_FrontFacing){
   // Refração: o leito de verdade (pedras, musgo, areia) visto através da superfície, balançando com as ondas.
   vec3 nv=(viewMatrix*vec4(n.x,0.,n.z,0.)).xyz;
-  vec2 suv=gl_FragCoord.xy/uRes+nv.xy*(.75/max(vFogDepth,1.))*clamp(vDepth*5.,0.,1.);
+  vec2 suv=gl_FragCoord.xy/uRes+nv.xy*(.45/max(vFogDepth,1.))*clamp(vDepth*5.,0.,1.);
   vec3 bed=texture2D(uScene,clamp(suv,vec2(.002),vec2(.998))).rgb;
   // Cáusticas no ponto do leito que está sendo visto.
   vec2 bp=vWorld.xz-viewDir.xz/max(viewDir.y,.3)*vDepth;
