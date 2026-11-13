@@ -131,6 +131,10 @@ function install(){
    if(!best)continue;const y=ground(x,z),up=y-best.w.level;if(up<-.05||up>1.3)continue;
    if(Math.abs(ground(x+.6,z)-y)>.6||Math.abs(ground(x,z+.6)-y)>.6)continue;      // barranco íngreme: nada
    shore.push({x,y,z,dx:Math.cos(best.a),dz:Math.sin(best.a),rad:best.rad,level:best.w.level,lake:best.w.lake,up});}}
+ {const I=window.arcanoIsland,GR=window.arcanoIslandGreen,HI=window.arcanoIslandHeight;
+  if(I&&GR&&HI){const n=mobile?700:1700;for(let i=0,g=0;i<n&&g<n*12;g++){const a=R()*TAU,d=I.cityRadius+12+Math.sqrt(R())*(I.radius-I.cityRadius-40),x=I.center.x+Math.cos(a)*d,z=I.center.z+Math.sin(a)*d;
+    if(GR(x,z)<.55||water(x,z))continue;const y=HI(x,z);if(Math.abs(HI(x+1,z)-y)>.5||Math.abs(HI(x,z+1)-y)>.5)continue;
+    shore.push({x,y,z,dx:1,dz:0,rad:9,level:-1e9,lake:false,up:9,forest:true});i++;}}}
  // sem plantas em estrada, píer, vila etc. (as mesmas regras da grama)
  const NG=window.arcanoNoGrass||[],blocked=(x,z)=>{for(const f of NG)if(f(x,z))return true;return false;};
 
@@ -138,7 +142,7 @@ function install(){
  const rocks=[],blades=[],flw=[];
  const plantSpots=[],flowerSpots=[],frogSpots=[],perch=[];
  const blade=(x,y,z,h,kind,lx,lz)=>blades.push(x,y,z,R()*TAU,h,R()*TAU,kind,lx||0,lz||0,R());
- for(const s of shore){const u=R(),free=!blocked(s.x,s.z);
+ for(const s of shore){let u=R();const free=!blocked(s.x,s.z);if(s.forest){if(!free)continue;u=u<.05?.1:.2+u*.64;}
   if(s.up<.4&&s.rad<2.4&&R()<.5)frogSpots.push({x:s.x+s.dx*(s.rad-.35),z:s.z+s.dz*(s.rad-.35),y:0,wx:s.x+s.dx*(s.rad+.9),wz:s.z+s.dz*(s.rad+.9),level:s.level,yaw:Math.atan2(s.dx,s.dz)});
   if(u<.2){const big=R()<.3,sc=big?.45+R()*.7:.12+R()*.3;rocks.push(s.x,s.y,s.z,sc);if(big){perch.push({x:s.x,y:s.y+sc*.62,z:s.z});if(O&&sc>.75)O.addCircle(s.x,s.z,sc*.7);
      if(s.up<.7)frogSpots.push({x:s.x,z:s.z,y:s.y+sc*.6,rock:true,wx:s.x+s.dx*(s.rad+.9),wz:s.z+s.dz*(s.rad+.9),level:s.level,yaw:Math.atan2(s.dx,s.dz)});}
@@ -150,7 +154,7 @@ function install(){
    plantSpots.push({x:s.x,y:s.y+hh*.5,z:s.z,top:s.y+hh*.7});}
   else if(u<.84){const k=3+Math.floor(R()*4),hue=[.78,.14,.0,.92,.6,.08][(R()*6)|0],white=R()<.2;
    for(let j=0;j<k;j++){const a=R()*TAU,r=R()*.35,px=s.x+Math.cos(a)*r,pz=s.z+Math.sin(a)*r,py=ground(px,pz),hh=.3+R()*.4;blade(px,py-.02,pz,hh,3);
-    flw.push(px,py+hh*.985,pz,.07+R()*.05,hue,white?1:0);flowerSpots.push({x:px,y:py+hh+.03,z:pz});}
+    flw.push(px,py+hh*.985,pz,.09+R()*.06,hue,white?1:0);flowerSpots.push({x:px,y:py+hh+.03,z:pz});}
    for(let j=0;j<4;j++){const a=R()*TAU;blade(s.x+Math.cos(a)*.1,s.y-.02,s.z+Math.sin(a)*.1,.18+R()*.15,5,Math.cos(a)*.8,Math.sin(a)*.8);}
    plantSpots.push({x:s.x,y:s.y+.2,z:s.z,top:s.y+.4});}
  }
@@ -163,18 +167,18 @@ function install(){
   for(let i=0;i<n;i++){const s=rocks[i*4+3];Q.setFromEuler(E.set((R()-.5)*.4,R()*TAU,(R()-.5)*.4));M.compose(V.set(rocks[i*4],rocks[i*4+1]+s*.2,rocks[i*4+2]),Q,S.set(s*(1+R()*.4),s*(.8+R()*.35),s*(.85+R()*.3)));im.setMatrixAt(i,M);}
   im.frustumCulled=false;im.receiveShadow=true;root.add(im);}
  root.add(FA.makeRibbons(blades,'Plantas da margem'));
- {const m=Merger();for(let ring=0;ring<2;ring++)for(let k=0;k<6;k++){const pg=new T.SphereGeometry(1,7,5);pg.scale(.3,.06,.62-ring*.16);pg.translate(0,0,.62-ring*.16);pg.rotateX(-.35-ring*.55);pg.rotateY(k/6*TAU+ring*.52);m.add(pg,ring?'#ffffff':'#e6e6e6');}
-  const fg=m.build(),cm=Merger();cm.ball(0,.12,0,.2,'#ffd54a',1,.7,1);const cg=cm.build();
+ {const m=Merger();for(let ring=0;ring<2;ring++)for(let k=0;k<6;k++){const w=.26-ring*.06,L=1-ring*.3,pg=new T.BufferGeometry();pg.setAttribute('position',new T.Float32BufferAttribute([0,0,0, w,.1,L*.5, -w,.1,L*.5, w,.1,L*.5, 0,.02,L, -w,.1,L*.5],3));pg.rotateX(-.3-ring*.55);pg.rotateY(k/6*TAU+ring*.52);m.add(pg,ring?'#ffffff':'#e2e2e2');}
+  const fg=m.build(),cm=Merger();{const cb=new T.SphereGeometry(.2,6,4);cb.scale(1,.7,1);cb.translate(0,.12,0);cm.add(cb,'#ffd54a');}const cg=cm.build();
   const n=flw.length/6,im=new T.InstancedMesh(fg,new T.MeshStandardMaterial({vertexColors:true,roughness:.8,side:T.DoubleSide}),n),ic=new T.InstancedMesh(cg,new T.MeshStandardMaterial({vertexColors:true,roughness:.8}),n);
   im.name='Flores da margem';ic.name='Miolo das flores';
   for(let i=0;i<n;i++){const s=flw[i*6+3];Q.setFromEuler(E.set((R()-.5)*.5,R()*TAU,(R()-.5)*.5));M.compose(V.set(flw[i*6],flw[i*6+1],flw[i*6+2]),Q,S.setScalar(s));im.setMatrixAt(i,M);ic.setMatrixAt(i,M);
-   im.setColorAt(i,flw[i*6+5]?C.setRGB(1,1,1):C.setHSL(flw[i*6+4],.75,.62));}
+   im.setColorAt(i,flw[i*6+5]?C.setRGB(1,1,1):C.setHSL(flw[i*6+4],.95,.56));}
   im.frustumCulled=false;ic.frustumCulled=false;root.add(im,ic);}
 
  /* ================= bichos ================= */
  const live=new T.Group();live.name='Bichos da margem';root.add(live);
  const FP=frogParts(),BK=butterflyKit(),DK=dragonflyKit();
- const CAP=mobile?{frog:5,fly:12,bfly:5,dfly:3,glow:22}:{frog:10,fly:26,bfly:9,dfly:5,glow:48};
+ const CAP=mobile?{frog:5,fly:12,bfly:7,dfly:3,glow:22}:{frog:10,fly:26,bfly:14,dfly:5,glow:48};
  const frogs=[],flies=[],bflies=[],dflies=[],glows=[];
  const state={day:1,forceDay:null,px:0,py:0,pz:0,speed:0,t:0};
  const near=(list,x,z,r0,r1)=>{const out=[];for(const s of list){const d=Math.hypot(s.x-x,s.z-z);if(d>=r0&&d<r1)out.push(s);}return out;};
@@ -217,7 +221,7 @@ function install(){
   for(let i=glows.length-1;i>=0;i--)if(Math.hypot(glows[i].home.x-x,glows[i].home.z-z)>FAR)glows.splice(i,1);
   const fs=near(frogSpots,x,z,5,40).filter(s=>!s.used);for(let k=0;k<3&&fs.length&&frogs.length<CAP.frog;k++)spawnFrog(pick(fs));
   const fl=near(flowerSpots,x,z,3,40),ps=near(plantSpots,x,z,3,40);
-  if(fl.length)for(let k=0;k<2&&bflies.length<CAP.bfly;k++)spawnBfly(pick(fl));
+  if(fl.length)for(let k=0;k<3&&bflies.length<CAP.bfly;k++)spawnBfly(pick(fl));
   if(ps.length){for(let k=0;k<4&&flies.length<CAP.fly;k++)spawnFly(pick(ps));for(let k=0;k<8&&glows.length<CAP.glow;k++)spawnGlow(pick(ps));}
   const ws=near(frogSpots,x,z,5,40);if(ws.length)for(let k=0;k<1&&dflies.length<CAP.dfly;k++)spawnDfly(pick(ws));
  }
@@ -333,6 +337,7 @@ function install(){
   for(let i=0;i<CAP.glow;i++){if(i<glows.length)updGlow(glows[i],i,dt);else gb[i]=0;}
   gGeo.attributes.position.needsUpdate=true;gGeo.attributes.aB.needsUpdate=true;gPts.material.uniforms.uPx.value=api.renderer.getPixelRatio();
  })(last);
+ window.arcanoFaunaKit={Merger,state,ground,water,blocked};
  window.arcanoFauna={state,frogs,flies,bflies,dflies,glows,spots:{shore:shore.length,frog:frogSpots.length,flor:flowerSpots.length,planta:plantSpots.length},counts:{pedras:rocks.length/4,fitas:blades.length/10,flores:flw.length/6}};
  console.info('[Margens vivas]',JSON.stringify(window.arcanoFauna.spots),JSON.stringify(window.arcanoFauna.counts));
 }
