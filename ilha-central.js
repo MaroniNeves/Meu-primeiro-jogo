@@ -158,6 +158,8 @@ function install(){
   pts.forEach((p,i)=>{const q=pts[Math.min(pts.length-1,i+1)],o=pts[Math.max(0,i-1)];let tx=q.x-o.x,tz=q.z-o.z;const tl=Math.hypot(tx,tz)||1;p.tx=tx/tl;p.tz=tz/tl;p.speed=.42;});
   let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;for(const p of pts){x0=Math.min(x0,p.x);x1=Math.max(x1,p.x);z0=Math.min(z0,p.z);z1=Math.max(z1,p.z);}
   return {pts,box:[x0-16,x1+16,z0-16,z1+16],spring:pts[0],south:true,w:6.4};}
+ // Perto de onde sai (e de onde volta ao rio), o braço abre em leque: sem banco de areia na bifurcação.
+ function branchWiden(S,s){const ds=s*2,de=S.joinEnd?(S.pts.length-1-s)*2:1e9;return 1+.9*(1-sm(0,24,Math.min(ds,de)));}
  const RC=z=>({x:river.center(z),z});
  LAGOON.y=Math.min(river.levelAt(66)-2.5,field(LAGOON.x,LAGOON.z)-1.3);
  const branchW=mkBranch([RC(66),{x:-24,z:76},{x:-58,z:86},{x:-86,z:104},{x:-100,z:121},{x:LAGOON.x,z:LAGOON.z}],river.levelAt(66),LAGOON.y);
@@ -175,7 +177,7 @@ function install(){
    for(let i=0;i<P.length-1;i++){
     const a=P[i],c=P[i+1],vx=c.x-a.x,vz=c.z-a.z,wx=x-a.x,wz=z-a.z;
     const t=clamp((wx*vx+wz*vz)/(vx*vx+vz*vz),0,1),dd=Math.hypot(wx-vx*t,wz-vz*t);
-    if(dd<best){best=dd;res={d:dd,level:a.level+(c.level-a.level)*t,s:i+t,tx:a.tx,tz:a.tz,speed:a.speed,sid:si_,w:S.w||STREAM_W};}
+    if(dd<best){best=dd;res={d:dd,level:a.level+(c.level-a.level)*t,s:i+t,tx:a.tx,tz:a.tz,speed:a.speed,sid:si_,w:S.south?S.w*branchWiden(S,i+t):STREAM_W};}
    }
   }
   return res;
@@ -318,6 +320,9 @@ function install(){
   // O canal entra na mistura (antes era aplicado por cima e criava um degrau).
   let y=edge+(carveRiver(x,z,field(x,z))-edge)*sm(0,38,od);
   const k=sm(0,8,od);if(k>0){const yw=carveWater(x,z,y);y+=(yw-y)*k;}
+  // Calha do rio principal: o leito nunca fica acima do perfil do canal (sem faixas de areia cortando a água,
+  // nem na emenda com a área detalhada nem perto da saída dos braços).
+  if(z>INNER.z1+.5){const w=half(z),lat=Math.abs(x-river.center(z));if(lat<w+1.5){const bedMain=river.levelAt(z)-(.95-1.65*sI(clamp((lat/w-.50)/.45,0,1)));const k=sm(INNER.z1+.5,INNER.z1+3,z)*(1-sm(w,w+1.5,lat));y=y+(Math.min(y,bedMain)-y)*k;}}
   {const yy=carvePort(x,z,carveVillage(x,z,y)),LG=window.arcanoLagoGrande,y2=LG?LG.carve(x,z,yy):yy,PT=window.arcanoPits;return PT?PT(x,z,y2):y2;}
  }
 
@@ -765,7 +770,7 @@ function install(){
   for(const B of SOUTH){const P=B.pts,COLS=11,keep=P.map(p=>!inMainRiver(p.x,p.z,-.2)&&lagoonE(p.x,p.z)>1.03);
    const pos=[],uvA=[],dep=[],flw=[],ix=[];let prevRow=-1;
    for(let i=0;i<P.length;i++){if(!keep[i]){prevRow=-1;continue;}const p=P[i],nx=p.tz,nz=-p.tx,row=pos.length/3;
-    for(let c=0;c<COLS;c++){const sc=(c/(COLS-1))*2-1,x=p.x+nx*sc*B.w*.98,z=p.z+nz*sc*B.w*.98;pos.push(x,p.level+.002,z);uvA.push(c/(COLS-1),i/(P.length-1));
+    for(let c=0;c<COLS;c++){const bw=B.w*branchWiden(B,i),sc=(c/(COLS-1))*2-1,x=p.x+nx*sc*bw*.98,z=p.z+nz*sc*bw*.98;pos.push(x,p.level+.002,z);uvA.push(c/(COLS-1),i/(P.length-1));
      dep.push(Math.max(0,p.level-window.arcanoIslandHeight(x,z)));flw.push(p.tx*.52,p.tz*.52);}
     if(prevRow>=0)for(let c=0;c<COLS-1;c++){const a=prevRow+c,b=a+1,cc=row+c,d=cc+1;ix.push(a,cc,b,b,cc,d);}prevRow=row;}
    if(!ix.length)continue;const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(pos,3));g.setAttribute('uv',new T.Float32BufferAttribute(uvA,2));
