@@ -19,34 +19,39 @@ function hsl2rgb(h,s,l){const a=s*Math.min(l,1-l),f=n=>{const k=(n+h/30)%12;retu
 
 /* ---------- Casca de árvore pintada (cor + altura), sem emenda ---------- */
 function barkPair(sd,tone){
+ // Casca de desenho animado: placas irregulares alongadas na vertical, contorno de tinta, volume em cada placa.
  let s=sd>>>0;const R=()=>{s=(s*1664525+1013904223)>>>0;return s/4294967296;};
  const S=512,a=document.createElement('canvas'),b=document.createElement('canvas');a.width=a.height=b.width=b.height=S;
- const g=a.getContext('2d'),h=b.getContext('2d');
- const base=tone?[28,40,30]:[24,32,22];
- g.fillStyle=`hsl(${base[0]},${base[1]}%,${base[2]*.7}%)`;g.fillRect(0,0,S,S);h.fillStyle='#303030';h.fillRect(0,0,S,S);
- // placas: faixas verticais onduladas, cada uma com volume (claro no centro-direita, escuro nas bordas)
- const bands=[];let x=0;while(x<S){const w=40+R()*56;bands.push({x:x+w/2,w,ph:R()*TAU,ph2:R()*TAU,k2:1+Math.floor(R()*2),amp:5+R()*9,per:1+Math.floor(R()*2),hue:base[0]+(R()-.5)*6,sat:base[1]+(R()-.5)*8,li:base[2]+(R()-.5)*7});x+=w*.86;}
- const sc=S/x;for(const q of bands){q.x*=sc;q.w*=sc;}
- const xo=(q,y)=>q.x+Math.sin(y/S*TAU*q.per+q.ph)*q.amp,ww=(q,y)=>q.w*(1+.28*Math.sin(y/S*TAU*q.k2+q.ph2));
- for(const q of bands)for(const ox of [-S,0,S]){
-  const path=(ctx,inset)=>{ctx.beginPath();for(let y=0;y<=S;y+=8)ctx.lineTo(xo(q,y)+ox-ww(q,y)/2+inset,y);for(let y=S;y>=0;y-=8)ctx.lineTo(xo(q,y)+ox+ww(q,y)/2-inset,y);ctx.closePath();};
-  const gr=g.createLinearGradient(q.x+ox-q.w/2,0,q.x+ox+q.w/2,0);
-  gr.addColorStop(0,`hsl(${q.hue},${q.sat}%,${q.li*.62}%)`);gr.addColorStop(.3,`hsl(${q.hue},${q.sat}%,${q.li}%)`);gr.addColorStop(.62,`hsl(${q.hue+3},${q.sat+4}%,${q.li*1.22}%)`);gr.addColorStop(.86,`hsl(${q.hue},${q.sat}%,${q.li*.95}%)`);gr.addColorStop(1,`hsl(${q.hue-2},${q.sat}%,${q.li*.6}%)`);
-  g.fillStyle=gr;path(g,1.5);g.fill();
-  const hg=h.createLinearGradient(q.x+ox-q.w/2,0,q.x+ox+q.w/2,0);hg.addColorStop(0,'#2a2a2a');hg.addColorStop(.35,'#b8b8b8');hg.addColorStop(.6,'#d8d8d8');hg.addColorStop(1,'#2a2a2a');h.fillStyle=hg;path(h,1.5);h.fill();
-  // brilho longo e macio na crista
-  g.strokeStyle=`hsla(${q.hue+6},${q.sat+6}%,${Math.min(80,q.li*1.6)}%,.22)`;g.lineWidth=q.w*.12;g.beginPath();for(let y=0;y<=S;y+=8)g.lineTo(xo(q,y)+ox+q.w*.12,y);g.stroke();}
- // sulcos: linhas escuras e macias entre as placas, com algumas pontes horizontais curtas
+ const g=a.getContext('2d'),h=b.getContext('2d'),img=g.createImageData(S,S),hi=h.createImageData(S,S),d=img.data,hd=hi.data;
+ const GX=7,GY=2,cw=S/GX,ch=S/GY,pts=[];const TP=2*Math.PI/S;
+ const wx=(x,y)=>x+20*Math.sin(y*TP+1.3)+6*Math.sin(y*TP*3+x*TP+.4),wy=(x,y)=>y+9*Math.sin(x*TP*2+2.1);
+ for(let j=0;j<GY;j++)for(let i=0;i<GX;i++)pts.push({x:(i+.15+R()*.7)*cw,y:(j+.15+R()*.7)*ch,t:R(),hu:R()});
+ const P=(i,j)=>pts[((j%GY+GY)%GY)*GX+((i%GX+GX)%GX)];
+ const AN=4.6; // placas mais altas que largas
+ const LX=.55,LY=-.62; // luz vindo de cima-direita
+ const base=tone?[27,48,44]:[24,46,38];
+ for(let y=0;y<S;y++)for(let x=0;x<S;x++){
+  const X=wx(x,y),Y=wy(x,y),ci=Math.floor(((X%S)+S)%S/cw),cj=Math.floor(((Y%S)+S)%S/ch),XX=((X%S)+S)%S,YY=((Y%S)+S)%S;let f1=1e9,f2=1e9,best=null,bx=0,by=0;
+  for(let dj=-1;dj<=1;dj++)for(let di=-1;di<=1;di++){const q=P(ci+di,cj+dj),qx=q.x+Math.floor((ci+di)/GX)*S-(ci+di<0?0:0),qy=q.y;
+   const ox=(ci+di)<0?-S:(ci+di)>=GX?S:0,oy=(cj+dj)<0?-S:(cj+dj)>=GY?S:0;
+   const dx=XX-(q.x+ox),dy=(YY-(q.y+oy))/AN,dd=Math.sqrt(dx*dx+dy*dy);if(dd<f1){f2=f1;f1=dd;best=q;bx=dx;by=dy;}else if(dd<f2)f2=dd;}
+  const e=f2-f1,rad=cw*.62,r=Math.min(1,f1/rad),nx=bx/rad,ny=by/rad;
+  // volume: centro e lado da luz mais claros, bordas escuras
+  const lit=Math.max(-1,Math.min(1,nx*1.3));let v=.8+.16*(1-Math.abs(nx))+.26*lit*(.35+.65*Math.min(1,Math.abs(nx)*1.4));
+  const bev=Math.min(1,e/9);v*=.62+.38*bev;
+  v+=.06*Math.sin(x*.07+y*.021+best.t*9)+.04*(best.t-.5);
+  const hue=base[0]+(best.hu-.5)*6,sat=base[1]+(best.hu-.5)*8;let L=base[2]*v;
+  const fade=.55+.45*Math.sin(YY*TP*4+best.t*12)*Math.sin(XX*TP*3+best.hu*9);let ink=0;if(e<2.2+1.2*fade)ink=Math.min(1,.5+fade);else if(e<4.5)ink=(4.5-e)/2.3*(.4+.4*fade);ink=Math.max(0,ink);
+  L=L*(1-ink)+12*ink;
+  const k=(y*S+x)*4,[rr,gg,bb]=hsl2rgb(hue,(sat-ink*10)/100,Math.max(.04,Math.min(.9,L/100)));
+  d[k]=rr*255;d[k+1]=gg*255;d[k+2]=bb*255;d[k+3]=255;
+  const hv=Math.max(0,Math.min(255,(.35+.55*(1-r*r)*bev)*255*(1-ink*.85)));hd[k]=hd[k+1]=hd[k+2]=hv;hd[k+3]=255;}
+ g.putImageData(img,0,0);h.putImageData(hi,0,0);
+ // rachaduras finas dentro de algumas placas (tinta), e brilhos curtos nas cristas
  g.lineCap='round';
- for(const q of bands){const segs=[];let y=-S*.2;while(y<S*1.2){const L=S*(.25+R()*.45);segs.push([y,y+L,1.6+R()*1.8]);y+=L+S*(.04+R()*.1);}
-  const splits=[];for(let k=0;k<2;k++)splits.push([R()*S,(R()<.5?-1:1),S*(.08+R()*.12)]);
-  for(const ox of [-S,0,S])for(const oy of [-S,0,S]){
-   for(const [y0,y1,lw] of segs){g.strokeStyle=`hsla(${base[0]-8},32%,9%,.7)`;g.lineWidth=lw;g.beginPath();for(let yy=y0;yy<=y1;yy+=8){const k=(yy-y0)/(y1-y0),taper=Math.sin(k*Math.PI);g.lineWidth=lw*(.35+.65*taper);g.lineTo(xo(q,yy)+ox-ww(q,yy)/2+1,yy+oy);}g.stroke();}
-   for(const [ys,dir,L] of splits){g.strokeStyle='hsla(20,30%,9%,.5)';g.lineWidth=1.3;g.beginPath();const x0=xo(q,ys)+ox-ww(q,ys)/2+1;g.moveTo(x0,ys+oy);g.quadraticCurveTo(x0+dir*q.w*.15,ys+oy+L*.5,x0+dir*q.w*.32,ys+oy+L);g.stroke();}}}
- // textura fina e macia (sem riscos): manchas suaves de cor
- for(let i=0;i<70;i++){const px=R()*S,py=R()*S,r=12+R()*40,gr=g.createRadialGradient(px,py,0,px,py,r),c=R()<.5?'255,226,180':'40,24,14';gr.addColorStop(0,`rgba(${c},${.05+R()*.05})`);gr.addColorStop(1,`rgba(${c},0)`);g.fillStyle=gr;for(const ox of [-S,0,S])for(const oy of [-S,0,S])g.fillRect(px+ox-r,py+oy-r,r*2,r*2);}
- // um nó discreto
- {const px=S*.3+R()*S*.4,py=R()*S;for(const oy of [-S,0,S]){const gr=g.createRadialGradient(px,py+oy,0,px,py+oy,22);gr.addColorStop(0,'rgba(30,18,10,.55)');gr.addColorStop(.5,'rgba(60,36,20,.25)');gr.addColorStop(1,'rgba(60,36,20,0)');g.fillStyle=gr;g.beginPath();g.ellipse(px,py+oy,13,24,0,0,TAU);g.fill();}}
+ for(const q of pts){if(q.t<.45)continue;for(const ox of [-S,0,S])for(const oy of [-S,0,S]){const x0=q.x+ox+(R()-.5)*cw*.3,y0=q.y+oy-ch*.25;
+   g.strokeStyle='rgba(40,20,10,.75)';g.lineWidth=1.6;g.beginPath();g.moveTo(x0,y0);g.quadraticCurveTo(x0+(R()-.5)*cw*.3,y0+ch*.25,x0+(R()-.5)*cw*.25,y0+ch*(.35+R()*.2));g.stroke();
+   g.strokeStyle='rgba(255,214,160,.28)';g.lineWidth=3;g.beginPath();g.moveTo(x0+cw*.14,y0+ch*.05);g.quadraticCurveTo(x0+cw*.2,y0+ch*.22,x0+cw*.16,y0+ch*.38);g.stroke();}}
  const m=new T.CanvasTexture(a),bp=new T.CanvasTexture(b);for(const t of [m,bp]){t.wrapS=t.wrapT=T.RepeatWrapping;t.anisotropy=8;}m.colorSpace=T.SRGBColorSpace;
  return {map:m,bump:bp};
 }
@@ -77,7 +82,7 @@ function install(){
  const W=(lx,lz)=>({x:LG.x+lx,z:LG.z+lz});
  const barkP=barkPair(61,1),heartP=barkPair(62,1),deckT=AT.wood({hue:32,light:50,horizontal:true,seed:63,boards:6});
  const mk=(t,sc,o)=>new T.MeshStandardMaterial(Object.assign({map:t.map,bumpMap:t.bump,bumpScale:sc,roughness:1},o||{}));
- const barkM=mk(barkP,.9,{vertexColors:true,side:T.DoubleSide}),innerM=mk(heartP,1.0,{vertexColors:true,side:T.DoubleSide}),deckM=mk(deckT,.8,{side:T.DoubleSide}),plainBark=mk(barkP,1.2,{side:T.DoubleSide});
+ const barkM=mk(barkP,1.6,{vertexColors:true,side:T.DoubleSide}),innerM=mk(heartP,1.0,{vertexColors:true,side:T.DoubleSide}),deckM=mk(deckT,.8,{side:T.DoubleSide}),plainBark=mk(barkP,1.2,{side:T.DoubleSide});
  const glowM=new T.MeshStandardMaterial({color:'#ffe9b0',emissive:new T.Color('#ffb040'),emissiveIntensity:1.4,roughness:.6});
  const mushM=[new T.MeshStandardMaterial({color:'#bff8ff',emissive:new T.Color('#4fe0ff'),emissiveIntensity:1.6}),new T.MeshStandardMaterial({color:'#ffd0e6',emissive:new T.Color('#ff6fb0'),emissiveIntensity:1.5})];
  const stemM=new T.MeshStandardMaterial({color:'#f3e6cc',roughness:1});
@@ -101,11 +106,11 @@ function install(){
   for(let j=0;j<ys.length;j++)for(let i=0;i<=NA;i++){
    const a=i/NA*TAU+ys[j]*.02,r=rad(ys[j],a),lo=isInner?{x:0,z:0}:lean(ys[j]),x=Math.sin(a)*r+lo.x,z=Math.cos(a)*r+lo.z;
    mesh.P.push(x,ys[j],z);const nrm=new T.Vector3(x-lo.x,0,z-lo.z).normalize();if(isInner)nrm.negate();mesh.N.push(nrm.x,0,nrm.z);
-   mesh.U.push(i/NA*(isInner?RIN:7.4)*TAU/(isInner?6:10),ys[j]/(isInner?6:9));
+   mesh.U.push(i/NA*(isInner?RIN:7.4)*TAU/(isInner?6:9),ys[j]/(isInner?6:11));
    const tw=a-Math.max(0,ys[j])*.05,cv=.5+.5*Math.sin(tw*7+1.3);
    const mo=isInner?0:Math.max(0,Math.min(1,(.5-ys[j]/26)+.45*(1-cv)*(ys[j]<20?1:.4)+.25*Math.sin(a*5+ys[j]*.2)));
    const dk=(.82+.2*cv)*(.9+.1*Math.sin(a*13+ys[j]*.7));
-   mesh.C.push(dk*(1.08-mo*.42),dk*(1-mo*.02),dk*(.9-mo*.5));
+   const m2=mo*.55;mesh.C.push((.95+.05*dk)*(1-m2*.45),(.95+.05*dk)*(1-m2*.05),(.95+.05*dk)*(1-m2*.55));
   }
   const ring=NA+1;
   for(let j=0;j<ys.length-1;j++)for(let i=0;i<NA;i++){
@@ -179,7 +184,7 @@ function install(){
   leafV.U.push(0,0,1,0,1,1,0,1);for(let k=0;k<4;k++)leafV.C.push(col[0],col[1],col[2]);leafV.I.push(v,v+1,v+2,v,v+2,v+3);
  }
  function leaf(c,ax,size){const hh=Math.min(1,Math.max(0,(c.y-TH)/36)),gold=rnd()<.05;pushLeaf(c,ax,size,leafCenter,hsl2rgb(gold?48+rnd()*8:92+rnd()*30,.5+rnd()*.22,.26+.22*hh+rnd()*.12));}
- const GRAV=.035,LEAFK=LITE?.28:.5;
+ const GRAV=.035,LEAFK=LITE?.4:.75;
  function grow(p,dir,len,r0,r1,depth){
   const sides=[8,6,5,4][depth],segs=Math.max(4,Math.round(len/2.2)),pts=[p.clone()],rad=[r0];let pos=p.clone(),d=dir.clone();
   for(let i=1;i<=segs;i++){d.y-=GRAV*(depth+1)*(depth>1?1.6:1);if(depth===0)d.y+=.06;d.x+=(rnd()-.5)*(.2+depth*.08);d.z+=(rnd()-.5)*(.2+depth*.08);d.y+=(rnd()-.5)*.14;d.normalize();pos.addScaledVector(d,len/segs);pts.push(pos.clone());rad.push(r0+(r1-r0)*i/segs);}
@@ -201,10 +206,10 @@ function install(){
   const st=new T.Vector3(Math.sin(phi)*4+loTop.x,TH-.6,Math.cos(phi)*4+loTop.z);grow(st,dir,18+rnd()*5,2.5,1.1,0);}
  {const picks=[new T.Vector3(loTop.x,TH+17,loTop.z),new T.Vector3(loTop.x+6,TH+14,loTop.z-4),new T.Vector3(loTop.x-5,TH+15,loTop.z+5)];
   const order=tips.map((_,i)=>i).sort(()=>rnd()-.5);
-  for(const i of order){const t=tips[i];if(t.y<20)continue;if(picks.every(q=>q.distanceTo(t)>3.9))picks.push(t.clone().add(new T.Vector3(0,1.4,0)));if(picks.length>=(LITE?32:72))break;}
+  for(const i of order){const t=tips[i];if(t.y<20)continue;if(picks.every(q=>q.distanceTo(t)>3.9))picks.push(t.clone().add(new T.Vector3(0,1.4,0)));if(picks.length>=(LITE?36:88))break;}
   const cores=[];
   picks.forEach((c,idx)=>{
-   const R=idx<3?9:4.6+rnd()*2.6+Math.max(0,(c.y-40)*.05);leafCores.push({x:c.x,y:c.y,z:c.z,R},0);const n=Math.round(R*R*(LITE?9:19)),hue0=96+rnd()*22,sat=.52+rnd()*.15;
+   const R=idx<3?9:4.6+rnd()*2.6+Math.max(0,(c.y-40)*.05);leafCores.push({x:c.x,y:c.y,z:c.z,R},0);const n=Math.round(R*R*(LITE?12:24)),hue0=96+rnd()*22,sat=.52+rnd()*.15;
    for(let k=0;k<n;k++){
     const v=new T.Vector3(rnd()-.5,rnd()-.5,rnd()-.5).normalize();if(v.y<0)v.y*=.45;
     const sh=.25+.78*Math.pow(rnd(),.38),p=c.clone().addScaledVector(v,R*sh);p.y-=R*.15*(1-Math.max(0,v.y));
