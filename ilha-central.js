@@ -144,6 +144,28 @@ function install(){
  const joinC=nearPt(streamB,-84,-80);
  const streamC=mkStream([splitC,{x:-142,z:-122},{x:-128,z:-98},{x:-104,z:-86},joinC],splitC.level,joinC.level);
  const STREAMS=[stream,streamB,streamC];
+ // ---------- Braços do rio ao sul: o rio se divide em várias direções ----------
+ // Oeste: sai do rio e corre por um vale até uma lagoa na mata. Leste: laço grande que volta ao rio perto da borda.
+ // Trança curta: sai e volta logo depois, deixando uma ilhota. O nível desce suave do ponto de saída ao de chegada.
+ const LAGOON={x:-104,z:131,rx:15,rz:10,y:0};
+ const lagoonE=(x,z)=>Math.hypot((x-LAGOON.x)/LAGOON.rx,(z-LAGOON.z)/LAGOON.rz);
+ function mkBranch(way,l0,l1){const pts=[];
+  for(let i=0;i<way.length-1;i++){const a=way[i],b=way[i+1],L=Math.hypot(b.x-a.x,b.z-a.z),k=Math.ceil(L/2);
+   for(let j=0;j<k;j++){const t=j/k,wig=(i||j)?Math.sin(pts.length*.31)*1.4*Math.sin(Math.PI*t):0;pts.push({x:a.x+(b.x-a.x)*t-wig*(b.z-a.z)/L,z:a.z+(b.z-a.z)*t+wig*(b.x-a.x)/L});}}
+  pts.push({x:way[way.length-1].x,z:way[way.length-1].z});
+  let acc=0;const dist=[0];for(let i=1;i<pts.length;i++){acc+=Math.hypot(pts[i].x-pts[i-1].x,pts[i].z-pts[i-1].z);dist.push(acc);}
+  pts.forEach((p,i)=>{p.level=l0+(l1-l0)*dist[i]/acc;});
+  pts.forEach((p,i)=>{const q=pts[Math.min(pts.length-1,i+1)],o=pts[Math.max(0,i-1)];let tx=q.x-o.x,tz=q.z-o.z;const tl=Math.hypot(tx,tz)||1;p.tx=tx/tl;p.tz=tz/tl;p.speed=.42;});
+  let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;for(const p of pts){x0=Math.min(x0,p.x);x1=Math.max(x1,p.x);z0=Math.min(z0,p.z);z1=Math.max(z1,p.z);}
+  return {pts,box:[x0-12,x1+12,z0-12,z1+12],spring:pts[0],south:true};}
+ const RC=z=>({x:river.center(z),z});
+ LAGOON.y=Math.min(river.levelAt(66)-2.5,field(LAGOON.x,LAGOON.z)-1.3);
+ const branchW=mkBranch([RC(66),{x:-24,z:76},{x:-58,z:86},{x:-86,z:104},{x:-100,z:121},{x:LAGOON.x,z:LAGOON.z}],river.levelAt(66),LAGOON.y);
+ const branchE=mkBranch([RC(136),{x:34,z:146},{x:74,z:150},{x:108,z:158},{x:84,z:170},{x:40,z:175},RC(181)],river.levelAt(136),river.levelAt(181));
+ const branchB=mkBranch([RC(58),{x:14,z:68},{x:18,z:80},RC(94)],river.levelAt(58),river.levelAt(94));
+ branchE.joinEnd=true;branchB.joinEnd=true;
+ const SOUTH=[branchW,branchE,branchB];STREAMS.push(...SOUTH);
+ const inMainRiver=(x,z,pad)=>z>INNER.z1&&Math.abs(x-river.center(z))<half(z)+(pad||0);
  // Distância ao afluente mais próximo, nível da água e direção da correnteza.
  function streamInfo(x,z){
   let best=1e9,res=null;
@@ -179,12 +201,14 @@ function install(){
  function carveWater(x,z,y){
   const si=streamInfo(x,z);
   if(si&&si.d<STREAM_W+6){
-   const depth=.75-1.2*sI(clamp((si.d/STREAM_W-.45)/.5,0,1));
+   const SB=STREAMS[si.sid],jf=SB.south?Math.min(sm(0,18,si.s*2),SB.joinEnd?sm(0,18,(SB.pts.length-1-si.s)*2):1):1;
+   const depth=(.75-1.2*sI(clamp((si.d/STREAM_W-.45)/.5,0,1)))*(si.d<STREAM_W?(.22+.78*jf):1);
    const bankT=sI(clamp((STREAM_W+6-si.d)/6,0,1));
    y=y+(si.level-depth-y)*bankT;
    // Barranco: as margens nunca ficam abaixo da água (encosta da montanha).
-   if(si.d>STREAM_W*.78&&si.d<STREAM_W+3.5&&lakeE(x,z)>1.15)y=Math.max(y,si.level+.12+(si.d-STREAM_W*.78)*.12);
+   if(si.d>STREAM_W*.78&&si.d<STREAM_W+3.5&&lakeE(x,z)>1.15&&lagoonE(x,z)>1.25&&!inMainRiver(x,z,2.5))y=Math.max(y,si.level+.12+(si.d-STREAM_W*.78)*.12);
   }
+  {const le=lagoonE(x,z);if(le<1.7){const bw=6/LAGOON.rz,bankT=sI(clamp((1+bw-le)/bw,0,1)),bed=LAGOON.y-(.8+1.8*(1-clamp(le,0,1)**2))+1.4*sI(clamp((le-.45)/.55,0,1));y=Math.min(y,y+(bed-y)*bankT);}}
   if(z<INNER.z0+4&&z>LAKE.z-LAKE.rz-14){
    // Bacia do lago com margem suave.
    const le=lakeE(x,z),bw=7/LAKE.rz;
@@ -323,6 +347,7 @@ function install(){
   // grande lago da floresta (lago-grande.js): margem e praia da ilha sem grama dentro d'água
   {const LG=window.arcanoLagoGrande;if(LG){const dd=Math.hypot(x-LG.x,z-LG.z);if(dd<LG.r+16){const sdl=(y-LG.level)/.45;if(sdl<sd){sd=sdl;hw=y-LG.level;}}}}
   {const si=streamInfo(x,z);if(si&&si.d-STREAM_W<sd){sd=si.d-STREAM_W;hw=y-si.level;}}
+  {const dl2=(lagoonE(x,z)-1)*LAGOON.rz;if(dl2<sd){sd=dl2;hw=y-LAGOON.y;}}
   if(sd<14)g*=sm(2.6,4.6,sd)*sm(.55,1.1,hw);
   {const q=portUV(x,z);if(q.u>PLAZA.u0-4&&Math.abs(q.v)<PLAZA.hw+4)g*=Math.max(sm(0,3,PLAZA.u0-q.u),sm(PLAZA.hw,PLAZA.hw+3,Math.abs(q.v)));} // praça do porto
   // Vila: terraços das casas e escadas sem grama (a rua já entra nas estradas).
@@ -369,6 +394,7 @@ function install(){
  const nearWater=(x,z)=>{
   if(z>INNER.z1-2&&Math.abs(x-river.center(z))<half(z)+8)return true;
   if(z<INNER.z0+2&&lakeE(x,z)<1.7)return true;
+  if(lagoonE(x,z)<1.8)return true;
   const si=streamInfo(x,z);return !!(si&&si.d<STREAM_W+7);
  };
  for(let j=0;j<NC;j++)for(let i=0;i<NC;i++){
@@ -732,12 +758,30 @@ function install(){
 
   south.name='Rio da Ilha Central · até a borda';south.frustumCulled=false;south.renderOrder=3;
   scene.add(south);
+  // Braços do rio: faixa que acompanha a curva do braço; começa/termina na borda do rio e da lagoa (sem água dupla).
+  for(const B of SOUTH){const P=B.pts,COLS=7,keep=P.map(p=>!inMainRiver(p.x,p.z,.15)&&lagoonE(p.x,p.z)>1.03);
+   const pos=[],uvA=[],dep=[],flw=[],ix=[];let prevRow=-1;
+   for(let i=0;i<P.length;i++){if(!keep[i]){prevRow=-1;continue;}const p=P[i],nx=-p.tz,nz=p.tx,row=pos.length/3;
+    for(let c=0;c<COLS;c++){const sc=(c/(COLS-1))*2-1,x=p.x+nx*sc*STREAM_W*.98,z=p.z+nz*sc*STREAM_W*.98;pos.push(x,p.level+.002,z);uvA.push(c/(COLS-1),i/(P.length-1));
+     dep.push(Math.max(0,p.level-window.arcanoIslandHeight(x,z)));flw.push(p.tx*.45,p.tz*.45);}
+    if(prevRow>=0)for(let c=0;c<COLS-1;c++){const a=prevRow+c,b=a+1,cc=row+c,d=cc+1;ix.push(a,cc,b,b,cc,d);}prevRow=row;}
+   if(!ix.length)continue;const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(pos,3));g.setAttribute('uv',new T.Float32BufferAttribute(uvA,2));
+   g.setAttribute('waterDepth',new T.Float32BufferAttribute(dep,1));g.setAttribute('waterFlow',new T.Float32BufferAttribute(flw,2));g.setIndex(ix);g.computeBoundingSphere();
+   const m=new T.Mesh(g,shareMat(-999));m.name='Braço do rio';m.frustumCulled=false;m.renderOrder=3;scene.add(m);}
+  // Lagoa no fim do braço oeste.
+  {const RN=10,AN=56,pos=[],uvA=[],dep=[],flw=[],ix=[];
+   for(let r=0;r<=RN;r++)for(let a=0;a<=AN;a++){const t=r/RN*1.03,an=a/AN*Math.PI*2,x=LAGOON.x+Math.cos(an)*LAGOON.rx*t,z=LAGOON.z+Math.sin(an)*LAGOON.rz*t;
+    pos.push(x,LAGOON.y+.002,z);uvA.push(a/AN,r/RN);dep.push(Math.max(0,LAGOON.y-window.arcanoIslandHeight(x,z)));flw.push(0,0);}
+   for(let r=0;r<RN;r++)for(let a=0;a<AN;a++){const p=r*(AN+1)+a,q=p+AN+1;ix.push(p,q,p+1,p+1,q,q+1);}
+   const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(pos,3));g.setAttribute('uv',new T.Float32BufferAttribute(uvA,2));
+   g.setAttribute('waterDepth',new T.Float32BufferAttribute(dep,1));g.setAttribute('waterFlow',new T.Float32BufferAttribute(flw,2));g.setIndex(ix);g.computeBoundingSphere();
+   const m=new T.Mesh(g,shareMat(-999));m.name='Lagoa do braço oeste';m.frustumCulled=false;m.renderOrder=3;scene.add(m);}
   // Nascente, afluentes, lago e canal numa ÚNICA superfície d'água (uma malha
   // só, nível contínuo): os braços do rio se juntam ao lago sem emenda nem
   // duas águas diferentes. A borda some sozinha onde o chão fica acima d'água.
   {
    let xA=LAKE.x-LAKE.rx-6,xB=LAKE.x+LAKE.rx+6,zA=LAKE.z-LAKE.rz-4;const zB=INNER.z0,S=.7;
-   for(const s of STREAMS){xA=Math.min(xA,s.box[0]+6);xB=Math.max(xB,s.box[1]-6);zA=Math.min(zA,s.box[2]+6);}
+   for(const s of STREAMS){if(s.south)continue;xA=Math.min(xA,s.box[0]+6);xB=Math.max(xB,s.box[1]-6);zA=Math.min(zA,s.box[2]+6);}
    const nx=Math.round((xB-xA)/S)+1,nz=Math.round((zB-zA)/S)+1;
    const p=new Float32Array(nx*nz*3),uvA=new Float32Array(nx*nz*2),dep=new Float32Array(nx*nz),fl=new Float32Array(nx*nz*2),ok=new Uint8Array(nx*nz),ix=[],lev=new Float32Array(nx*nz),sidA=new Int8Array(nx*nz);
    for(let j=0;j<nz;j++)for(let i=0;i<nx;i++){
@@ -1101,6 +1145,7 @@ function install(){
    {const q=portUV(x,z);if(q.u>PLAZA.u0-8&&Math.abs(q.v)<PLAZA.hw+8)return false;}
    if(z>INNER.z1-4&&Math.abs(x-river.center(z))<half(z)+7)return false;
    {const si=streamInfo(x,z);if(si&&si.d<STREAM_W+5)return false;}
+   if(lagoonE(x,z)<1.45)return false;
    if(villageNear(x,z,3))return false;
    // Clareiras das vilas da floresta (vilas-mundo.js): sem árvores nas vilas e ao longo das estradas delas.
    {const cl=window.arcanoClearings;if(cl)for(let i=0;i<cl.length;i++){const q=cl[i];if(q.x1!=null){const dx=q.x2-q.x1,dz=q.z2-q.z1,l2=dx*dx+dz*dz||1;let t=((x-q.x1)*dx+(z-q.z1)*dz)/l2;t=Math.max(0,Math.min(1,t));if(Math.hypot(x-q.x1-dx*t,z-q.z1-dz*t)<q.r)return false;}else if(Math.hypot(x-q.x,z-q.z)<q.r)return false;}}
@@ -1185,6 +1230,7 @@ function install(){
   scene.add(group);
   window.arcanoIsland.forest={group,count:spots.length,templates:templates.length,names:templates.map(t=>t.name),dims:templates.map(t=>({h:t.h,w:t.w,pine:!!t.pine})),spots};
  }
+ window.arcanoBracos={branches:SOUTH,lagoon:LAGOON};
  window.arcanoIsland={center:C,radius:R,cityRadius:CITY_R,castleRadius:CASTLE_R,height:window.arcanoIslandHeight,land,roads,lake:LAKE,port:PORT,portSite:{angle:PA,u:PU,v:PV,plaza:PLAZA,y:PORT_Y,uvOf:portUV,at:portXZ},inner:INNER,village:VILLAGE,streams:STREAMS};
  // Água fora da área detalhada (rio até a borda, canal e lago): nível e profundidade.
  // Usado para nadar, mergulhar e fazer ondulações também nessas águas.
@@ -1192,6 +1238,7 @@ function install(){
   let level=null;
   if(z>INNER.z1&&Math.abs(x-river.center(z))<half(z)+.2)level=river.levelAt(z);
   else{const LG=window.arcanoLagoGrande;if(LG&&LG.inside(x,z,15))level=LG.level;else{const w=pondWater(x,z);if(w)level=w.level;}}
+  if(level==null&&z>INNER.z1-2){if(lagoonE(x,z)<1.05)level=LAGOON.y;else{const si=streamInfo(x,z);if(si&&si.d<STREAM_W+.3&&STREAMS[si.sid].south)level=si.level;}}
   if(level==null)return null;
   const depth=level-window.arcanoIslandHeight(x,z);
   return depth>0?{level,depth}:null;
