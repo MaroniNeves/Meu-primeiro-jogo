@@ -22,28 +22,34 @@ function barkPair(sd,tone){
  let s=sd>>>0;const R=()=>{s=(s*1664525+1013904223)>>>0;return s/4294967296;};
  const S=512,a=document.createElement('canvas'),b=document.createElement('canvas');a.width=a.height=b.width=b.height=S;
  const g=a.getContext('2d'),h=b.getContext('2d');
- g.fillStyle=tone?'hsl(30,46%,34%)':'hsl(24,26%,17%)';g.fillRect(0,0,S,S);h.fillStyle=tone?'#9a9a9a':'#707070';h.fillRect(0,0,S,S);
- const wrapV=fn=>{for(const oy of [0,-S,S])fn(oy);};
- let x=-20;
- while(x<S+20){
-  const w=(tone?26:12)+R()*(tone?36:26),ph=R()*6.3,amp=(tone?3:6)*(.5+R()),per=1+Math.floor(R()*3),light=tone?40+R()*14:20+R()*16,hue=tone?28+R()*8:20+R()*10,sat=tone?44:20+R()*14;
-  wrapV(oy=>{
-   const poly=[];for(let y=0;y<=S;y+=8){const o=Math.sin(y/S*TAU*per+ph)*amp;poly.push([x+o,y+oy]);}
-   const gr=g.createLinearGradient(x-w/2,0,x+w/2,0);gr.addColorStop(0,`hsl(${hue},${sat}%,${light*.55}%)`);gr.addColorStop(.35,`hsl(${hue},${sat}%,${light}%)`);gr.addColorStop(.7,`hsl(${hue},${sat}%,${light*1.12}%)`);gr.addColorStop(1,`hsl(${hue},${sat}%,${light*.5}%)`);
-   g.fillStyle=gr;g.beginPath();for(const [px,py] of poly)g.lineTo(px-w/2+2,py);for(let i=poly.length-1;i>=0;i--)g.lineTo(poly[i][0]+w/2-2,poly[i][1]);g.closePath();g.fill();
-   const hg=h.createLinearGradient(x-w/2,0,x+w/2,0);hg.addColorStop(0,'#101010');hg.addColorStop(.25,tone?'#a8a8a8':'#c0c0c0');hg.addColorStop(.7,tone?'#c0c0c0':'#e8e8e8');hg.addColorStop(1,'#101010');
-   h.fillStyle=hg;h.beginPath();for(const [px,py] of poly)h.lineTo(px-w/2+2,py);for(let i=poly.length-1;i>=0;i--)h.lineTo(poly[i][0]+w/2-2,poly[i][1]);h.closePath();h.fill();
-   if(!tone)for(let k=0;k<3;k++){const yy=R()*S;g.strokeStyle='rgba(8,5,3,.7)';g.lineWidth=1.5+R()*2;g.beginPath();g.moveTo(x-w*.3,yy+oy);g.lineTo(x+w*.3,yy+oy+R()*8-4);g.stroke();}
-  });
-  x+=w;
- }
- for(let i=0;i<(tone?900:1500);i++){const px=R()*S,py=R()*S,len=10+R()*60;wrapV(oy=>{g.strokeStyle=R()<.5?`rgba(255,235,200,${tone?.05:.045})`:'rgba(0,0,0,.18)';g.lineWidth=.6+R()*1.4;g.beginPath();g.moveTo(px,py+oy);g.lineTo(px+(R()-.5)*4,py+oy+len);g.stroke();});}
- if(!tone)for(let i=0;i<26;i++){const px=R()*S,py=R()*S,r=8+R()*26,gr=g.createRadialGradient(px,py,0,px,py,r);const gc=R()<.6?'110,138,84':'150,160,140';gr.addColorStop(0,`rgba(${gc},.5)`);gr.addColorStop(1,`rgba(${gc},0)`);g.fillStyle=gr;wrapV(oy=>{g.beginPath();g.arc(px,py+oy,r,0,6.3);g.fill();});}
- for(let i=0;i<(tone?2:4);i++){const px=R()*S,py=R()*S,rx=9+R()*8,ry=16+R()*14;wrapV(oy=>{for(let k=4;k>=1;k--){g.strokeStyle=`rgba(10,6,4,${.2+.12*(5-k)/4})`;g.lineWidth=2;g.beginPath();g.ellipse(px,py+oy,rx*k/2.3,ry*k/2.3,0,0,6.3);g.stroke();h.strokeStyle='rgba(30,30,30,.55)';h.lineWidth=2.4;h.beginPath();h.ellipse(px,py+oy,rx*k/2.3,ry*k/2.3,0,0,6.3);h.stroke();}g.fillStyle='rgba(8,5,3,.85)';g.beginPath();g.ellipse(px,py+oy,rx*.45,ry*.45,0,0,6.3);g.fill();});}
- const m=new T.CanvasTexture(a),bp=new T.CanvasTexture(b);for(const t of [m,bp]){t.wrapS=t.wrapT=T.RepeatWrapping;t.anisotropy=4;}m.colorSpace=T.SRGBColorSpace;
+ const base=tone?[28,40,30]:[24,32,22];
+ g.fillStyle=`hsl(${base[0]},${base[1]}%,${base[2]*.7}%)`;g.fillRect(0,0,S,S);h.fillStyle='#303030';h.fillRect(0,0,S,S);
+ // placas: faixas verticais onduladas, cada uma com volume (claro no centro-direita, escuro nas bordas)
+ const bands=[];let x=0;while(x<S){const w=40+R()*56;bands.push({x:x+w/2,w,ph:R()*TAU,ph2:R()*TAU,k2:1+Math.floor(R()*2),amp:5+R()*9,per:1+Math.floor(R()*2),hue:base[0]+(R()-.5)*6,sat:base[1]+(R()-.5)*8,li:base[2]+(R()-.5)*7});x+=w*.86;}
+ const sc=S/x;for(const q of bands){q.x*=sc;q.w*=sc;}
+ const xo=(q,y)=>q.x+Math.sin(y/S*TAU*q.per+q.ph)*q.amp,ww=(q,y)=>q.w*(1+.28*Math.sin(y/S*TAU*q.k2+q.ph2));
+ for(const q of bands)for(const ox of [-S,0,S]){
+  const path=(ctx,inset)=>{ctx.beginPath();for(let y=0;y<=S;y+=8)ctx.lineTo(xo(q,y)+ox-ww(q,y)/2+inset,y);for(let y=S;y>=0;y-=8)ctx.lineTo(xo(q,y)+ox+ww(q,y)/2-inset,y);ctx.closePath();};
+  const gr=g.createLinearGradient(q.x+ox-q.w/2,0,q.x+ox+q.w/2,0);
+  gr.addColorStop(0,`hsl(${q.hue},${q.sat}%,${q.li*.62}%)`);gr.addColorStop(.3,`hsl(${q.hue},${q.sat}%,${q.li}%)`);gr.addColorStop(.62,`hsl(${q.hue+3},${q.sat+4}%,${q.li*1.22}%)`);gr.addColorStop(.86,`hsl(${q.hue},${q.sat}%,${q.li*.95}%)`);gr.addColorStop(1,`hsl(${q.hue-2},${q.sat}%,${q.li*.6}%)`);
+  g.fillStyle=gr;path(g,1.5);g.fill();
+  const hg=h.createLinearGradient(q.x+ox-q.w/2,0,q.x+ox+q.w/2,0);hg.addColorStop(0,'#2a2a2a');hg.addColorStop(.35,'#b8b8b8');hg.addColorStop(.6,'#d8d8d8');hg.addColorStop(1,'#2a2a2a');h.fillStyle=hg;path(h,1.5);h.fill();
+  // brilho longo e macio na crista
+  g.strokeStyle=`hsla(${q.hue+6},${q.sat+6}%,${Math.min(80,q.li*1.6)}%,.22)`;g.lineWidth=q.w*.12;g.beginPath();for(let y=0;y<=S;y+=8)g.lineTo(xo(q,y)+ox+q.w*.12,y);g.stroke();}
+ // sulcos: linhas escuras e macias entre as placas, com algumas pontes horizontais curtas
+ g.lineCap='round';
+ for(const q of bands){const segs=[];let y=-S*.2;while(y<S*1.2){const L=S*(.25+R()*.45);segs.push([y,y+L,1.6+R()*1.8]);y+=L+S*(.04+R()*.1);}
+  const splits=[];for(let k=0;k<2;k++)splits.push([R()*S,(R()<.5?-1:1),S*(.08+R()*.12)]);
+  for(const ox of [-S,0,S])for(const oy of [-S,0,S]){
+   for(const [y0,y1,lw] of segs){g.strokeStyle=`hsla(${base[0]-8},32%,9%,.7)`;g.lineWidth=lw;g.beginPath();for(let yy=y0;yy<=y1;yy+=8){const k=(yy-y0)/(y1-y0),taper=Math.sin(k*Math.PI);g.lineWidth=lw*(.35+.65*taper);g.lineTo(xo(q,yy)+ox-ww(q,yy)/2+1,yy+oy);}g.stroke();}
+   for(const [ys,dir,L] of splits){g.strokeStyle='hsla(20,30%,9%,.5)';g.lineWidth=1.3;g.beginPath();const x0=xo(q,ys)+ox-ww(q,ys)/2+1;g.moveTo(x0,ys+oy);g.quadraticCurveTo(x0+dir*q.w*.15,ys+oy+L*.5,x0+dir*q.w*.32,ys+oy+L);g.stroke();}}}
+ // textura fina e macia (sem riscos): manchas suaves de cor
+ for(let i=0;i<70;i++){const px=R()*S,py=R()*S,r=12+R()*40,gr=g.createRadialGradient(px,py,0,px,py,r),c=R()<.5?'255,226,180':'40,24,14';gr.addColorStop(0,`rgba(${c},${.05+R()*.05})`);gr.addColorStop(1,`rgba(${c},0)`);g.fillStyle=gr;for(const ox of [-S,0,S])for(const oy of [-S,0,S])g.fillRect(px+ox-r,py+oy-r,r*2,r*2);}
+ // um nó discreto
+ {const px=S*.3+R()*S*.4,py=R()*S;for(const oy of [-S,0,S]){const gr=g.createRadialGradient(px,py+oy,0,px,py+oy,22);gr.addColorStop(0,'rgba(30,18,10,.55)');gr.addColorStop(.5,'rgba(60,36,20,.25)');gr.addColorStop(1,'rgba(60,36,20,0)');g.fillStyle=gr;g.beginPath();g.ellipse(px,py+oy,13,24,0,0,TAU);g.fill();}}
+ const m=new T.CanvasTexture(a),bp=new T.CanvasTexture(b);for(const t of [m,bp]){t.wrapS=t.wrapT=T.RepeatWrapping;t.anisotropy=8;}m.colorSpace=T.SRGBColorSpace;
  return {map:m,bump:bp};
 }
-
 function Mesher(){return {P:[],N:[],U:[],C:[],I:[],n:0};}
 function build(m,mat,name,vc){const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(m.P,3));g.setAttribute('normal',new T.Float32BufferAttribute(m.N,3));g.setAttribute('uv',new T.Float32BufferAttribute(m.U,2));if(vc)g.setAttribute('color',new T.Float32BufferAttribute(m.C,3));g.setIndex(m.I);g.computeBoundingSphere();const mesh=new T.Mesh(g,mat);mesh.name=name;mesh.castShadow=true;mesh.receiveShadow=true;return mesh;}
 function tube(m,pts,rad,sides,tileLen,tint){
@@ -71,7 +77,7 @@ function install(){
  const W=(lx,lz)=>({x:LG.x+lx,z:LG.z+lz});
  const barkP=barkPair(61,1),heartP=barkPair(62,1),deckT=AT.wood({hue:32,light:50,horizontal:true,seed:63,boards:6});
  const mk=(t,sc,o)=>new T.MeshStandardMaterial(Object.assign({map:t.map,bumpMap:t.bump,bumpScale:sc,roughness:1},o||{}));
- const barkM=mk(barkP,2.6,{vertexColors:true}),innerM=mk(heartP,1.0,{vertexColors:true,side:T.DoubleSide}),deckM=mk(deckT,.8,{side:T.DoubleSide}),plainBark=mk(barkP,2.2);
+ const barkM=mk(barkP,.9,{vertexColors:true,side:T.DoubleSide}),innerM=mk(heartP,1.0,{vertexColors:true,side:T.DoubleSide}),deckM=mk(deckT,.8,{side:T.DoubleSide}),plainBark=mk(barkP,1.2,{side:T.DoubleSide});
  const glowM=new T.MeshStandardMaterial({color:'#ffe9b0',emissive:new T.Color('#ffb040'),emissiveIntensity:1.4,roughness:.6});
  const mushM=[new T.MeshStandardMaterial({color:'#bff8ff',emissive:new T.Color('#4fe0ff'),emissiveIntensity:1.6}),new T.MeshStandardMaterial({color:'#ffd0e6',emissive:new T.Color('#ff6fb0'),emissiveIntensity:1.5})];
  const stemM=new T.MeshStandardMaterial({color:'#f3e6cc',roughness:1});
@@ -95,18 +101,18 @@ function install(){
   for(let j=0;j<ys.length;j++)for(let i=0;i<=NA;i++){
    const a=i/NA*TAU+ys[j]*.02,r=rad(ys[j],a),lo=isInner?{x:0,z:0}:lean(ys[j]),x=Math.sin(a)*r+lo.x,z=Math.cos(a)*r+lo.z;
    mesh.P.push(x,ys[j],z);const nrm=new T.Vector3(x-lo.x,0,z-lo.z).normalize();if(isInner)nrm.negate();mesh.N.push(nrm.x,0,nrm.z);
-   mesh.U.push(i/NA*(isInner?RIN:7.4)*TAU/6,ys[j]/6);
+   mesh.U.push(i/NA*(isInner?RIN:7.4)*TAU/(isInner?6:10),ys[j]/(isInner?6:9));
    const tw=a-Math.max(0,ys[j])*.05,cv=.5+.5*Math.sin(tw*7+1.3);
    const mo=isInner?0:Math.max(0,Math.min(1,(.5-ys[j]/26)+.45*(1-cv)*(ys[j]<20?1:.4)+.25*Math.sin(a*5+ys[j]*.2)));
    const dk=(.82+.2*cv)*(.9+.1*Math.sin(a*13+ys[j]*.7));
-   mesh.C.push(dk*(1.04-mo*.5),dk*(1-mo*.08),dk*(.96-mo*.62));
+   mesh.C.push(dk*(1.08-mo*.42),dk*(1-mo*.02),dk*(.9-mo*.5));
   }
   const ring=NA+1;
   for(let j=0;j<ys.length-1;j++)for(let i=0;i<NA;i++){
    const a0=(i+.5)/NA*TAU+(ys[j]+.5)*.02,yc=(ys[j]+ys[j+1])/2;
    if(inDoor(a0,yc,rad(yc,a0)))continue;
    const a=j*ring+i,b=a+1,c=a+ring,d=c+1;
-   if(isInner)mesh.I.push(a,b,c,b,d,c);else mesh.I.push(a,c,b,b,c,d);
+   if(isInner)mesh.I.push(a,c,b,b,c,d);else mesh.I.push(a,b,c,b,d,c);
   }
   mesh.n=ys.length*ring;
  }
@@ -123,7 +129,7 @@ function install(){
   for(const s of [-1,1]){const m=Mesher(),pts=[],rad=[];for(let i=0;i<=8;i++){const t=i/8;pts.push(new T.Vector3(s*(DOORW+.6+1.8*t),5.8*Math.pow(1-t,.7)+.2,10.7+.3*Math.sin(t*5)));rad.push(.55*(1-t*.6));}tube(m,pts,rad,6,3);tg.add(build(m,plainBark,'Raiz da porta',false));}
  }
  for(const [a,y] of [[PI/2,11],[PI,17],[-PI/2,23],[.9,29],[-2.4,14.5],[2.3,25.5]]){
-  for(const side of ['o','i']){const r=side==='o'?rOut(y,a)+.04:rIn(y,a)-.03,lo=side==='o'?lean(y):{x:0,z:0},e=new T.Mesh(new T.SphereGeometry(1,14,10),glowM);e.scale.set(.9,1.4,.2);e.position.set(Math.sin(a)*r+lo.x,y,Math.cos(a)*r+lo.z);e.rotation.y=a+(side==='o'?0:PI);root.add(e);if(side==='o')outerMesh.userData.glows=(outerMesh.userData.glows||[]).concat(e);}
+  for(const side of ['i']){const r=side==='o'?rOut(y,a)+.04:rIn(y,a)-.03,lo=side==='o'?lean(y):{x:0,z:0},e=new T.Mesh(new T.SphereGeometry(1,14,10),glowM);e.scale.set(.9,1.4,.2);e.position.set(Math.sin(a)*r+lo.x,y,Math.cos(a)*r+lo.z);e.rotation.y=a+(side==='o'?0:PI);root.add(e);if(side==='o')outerMesh.userData.glows=(outerMesh.userData.glows||[]).concat(e);}
  }
 
  /* ---------- Rampa em espiral e mirante por dentro ---------- */
@@ -195,28 +201,17 @@ function install(){
   const st=new T.Vector3(Math.sin(phi)*4+loTop.x,TH-.6,Math.cos(phi)*4+loTop.z);grow(st,dir,18+rnd()*5,2.5,1.1,0);}
  {const picks=[new T.Vector3(loTop.x,TH+17,loTop.z),new T.Vector3(loTop.x+6,TH+14,loTop.z-4),new T.Vector3(loTop.x-5,TH+15,loTop.z+5)];
   const order=tips.map((_,i)=>i).sort(()=>rnd()-.5);
-  for(const i of order){const t=tips[i];if(t.y<20)continue;if(picks.every(q=>q.distanceTo(t)>3.9))picks.push(t.clone().add(new T.Vector3(0,1.4,0)));if(picks.length>=(LITE?40:95))break;}
+  for(const i of order){const t=tips[i];if(t.y<20)continue;if(picks.every(q=>q.distanceTo(t)>3.9))picks.push(t.clone().add(new T.Vector3(0,1.4,0)));if(picks.length>=(LITE?32:72))break;}
   const cores=[];
   picks.forEach((c,idx)=>{
-   const R=idx<3?9:4.6+rnd()*2.6+Math.max(0,(c.y-40)*.05);leafCores.push({x:c.x,y:c.y,z:c.z,R},0);const n=Math.round(R*R*(LITE?6:11)),hue0=96+rnd()*22,sat=.52+rnd()*.15;
+   const R=idx<3?9:4.6+rnd()*2.6+Math.max(0,(c.y-40)*.05);leafCores.push({x:c.x,y:c.y,z:c.z,R},0);const n=Math.round(R*R*(LITE?9:19)),hue0=96+rnd()*22,sat=.52+rnd()*.15;
    for(let k=0;k<n;k++){
     const v=new T.Vector3(rnd()-.5,rnd()-.5,rnd()-.5).normalize();if(v.y<0)v.y*=.45;
-    const sh=.72+.3*Math.pow(rnd(),.6),p=c.clone().addScaledVector(v,R*sh);p.y-=R*.12*(1-Math.max(0,v.y));
+    const sh=.25+.78*Math.pow(rnd(),.38),p=c.clone().addScaledVector(v,R*sh);p.y-=R*.15*(1-Math.max(0,v.y));
     const tg=new T.Vector3(rnd()-.5,rnd()-.5,rnd()-.5).cross(v).normalize(),ax=tg.addScaledVector(v,.35+rnd()*.3).normalize();
     const top=Math.max(0,v.y),bot=Math.max(0,-v.y),light=.14+.22*sh+.22*top*sh-.05*bot+rnd()*.07,gold=rnd()<.03;
-    pushLeaf(p,ax,1.25+rnd()*.75,c,hsl2rgb(gold?50+rnd()*8:hue0+rnd()*14-top*14+bot*18,sat+.1*top,light));}
+    pushLeaf(p,ax,1.05+rnd()*.7,c,hsl2rgb(gold?50+rnd()*8:hue0+rnd()*14-top*14+bot*18,sat+.1*top,light));}
   });}
- // miolo verde-escuro de cada tufo: a copa fica cheia (não se vê o céu por entre as folhas)
- {const picksC=[];for(let i=0;i<leafCores.length;i+=2)picksC.push(leafCores[i]);
-  const g=new T.IcosahedronGeometry(1,LITE?2:3),gp=g.attributes.position;
-  for(let i=0;i<gp.count;i++){const x=gp.getX(i),y=gp.getY(i),z=gp.getZ(i),f=1+.13*Math.sin(x*4.1+1)*Math.sin(y*3.7+2)*Math.sin(z*4.3)+.09*Math.sin(x*7.3-z*6.1+y*5)+.05*Math.sin(x*13+y*11+z*9);gp.setXYZ(i,x*f,y*f,z*f);}
-  {const nn=new Float32Array(gp.count*3);for(let i=0;i<gp.count;i++){const x=gp.getX(i),y=gp.getY(i),z=gp.getZ(i),l=Math.hypot(x,y,z)||1;nn[i*3]=x/l;nn[i*3+1]=y/l;nn[i*3+2]=z/l;}g.setAttribute('normal',new T.BufferAttribute(nn,3));}
-  const gn=g.attributes.normal,gc=new Float32Array(gp.count*3),cT=new T.Color('#9ccc52'),cM=new T.Color('#4f8f37'),cB=new T.Color('#1f4a2c'),tc=new T.Color();
-  for(let i=0;i<gp.count;i++){const ny=gn.getY(i),sp=.5+.5*Math.sin(gp.getX(i)*9+gp.getZ(i)*7)*Math.sin(gp.getY(i)*8);if(ny>0)tc.copy(cM).lerp(cT,Math.pow(ny,1.4)*(.6+.4*sp));else tc.copy(cM).lerp(cB,Math.min(1,-ny*1.3));gc[i*3]=tc.r;gc[i*3+1]=tc.g;gc[i*3+2]=tc.b;}
-  g.setAttribute('color',new T.BufferAttribute(gc,3));
-  const cm=new T.MeshStandardMaterial({vertexColors:true,emissive:new T.Color('#10240c'),roughness:1}),im=new T.InstancedMesh(g,cm,picksC.length),M4=new T.Matrix4(),Q=new T.Quaternion(),S=new T.Vector3();
-  picksC.forEach((c,i)=>{const R=c.R;Q.setFromEuler(new T.Euler(rnd(),rnd()*6,rnd()));S.set(R*.86,R*.66,R*.86);M4.compose(new T.Vector3(c.x,c.y-R*.15,c.z),Q,S);im.setMatrixAt(i,M4);});
-  im.name='Miolo da copa';im.receiveShadow=true;root.add(im);}
  const lg=new T.BufferGeometry();lg.setAttribute('position',new T.Float32BufferAttribute(leafV.P,3));lg.setAttribute('normal',new T.Float32BufferAttribute(leafV.N,3));lg.setAttribute('uv',new T.Float32BufferAttribute(leafV.U,2));lg.setAttribute('color',new T.Float32BufferAttribute(leafV.C,3));lg.setIndex(leafV.I);lg.computeBoundingSphere();
  const leaves=new T.Mesh(lg,AB.leafMat);leaves.name='Folhas da árvore gigante';leaves.castShadow=false;leaves.receiveShadow=true;root.add(leaves);
  root.add(build(branchM,barkM,'Galhos da árvore gigante',true));
