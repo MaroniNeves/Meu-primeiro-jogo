@@ -134,8 +134,8 @@ function Mg(){const P=[],N=[],C=[],c=new T.Color();
    for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),z=p.getZ(i),nx=n.getX(i),ny=n.getY(i),nz=n.getZ(i);P.push(x,y,z);N.push(nx,ny,nz);
     if(fn){const r=col(x,y,z,nx,ny,nz);C.push(r[0],r[1],r[2]);}else C.push(c.r,c.g,c.b);}},
   get size(){return P.length;},
-  build(bake){if(bake)for(let i=0;i<P.length;i+=3){const k=bake(P[i],P[i+1],P[i+2],N[i],N[i+1],N[i+2]);C[i]*=k[0];C[i+1]*=k[1];C[i+2]*=k[2];}
-   const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(P,3));g.setAttribute('normal',new T.Float32BufferAttribute(N,3));
+  build(bake,dayFn){const ALB=dayFn?C.slice():null;if(bake)for(let i=0;i<P.length;i+=3){const k=bake(P[i],P[i+1],P[i+2],N[i],N[i+1],N[i+2]);C[i]*=k[0];C[i+1]*=k[1];C[i+2]*=k[2];}
+   const g=new T.BufferGeometry();if(dayFn){const dy=new Float32Array(P.length/3);for(let i=0;i<P.length;i+=3)dy[i/3]=dayFn(P[i],P[i+1],P[i+2],N[i],N[i+1],N[i+2]);g.setAttribute('aDay',new T.BufferAttribute(dy,1));g.setAttribute('aAlb',new T.Float32BufferAttribute(ALB,3));}g.setAttribute('position',new T.Float32BufferAttribute(P,3));g.setAttribute('normal',new T.Float32BufferAttribute(N,3));
    g.setAttribute('color',new T.Float32BufferAttribute(C,3));g.computeBoundingSphere();return g;}};}
 const mat=(x,y,z,rx,ry,rz,sx,sy,sz)=>new T.Matrix4().compose(new T.Vector3(x,y,z),new T.Quaternion().setFromEuler(new T.Euler(rx||0,ry||0,rz||0)),
  new T.Vector3(sx==null?1:sx,sy==null?(sx==null?1:sx):sy,sz==null?(sx==null?1:sx):sz));
@@ -209,6 +209,40 @@ function getUI(){if(ui)return ui;const css=document.createElement('style');
  ui={b,show(msg){t.innerHTML=msg;t.style.display='block';clearTimeout(tt);tt=setTimeout(()=>t.style.display='none',4200);}};return ui;}
 
 /* ================= Construção ================= */
+const dayK=(x,y,z,nx,ny,nz)=>{if(z<-6||y<-1.5)return 0;return Math.exp(-Math.max(0,PZ+.4-z)/2.2)*(Math.abs(x)<3?1:.4)*(.35+.5*Math.max(0,nz)+.3*Math.max(0,ny));};
+// Textura de rocha natural pintada: facetas (Voronoi), fendas entre elas, poros e manchas. Sem emenda.
+function rockTexture(){const S=256,c=document.createElement('canvas');c.width=c.height=S;const g=c.getContext('2d'),img=g.createImageData(S,S),d=img.data,R=mkR(777);
+ const vn=(G,seed)=>{const r=mkR(seed),grid=new Float32Array(G*G);for(let i=0;i<G*G;i++)grid[i]=r();const s1=t=>t*t*(3-2*t);
+  return (x,y)=>{const fx=x/S*G,fy=y/S*G,ix=Math.floor(fx),iy=Math.floor(fy),u=s1(fx-ix),v=s1(fy-iy),i0=ix%G,i1=(ix+1)%G,j0=iy%G,j1=(iy+1)%G;
+   const A=grid[j0*G+i0],B=grid[j0*G+i1],C=grid[j1*G+i0],D=grid[j1*G+i1];return A+(B-A)*u+(C-A)*v+(A-B-C+D)*u*v;};};
+ const n1=vn(4,11),n2=vn(8,12),n3=vn(16,13),n4=vn(32,14),n5=vn(64,15);
+ const N=46,pts=[];for(let i=0;i<N;i++)pts.push([R()*S,R()*S,R(),R()*TAU]);
+ for(let y=0;y<S;y++)for(let x=0;x<S;x++){let f1=1e9,f2=1e9,id=0,id2=0,bx=0,by=0;
+  for(let i=0;i<N;i++){const p=pts[i];for(let ox=-S;ox<=S;ox+=S)for(let oy=-S;oy<=S;oy+=S){const dx=x-p[0]-ox,dy=y-p[1]-oy,dd=dx*dx+dy*dy;
+   if(dd<f1){f2=f1;id2=id;f1=dd;id=i;bx=dx;by=dy;}else if(dd<f2){f2=dd;id2=i;}}}
+  const p=pts[id],e=Math.sqrt(f2)-Math.sqrt(f1),strong=((id*7+id2*13)%3)===0;
+  const A=n1(x,y),B=n2(x,y);let v=.6+.24*A+.14*B+.09*n3(x,y)+.06*n4(x,y)+.05*n5(x,y);
+  v*=.9+.14*p[2]+.08*Math.max(-1,Math.min(1,(bx*Math.cos(p[3])+by*Math.sin(p[3]))/26));
+  if(e<1.3)v*=strong?.42:.84;else if(e<2.6)v*=strong?.72:.95;else if(e<3.8)v*=1.05;
+  const q=R();if(q<.025)v*=.72;else if(q<.035)v*=1.18;
+  let r=v*(146+22*(A-.5)),gg=v*144,bb=v*(142-18*(A-.5));
+  if(B>.7&&n3(x,y)>.55){const m=Math.min(1,(B-.7)*4);r+=(-30)*m;gg+=10*m;bb+=(-30)*m;}
+  const k=(y*S+x)*4;d[k]=Math.min(255,r);d[k+1]=Math.min(255,gg);d[k+2]=Math.min(255,bb);d[k+3]=255;}
+ g.putImageData(img,0,0);
+ g.lineCap='round';for(let k=0;k<7;k++){let x=R()*S,y=R()*S,ang=R()*TAU;g.strokeStyle='rgba(28,26,30,'+(.35+R()*.25)+')';g.lineWidth=.8+R()*.9;
+  for(const ox of [0,-S,S])for(const oy of [0,-S,S]){}let px=x,py=y;g.beginPath();g.moveTo(px,py);for(let i=0;i<14;i++){ang+=(R()-.5)*.9;px+=Math.cos(ang)*5;py+=Math.sin(ang)*5;g.lineTo(px,py);}g.stroke();}
+ const dd=g.getImageData(0,0,S,S).data;let acc=0;for(let i=0;i<dd.length;i+=4)acc+=Math.pow(dd[i+1]/255,2.2);
+ const t=new T.CanvasTexture(c);t.wrapS=t.wrapT=T.RepeatWrapping;t.colorSpace=T.SRGBColorSpace;t.anisotropy=4;t.userData={avg:acc/(S*S)};return t;}
+// Injeta textura triplanar (posição no mundo) e/ou luz do dia vinda da boca da mina.
+function shaderize(m,o){const prev=m.onBeforeCompile;m.onBeforeCompile=(sh,r)=>{if(prev)prev(sh,r);
+  let vs=sh.vertexShader,fs=sh.fragmentShader;
+  if(o.tex){sh.uniforms.uRock={value:o.tex};sh.uniforms.uRockK={value:1/o.tex.userData.avg};
+   vs=vs.replace('#include <common>','#include <common>\nvarying vec3 vTW;varying vec3 vTN;').replace('#include <project_vertex>','#include <project_vertex>\nvTW=(modelMatrix*vec4(position,1.)).xyz;vTN=normalize(mat3(modelMatrix)*normal);');
+   fs=fs.replace('#include <common>','#include <common>\nuniform sampler2D uRock;uniform float uRockK;varying vec3 vTW;varying vec3 vTN;')
+    .replace('#include <map_fragment>','#include <map_fragment>\n{vec3 bw=pow(abs(normalize(vTN)),vec3(4.));bw/=bw.x+bw.y+bw.z+1e-4;float S='+o.scale.toFixed(3)+';vec3 tt=texture2D(uRock,vTW.zy*S).rgb*bw.x+texture2D(uRock,vTW.xz*S).rgb*bw.y+texture2D(uRock,vTW.xy*S).rgb*bw.z;diffuseColor.rgb*=mix(vec3(1.),tt*uRockK,'+o.str.toFixed(2)+');}');}
+  if(o.day){sh.uniforms.uDay=o.day;vs=vs.replace('#include <common>','#include <common>\nattribute float aDay;attribute vec3 aAlb;uniform vec3 uDay;').replace('#include <color_vertex>','#include <color_vertex>\nvColor.rgb+=aAlb*aDay*uDay;');}
+  sh.vertexShader=vs;sh.fragmentShader=fs;};
+ m.customProgramCacheKey=()=>'mina'+(o.tex?'T'+o.scale:'')+(o.day?'D':'');m.needsUpdate=true;return m;}
 function boot(){const api=window.arcanoWaterV1226,H=window.arcanoIslandHeight;
  if(!api||!api.scene||!H||!window.arcanoIsland){setTimeout(boot,400);return;}
  try{build(api,H);}catch(e){console.error('minas-cristal',e);}}
@@ -220,6 +254,10 @@ function build(api,H){
  const exMat=new T.MeshStandardMaterial({vertexColors:true,roughness:.93,metalness:0});
  const domeMat=new T.MeshStandardMaterial({vertexColors:true,roughness:.96,metalness:0,flatShading:true});
  const inMat=new T.MeshBasicMaterial({vertexColors:true,fog:false});
+ const RT=rockTexture(),dayU={value:new T.Color(0,0,0)};
+ const rockMat=shaderize(new T.MeshBasicMaterial({vertexColors:true,fog:false}),{tex:RT,scale:.32,str:.85}),rockDayMat=shaderize(new T.MeshBasicMaterial({vertexColors:true,fog:false}),{tex:RT,scale:.32,str:.85,day:dayU});
+ const propDayMat=shaderize(new T.MeshBasicMaterial({vertexColors:true,fog:false}),{day:dayU});
+ shaderize(domeMat,{tex:RT,scale:.16,str:1});
  const crMat=new T.MeshBasicMaterial({vertexColors:true,fog:false});
  const glassIn=new T.MeshBasicMaterial({color:'#ffd690',fog:false}),flameMat=new T.MeshBasicMaterial({color:'#ffb347',fog:false});
  const glassEx=new T.MeshBasicMaterial({color:'#b89a64'});
@@ -274,6 +312,12 @@ function build(api,H){
   {const ax=TW/2+.95,yc=TH*.62,ry=TH*.6+.4;for(let a=-.15;a<=PI+.15;a+=.24){const r=.55+R()*.25;rock(E,R,Math.cos(a)*ax,yc+Math.sin(a)*ry,PZ+.35+R()*.15,r,1,.9,.8,'#8f97a1',null,.45);}
    for(const sx of [-1,1])for(let y=.3;y<yc;y+=.75){const r=.6+R()*.25;rock(E,R,sx*(ax+R()*.15),y,PZ+.35+R()*.2,r,.9,1,.85,'#8a929b',null,.3);}
    for(const sx of [-1,1]){rock(E,R,sx*(ax+1.2),.3,PZ+.9,1.1+R()*.3,1,.8,1,'#858e98',null,.5);rock(E,R,sx*(ax+.6),.15,PZ+1.4,.55,1,.7,1,'#8a929b',null,.4);}}
+  {const C=new T.Group();ext.add(C);const blk=(x0,x1,y0,y1,z0,z1)=>{const gg=new T.BoxGeometry(x1-x0,y1-y0,z1-z0,4,6,2),p=gg.attributes.position;
+    for(let i=0;i<p.count;i++){const X=p.getX(i)+(x0+x1)/2,Y=p.getY(i)+(y0+y1)/2,Z=p.getZ(i)+(z0+z1)/2,inner=Math.abs(Math.abs(X)-TW/2-.05)<.12||Math.abs(Y-TH-.05)<.12;
+     p.setXYZ(i,X+(inner?0:.18*N3(X,Y,Z,3)),Y+(inner?0:.12*N3(Y,Z,X,5)),Z+(Z>PZ?.2*N3(X*1.3,Y*1.3,1,7):0));}
+    gg.computeVertexNormals();const cl=new Float32Array(p.count*3);for(let i=0;i<p.count;i++){const v=.3+.06*N3(p.getX(i)*2,p.getY(i)*2,p.getZ(i)*2,9);cl[i*3]=v;cl[i*3+1]=v*.99;cl[i*3+2]=v*1.02;}
+    gg.setAttribute('color',new T.BufferAttribute(cl,3));const m=new T.Mesh(gg,domeMat);m.castShadow=true;m.receiveShadow=true;C.add(m);};
+   blk(-5,-TW/2-.05,-.4,TH+.05,PZ-1.4,PZ+.5);blk(TW/2+.05,5,-.4,TH+.05,PZ-1.4,PZ+.5);blk(-5,5,TH+.05,6,PZ-1.4,PZ+.5);}
   const WD='#7b4a2a',WD2='#6a3f23';
   for(const sx of [-1,1]){log(E,[sx*(TW/2+.05),-.2,PZ+.05],[sx*(TW/2+.05),TH+.15,PZ+.05],.22,WD,8);log(E,[sx*(TW/2+.05),TH-.8,PZ+.05],[sx*(TW/2-.75),TH+.12,PZ+.05],.09,WD2);}
   log(E,[-(TW/2+.7),TH+.32,PZ+.05],[TW/2+.7,TH+.38,PZ+.05],.26,WD,8);log(E,[-(TW/2+.3),TH+.75,PZ-.1],[TW/2+.35,TH+.72,PZ-.1],.18,WD2,7);
@@ -483,7 +527,6 @@ function build(api,H){
   const bakeCache=[];
   function bakeFn(L){if(bakeCache[L])return bakeCache[L];const Ls=lights[L],amb=L===0?[.24,.23,.27]:[.18,.19,.25];
    return bakeCache[L]=(x,y,z,nx,ny,nz)=>{let r=amb[0],g=amb[1],b=amb[2];
-    if(L===0&&z>-8&&y>-1){const k=Math.exp(-Math.max(0,PZ+.6-z)/3)*(Math.abs(x)<3?1:.4);r+=.36*k;g+=.36*k;b+=.36*k;}
     for(const q of Ls){const dx=q.x-x,dy=q.y-y,dz=q.z-z,d2=dx*dx+dy*dy+dz*dz;if(d2>q.r2)continue;const d=Math.sqrt(d2)+1e-3,lam=Math.max(.22,(dx*nx+dy*ny+dz*nz)/d*.62+.48),k=q.k/(1+d2*q.f)*lam;r+=k*q.c[0];g+=k*q.c[1];b+=k*q.c[2];}
     const kf=.66+.48*Math.max(0,nx*.33+ny*.72+nz*.6),qz=v=>{v=Math.min(1.12,v*kf);return v*.6+Math.floor(v*6)/6*.4;};return [L22(qz(r)),L22(qz(g)),L22(qz(b))];};}
   const kk=(x,y,z)=>Math.round(x*20)+','+Math.round(y*20)+','+Math.round(z*20);
@@ -510,7 +553,9 @@ function build(api,H){
      else{ax=x0;az=z1;bx=x1;bz=z1;fa=yb[2];fb=yb[3];want=[0,0,-1];if(nb){na=nb.y[0];nbb=nb.y[1];}}
      if(!nb){const nv=Math.max(2,Math.round((c.ceil+low)/.5)),G=[];
       for(let v=0;v<=nv;v++)for(let u=0;u<=K;u++){const t=u/K,fl=fa+(fb-fa)*t-low,y=fl+(c.ceil+low)*v/nv,x=ax+(bx-ax)*t,z=az+(bz-az)*t;if(v===nv)seam.add(kk(x,y,z));G.push(vtx(x,y,z,wallCol(fl+low)));}
-      grid(G,K,nv,want);}
+      grid(G,K,nv,want);
+      {const ox=-want[0]*.8,oz=-want[2]*.8,ex=(bx-ax)/GC*.9,ez=(bz-az)/GC*.9,y0=Math.min(fa,fb)-low-.7,y1=Math.max(fa,fb)+c.ceil+1.1,D0=[.012,.011,.014];
+       const A0=[ax-ex+ox,y0,az-ez+oz,...D0],B0=[bx+ex+ox,y0,bz+ez+oz,...D0],A1=[ax-ex+ox,y1,az-ez+oz,...D0],B1=[bx+ex+ox,y1,bz+ez+oz,...D0];tri(A0,B0,B1,want);tri(A0,B1,A1,want);}}
      else{const tA=fa+c.ceil,tB=fb+c.ceil,nA=na+nb.ceil,nB=nbb+nb.ceil;
       if(nA<tA-.05||nB<tB-.05){const nv=Math.max(1,Math.round(Math.max(tA-nA,tB-nB)/.5)),G=[];
        for(let v=0;v<=nv;v++)for(let u=0;u<=K;u++){const t=u/K,lo=nA+(nB-nA)*t,hi=Math.max(lo,tA+(tB-tA)*t),y=lo+(hi-lo)*v/nv,x=ax+(bx-ax)*t,z=az+(bz-az)*t;
@@ -523,19 +568,31 @@ function build(api,H){
     for(let v=0;v<=K;v++)for(let u=0;u<=K;u++){const x=x0+u*sub,z=z0+v*sub,y=bil(c.y,u/K,v/K)+c.ceil;let up=0;
      if(!seam.has(kk(x,y,z)))up=.55*(.5+.5*N3(x*.5,0,z*.5,8))*(L===0&&z>PZ-3?Math.max(0,(PZ-.3-z)/2.7):1);G.push(vtx(x,y,z,ceilCol,up));}
     grid(G,K,K,[0,-1,0]);}
+   for(const c of list){const x0=x0c(c)-.5,z0=z0c(c)-.5,x1=x0+GC+1,z1=z0+GC+1,D0=[.012,.011,.014],yt=Math.max(...c.y)+c.ceil+1.2,yf=Math.min(...c.y)-.8;
+    const q=(y,w)=>{const a=[x0,y,z0,...D0],b=[x1,y,z0,...D0],cc=[x1,y,z1,...D0],d=[x0,y,z1,...D0];tri(a,b,cc,w);tri(a,cc,d,w);};q(yt,[0,-1,0]);q(yf,[0,1,0]);}
+   const NR=new Float32Array(P.length),DY=L===0?new Float32Array(P.length/3):null,ALB=L===0?new Float32Array(C):null;
    const bk=bakeFn(L);for(let i=0;i<P.length;i+=9){const ux=P[i+3]-P[i],uy=P[i+4]-P[i+1],uz=P[i+5]-P[i+2],vx=P[i+6]-P[i],vy=P[i+7]-P[i+1],vz=P[i+8]-P[i+2];
     let nx=uy*vz-uz*vy,ny=uz*vx-ux*vz,nz=ux*vy-uy*vx;const l=Math.hypot(nx,ny,nz)||1;nx/=l;ny/=l;nz/=l;
-    for(let k=0;k<3;k++){const j=i+k*3,q=bk(P[j],P[j+1],P[j+2],nx,ny,nz);C[j]*=q[0];C[j+1]*=q[1];C[j+2]*=q[2];}}
-   const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(P,3));g.setAttribute('color',new T.Float32BufferAttribute(C,3));g.computeBoundingSphere();
-   const m=new T.Mesh(g,inMat);m.name='Rocha · '+LNAME[L];return m;}
+    for(let k=0;k<3;k++){const j=i+k*3,q=bk(P[j],P[j+1],P[j+2],nx,ny,nz);C[j]*=q[0];C[j+1]*=q[1];C[j+2]*=q[2];NR[j]=nx;NR[j+1]=ny;NR[j+2]=nz;if(DY)DY[j/3]=dayK(P[j],P[j+1],P[j+2],nx,ny,nz);}}
+   const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(P,3));g.setAttribute('color',new T.Float32BufferAttribute(C,3));g.setAttribute('normal',new T.BufferAttribute(NR,3));if(DY){g.setAttribute('aDay',new T.BufferAttribute(DY,1));g.setAttribute('aAlb',new T.BufferAttribute(ALB,3));}g.computeBoundingSphere();
+   const m=new T.Mesh(g,L===0?rockDayMat:rockMat);m.name='Rocha · '+LNAME[L];return m;}
   // brilhos subindo do cristal do salão
   {const NS=mobile?20:40,sp=new Float32Array(NS*3),seeds=[];for(let i=0;i<NS;i++)seeds.push([R()*TAU,.4+R()*2,R()*4,.15+R()*.3]);
    const sg=new T.BufferGeometry();sg.setAttribute('position',new T.BufferAttribute(sp,3));
    const pts=new T.Points(sg,new T.PointsMaterial({color:'#aef0ff',size:.09,transparent:true,opacity:.9,blending:T.AdditiveBlending,depthWrite:false}));pts.frustumCulled=false;lvGroups[0].add(pts);
    o.sparks.push({pts,sp,seeds,NS,x:o.crys.x,z:o.crys.z,y:.6});}
+  // feixes de sol entrando pela boca (intensidade vem da luz de fora)
+  {const c=document.createElement('canvas');c.width=32;c.height=128;const g=c.getContext('2d'),gr=g.createLinearGradient(0,128,0,0);
+   gr.addColorStop(0,'rgba(255,255,255,0)');gr.addColorStop(.5,'rgba(255,255,255,.45)');gr.addColorStop(.86,'rgba(255,255,255,.85)');gr.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gr;g.fillRect(0,0,32,128);
+   g.globalCompositeOperation='destination-in';const gx=g.createLinearGradient(0,0,32,0);gx.addColorStop(0,'rgba(0,0,0,0)');gx.addColorStop(.5,'rgba(0,0,0,1)');gx.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=gx;g.fillRect(0,0,32,128);
+   const mt=new T.MeshBasicMaterial({map:new T.CanvasTexture(c),color:'#fff0c4',transparent:true,opacity:0,blending:T.AdditiveBlending,depthWrite:false,side:T.DoubleSide,fog:false});
+   const dir=new T.Vector3(0,3.6,4.6).normalize();
+   for(let k=0;k<5;k++){const pl=new T.Mesh(new T.PlaneGeometry(.6+R()*.9,7.2),mt);pl.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),dir);pl.rotateY(R()*PI);
+    pl.position.set((R()-.5)*2.6,1.7,PZ-2.4);lvGroups[0].add(pl);}
+   o.rayMat=mt;}
   // monta um andar por vez (evita travar o jogo)
   let L=0;const step=()=>{if(L>2){for(const f of pendingBakes)f();o.ready=true;return;}
-   const g=lvGroups[L];g.add(levelMesh(L));const bk=bakeFn(L);g.add(new T.Mesh(PR[L].build(bk),inMat));g.add(new T.Mesh(PC[L].build(),crMat));g.add(new T.Mesh(PG[L].build(),glassIn));g.add(new T.Mesh(FL[L].build(),flameMat));
+   const g=lvGroups[L];g.add(levelMesh(L));const bk=bakeFn(L);g.add(new T.Mesh(PR[L].build(bk,L===0?dayK:null),L===0?propDayMat:inMat));g.add(new T.Mesh(PC[L].build(),crMat));g.add(new T.Mesh(PG[L].build(),glassIn));g.add(new T.Mesh(FL[L].build(),flameMat));
    L++;setTimeout(step,30);};step();
  }
 
@@ -549,7 +606,7 @@ function build(api,H){
  (window.arcanoExtraDecks=window.arcanoExtraDecks||[]).push({surfaceAt(x,z){const py=pY();for(const s of SITES){if(!s.L)continue;const dx=x-s.x,dz=z-s.z;if(dx*dx+dz*dz>2600)continue;
    const t=s.toL(x,z),c=findCell(s,t.x,t.z,py-s.g);if(c)return s.g+floorAt(s,c,t.x,t.z)+.02;}return null;},blocksSegment(){return false;}});
  const cellBlocked=(s,f,t,yr)=>{const cf=findCell(s,f.x,f.z,yr);
-  if(!cf){if(s.domeR(t.x,t.z)<1){const ct=findCell(s,t.x,t.z,yr,1.2);return !(ct&&ct.L===0&&ct.room==='entrada');}return false;}
+  if(!cf){if(s.domeR(t.x,t.z)<1){if(Math.abs(t.x)<TW/2-.3&&t.z>PZ-1.6&&Math.abs(yr)<1.6)return false;const ct=findCell(s,t.x,t.z,yr,1.2);return !(ct&&ct.L===0&&ct.room==='entrada');}return false;}
   const ct=findCell(s,t.x,t.z,yr);
   if(!ct)return !(cf.portal&&t.z>=PZ-.05);
   if(ct!==cf){const di=ct.I-cf.I,dj=ct.J-cf.J;
@@ -584,9 +641,14 @@ function build(api,H){
  const dayF=()=>{const R=window.arcanoAnimeRiver,u=R&&R.material&&R.material.uniforms&&R.material.uniforms.uSun;const y=u?u.value.y:.5;return Math.min(1,Math.max(0,(y+.1)/.28));};
  const cG=new T.Color('#b89a64'),cN=new T.Color('#ffd27a');let last=performance.now(),t=0,near=null;
  addEventListener('keydown',e=>{if(e.key&&e.key.toLowerCase()==='e'&&near&&!e.repeat)near.act();});
- window.arcanoMinasObj={objs,SITES,inter,findCell};
+ window.arcanoMinasObj={objs,SITES,inter,findCell,
+  prewarm(){const o=objs[0];if(!o.built){o.built=true;try{buildDungeon(o);}catch(e){console.error(e);}}return new Promise(res=>{const t0=performance.now(),w=()=>(o.ready||performance.now()-t0>15000)?res(o):setTimeout(w,50);w();});},
+  showAll(v){for(const o of objs){o.root.visible=true;for(const g of o.levels)g.visible=v;}}};
+ const tmpC=new T.Color();
  function tick(){requestAnimationFrame(tick);const now=performance.now(),dt=Math.min(.1,(now-last)/1000);last=now;t+=dt;
   const pl=api.getGrassPlayer&&api.getGrassPlayer(),pp=pl?pl.position:null,night=1-dayF();
+  {const du=dayU.value;du.setRGB(0,0,0);for(const l of dimLights){const w=l.isHemisphereLight?.45:l.isDirectionalLight?.55:.4;du.r+=l.color.r*l.intensity*w;du.g+=l.color.g*l.intensity*w;du.b+=l.color.b*l.intensity*w;}}
+  const sunK=Math.min(1,dayF()*1.2);for(const o of objs)if(o.rayMat)o.rayMat.opacity=.26*sunK;
   glassEx.color.copy(cG).lerp(cN,night);crMat.color.setScalar(.92+.1*Math.sin(t*1.6));flameMat.color.setRGB(1,.62+.12*Math.sin(t*13),.25);
   let best=null,bd=1e9,inside=null;
   for(const o of objs){const s=o.s,d=pp?Math.hypot(pp.x-s.x,pp.z-s.z):1e9;o.root.visible=d<600;
