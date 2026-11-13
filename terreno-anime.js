@@ -75,7 +75,7 @@ function patchGrass(material){
 }
 
 /* ---------- Terra ---------- */
-const LAND_KEY='anime-land-v4';
+const LAND_KEY='anime-land-v5';
 // Relógio das cáusticas no fundo do rio.
 const landTime={value:0};
 (function tick(t){landTime.value=t/1000;requestAnimationFrame(tick);})(0);
@@ -195,11 +195,22 @@ function patchLand(material){
     // ---------- Penhascos: encostas íngremes viram rocha em camadas ----------
     float cliff=1.-smoothstep(.50,.78,vAnimeUpN+(small-.5)*.12);
     if(cliff>.001){
-     float layer=fract(vAnimeWorld.y*1.6+animeNoise(w*.8)*.6);
-     vec3 rockA=animeLin(vec3(.60,.58,.56)),rockB=animeLin(vec3(.47,.46,.48)),rockC=animeLin(vec3(.70,.67,.62));
-     vec3 cliffC=mix(rockB,rockA,smoothstep(.15,.35,layer));
-     cliffC=mix(cliffC,rockC,smoothstep(.75,.9,layer)*.7);
-     cliffC*=.85+.3*animeNoise(vec2(w.x+w.y,vAnimeWorld.y)*2.3);
+     // faixas grossas de rocha (estratos), cada uma com tom próprio; ressalto claro no topo e sombra embaixo
+     float hz=vAnimeWorld.x*.8+vAnimeWorld.z*.6,hz2=vAnimeWorld.x*.6-vAnimeWorld.z*.8;
+     float wob=(animeNoise(vec2(hz*.05,hz2*.05))-.5)*1.6+(animeNoise(vec2(hz*.21,vAnimeWorld.y*.1))-.5)*.35;
+     float sy=vAnimeWorld.y*.30+wob,band=floor(sy),layer=sy-band;
+     float tone=animeNoise(vec2(band*1.73,band*.61+.5));
+     vec3 rockA=animeLin(vec3(.60,.55,.50)),rockB=animeLin(vec3(.50,.47,.46)),rockC=animeLin(vec3(.76,.70,.60));
+     vec3 cliffC=mix(rockB,rockA,smoothstep(.25,.6,tone));
+     cliffC=mix(cliffC,rockC,smoothstep(.7,.9,tone)*.8);
+     cliffC*=.70+.42*smoothstep(.0,.22,layer)-.16*smoothstep(.82,1.,layer);
+     cliffC=mix(cliffC,rockC*1.05,smoothstep(.93,.985,layer)*.7);
+     // rachaduras verticais e blocos
+     float cr=animeNoise(vec2((hz+hz2*.35)*.42,band*3.7+vAnimeWorld.y*.05));
+     cliffC*=1.-.42*(smoothstep(.60,.655,cr)-smoothstep(.665,.72,cr));
+     cliffC*=.88+.24*animeNoise(vec2(hz+hz2,vAnimeWorld.y*1.7)*.9);
+     // musgo nos ressaltos
+     cliffC=mix(cliffC,animeLin(vec3(.45,.58,.30)),smoothstep(.55,.85,animeNoise(w*.35+band))*smoothstep(.9,.99,layer)*.6);
      outC=mix(outC,cliffC,cliff);
     }
     diffuseColor.rgb=outC*.78;

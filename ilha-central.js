@@ -312,6 +312,66 @@ function install(){
   const dx=Math.max(INNER.x0-x,0,x-INNER.x1),dz=Math.max(INNER.z0-z,0,z-INNER.z1);
   return Math.hypot(dx,dz);
  };
+ // ---------- Relevos: platôs com penhascos em degraus e serra irregular na borda ----------
+ // Somados ao terreno base só longe de cidade, vilas, minas, rios, estradas, porto e acampamentos
+ // (a máscara usa as clareiras registradas antes da ilha — copiadas aqui para a altura não mudar depois).
+ const RELIEF=(()=>{
+  const hsh=(i,j)=>{const s=Math.sin(i*127.1+j*311.7)*43758.5453;return s-Math.floor(s);};
+  const vn=(x,z)=>{const i=Math.floor(x),j=Math.floor(z),u=x-i,v=z-j,su=u*u*(3-2*u),sv=v*v*(3-2*v),a=hsh(i,j),b=hsh(i+1,j),c=hsh(i,j+1),d=hsh(i+1,j+1);return a+(b-a)*su+(c-a)*sv+(a-b-c+d)*su*sv;};
+  const fbm=(x,z)=>vn(x,z)*.55+vn(x*2.03+5.2,z*2.03+1.3)*.28+vn(x*4.1+9.1,z*4.1+3.7)*.17;
+  // platôs (mesas): centro, raio do topo, altura, semente
+  const MESAS=[
+   {x:285,z:25,r:40,h:24,s:1.3},{x:205,z:98,r:26,h:14,s:4.1},{x:-275,z:35,r:46,h:28,s:2.2},{x:-238,z:98,r:24,h:15,s:5.7},
+   {x:-345,z:-128,r:32,h:21,s:3.3},{x:320,z:-395,r:34,h:25,s:.6},{x:-255,z:-410,r:25,h:18,s:6.4},{x:-160,z:-560,r:30,h:22,s:2.9}
+  ];
+  for(const m of MESAS){m.cw=m.h*.4;m.reach=m.r*1.32+m.cw+8;}
+  const CL=(window.arcanoClearings||[]).map(q=>Object.assign({},q));
+  const MINES=[[310,-140],[180,-30],[-150,-10],[-260,-220]];
+  function lift(x,z){
+   let L=0;
+   for(const m of MESAS){const dx=x-m.x,dz=z-m.z;if(Math.abs(dx)>m.reach||Math.abs(dz)>m.reach)continue;
+    const dist=Math.hypot(dx,dz);if(dist>m.reach)continue;
+    const a=Math.atan2(dz,dx);
+    const re=m.r*(1+.16*Math.sin(3*a+m.s)+.09*Math.sin(5*a+m.s*2.3)+.05*Math.sin(11*a+m.s*.7))+9*(fbm(x*.045+m.s*7,z*.045)-.5);
+    const t=dist<=re?1:1-clamp((dist-re)/m.cw,0,1);
+    let h=m.h*t+(dist<re?(fbm(x*.06,z*.06+m.s)-.5)*3:0);
+    h+=m.h*.14*(1-sm(re,re+m.cw+10,dist)); // sopé de pedras caídas
+    L=Math.max(L,h);}
+   // serra na borda da ilha, com falhas e picos
+   const dx=x-C.x,dz=z-C.z,d=Math.hypot(dx,dz);
+   if(d>R-140){const ux=dx/d,uz=dz/d,n=fbm(ux*3.1+11,uz*3.1+4),A=36*sm(.40,.68,n);
+    if(A>.01){const foot=R-128+30*fbm(x*.02,z*.02),crest=R-58+14*(fbm(x*.03+3,z*.03)-.5);
+     let p=d<crest?sm(foot,crest,d):1-.75*sm(crest+6,R-6,d);
+     const peaks=1+.45*(fbm(x*.05+7,z*.05+2)-.5)*2;
+     L=Math.max(L,A*p*peaks);}}
+   return L;
+  }
+  // degraus: patamares planos e paredões verticais (estratos como nos penhascos de Genshin)
+  function terrace(h,x,z){const st=5.5+1.5*Math.sin(x*.013+z*.011),s=h/st,f=Math.floor(s),fr=s-f;return (f+sm(.42,.82,fr))*st;}
+  function mask(x,z){
+   const d=Math.hypot(x-C.x,z-C.z);let k=sm(CITY_R+45,CITY_R+85,d);if(k<=0)return 0;
+   k*=sm(30,70,outsideDist(x,z));if(k<=0)return 0;
+   k*=sm(115,150,Math.hypot(x-MT.x,z-MT.z));if(k<=0)return 0;
+   for(const m of MINES){const dd=Math.hypot(x-m[0],z-m[1]);if(dd<90)k*=sm(58,90,dd);}if(k<=0)return 0;
+   for(const q of CL){let dd;if(q.x1!=null){const vx=q.x2-q.x1,vz=q.z2-q.z1,l2=vx*vx+vz*vz||1,t=clamp(((x-q.x1)*vx+(z-q.z1)*vz)/l2,0,1);dd=Math.hypot(x-q.x1-vx*t,z-q.z1-vz*t);}else dd=Math.hypot(x-q.x,z-q.z);
+    if(dd<q.r+32)k*=sm(q.r+8,q.r+32,dd);if(k<=0)return 0;}
+   k*=sm(14,36,roadDist(x,z));if(k<=0)return 0;
+   {const q=portUV(x,z),du=Math.max(PLAZA.u0-q.u,0),dv=Math.max(Math.abs(q.v)-PLAZA.hw,0);k*=sm(14,44,Math.hypot(du,dv));}if(k<=0)return 0;
+   if(z>INNER.z1-10)k*=sm(half(z)+12,half(z)+42,Math.abs(x-river.center(z)));if(k<=0)return 0;
+   {const si=streamInfo(x,z);if(si)k*=sm(si.w+12,si.w+38,si.d);}if(k<=0)return 0;
+   k*=sm(12,34,(lagoonE(x,z)-1)*LAGOON.rz)*sm(12,34,(lakeE(x,z)-1)*LAKE.rz);
+   return k;
+  }
+  const cache=new Map();
+  return function(x,z){
+   const L=lift(x,z);if(L<.05)return 0;
+   const key=Math.round(x*8)*100003+Math.round(z*8);let k=cache.get(key);
+   if(k===undefined){k=mask(x,z);if(cache.size>400000)cache.clear();cache.set(key,k);}
+   if(k<=0)return 0;
+   return terrace(L,x,z)*k;
+  };
+ })();
+ window.arcanoRelief=RELIEF;
  function height(x,z){
   const od=outsideDist(x,z);
   if(od<=0)return ground.heightAt(x,z);
@@ -319,7 +379,7 @@ function install(){
   const ex=clamp(x,INNER.x0+.3,INNER.x1-.3),ez=clamp(z,INNER.z0+.3,INNER.z1-.3);
   const edge=ground.heightAt(ex,ez);
   // O canal entra na mistura (antes era aplicado por cima e criava um degrau).
-  let y=edge+(carveRiver(x,z,field(x,z))-edge)*sm(0,38,od);
+  let y=edge+(carveRiver(x,z,field(x,z)+RELIEF(x,z))-edge)*sm(0,38,od);
   const k=sm(0,8,od);if(k>0){const yw=carveWater(x,z,y);y+=(yw-y)*k;}
   // Calha do rio principal: o leito nunca fica acima do perfil do canal (sem faixas de areia cortando a água,
   // nem na emenda com a área detalhada nem perto da saída dos braços).
@@ -1168,7 +1228,7 @@ function install(){
    const dens=Math.sin(x*.031+z*.017)*.5+Math.sin(x*.057-z*.043+2.)*.3+Math.sin(x*.09+z*.08)*.2;
    if(dens<-.62||rnd()<.06)continue;
    const y=window.arcanoIslandHeight(x,z),yx=window.arcanoIslandHeight(x+2,z),yz=window.arcanoIslandHeight(x,z+2);
-   if(Math.hypot(yx-y,yz-y)>1.7)continue;
+   if(Math.hypot(yx-y,yz-y)>1.25)continue;
    spots.push({x,y,z,rot:rnd()*Math.PI*2,s:.8+rnd()*.5,t:Math.floor(rnd()*templates.length)});
   }
   // Árvores em volta da nascente (modelos originais).
