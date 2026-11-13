@@ -69,7 +69,7 @@ function install(){
  const LITE=/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)||innerWidth<700;
  const root=new T.Group();root.name='Árvore gigante';root.position.set(LG.x,base,LG.z);scene.add(root);
  const W=(lx,lz)=>({x:LG.x+lx,z:LG.z+lz});
- const barkP=barkPair(61,0),heartP=barkPair(62,1),deckT=AT.wood({hue:32,light:50,horizontal:true,seed:63,boards:6});
+ const barkP=barkPair(61,1),heartP=barkPair(62,1),deckT=AT.wood({hue:32,light:50,horizontal:true,seed:63,boards:6});
  const mk=(t,sc,o)=>new T.MeshStandardMaterial(Object.assign({map:t.map,bumpMap:t.bump,bumpScale:sc,roughness:1},o||{}));
  const barkM=mk(barkP,2.6,{vertexColors:true}),innerM=mk(heartP,1.0,{vertexColors:true,side:T.DoubleSide}),deckM=mk(deckT,.8,{side:T.DoubleSide}),plainBark=mk(barkP,2.2);
  const glowM=new T.MeshStandardMaterial({color:'#ffe9b0',emissive:new T.Color('#ffb040'),emissiveIntensity:1.4,roughness:.6});
@@ -77,10 +77,12 @@ function install(){
  const stemM=new T.MeshStandardMaterial({color:'#f3e6cc',roughness:1});
 
  /* ---------- Tronco: casca de fora (serpenteia) + parede de dentro (reta), com a porta cortada ---------- */
+ const ROOTA=[];for(let i=0;i<11;i++){const a=i/11*TAU+rnd()*.25+.15;if(Math.abs(angd(a,DOOR))<.5)continue;ROOTA.push(a);}
  const lean=y=>{const s=sstep((y-3)/12);return {x:s*(1.15*Math.sin(y*.085+.8)+.5*Math.sin(y*.19)),z:s*(1.0*Math.sin(y*.063+2.4)+.4*Math.sin(y*.17+1))};};
  const BURLS=[[.8,9,.2],[3.9,16,.17],[-2.2,22,.2],[2.4,5.5,.14],[-.6,28,.16],[-1.4,13,.12]];
- const rOut=(y,a)=>{const k=Math.max(0,y)/TH;let r=7.1-1.3*k+3.4*Math.exp(-Math.max(0,y)/2.4);
-  r*=1+.07*Math.sin(a*9+y*.33)+.05*Math.sin(a*19-y*.8+1)+.035*Math.sin(a*4+y*.15)+.025*Math.sin(a*31+y*1.7);
+ const rOut=(y,a)=>{const yy=Math.max(0,y),k=yy/TH,tw=a-yy*.05;let r=6.7-1.5*k+3.6*Math.exp(-yy/3);
+  const cord=.5+.5*Math.sin(tw*7+1.3);r*=1+.22*cord*cord-.09+.035*Math.sin(tw*15+yy*.25)+.02*Math.sin(a*31+yy*1.7);
+  let lobe=0;for(const ra of ROOTA){const da=angd(a,ra);lobe+=Math.exp(-da*da/.045);}r*=1+.45*Math.min(1.3,lobe)*Math.exp(-yy/2.6);
   for(const [ba,by,bm] of BURLS){const da=angd(a,ba);r*=1+bm*Math.exp(-(da*da/.12+(y-by)*(y-by)/7));}
   const l=lean(y);return Math.max(r,RIN+Math.hypot(l.x,l.z)+1.1);};
  const rIn=(y,a)=>RIN*(1+.03*Math.sin(a*7+y*.5));
@@ -94,9 +96,10 @@ function install(){
    const a=i/NA*TAU+ys[j]*.02,r=rad(ys[j],a),lo=isInner?{x:0,z:0}:lean(ys[j]),x=Math.sin(a)*r+lo.x,z=Math.cos(a)*r+lo.z;
    mesh.P.push(x,ys[j],z);const nrm=new T.Vector3(x-lo.x,0,z-lo.z).normalize();if(isInner)nrm.negate();mesh.N.push(nrm.x,0,nrm.z);
    mesh.U.push(i/NA*(isInner?RIN:7.4)*TAU/6,ys[j]/6);
-   const mo=Math.max(0,Math.min(1,(.55-ys[j]/22)+.35*Math.sin(a*5+ys[j]*.2)+.15*(Math.cos(a)<0?1:0)));
-   const dk=.88+.12*Math.sin(a*13+ys[j]*.7);
-   mesh.C.push(dk*(1-mo*.3),dk*(1-mo*.02),dk*(1-mo*.45));
+   const tw=a-Math.max(0,ys[j])*.05,cv=.5+.5*Math.sin(tw*7+1.3);
+   const mo=isInner?0:Math.max(0,Math.min(1,(.5-ys[j]/26)+.45*(1-cv)*(ys[j]<20?1:.4)+.25*Math.sin(a*5+ys[j]*.2)));
+   const dk=(.82+.2*cv)*(.9+.1*Math.sin(a*13+ys[j]*.7));
+   mesh.C.push(dk*(1.04-mo*.5),dk*(1-mo*.08),dk*(.96-mo*.62));
   }
   const ring=NA+1;
   for(let j=0;j<ys.length-1;j++)for(let i=0;i<NA;i++){
@@ -149,17 +152,18 @@ function install(){
 
  /* ---------- Raízes sobre a ilha ---------- */
  {const m=Mesher();
-  for(let i=0;i<10;i++){const a=i/10*TAU+rnd()*.3+.2;if(Math.abs(angd(a,DOOR))<.42)continue;const L=15+rnd()*9;
+  for(const a of ROOTA){const L=9+rnd()*7;
    const mkRoot=(a0,r0,len,rad0,depth)=>{const pts=[],rad=[],wob=rnd()*6;
-    for(let k=0;k<=12;k++){const t=k/12,r=r0+len*t,aa=a0+.12*Math.sin(t*5+wob)*(1-t*.3),y=(1.6*(1-t)*(1-t)+(depth?.3:.9)*(1-t))-2.6*Math.pow(t,2.2);pts.push(new T.Vector3(Math.sin(aa)*r,y,Math.cos(aa)*r));rad.push(Math.max(.1,rad0*(1-t*.82)));}
-    tube(m,pts,rad,7,3);};
-   mkRoot(a,6.2,L,1.7,0);
-   for(let s=0;s<2;s++)mkRoot(a+(s?1:-1)*(.22+rnd()*.12),6.2+L*.35,L*.55,.7,1);
+    for(let k=0;k<=14;k++){const t=k/14,r=r0+len*t,aa=a0+.14*Math.sin(t*5+wob)*(1-t*.3),y=depth?(.9*(1-t)-1.6*Math.pow(t,2)):(4.2*Math.pow(1-t,2.2)+.5*(1-t)-1.4*Math.pow(t,2.4));pts.push(new T.Vector3(Math.sin(aa)*r,y,Math.cos(aa)*r));rad.push(Math.max(.12,rad0*(1-t*.86)));}
+    tube(m,pts,rad,8,3,[.82,.92,.74]);};
+   mkRoot(a,6.4,L,2.5,0);
+   for(let s=0;s<2;s++)mkRoot(a+(s?1:-1)*(.2+rnd()*.12),6.4+L*.45,L*.5,.75,1);
+   const w=W(Math.sin(a)*11,Math.cos(a)*11);O.addCircle(w.x,w.z,1.9);
   }
-  root.add(build(m,plainBark,'Raízes da árvore gigante',false));}
+  root.add(build(m,barkM,'Raízes da árvore gigante',true));}
 
  /* ---------- Copa: galhos recursivos + grandes massas de folhagem (cumes) ---------- */
- const branchM=Mesher(),leafV={P:[],U:[],C:[],I:[],N:[]};
+ const branchM=Mesher(),leafV={P:[],U:[],C:[],I:[],N:[]},leafCores=[];
  const leafCenter=new T.Vector3(0,TH+13,0),tips=[];
  function pushLeaf(c,ax,size,ctr,col){
   const w=new T.Vector3(rnd()-.5,rnd()-.5,rnd()-.5).cross(ax).normalize(),ll=size,lw=size*.62,v=leafV.P.length/3;
@@ -172,7 +176,7 @@ function install(){
  const GRAV=.035,LEAFK=LITE?.28:.5;
  function grow(p,dir,len,r0,r1,depth){
   const sides=[8,6,5,4][depth],segs=Math.max(4,Math.round(len/2.2)),pts=[p.clone()],rad=[r0];let pos=p.clone(),d=dir.clone();
-  for(let i=1;i<=segs;i++){d.y-=GRAV*(depth+1)*(depth>1?1.6:1);d.x+=(rnd()-.5)*(.2+depth*.08);d.z+=(rnd()-.5)*(.2+depth*.08);d.y+=(rnd()-.5)*.14;d.normalize();pos.addScaledVector(d,len/segs);pts.push(pos.clone());rad.push(r0+(r1-r0)*i/segs);}
+  for(let i=1;i<=segs;i++){d.y-=GRAV*(depth+1)*(depth>1?1.6:1);if(depth===0)d.y+=.06;d.x+=(rnd()-.5)*(.2+depth*.08);d.z+=(rnd()-.5)*(.2+depth*.08);d.y+=(rnd()-.5)*.14;d.normalize();pos.addScaledVector(d,len/segs);pts.push(pos.clone());rad.push(r0+(r1-r0)*i/segs);}
   tube(branchM,pts,rad,sides,3.4,[.9+rnd()*.15,.9+rnd()*.1,.9+rnd()*.1]);
   if(depth===3)tips.push(pos.clone());
   const kids=[4,4,3,0][depth];
@@ -182,26 +186,50 @@ function install(){
    grow(q,nd,cl,Math.max(.1,rq*.62),Math.max(.05,rq*.62*([.4,.42,.33][depth]||.05)),depth+1);}
   if(depth>=2){const n=Math.round((depth===3?len*24:len*11)*LEAFK);
    for(let k=0;k<n;k++){const t=Math.pow(rnd(),.7)*.9+.1,idx=Math.min(segs,Math.round(t*segs)),q=pts[idx].clone().add(new T.Vector3(rnd()-.5,rnd()-.5,rnd()-.5).multiplyScalar(.7));
-    const ax=d.clone().add(new T.Vector3(rnd()-.5,rnd()-.5,rnd()-.5).multiplyScalar(1.6)).normalize();leaf(q,ax,1.5+rnd()*1.0);}}
+    const ax=d.clone().add(new T.Vector3(rnd()-.5,rnd()-.5,rnd()-.5).multiplyScalar(1.6)).normalize();leaf(q,ax,.8+rnd()*.6);}}
  }
  const loTop=lean(TH);
- for(let i=0;i<8;i++){const phi=i/8*TAU+rnd()*.35,e=.5+rnd()*.5,dir=new T.Vector3(Math.sin(phi)*Math.cos(e),Math.sin(e),Math.cos(phi)*Math.cos(e));
-  const st=new T.Vector3(Math.sin(phi)*5.4+loTop.x,TH-.6,Math.cos(phi)*5.4+loTop.z);grow(st,dir,24+rnd()*5,3.1,1.3,0);}
- {const picks=[new T.Vector3(loTop.x,TH+19,loTop.z)];
+ for(let i=0;i<9;i++){const phi=i/9*TAU+rnd()*.3,y0=16+rnd()*15,e=.18+rnd()*.3,lo=lean(y0),rr0=rOut(y0,phi)*.78,dir=new T.Vector3(Math.sin(phi)*Math.cos(e),Math.sin(e),Math.cos(phi)*Math.cos(e));
+  const st=new T.Vector3(Math.sin(phi)*rr0+lo.x,y0,Math.cos(phi)*rr0+lo.z);grow(st,dir,24+rnd()*8,2.7-(y0-16)*.03,1.1,0);}
+ for(let i=0;i<4;i++){const phi=i/4*TAU+rnd()*.6,e=.85+rnd()*.3,dir=new T.Vector3(Math.sin(phi)*Math.cos(e),Math.sin(e),Math.cos(phi)*Math.cos(e));
+  const st=new T.Vector3(Math.sin(phi)*4+loTop.x,TH-.6,Math.cos(phi)*4+loTop.z);grow(st,dir,18+rnd()*5,2.5,1.1,0);}
+ {const picks=[new T.Vector3(loTop.x,TH+17,loTop.z),new T.Vector3(loTop.x+6,TH+14,loTop.z-4),new T.Vector3(loTop.x-5,TH+15,loTop.z+5)];
   const order=tips.map((_,i)=>i).sort(()=>rnd()-.5);
-  for(const i of order){const t=tips[i];if(t.y<TH+3)continue;if(picks.every(q=>q.distanceTo(t)>9.5))picks.push(t.clone());if(picks.length>=(LITE?13:19))break;}
+  for(const i of order){const t=tips[i];if(t.y<20)continue;if(picks.every(q=>q.distanceTo(t)>3.9))picks.push(t.clone().add(new T.Vector3(0,1.4,0)));if(picks.length>=(LITE?40:95))break;}
+  const cores=[];
   picks.forEach((c,idx)=>{
-   const R=idx===0?11.5:6.8+rnd()*3.4,n=Math.round(R*R*(LITE?4.5:8.5)),hue0=90+rnd()*24,sat=.5+rnd()*.15;
+   const R=idx<3?9:4.6+rnd()*2.6+Math.max(0,(c.y-40)*.05);leafCores.push({x:c.x,y:c.y,z:c.z,R},0);const n=Math.round(R*R*(LITE?6:11)),hue0=96+rnd()*22,sat=.52+rnd()*.15;
    for(let k=0;k<n;k++){
     const v=new T.Vector3(rnd()-.5,rnd()-.5,rnd()-.5).normalize();if(v.y<0)v.y*=.45;
-    const sh=.42+.58*Math.pow(rnd(),.45),p=c.clone().addScaledVector(v,R*sh);
-    const ax=v.clone().add(new T.Vector3(rnd()-.5,rnd()-.2,rnd()-.5).multiplyScalar(.9)).normalize();
-    const top=Math.max(0,v.y),light=.17+.27*sh+.1*top+rnd()*.08,gold=rnd()<.04;
-    pushLeaf(p,ax,1.5+rnd()*1.1,c,hsl2rgb(gold?46+rnd()*8:hue0+rnd()*16,sat,light));}
+    const sh=.72+.3*Math.pow(rnd(),.6),p=c.clone().addScaledVector(v,R*sh);p.y-=R*.12*(1-Math.max(0,v.y));
+    const tg=new T.Vector3(rnd()-.5,rnd()-.5,rnd()-.5).cross(v).normalize(),ax=tg.addScaledVector(v,.35+rnd()*.3).normalize();
+    const top=Math.max(0,v.y),bot=Math.max(0,-v.y),light=.14+.22*sh+.22*top*sh-.05*bot+rnd()*.07,gold=rnd()<.03;
+    pushLeaf(p,ax,1.25+rnd()*.75,c,hsl2rgb(gold?50+rnd()*8:hue0+rnd()*14-top*14+bot*18,sat+.1*top,light));}
   });}
+ // miolo verde-escuro de cada tufo: a copa fica cheia (não se vê o céu por entre as folhas)
+ {const picksC=[];for(let i=0;i<leafCores.length;i+=2)picksC.push(leafCores[i]);
+  const g=new T.IcosahedronGeometry(1,LITE?2:3),gp=g.attributes.position;
+  for(let i=0;i<gp.count;i++){const x=gp.getX(i),y=gp.getY(i),z=gp.getZ(i),f=1+.13*Math.sin(x*4.1+1)*Math.sin(y*3.7+2)*Math.sin(z*4.3)+.09*Math.sin(x*7.3-z*6.1+y*5)+.05*Math.sin(x*13+y*11+z*9);gp.setXYZ(i,x*f,y*f,z*f);}
+  {const nn=new Float32Array(gp.count*3);for(let i=0;i<gp.count;i++){const x=gp.getX(i),y=gp.getY(i),z=gp.getZ(i),l=Math.hypot(x,y,z)||1;nn[i*3]=x/l;nn[i*3+1]=y/l;nn[i*3+2]=z/l;}g.setAttribute('normal',new T.BufferAttribute(nn,3));}
+  const gn=g.attributes.normal,gc=new Float32Array(gp.count*3),cT=new T.Color('#9ccc52'),cM=new T.Color('#4f8f37'),cB=new T.Color('#1f4a2c'),tc=new T.Color();
+  for(let i=0;i<gp.count;i++){const ny=gn.getY(i),sp=.5+.5*Math.sin(gp.getX(i)*9+gp.getZ(i)*7)*Math.sin(gp.getY(i)*8);if(ny>0)tc.copy(cM).lerp(cT,Math.pow(ny,1.4)*(.6+.4*sp));else tc.copy(cM).lerp(cB,Math.min(1,-ny*1.3));gc[i*3]=tc.r;gc[i*3+1]=tc.g;gc[i*3+2]=tc.b;}
+  g.setAttribute('color',new T.BufferAttribute(gc,3));
+  const cm=new T.MeshStandardMaterial({vertexColors:true,emissive:new T.Color('#10240c'),roughness:1}),im=new T.InstancedMesh(g,cm,picksC.length),M4=new T.Matrix4(),Q=new T.Quaternion(),S=new T.Vector3();
+  picksC.forEach((c,i)=>{const R=c.R;Q.setFromEuler(new T.Euler(rnd(),rnd()*6,rnd()));S.set(R*.86,R*.66,R*.86);M4.compose(new T.Vector3(c.x,c.y-R*.15,c.z),Q,S);im.setMatrixAt(i,M4);});
+  im.name='Miolo da copa';im.receiveShadow=true;root.add(im);}
  const lg=new T.BufferGeometry();lg.setAttribute('position',new T.Float32BufferAttribute(leafV.P,3));lg.setAttribute('normal',new T.Float32BufferAttribute(leafV.N,3));lg.setAttribute('uv',new T.Float32BufferAttribute(leafV.U,2));lg.setAttribute('color',new T.Float32BufferAttribute(leafV.C,3));lg.setIndex(leafV.I);lg.computeBoundingSphere();
  const leaves=new T.Mesh(lg,AB.leafMat);leaves.name='Folhas da árvore gigante';leaves.castShadow=false;leaves.receiveShadow=true;root.add(leaves);
  root.add(build(branchM,barkM,'Galhos da árvore gigante',true));
+
+ /* ---------- Pedras com musgo e arbustos na base (como na referência) ---------- */
+ {const rockM=new T.MeshStandardMaterial({vertexColors:true,roughness:.95,flatShading:true});if(AT.apply&&AT.stone)AT.apply(rockM,AT.stone({seed:71}),1.2);
+  const rg=[];for(let i=0;i<16;i++){let a=rnd()*TAU;if(Math.abs(angd(a,DOOR))<.45)a+=.9;const rr=11.5+rnd()*6.5,x=Math.sin(a)*rr,z=Math.cos(a)*rr,sz=.7+rnd()*1.3,g=new T.IcosahedronGeometry(1,2),p=g.attributes.position,o1=rnd()*9;
+   for(let k=0;k<p.count;k++){const vx=p.getX(k),vy=p.getY(k),vz=p.getZ(k),f=1+.15*Math.sin(vx*2.3+o1)*Math.cos(vz*2.1)+.08*Math.sin(vy*4+o1);p.setXYZ(k,vx*f*1.25,vy*f*(vy<0?.5:.85),vz*f);}
+   g.computeVertexNormals();const nn=g.attributes.normal,cl=new Float32Array(p.count*3);for(let k=0;k<p.count;k++){const ny=nn.getY(k),m=ny>.55?Math.min(1,(ny-.55)*3):0,v=.55+.1*Math.sin(k);cl[k*3]=v*(1-m)+.24*m;cl[k*3+1]=v*(1-m)+.4*m;cl[k*3+2]=v*1.04*(1-m)+.14*m;}
+   g.setAttribute('color',new T.BufferAttribute(cl,3));const m=new T.Mesh(g,rockM);m.scale.setScalar(sz);m.rotation.y=rnd()*TAU;m.position.set(x,H(LG.x+x,LG.z+z)-base-.15*sz,z);m.castShadow=true;m.receiveShadow=true;root.add(m);
+   if(sz>1){const w=W(x,z);O.addCircle(w.x,w.z,sz*1.1);}}
+  for(let i=0;i<12;i++){let a=rnd()*TAU;if(Math.abs(angd(a,DOOR))<.45)a+=1;const rr=10.5+rnd()*7,x=Math.sin(a)*rr,z=Math.cos(a)*rr;
+   const b=AB.make({w:1.6+rnd()*1.4,h:1+rnd()*.8,d:1.4+rnd()*1.2,leaf:.2,hue:100+rnd()*20,seed:900+i});b.position.set(x,H(LG.x+x,LG.z+z)-base-.1,z);b.rotation.y=rnd()*TAU;root.add(b);}}
 
  /* ---------- Ponte em arco até a margem ---------- */
  const BR={z0:LG.ri+1,z1:LG.r+9,w:3.4},bridgeY=t=>{const a=H(LG.x,LG.z+BR.z0),b=H(LG.x,LG.z+BR.z1);return a+(b-a)*t+1.5*Math.pow(Math.sin(PI*t),.9);};
