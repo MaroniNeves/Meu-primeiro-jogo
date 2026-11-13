@@ -176,6 +176,8 @@ big.addEventListener('click',e=>{
   ...[['Moinho','moinho'],['Lenhadores','lenhadores'],['V. Branca','mediterranea'],['V. Norte','nordica'],['Cerejeiras','oriental'],['Cogumelos','cogumelos']].map(([n,id])=>[n,()=>{const v=(window.arcanoVilas||[]).find(q=>q.id===id);return v?[v.x,v.z+6]:null;}]),
   ['Píer do castelo',()=>{const p=window.arcanoPierCastelo;return p?[p.x,p.zStart+4]:null;}],
   ['Árvore gigante',()=>{const g=window.arcanoLagoGrande;return g?[g.x,g.z+g.r+14]:null;}],
+  // Minas de cristal (minas-cristal.js): cai na frente da entrada.
+  ...['leste','estrada','oeste','antiga'].map((id,i)=>[['Mina do Leste','Mina da Estrada','Mina do Oeste','Mina Antiga'][i],()=>{const m=(window.arcanoMinas||[]).find(q=>q.id===id);return m?m.front:null;}]),
   ['Acamp. aceso',()=>{const c=(window.arcanoAcampamentos||[]).find(q=>q.lit);return c?[c.x+5,c.z+5]:null;}],
   ['Acamp. apagado',()=>{const c=(window.arcanoAcampamentos||[]).find(q=>!q.lit);return c?[c.x+5,c.z+5]:null;}],
   ['Porto',()=>{const p=info&&info.portSite;if(!p)return null;const w=p.at(info.radius-30,-3);return [w.x,w.z];}],
