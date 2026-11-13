@@ -30,6 +30,7 @@ function install(){
   const o=OW(x,z);if(!o)return null;
   const inLG=LG&&Math.hypot(x-LG.x,z-LG.z)<LG.r+16,inLake=Math.hypot((x-I.lake.x)/(I.lake.rx+3),(z-I.lake.z)/(I.lake.rz+3))<1;
   let flow=[0,0];if(!inLG&&!inLake){if(z>B.z1){const dc=P.center(z+.5)-P.center(z-.5),l=Math.hypot(dc,1);flow=[dc/l,1/l];}else flow=[0,.6];}
+  {const BR=window.arcanoBracos;if(BR&&z>B.z1&&Math.abs(x-P.center(z))>8){let bd=1e9,bp=null;for(const b of BR.branches)for(const p of b.pts){const dd=Math.abs(p.x-x)+Math.abs(p.z-z);if(dd<bd){bd=dd;bp=p;}}if(bp&&bd<16)flow=[bp.tx,bp.tz];}}
   return {level:o.level,depth:o.depth,bed:o.level-o.depth,flow,lake:inLG||inLake};
  }
  // regiões: caixas onde sortear pontos
@@ -40,6 +41,10 @@ function install(){
   regions.push({x0,x1,z0:Math.min(z0,B.z0),z1:Math.min(z1,B.z0+1),n:16000});}
  regions.push({x0:B.x0,x1:B.x1,z0:B.z0,z1:B.z1,n:9000});
  regions.push({x0:-30,x1:30,z0:B.z1,z1:B.z1+110,n:3500});
+ {const BR=window.arcanoBracos;if(BR){for(const b of BR.branches){let L=0,x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;for(let i=0;i<b.pts.length;i++){const p=b.pts[i];if(i)L+=Math.hypot(p.x-b.pts[i-1].x,p.z-b.pts[i-1].z);
+   // caixas curtas ao longo do braço (amostragem densa só perto da água)
+   if(i%14===0||i===b.pts.length-1){if(x0<1e9)regions.push({x0:x0-8,x1:x1+8,z0:z0-8,z1:z1+8,n:Math.round(L*26)});L=0;x0=x1=p.x;z0=z1=p.z;}else{x0=Math.min(x0,p.x);x1=Math.max(x1,p.x);z0=Math.min(z0,p.z);z1=Math.max(z1,p.z);}}}
+  const G2=BR.lagoon;regions.push({x0:G2.x-G2.rx-3,x1:G2.x+G2.rx+3,z0:G2.z-G2.rz-3,z1:G2.z+G2.rz+3,n:1400});}}
 
  const rocks=[],moss=[],blades=[],pads=[],flowers=[];
  const blade=(x,y,z,h,kind,lean)=>blades.push(x,y,z, R()*TAU,h,R()*TAU,kind, lean[0],lean[1],R());
