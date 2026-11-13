@@ -838,10 +838,23 @@ function buildPlaza(api,site){
  oct(7.6,7.8,.45,M.base,0);oct(6.7,6.7,.25,M.base,.4);
  {const pts=[new T.Vector2(6.6,.4),new T.Vector2(6.6,1.35),new T.Vector2(6.75,1.48),new T.Vector2(7.3,1.48),new T.Vector2(7.45,1.3),new T.Vector2(7.45,.4)];
   const rim=new T.Mesh(new T.LatheGeometry(pts,8),rimMat);rim.position.set(fx,fy,fz);rim.rotation.y=Math.PI/8;g.add(rim);}
- const water=new T.Mesh(new T.CircleGeometry(6.6,48),fountainWaterMat);water.rotation.x=-Math.PI/2;water.position.set(fx,fy+1.18,fz);scene.add(water);
+ const fWaters=[];
+ const water=new T.Mesh(new T.RingGeometry(.001,6.6,48,10),fountainWaterMat);water.rotation.x=-Math.PI/2;water.position.set(fx,fy+1.18,fz);scene.add(water);fWaters.push({m:water,r:6.6,d:.95});
  const bowl=(r,y,hh)=>{const pts=[new T.Vector2(.3,0),new T.Vector2(r*.35,.05),new T.Vector2(r*.85,hh*.6),new T.Vector2(r,hh),new T.Vector2(r*.95,hh*1.1)];const l=new T.Mesh(new T.LatheGeometry(pts,24),rimMat);l.position.set(fx,fy+y,fz);g.add(l);};
  cyl(g,1.3,1.7,2.4,M.wall,fx,fy+1.1,fz,12);bowl(3.4,3.4,.9);cyl(g,.6,.8,1.8,M.wall,fx,fy+4.3,fz,10);bowl(1.8,6.0,.6);
- for(const [r,y] of [[3.15,4.2],[1.62,6.55]]){const w=new T.Mesh(new T.CircleGeometry(r,32),fountainWaterMat);w.rotation.x=-Math.PI/2;w.position.set(fx,fy+y,fz);scene.add(w);}
+ for(const [r,y] of [[3.15,4.2],[1.62,6.55]]){const w=new T.Mesh(new T.RingGeometry(.001,r,32,6),fountainWaterMat);w.rotation.x=-Math.PI/2;w.position.set(fx,fy+y,fz);scene.add(w);fWaters.push({m:w,r,d:.45});}
+ // Mesma água do rio (refração, reflexo do céu, cáusticas, brilho do sol e ondinhas): clona o material do rio
+ // compartilhando os uniforms, e dá a cada bacia profundidade e um leve redemoinho.
+ (function riverize(){const RM=window.arcanoAnimeRiver&&window.arcanoAnimeRiver.material;if(!RM){setTimeout(riverize,500);return;}
+  const u=RM.uniforms,m=RM.clone();for(const k of Object.keys(u))m.uniforms[k]=u[k];
+  m.uniforms.uFallZ={value:-999};m.uniforms.uFallTop={value:-999};m.uniforms.uFallDrop={value:1};m.extensions.derivatives=true;
+  for(const f of fWaters){const g=f.m.geometry,p=g.attributes.position,n=p.count,dep=new Float32Array(n),fl=new Float32Array(n*2);
+   for(let i=0;i<n;i++){const x=p.getX(i),y=p.getY(i),rr=Math.min(1,Math.hypot(x,y)/f.r),a=Math.atan2(y,x);dep[i]=f.d*(1-.3*rr*rr);fl[i*2]=-Math.sin(a)*.07*rr;fl[i*2+1]=-Math.cos(a)*.07*rr;}
+   g.setAttribute('waterDepth',new T.BufferAttribute(dep,1));g.setAttribute('waterFlow',new T.BufferAttribute(fl,2));f.m.material=m;}
+  // ondinhas onde os jatos caem na água
+  let k=0;setInterval(()=>{const pl=api.getGrassPlayer&&api.getGrassPlayer(),cam=api.getMainCamera&&api.getMainCamera(),pp=(pl||cam);if(!pp||Math.hypot(pp.position.x-fx,pp.position.z-fz)>60)return;
+   const now=performance.now()/1000;u.uClock.value=now;const a=(k++%8)*Math.PI/4+.39,R0=6.3-3.3;
+   u.uRings.value[(k*5)%12].set(fx+Math.cos(a)*R0,fz+Math.sin(a)*R0,now,.35);if(k%2===0)u.uRings.value[(k*5+3)%12].set(fx+(Math.random()-.5)*.8,fz+(Math.random()-.5)*.8,now,.25);},450);})();
  for(const [r,y0,y1] of [[3.35,4.3,1.18],[1.78,6.6,4.25]]){const c=new T.Mesh(new T.CylinderGeometry(r,r+.25,y0-y1,48,1,true),curtainMat);c.position.set(fx,fy+(y0+y1)/2,fz);scene.add(c);}
  const robe=new T.LatheGeometry([new T.Vector2(0,0),new T.Vector2(.62,0),new T.Vector2(.5,.9),new T.Vector2(.33,1.7),new T.Vector2(.28,2.1),new T.Vector2(0,2.2)],16);
  const fig=new T.Mesh(robe,M.wall);fig.position.set(fx,fy+6.6,fz);g.add(fig);
