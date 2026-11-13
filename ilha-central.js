@@ -159,6 +159,7 @@ function install(){
   let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;for(const p of pts){x0=Math.min(x0,p.x);x1=Math.max(x1,p.x);z0=Math.min(z0,p.z);z1=Math.max(z1,p.z);}
   return {pts,box:[x0-16,x1+16,z0-16,z1+16],spring:pts[0],south:true,w:6.4};}
  // Perto de onde sai (e de onde volta ao rio), o braço abre em leque: sem banco de areia na bifurcação.
+ function joinLevel(x,z,lv){if(z<=INNER.z1)return lv;const w=half(z),lat=Math.abs(x-river.center(z)),k=1-sm(w,w+12,lat);return lv+(river.levelAt(z)-lv)*k;}
  function branchWiden(S,s){const ds=s*2,de=S.joinEnd?(S.pts.length-1-s)*2:1e9;return 1+.9*(1-sm(0,24,Math.min(ds,de)));}
  const RC=z=>({x:river.center(z),z});
  LAGOON.y=Math.min(river.levelAt(66)-2.5,field(LAGOON.x,LAGOON.z)-1.3);
@@ -203,7 +204,7 @@ function install(){
  function carveWater(x,z,y){
   const si=streamInfo(x,z);
   if(si&&STREAMS[si.sid].south&&si.d<si.w+7){
-   const depth=.95-1.65*sI(clamp((si.d/si.w-.50)/.45,0,1)),bankT=sI(clamp((si.w+7-si.d)/7,0,1)),tgt=y+(si.level-depth-y)*bankT;
+   const lvJ=joinLevel(x,z,si.level),depth=.95-1.65*sI(clamp((si.d/si.w-.50)/.45,0,1)),bankT=sI(clamp((si.w+7-si.d)/7,0,1)),tgt=y+(lvJ-depth-y)*bankT;
    y=inMainRiver(x,z,2)?Math.min(y,tgt):tgt;
   }
   else if(si&&si.d<STREAM_W+6){
@@ -767,11 +768,11 @@ function install(){
   south.name='Rio da Ilha Central · até a borda';south.frustumCulled=false;south.renderOrder=3;
   scene.add(south);
   // Braços do rio: faixa que acompanha a curva do braço; começa/termina na borda do rio e da lagoa (sem água dupla).
-  for(const B of SOUTH){const P=B.pts,COLS=11,keep=P.map(p=>!inMainRiver(p.x,p.z,-.2)&&lagoonE(p.x,p.z)>1.03);
+  for(const B of SOUTH){const P=B.pts,COLS=11,keep=P.map(p=>lagoonE(p.x,p.z)>1.03&&!inMainRiver(p.x,p.z,-B.w*1.6));
    const pos=[],uvA=[],dep=[],flw=[],ix=[];let prevRow=-1;
    for(let i=0;i<P.length;i++){if(!keep[i]){prevRow=-1;continue;}const p=P[i],nx=p.tz,nz=-p.tx,row=pos.length/3;
-    for(let c=0;c<COLS;c++){const bw=B.w*branchWiden(B,i),sc=(c/(COLS-1))*2-1,x=p.x+nx*sc*bw*.98,z=p.z+nz*sc*bw*.98;pos.push(x,p.level+.002,z);uvA.push(c/(COLS-1),i/(P.length-1));
-     dep.push(Math.max(0,p.level-window.arcanoIslandHeight(x,z)));flw.push(p.tx*.52,p.tz*.52);}
+    for(let c=0;c<COLS;c++){const bw=B.w*branchWiden(B,i),sc=(c/(COLS-1))*2-1,x=p.x+nx*sc*bw*.98,z=p.z+nz*sc*bw*.98,lvv=inMainRiver(x,z,-.4)?river.levelAt(z)-.03:joinLevel(x,z,p.level);pos.push(x,lvv+.002,z);uvA.push(c/(COLS-1),i/(P.length-1));
+     dep.push(Math.max(0,lvv-window.arcanoIslandHeight(x,z)));flw.push(p.tx*.52,p.tz*.52);}
     if(prevRow>=0)for(let c=0;c<COLS-1;c++){const a=prevRow+c,b=a+1,cc=row+c,d=cc+1;ix.push(a,cc,b,b,cc,d);}prevRow=row;}
    if(!ix.length)continue;const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(pos,3));g.setAttribute('uv',new T.Float32BufferAttribute(uvA,2));
    g.setAttribute('waterDepth',new T.Float32BufferAttribute(dep,1));g.setAttribute('waterFlow',new T.Float32BufferAttribute(flw,2));g.setIndex(ix);g.computeBoundingSphere();
@@ -1246,7 +1247,7 @@ function install(){
   let level=null;
   if(z>INNER.z1&&Math.abs(x-river.center(z))<half(z)+.2)level=river.levelAt(z);
   else{const LG=window.arcanoLagoGrande;if(LG&&LG.inside(x,z,15))level=LG.level;else{const w=pondWater(x,z);if(w)level=w.level;}}
-  if(level==null&&z>INNER.z1-2){if(lagoonE(x,z)<1.05)level=LAGOON.y;else{const si=streamInfo(x,z);if(si&&STREAMS[si.sid].south&&si.d<si.w+.3)level=si.level;}}
+  if(level==null&&z>INNER.z1-2){if(lagoonE(x,z)<1.05)level=LAGOON.y;else{const si=streamInfo(x,z);if(si&&STREAMS[si.sid].south&&si.d<si.w+.3)level=joinLevel(x,z,si.level);}}
   if(level==null)return null;
   const depth=level-window.arcanoIslandHeight(x,z);
   return depth>0?{level,depth}:null;

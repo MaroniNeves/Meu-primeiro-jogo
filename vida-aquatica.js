@@ -139,8 +139,15 @@ function install(){
   else if(t.st==='slide'){t.k+=dt/.9;const k=Math.min(1,t.k);t.x=lerp(t.x0,sp.wx,k);t.z=lerp(t.z0,sp.wz,k);t.y=lerp(t.y0,sp.w.level-.25,k);t.inner.rotation.x=.25*Math.sin(k*PI);paddle(10);
    if(k>=1){ring(t.x,t.z,.4);t.st='swim';t.t=rr(12,25);t.tx=t.x;t.tz=t.z;}}
   else if(t.st==='swim'){const w=water(t.x,t.z)||sp.w;paddle(4);
-   if(Math.hypot(t.tx-t.x,t.tz-t.z)<.4){for(let i=0;i<10;i++){const x=sp.wx+rr(-6,6),z=sp.wz+rr(-6,6),ww=water(x,z);if(ww&&ww.depth>.4){t.tx=x;t.tz=z;break;}}}
-   const a=Math.atan2(t.tx-t.x,t.tz-t.z);t.yaw+=angTo(t.yaw,a)*Math.min(1,dt*2);const nx=t.x+Math.sin(t.yaw)*.45*dt,nz=t.z+Math.cos(t.yaw)*.45*dt;if(water(nx,nz)){t.x=nx;t.z=nz;}else{t.tx=sp.wx;t.tz=sp.wz;}
+   const near=dp<2.6;
+   if(Math.hypot(t.tx-t.x,t.tz-t.z)<.4||(near&&!t.fleeing)){t.fleeing=near;for(let i=0;i<14;i++){let x,z;if(near){const a0=Math.atan2(t.x-state.px,t.z-state.pz)+rr(-.7,.7),d0=rr(3,6);x=t.x+Math.sin(a0)*d0;z=t.z+Math.cos(a0)*d0;}else{x=sp.wx+rr(-6,6);z=sp.wz+rr(-6,6);}
+     const ww=water(x,z);if(ww&&ww.depth>.4&&freeAt(t.x,t.z,x,z,ww.level)){t.tx=x;t.tz=z;break;}}}
+   if(!near)t.fleeing=false;
+   {const a=Math.atan2(t.tx-t.x,t.tz-t.z),spd=(near?.9:.45)*dt,w0=water(t.x,t.z),lv=w0?w0.level:t.y;let moved=false;
+    for(const o of [0,.5,-.5,1,-1,1.6,-1.6]){const yy=a+o,nx=t.x+Math.sin(yy)*Math.max(spd,.15),nz=t.z+Math.cos(yy)*Math.max(spd,.15),ww=water(nx,nz);
+     if(!ww||ww.depth<.25||!freeAt(t.x,t.z,nx,nz,lv))continue;if(Math.hypot(nx-state.px,nz-state.pz)<1.1&&Math.hypot(nx-state.px,nz-state.pz)<dp)continue;
+     t.yaw+=angTo(t.yaw,yy)*Math.min(1,dt*3);t.x+=Math.sin(yy)*spd;t.z+=Math.cos(yy)*spd;moved=true;break;}
+    if(!moved){t.tx=sp.wx;t.tz=sp.wz;t.yaw+=dt*1.2;}}
    const breathe=((state.t*.15+t.sp.x)%1)<.12;t.y+=((breathe?w.level-.08:w.level-Math.min(.6,w.depth*.6))-t.y)*Math.min(1,dt*1.5);t.inner.rotation.x=breathe?-.25:0;
    if(t.t<=0&&pDist(sp.x,sp.z)>9){t.st='climb';t.k=0;t.x0=t.x;t.z0=t.z;t.y0=t.y;}}
   else if(t.st==='climb'){t.k+=dt/1.4;const k=Math.min(1,t.k);t.x=lerp(t.x0,sp.x,k);t.z=lerp(t.z0,sp.z,k);t.y=lerp(t.y0,sp.y,k);t.yaw+=angTo(t.yaw,Math.atan2(sp.x-sp.wx,sp.z-sp.wz)+PI)*Math.min(1,dt*3);paddle(8);
