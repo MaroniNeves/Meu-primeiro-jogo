@@ -380,6 +380,8 @@ const atmTemp=new Float32Array(ATM_N),atmHumidity=new Float32Array(ATM_N),
  atmWindZ=new Float32Array(ATM_N),atmNextHum=new Float32Array(ATM_N),
  atmNextCloud=new Float32Array(ATM_N),rainField=new Float32Array(size);
 let physicalWeather=true,dayClock=390,atmosAccumulator=0,lastAtmosEvap=0,lastAtmosRain=0;
+// Hora do dia (0–24) para testes e para outros módulos: window.arcanoSetHour(21).
+window.arcanoSetHour=h=>{dayClock=(((h/24)*DAY_SECONDS)%DAY_SECONDS+DAY_SECONDS)%DAY_SECONDS;};window.arcanoGetHour=()=>dayClock/DAY_SECONDS*24;
 let atmRainMean=0,atmRainPeak=0,atmCloudMean=.42,atmHumMean=.70,atmTempMean=23,
  atmPressureMean=1011,atmWindMean=.4,atmWindHeading=0,atmosDayIndex=0;
 // Intensidade de 0 a 100%, preservando o cálculo atmosférico regional.

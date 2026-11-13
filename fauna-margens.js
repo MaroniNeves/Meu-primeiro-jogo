@@ -178,7 +178,7 @@ function install(){
  /* ================= bichos ================= */
  const live=new T.Group();live.name='Bichos da margem';root.add(live);
  const FP=frogParts(),BK=butterflyKit(),DK=dragonflyKit();
- const CAP=mobile?{frog:5,fly:12,bfly:7,dfly:3,glow:22}:{frog:10,fly:26,bfly:14,dfly:5,glow:48};
+ const CAP=mobile?{frog:5,fly:12,bfly:7,dfly:3,glow:36}:{frog:10,fly:26,bfly:14,dfly:5,glow:96};
  const frogs=[],flies=[],bflies=[],dflies=[],glows=[];
  const state={day:1,forceDay:null,px:0,py:0,pz:0,speed:0,t:0};
  const near=(list,x,z,r0,r1)=>{const out=[];for(const s of list){const d=Math.hypot(s.x-x,s.z-z);if(d>=r0&&d<r1)out.push(s);}return out;};
@@ -198,7 +198,7 @@ function install(){
  const gp=new Float32Array(CAP.glow*3),gb=new Float32Array(CAP.glow);
  const gGeo=new T.BufferGeometry();gGeo.setAttribute('position',new T.BufferAttribute(gp,3));gGeo.setAttribute('aB',new T.BufferAttribute(gb,1));
  const gPts=new T.Points(gGeo,new T.ShaderMaterial({transparent:true,depthWrite:false,blending:T.AdditiveBlending,uniforms:{uPx:{value:1}},
-  vertexShader:'attribute float aB;varying float vB;uniform float uPx;void main(){vB=aB;vec4 mv=modelViewMatrix*vec4(position,1.);gl_PointSize=uPx*(.35+.65*aB)*210./max(-mv.z,.5);gl_Position=projectionMatrix*mv;}',
+  vertexShader:'attribute float aB;varying float vB;uniform float uPx;void main(){vB=aB;vec4 mv=modelViewMatrix*vec4(position,1.);gl_PointSize=uPx*(.4+.6*aB)*260./max(-mv.z,.5);gl_Position=projectionMatrix*mv;}',
   fragmentShader:'varying float vB;void main(){float d=length(gl_PointCoord-.5);float core=smoothstep(.12,.0,d),halo=smoothstep(.5,.0,d);vec3 c=mix(vec3(.55,1.,.2),vec3(1.,1.,.75),core);gl_FragColor=vec4(c*(core*1.6+halo*halo*.55)*vB,1.);}'}));
  gPts.frustumCulled=false;gPts.name='Vaga-lumes';gPts.renderOrder=6;live.add(gPts);
  function spawnGlow(home){if(glows.length>=CAP.glow)return;glows.push({home,x:home.x+rr(-1,1),y:home.y+rr(.1,.9),z:home.z+rr(-1,1),ph:rr(0,TAU),f:rr(1.1,2.2),a:rr(0,TAU),b:rr(0,TAU),dark:0,flee:0,fx:0,fz:0,hid:0,lit:0});}
@@ -222,7 +222,7 @@ function install(){
   const fs=near(frogSpots,x,z,5,40).filter(s=>!s.used);for(let k=0;k<3&&fs.length&&frogs.length<CAP.frog;k++)spawnFrog(pick(fs));
   const fl=near(flowerSpots,x,z,3,40),ps=near(plantSpots,x,z,3,40);
   if(fl.length)for(let k=0;k<3&&bflies.length<CAP.bfly;k++)spawnBfly(pick(fl));
-  if(ps.length){for(let k=0;k<4&&flies.length<CAP.fly;k++)spawnFly(pick(ps));for(let k=0;k<8&&glows.length<CAP.glow;k++)spawnGlow(pick(ps));}
+  if(ps.length){for(let k=0;k<4&&flies.length<CAP.fly;k++)spawnFly(pick(ps));for(let k=0;k<(state.day<.3?20:6)&&glows.length<CAP.glow;k++)spawnGlow(pick(ps));}
   const ws=near(frogSpots,x,z,5,40);if(ws.length)for(let k=0;k<1&&dflies.length<CAP.dfly;k++)spawnDfly(pick(ws));
  }
 
@@ -315,11 +315,11 @@ function install(){
    const dp=pDist(g.x,g.z);
    if(g.flee<=0&&(dp<1.3||(dp<3.2&&state.speed>2.2))){g.flee=rr(.8,1.5);g.dark=rr(2,4.5);const d=Math.max(.2,dp);g.fx=(g.x-state.px)/d;g.fz=(g.z-state.pz)/d;if(Math.random()<.35)g.hideAfter=true;}
    if(g.flee>0){g.flee-=dt;g.x+=g.fx*3.2*dt;g.z+=g.fz*3.2*dt;g.y+=(Math.random()-.3)*dt*1.5;if(g.flee<=0&&g.hideAfter){g.hideAfter=false;g.hid=rr(5,11);}}
-   else{g.a+=dt*.5;g.b+=dt*.37;const tx=g.home.x+Math.cos(g.a)*1.9+Math.sin(g.b*1.7)*.8,tz=g.home.z+Math.sin(g.a*.83)*1.9+Math.cos(g.b*1.3)*.8,ty=ground(tx,tz)+.55+Math.sin(g.b*2.1+g.ph)*.45;
-    g.x+=(tx-g.x)*Math.min(1,dt*.9);g.y+=(ty-g.y)*Math.min(1,dt*.9);g.z+=(tz-g.z)*Math.min(1,dt*.9);}
+   else{const act=1+1.3*nightK;g.a+=dt*.5*act;g.b+=dt*.37*act;const rad=1.9+2.2*nightK,tx=g.home.x+Math.cos(g.a)*rad+Math.sin(g.b*1.7)*.8*act,tz=g.home.z+Math.sin(g.a*.83)*rad+Math.cos(g.b*1.3)*.8*act,ty=ground(tx,tz)+.55+Math.sin(g.b*2.1+g.ph)*(.45+.6*nightK)+.4*nightK;
+    g.x+=(tx-g.x)*Math.min(1,dt*.9*act)+(Math.random()-.5)*dt*.6*nightK;g.y+=(ty-g.y)*Math.min(1,dt*.9*act);g.z+=(tz-g.z)*Math.min(1,dt*.9*act)+(Math.random()-.5)*dt*.6*nightK;}
    if(g.dark>0)g.dark-=dt;
-   const blink=Math.pow(Math.max(0,Math.sin(state.t*g.f+g.ph)),2.5);
-   g.lit+=(((g.dark>0?0:blink)*nightK)-g.lit)*Math.min(1,dt*8);}
+   const blink=Math.pow(Math.max(0,Math.sin(state.t*g.f*(1+.7*nightK)+g.ph)),2.5);
+   g.lit+=(((g.dark>0?0:(.3+.7*blink))*nightK)-g.lit)*Math.min(1,dt*8);}
   gp[i*3]=g.x;gp[i*3+1]=g.y;gp[i*3+2]=g.z;gb[i]=g.lit;
  }
 

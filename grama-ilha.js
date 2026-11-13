@@ -11,7 +11,7 @@
 const T=window.THREE;
 if(!T)return;
 const mobile=/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)||innerWidth<680;
-const CHUNK=24,RANGE=mobile?44:72,NEAR=mobile?28:36,PER_M2=mobile?5:8;
+const CHUNK=24,RANGE=mobile?48:84,NEAR=mobile?30:42,PER_M2=mobile?6:10;
 const INNER={x0:-64,x1:64,z0:-50,z1:50};
 // Outros módulos registram aqui áreas sem grama: (x,z)=>true.
 window.arcanoNoGrass=window.arcanoNoGrass||[];
@@ -60,12 +60,12 @@ function install(){
   if(onRoad(x,z))return null;
   const cs=window.arcanoCastleSite;if(cs&&Math.hypot(x-cs.x,z-cs.z)<cs.radius+2)return null; // castelo (o jardim tem a sua)
   if(inInner(x,z)){
-   if(innerGreen(x,z)<.55||filled(x,z)||innerWater(x,z))return null;
+   if(innerGreen(x,z)<.45||filled(x,z)||innerWater(x,z))return null;
    const y=ground.heightAt(x,z);if(Math.abs(ground.heightAt(x+1,z)-y)>.7||Math.abs(ground.heightAt(x,z+1)-y)>.7)return null;
    return y;
   }
   if(island&&Math.hypot(x-island.center.x,z-island.center.z)>island.radius-8)return null;
-  if(gr(x,z)<.42)return null;
+  if(gr(x,z)<.3)return null;
   if(water&&water(x,z))return null;
   const y=h(x,z);if(Math.abs(h(x+1,z)-y)>.75||Math.abs(h(x,z+1)-y)>.75)return null;
   return y;

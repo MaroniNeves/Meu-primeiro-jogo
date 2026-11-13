@@ -1183,7 +1183,7 @@ function install(){
   {const w=where();rebuild(w?w.x:0,w?w.z:0);}
   setInterval(()=>{const w=where();if(w&&Math.hypot(w.x-lastX,w.z-lastZ)>8)rebuild(w.x,w.z);},300);
   scene.add(group);
-  window.arcanoIsland.forest={group,count:spots.length,templates:templates.length,names:templates.map(t=>t.name),spots};
+  window.arcanoIsland.forest={group,count:spots.length,templates:templates.length,names:templates.map(t=>t.name),dims:templates.map(t=>({h:t.h,w:t.w,pine:!!t.pine})),spots};
  }
  window.arcanoIsland={center:C,radius:R,cityRadius:CITY_R,castleRadius:CASTLE_R,height:window.arcanoIslandHeight,land,roads,lake:LAKE,port:PORT,portSite:{angle:PA,u:PU,v:PV,plaza:PLAZA,y:PORT_Y,uvOf:portUV,at:portXZ},inner:INNER,village:VILLAGE,streams:STREAMS};
  // Água fora da área detalhada (rio até a borda, canal e lago): nível e profundidade.
