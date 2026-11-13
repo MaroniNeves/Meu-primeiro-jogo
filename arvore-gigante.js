@@ -81,7 +81,13 @@ function install(){
  const root=new T.Group();root.name='Árvore gigante';root.position.set(LG.x,base,LG.z);scene.add(root);
  const W=(lx,lz)=>({x:LG.x+lx,z:LG.z+lz});
  const barkP=barkPair(61,1),heartP=barkPair(62,1),deckT=AT.wood({hue:32,light:50,horizontal:true,seed:63,boards:6});
- const mk=(t,sc,o)=>new T.MeshStandardMaterial(Object.assign({map:t.map,bumpMap:t.bump,bumpScale:sc,roughness:1},o||{}));
+ const TG=(()=>{const t=new T.DataTexture(new Uint8Array([70,150,215,255]),4,1,T.RedFormat);t.minFilter=t.magFilter=T.NearestFilter;t.needsUpdate=true;return t;})();
+ const mk=(t,sc,o)=>new T.MeshToonMaterial(Object.assign({map:t.map,bumpMap:t.bump,bumpScale:sc,gradientMap:TG},o||{}));
+ const inkMat=(w,sd)=>{const m=new T.MeshBasicMaterial({color:'#2a160c',side:sd==null?T.BackSide:sd});m.onBeforeCompile=sh=>{sh.vertexShader=sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\ntransformed+=normalize(normal)*'+w.toFixed(3)+';');};m.customProgramCacheKey=()=>'ink'+w+'_'+sd;return m;};
+ const ink=(mesh,w,sd)=>{const o=new T.Mesh(mesh.geometry,inkMat(w,sd));o.name=mesh.name+' (contorno)';o.position.copy(mesh.position);o.rotation.copy(mesh.rotation);o.scale.copy(mesh.scale);(mesh.parent||root).add(o);return o;};
+ // musgo: manchas verdes nas faces viradas para cima (galhos, raízes)
+ const mossy=(m,amt)=>{for(let i=0;i<m.P.length;i+=3){const ny=m.N[i+1],x=m.P[i],y=m.P[i+1],z=m.P[i+2],n=Math.sin(x*.9+z*.7)*Math.sin(y*.8-x*.5)+.5*Math.sin(x*2.3+y*1.7+z*1.9);
+   const k=Math.max(0,Math.min(1,(ny-.25)*2.2))*Math.max(0,Math.min(1,(n+.1)*1.6))*amt;m.C[i]*=1-k*.5;m.C[i+1]*=1-k*.02;m.C[i+2]*=1-k*.62;}};
  const barkM=mk(barkP,1.6,{vertexColors:true,side:T.DoubleSide}),innerM=mk(heartP,1.0,{vertexColors:true,side:T.DoubleSide}),deckM=mk(deckT,.8,{side:T.DoubleSide}),plainBark=mk(barkP,1.2,{side:T.DoubleSide});
  const glowM=new T.MeshStandardMaterial({color:'#ffe9b0',emissive:new T.Color('#ffb040'),emissiveIntensity:1.4,roughness:.6});
  const mushM=[new T.MeshStandardMaterial({color:'#bff8ff',emissive:new T.Color('#4fe0ff'),emissiveIntensity:1.6}),new T.MeshStandardMaterial({color:'#ffd0e6',emissive:new T.Color('#ff6fb0'),emissiveIntensity:1.5})];
@@ -106,11 +112,11 @@ function install(){
   for(let j=0;j<ys.length;j++)for(let i=0;i<=NA;i++){
    const a=i/NA*TAU+ys[j]*.02,r=rad(ys[j],a),lo=isInner?{x:0,z:0}:lean(ys[j]),x=Math.sin(a)*r+lo.x,z=Math.cos(a)*r+lo.z;
    mesh.P.push(x,ys[j],z);const nrm=new T.Vector3(x-lo.x,0,z-lo.z).normalize();if(isInner)nrm.negate();mesh.N.push(nrm.x,0,nrm.z);
-   mesh.U.push(i/NA*(isInner?RIN:7.4)*TAU/(isInner?6:9),ys[j]/(isInner?6:11));
+   mesh.U.push(i/NA*(isInner?RIN:7.4)*TAU/(isInner?6:6.2),ys[j]/(isInner?6:13));
    const tw=a-Math.max(0,ys[j])*.05,cv=.5+.5*Math.sin(tw*7+1.3);
    const mo=isInner?0:Math.max(0,Math.min(1,(.5-ys[j]/26)+.45*(1-cv)*(ys[j]<20?1:.4)+.25*Math.sin(a*5+ys[j]*.2)));
    const dk=(.82+.2*cv)*(.9+.1*Math.sin(a*13+ys[j]*.7));
-   const m2=mo*.55;mesh.C.push((.95+.05*dk)*(1-m2*.45),(.95+.05*dk)*(1-m2*.05),(.95+.05*dk)*(1-m2*.55));
+   const pat=Math.sin(a*4.3+ys[j]*.37)*Math.sin(a*9.1-ys[j]*.21)+.4*Math.sin(a*17+ys[j]*.9),m2=Math.min(1,mo*.35+(pat>.22&&ys[j]<26?(pat-.22)*2.2*(1-ys[j]/30):0));mesh.C.push((.95+.05*dk)*(1-m2*.45),(.95+.05*dk)*(1-m2*.05),(.95+.05*dk)*(1-m2*.55));
   }
   const ring=NA+1;
   for(let j=0;j<ys.length-1;j++)for(let i=0;i<NA;i++){
@@ -121,7 +127,7 @@ function install(){
   }
   mesh.n=ys.length*ring;
  }
- const outerMesh=build(outer,barkM,'Tronco da árvore gigante (fora)',true);root.add(outerMesh);
+ const outerMesh=build(outer,barkM,'Tronco da árvore gigante (fora)',true);root.add(outerMesh);outerMesh.userData.ink=ink(outerMesh,.09);
  root.add(build(inner,innerM,'Tronco da árvore gigante (dentro)',true));
  {const m=Mesher(),y=TH,lo=lean(y);for(let i=0;i<=NA;i++){const a=i/NA*TAU+y*.02;const ro=rOut(y,a),ri=rIn(y,a);m.P.push(Math.sin(a)*ro+lo.x,y,Math.cos(a)*ro+lo.z,Math.sin(a)*ri,y,Math.cos(a)*ri);m.N.push(0,1,0,0,1,0);m.U.push(i/NA*6,0,i/NA*6,1);m.C.push(1,1,1,1,1,1);}
   for(let i=0;i<NA;i++){const a=i*2;m.I.push(a,a+2,a+1,a+1,a+2,a+3);}root.add(build(m,barkM,'Borda do tronco',true));}
@@ -129,7 +135,9 @@ function install(){
  {const tg=new T.Group();root.add(tg);const z0=RIN-.3,z1=10.9,len=z1-z0,zc=(z0+z1)/2;
   const bx=(w,h,d,m,x,y,z,ry)=>{const b=new T.Mesh(new T.BoxGeometry(w,h,d),m);b.position.set(x,y+h/2,z);b.rotation.y=ry||0;b.castShadow=true;tg.add(b);return b;};
   for(const s of [-1,1])bx(.5,3.0,len,plainBark,s*(DOORW+.25),0,zc);
-  const segs=9;for(let k=0;k<segs;k++){const a0=PI*k/segs,a1=PI*(k+1)/segs,am=(a0+a1)/2,r=DOORW+.25,x=Math.cos(am)*r,y=3.0+Math.sin(am)*r*1.25,l=2*r*Math.sin(PI/segs/2)*1.35;const b=new T.Mesh(new T.BoxGeometry(l,.5,len),plainBark);b.position.set(x,y,zc);b.rotation.z=am-PI/2;tg.add(b);}
+  {const m=Mesher(),pts=[],rad=[];for(let k=0;k<=16;k++){const am=PI*k/16,r=DOORW+.3;pts.push(new T.Vector3(Math.cos(am)*r,3.0+Math.sin(am)*r*1.25,z1-.15));rad.push(.34+.06*Math.sin(k*1.7));}
+   pts.unshift(new T.Vector3(DOORW+.3,-.1,z1-.15));rad.unshift(.4);pts.push(new T.Vector3(-(DOORW+.3),-.1,z1-.15));rad.push(.4);
+   tube(m,pts,rad,9,2.2,[1,.95,.85]);const am=build(m,barkM,'Arco da porta',true);tg.add(am);ink(am,.04,T.FrontSide);}
   bx(DOORW*2+.5,.12,len,deckM,0,0,zc);
   for(const s of [-1,1]){const m=Mesher(),pts=[],rad=[];for(let i=0;i<=8;i++){const t=i/8;pts.push(new T.Vector3(s*(DOORW+.6+1.8*t),5.8*Math.pow(1-t,.7)+.2,10.7+.3*Math.sin(t*5)));rad.push(.55*(1-t*.6));}tube(m,pts,rad,6,3);tg.add(build(m,plainBark,'Raiz da porta',false));}
  }
@@ -171,7 +179,7 @@ function install(){
    for(let s=0;s<2;s++)mkRoot(a+(s?1:-1)*(.2+rnd()*.12),6.4+L*.45,L*.5,.75,1);
    const w=W(Math.sin(a)*11,Math.cos(a)*11);O.addCircle(w.x,w.z,1.9);
   }
-  root.add(build(m,barkM,'Raízes da árvore gigante',true));}
+  mossy(m,1.3);const rm=build(m,barkM,'Raízes da árvore gigante',true);root.add(rm);ink(rm,.06,T.FrontSide);}
 
  /* ---------- Copa: galhos recursivos + grandes massas de folhagem (cumes) ---------- */
  const branchM=Mesher(),leafV={P:[],U:[],C:[],I:[],N:[]},leafCores=[];
@@ -219,7 +227,7 @@ function install(){
   });}
  const lg=new T.BufferGeometry();lg.setAttribute('position',new T.Float32BufferAttribute(leafV.P,3));lg.setAttribute('normal',new T.Float32BufferAttribute(leafV.N,3));lg.setAttribute('uv',new T.Float32BufferAttribute(leafV.U,2));lg.setAttribute('color',new T.Float32BufferAttribute(leafV.C,3));lg.setIndex(leafV.I);lg.computeBoundingSphere();
  const leaves=new T.Mesh(lg,AB.leafMat);leaves.name='Folhas da árvore gigante';leaves.castShadow=false;leaves.receiveShadow=true;root.add(leaves);
- root.add(build(branchM,barkM,'Galhos da árvore gigante',true));
+ mossy(branchM,1.25);{const bm=build(branchM,barkM,'Galhos da árvore gigante',true);root.add(bm);ink(bm,.05,T.FrontSide);}
 
  /* ---------- Pedras com musgo e arbustos na base (como na referência) ---------- */
  {const rockM=new T.MeshStandardMaterial({vertexColors:true,roughness:.95,flatShading:true});if(AT.apply&&AT.stone)AT.apply(rockM,AT.stone({seed:71}),1.2);
@@ -273,7 +281,7 @@ function install(){
  (function frame(){requestAnimationFrame(frame);
   const p=api.getGrassPlayer&&api.getGrassPlayer();if(!p){return;}
   const dx=p.position.x-LG.x,dz=p.position.z-LG.z,r=Math.hypot(dx,dz),now=r<RIN+.6||(dz>0&&Math.abs(dx)<DOORW&&r<7.6);
-  if(now!==inside){inside=now;outerMesh.visible=!inside;for(const e of outerMesh.userData.glows||[])e.visible=!inside;}
+  if(now!==inside){inside=now;outerMesh.visible=!inside;if(outerMesh.userData.ink)outerMesh.userData.ink.visible=!inside;for(const e of outerMesh.userData.glows||[])e.visible=!inside;}
   for(const f of fireflies){f.t+=.016;f.s.position.set(f.x+Math.sin(f.t*f.sp+f.ph)*f.ax,f.y+Math.sin(f.t*f.sp*1.3+f.ph*2)*f.ay,f.z+Math.cos(f.t*f.sp*.8+f.ph)*f.ax);f.s.material.opacity=.45+.4*Math.sin(f.t*2.2+f.ph);}
  })();
  {const glow=(()=>{const c=document.createElement('canvas');c.width=c.height=32;const g=c.getContext('2d'),gr=g.createRadialGradient(16,16,0,16,16,16);gr.addColorStop(0,'rgba(255,245,170,1)');gr.addColorStop(1,'rgba(255,230,120,0)');g.fillStyle=gr;g.fillRect(0,0,32,32);return new T.CanvasTexture(c);})();
