@@ -164,8 +164,18 @@ function install(){
  function spawnFamily(){const s=spot('koi',state.px,state.pz,10,40);if(!s||s.w.depth<.5)return;
   const F={mom:makeDuck(true,s.x,s.z,s.w),kids:[],st:'swim',tx:s.x,tz:s.z,t:0,home:{x:s.x,z:s.z}};const n=3+((Math.random()*3)|0);
   for(let i=0;i<n;i++)F.kids.push(makeDuck(false,s.x-i*.4-.4,s.z,s.w));families.push(F);}
+ // Obstáculos na água: pedras grandes, estacas e passarelas (arcanoObstacles), rochas que saem da água, pisos sobre a água e vitórias-régias.
+ function freeAt(fx,fz,x,z,lv){const O=window.arcanoObstacles;if(O&&O.blocked(fx,fz,x,z))return false;
+  const ex=window.arcanoExtraDecks;if(ex)for(const d of ex){const y=d.surfaceAt(x,z);if(y!=null&&Math.abs(y-lv)<3)return false;}
+  const api=window.arcanoWaterV1226,rs=api&&api.rockSolids;if(rs)for(const r of rs){if(r.top<lv-.08)continue;const qx=(x-r.x)/(r.rx+.25),qz=(z-r.z)/(r.rz+.25);if(qx*qx+qz*qz<1)return false;}
+  const P=window.arcanoFundoAquatico&&window.arcanoFundoAquatico.pads;if(P)for(let i=0;i<P.length;i+=5){const dx=x-P[i],dz=z-P[i+2];if(Math.abs(dx)<1&&Math.abs(dz)<1&&dx*dx+dz*dz<(P[i+3]*.9+.12)**2)return false;}
+  return true;}
  function updFamily(F,dt){const m=F.mom,dp=pDist(m.x,m.z),wet=playerWet();F.t-=dt;
-  const swimTo=(d,tx,tz,sp)=>{const a=Math.atan2(tx-d.x,tz-d.z),dd=Math.hypot(tx-d.x,tz-d.z);d.yaw+=angTo(d.yaw,a)*Math.min(1,dt*3);if(dd<.05)return;const st=Math.min(dd,sp*dt),nx=d.x+Math.sin(d.yaw)*st,nz=d.z+Math.cos(d.yaw)*st,w=water(nx,nz);if(w&&w.depth>.15){d.x=nx;d.z=nz;}};
+  const swimTo=(d,tx,tz,sp,lead)=>{const a=Math.atan2(tx-d.x,tz-d.z),dd=Math.hypot(tx-d.x,tz-d.z);if(dd<.05)return true;const st=Math.min(dd,sp*dt),w0=water(d.x,d.z),lv=w0?w0.level:d.y;
+   if(lead&&dd>3.5){d.x+=(tx-d.x)*Math.min(1,dt*1.5);d.z+=(tz-d.z)*Math.min(1,dt*1.5);d.yaw+=angTo(d.yaw,a)*Math.min(1,dt*4);return true;}
+   for(const o of [0,.45,-.45,.95,-.95,1.6,-1.6]){const yy=a+o,nx=d.x+Math.sin(yy)*Math.max(st,.12),nz=d.z+Math.cos(yy)*Math.max(st,.12),w=water(nx,nz);
+    if(w&&w.depth>.15&&freeAt(d.x,d.z,nx,nz,lv)){d.yaw+=angTo(d.yaw,yy)*Math.min(1,dt*3);const mx=d.x+Math.sin(yy)*st,mz=d.z+Math.cos(yy)*st;d.x=mx;d.z=mz;return true;}}
+   d.yaw+=angTo(d.yaw,a+1.2)*Math.min(1,dt*2);return false;};
   if(F.st==='fly'){F.k+=dt;for(const w of m.wings){w.r.visible=true;w.r.rotation.z=w.s*(.2+.9*Math.sin(state.t*18));}
    const k=Math.min(1,F.k/4);m.x=lerp(F.x0,F.tx,k);m.z=lerp(F.z0,F.tz,k);m.y=lerp(F.y0,F.ly,k)+Math.sin(k*PI)*4;m.yaw=Math.atan2(F.tx-F.x0,F.tz-F.z0);
    if(k>=1){for(const w of m.wings)w.r.visible=false;F.st='swim';F.t=rr(3,6);ring(m.x,m.z,.35);}}
@@ -173,10 +183,10 @@ function install(){
    if(dp<2.8||(wet&&dp<3.5)){const a=Math.atan2(m.z-state.pz,m.x-state.px),s=spot('koi',m.x+Math.cos(a)*16,m.z+Math.sin(a)*16,0,6);if(s){F.st='fly';F.k=0;F.x0=m.x;F.z0=m.z;F.y0=m.y;F.tx=s.x;F.tz=s.z;F.ly=s.w.level-.04;ring(m.x,m.z,.4);}}
    else if(dp<7&&F.st!=='flee'){const a=Math.atan2(m.z-state.pz,m.x-state.px),s=spot('koi',m.x+Math.cos(a)*8,m.z+Math.sin(a)*8,0,3);if(s){F.tx=s.x;F.tz=s.z;F.st='flee';F.t=3;}}
    if(F.t<=0){F.st='swim';const s=spot('koi',F.home.x,F.home.z,0,10);if(s){F.tx=s.x;F.tz=s.z;}F.t=rr(4,9);F.dab=Math.random()<.4?rr(1.5,3):0;}
-   if(F.dab>0){F.dab-=dt;m.m.rotation.x=lerp(m.m.rotation.x,1.1,Math.min(1,dt*5));}else{m.m.rotation.x=lerp(m.m.rotation.x,0,Math.min(1,dt*5));swimTo(m,F.tx,F.tz,F.st==='flee'?1.2:.35);}
+   if(F.dab>0){F.dab-=dt;m.m.rotation.x=lerp(m.m.rotation.x,1.1,Math.min(1,dt*5));}else{m.m.rotation.x=lerp(m.m.rotation.x,0,Math.min(1,dt*5));if(!swimTo(m,F.tx,F.tz,F.st==='flee'?1.2:.35)){F.stuck=(F.stuck||0)+dt;if(F.stuck>1.2){F.stuck=0;F.t=0;}}else F.stuck=0;}
    const w=water(m.x,m.z);if(w)m.y=w.level-.04+Math.sin(state.t*2+m.ph)*.01;}
   // filhotes em fila atrás da mãe
-  let lead=m;for(const k of F.kids){const gap=lead===m?.55:.28,bx=lead.x-Math.sin(lead.yaw)*gap,bz=lead.z-Math.cos(lead.yaw)*gap;swimTo(k,bx,bz,F.st==='fly'?1.8:F.st==='flee'?1.4:.6);
+  let lead=m;for(const k of F.kids){const gap=lead===m?.55:.28,bx=lead.x-Math.sin(lead.yaw)*gap,bz=lead.z-Math.cos(lead.yaw)*gap;swimTo(k,bx,bz,F.st==='fly'?1.8:F.st==='flee'?1.4:.6,true);
    const w=water(k.x,k.z);if(w)k.y=w.level-.03+Math.sin(state.t*3+k.ph)*.012;k.g.position.set(k.x,k.y,k.z);k.g.rotation.y=k.yaw;lead=k;}
   m.g.position.set(m.x,m.y,m.z);m.g.rotation.y=m.yaw;}
 

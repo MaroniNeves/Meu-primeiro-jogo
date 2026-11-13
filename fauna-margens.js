@@ -228,6 +228,9 @@ function install(){
 
  /* ---- comportamento ---- */
  const tv=new T.Vector3();
+ function frogGoUnder(f){f.st='under';f.t=rr(1,1.8);f.g.visible=true;const a0=Math.atan2(f.z-state.pz,f.x-state.px);
+  for(let i=0;i<10;i++){const a=a0+rr(-.7,.7),d=rr(1.5,3.5),x=f.x+Math.cos(a)*d,z=f.z+Math.sin(a)*d,w=water(x,z);if(w&&w.depth>.25){f.tx=x;f.tz=z;return;}}f.tx=f.x;f.tz=f.z;}
+ function frogWander(f){for(let i=0;i<8;i++){const a=rr(0,TAU),d=rr(.4,1.4),x=f.x+Math.cos(a)*d,z=f.z+Math.sin(a)*d,w=water(x,z);if(w&&w.depth>.2&&pDist(x,z)>2.5){f.tx=x;f.tz=z;return;}}f.tx=f.x;f.tz=f.z;}
  function updFrog(f,dt){
   if(f.st==='sit'||f.st==='hidden')f.t-=dt;f.cool-=dt;const dp=pDist(f.x,f.z),scared=dp<2.4||(dp<4.2&&state.speed>3.2);
   if(f.st==='sit'){
@@ -243,9 +246,17 @@ function install(){
   }else if(f.st==='jump'){
    f.t+=dt;const k=clamp(f.t/f.dur,0,1);f.x=lerp(f.x0,f.x1,k);f.z=lerp(f.z0,f.z1,k);f.y=lerp(f.y0,f.y1,k)+Math.sin(k*PI)*f.hgt;
    f.pose(Math.sin(Math.min(1,k*1.5)*PI*.5)*(k<.8?1:(1-k)/.2));f.inner.rotation.x=lerp(-.5,.6,k)*(f.dive?1:.5);
-   if(k>=1){f.inner.rotation.x=0;f.pose(0);if(f.dive){ring(f.x,f.z,.5);f.st='hidden';f.g.visible=false;f.t=rr(7,14);}else{f.st='sit';f.t=rr(4,11);}}
-  }else if(f.st==='hidden'){ // debaixo d'água: só volta quando ninguém está por perto
-   if(f.t<=0&&pDist(f.spot.x,f.spot.z)>5.5){f.x=f.spot.x;f.z=f.spot.z;f.y=f.spot.pad||f.spot.rock?f.spot.y:ground(f.x,f.z);f.yaw=f.spot.yaw+rr(-.6,.6);f.g.visible=true;f.st='sit';f.t=rr(3,8);f.cool=1.5;ring(f.spot.wx,f.spot.wz,.25);}
+   if(k>=1){f.inner.rotation.x=0;f.pose(0);if(f.dive){ring(f.x,f.z,.5);frogGoUnder(f);}else{f.st='sit';f.t=rr(4,11);}}
+  }else if(f.st==='under'||f.st==='swim'||f.st==='back'){ // nadando: mergulha, foge por baixo d'água, sobe e nada na superfície, depois volta
+   f.t-=dt;const kick=.5+.5*Math.sin(state.t*(f.st==='under'?11:7)+f.ph);f.pose(kick*.9);f.inner.rotation.x=f.st==='under'?.25:-.15;
+   const dx=f.tx-f.x,dz=f.tz-f.z,dd=Math.hypot(dx,dz),sp=f.st==='under'?.9:f.st==='back'?.45:.28;
+   if(dd>.05){const a=Math.atan2(dx,dz);f.yaw=a;const st=Math.min(dd,sp*dt),nx=f.x+Math.sin(a)*st,nz=f.z+Math.cos(a)*st,w=water(nx,nz);if(w&&w.depth>.12){f.x=nx;f.z=nz;}else{f.tx=f.x;f.tz=f.z;}}
+   const w=water(f.x,f.z),lv=w?w.level:f.spot.level,ty=f.st==='under'?lv-Math.min(.3,(w?w.depth:.3)*.6):lv-.075;f.y+=(ty-f.y)*Math.min(1,dt*4);
+   if(f.st!=='under'&&Math.random()<dt*.6)ring(f.x,f.z,.12);
+   if(pDist(f.x,f.z)<2.2&&f.st!=='under'){ring(f.x,f.z,.3);frogGoUnder(f);}
+   else if(f.st==='under'&&f.t<=0){f.st='swim';f.t=rr(5,10);ring(f.x,f.z,.2);frogWander(f);}
+   else if(f.st==='swim'){if(dd<.1)frogWander(f);if(f.t<=0&&pDist(f.spot.x,f.spot.z)>5.5){f.st='back';f.tx=f.spot.wx;f.tz=f.spot.wz;}}
+   else if(f.st==='back'&&dd<.15){f.st='jump';f.t=0;f.dur=.42;f.x0=f.x;f.y0=f.y;f.z0=f.z;f.x1=f.spot.x;f.z1=f.spot.z;f.y1=f.spot.pad||f.spot.rock?f.spot.y:ground(f.spot.x,f.spot.z);f.hgt=.3;f.dive=false;f.yaw=Math.atan2(f.x1-f.x0,f.z1-f.z0);f.inner.rotation.x=0;ring(f.x,f.z,.25);}
   }else if(f.st==='eat'){
    f.t+=dt;const m=f.prey,out=.09,back=.14;f.tongue.visible=true;
    if(f.t<out){const k=f.t/out;f.g.updateMatrixWorld(true);f.tongue.lookAt(m.x,m.y,m.z);tv.set(m.x,m.y,m.z);f.inner.worldToLocal(tv);tv.sub(f.tongue.position);f.len=tv.length();f.tongue.scale.set(1,1,Math.max(.01,f.len*k));}

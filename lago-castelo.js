@@ -14,7 +14,13 @@ function install(){
  /* lamparina de verdade: poste, braço de ferro com mão-francesa, corrente e lanterna sextavada pendurada
     (telhadinho, vidro que acende à noite, armação e base). (ax,az) = para onde o braço aponta. */
  const LAMPS=[],glassMat=new T.MeshBasicMaterial({color:'#e8dab0'});
- function lantern(x,yb,z,ax,az,h,fy,pile){h=h||2.3;
+ const LQ=[];function lantern(...a){LQ.push(a);}
+ // Coloca as lamparinas depois que as passarelas existem: se o poste caiu em cima de um piso, empurra para fora (lado oposto ao braço).
+ function flushLanterns(){const decks=window.arcanoExtraDecks||[],on=(x,z)=>{for(const d of decks){const y=d.surfaceAt(x,z);if(y!=null&&y>-50)return true;}return false;};
+  for(const a of LQ){let [x,yb,z,ax,az,h,fy,pile]=a;const hadPile=pile!=null;let k=0;
+   while(k<40&&(on(x,z)||on(x-ax*.18,z-az*.18)||on(x+az*.18,z-ax*.18)||on(x-az*.18,z+ax*.18))){x-=ax*.1;z-=az*.1;k++;}
+   if(k>0&&hadPile)pile=Math.min(yb,H(x,z)-.3);lanternNow(x,yb,z,ax,az,h,fy,hadPile?pile:null);}}
+ function lanternNow(x,yb,z,ax,az,h,fy,pile){h=h||2.3;
   if(pile!=null)cyl(g,.1,.12,yb-pile+.05,M.log,x,pile,z,7,1.4);
   cyl(g,.075,.1,h,M.woodDark,x,yb,z,8,1);cyl(g,.11,.11,.08,M.iron,x,yb+h-.06,z,8,1);sph(g,.065,M.gold||M.iron,x,yb+h+.08,z,1,1,1,8);
   const LL=.55,tx=x+ax*LL,tz=z+az*LL,ty=yb+h-.14;
@@ -127,6 +133,7 @@ function install(){
   // sem capim crescendo por cima das passarelas
   (window.arcanoNoGrass=window.arcanoNoGrass||[]).push((x,z)=>{if(z<-82||z>-60||Math.abs(x-X0)>33)return false;for(const d of decks)if(dist(x,z,d)<.5)return true;return false;});
  }
+ flushLanterns();
  VM.mergeInto(g,root,'Píer e escada do lago do castelo');
  {const c=document.createElement('canvas');c.width=c.height=64;const x=c.getContext('2d'),gr=x.createRadialGradient(32,32,0,32,32,32);gr.addColorStop(0,'rgba(255,236,180,1)');gr.addColorStop(.22,'rgba(255,196,96,.6)');gr.addColorStop(1,'rgba(255,160,60,0)');x.fillStyle=gr;x.fillRect(0,0,64,64);
   const tex=new T.CanvasTexture(c),halo=new T.SpriteMaterial({map:tex,blending:T.AdditiveBlending,depthWrite:false,transparent:true,opacity:0,fog:false}),pool=new T.MeshBasicMaterial({map:tex,blending:T.AdditiveBlending,depthWrite:false,transparent:true,opacity:0});
