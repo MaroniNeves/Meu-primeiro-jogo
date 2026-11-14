@@ -3824,6 +3824,8 @@ function spawnMageProjectile(slot){
  if(!mageVfx)return;
  const origin=mageSpellOrigin(),direction=mageSpellDirection();
  const len=[12,9.5,10][slot];
+ // aviso para o mundo (animais etc.): onde e para onde a magia foi lançada
+ try{window.dispatchEvent(new CustomEvent('arcano-magia',{detail:{slot,name:mageSpells[slot]&&mageSpells[slot].name,origin:{x:origin.x,y:origin.y,z:origin.z},direction:{x:direction.x,y:direction.y,z:direction.z},len}}));}catch(e){}
  mageVfx.cast(slot,origin,direction,len).then(success=>{
   // Dragonbreath é o efeito ORIGINAL do laboratório. O fogo ecológico
   // é a consequência no solo, sem alterar a aparência dessa magia.

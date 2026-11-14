@@ -124,50 +124,105 @@ function install(){
   if(homes.some(h=>Math.hypot(h.x-x,h.z-z)<90))continue;homes.push({x,z});}
  homes.unshift({x:28,z:30}); // uma manada no prado da área central (perto do começo do jogo)
  const root=new T.Group();root.name='Animais da floresta · cervos';scene.add(root);
- const deer=[];
+ const deer=[],herds=[];
+ const BIRTH_MIN=50,BIRTH_MAX=90,GROW_TIME=300;          // segundos: espera para nascer e para o filhote virar adulto
+ function spawn(herd,kind,x,z,o){o=o||{};const m=makeDeer(kind);
+  const d={...m,herd,x,z,y:ground(x,z),yaw:o.yaw!=null?o.yaw:rr(0,TAU),st:'graze',t:rr(2,8),tx:x,tz:z,speed:0,phase:Math.random()*10,neckPitch:0,headYaw:0,pitch:0,
+   walkSpeed:kind==='fawn'?.8:1.05,runSpeed:kind==='fawn'?7.4:8.6,mother:o.mother||null,alive:true,notice:0,roll:0,slow:0,stagger:0,
+   hp:kind==='fawn'?45:kind==='doe'?80:100,grow:o.grow!=null?o.grow:null,future:o.future||null};
+  d.maxHp=d.hp;
+  if(kind==='fawn'&&!d.mother)d.mother=herd.members.find(q=>q.alive&&q.kind==='doe')||herd.members.find(q=>q.alive&&q.kind!=='fawn')||null;
+  if(d.grow!=null)applyGrowth(d);
+  herd.members.push(d);deer.push(d);root.add(d.root);return d;}
+ function applyGrowth(d){const s=lerp(.38,.86,d.grow);d.body.scale.setScalar(s);d.S=s;d.walkSpeed=lerp(.6,.95,d.grow);d.runSpeed=lerp(5.2,8,d.grow);}
  for(const h of homes){
-  const n=homes.indexOf(h)===0?3:2+Math.floor(Math.random()*3),herd={home:h,alarm:0,fleeDir:0,members:[]};
+  const n=homes.indexOf(h)===0?3:2+Math.floor(Math.random()*3),herd={home:h,alarm:0,fleeDir:0,members:[],births:[],cap:n+1};herds.push(herd);
   for(let i=0;i<n;i++){const kind=i===0&&Math.random()<.75?'buck':(i===n-1&&n>2?'fawn':'doe');
-   const m=makeDeer(kind);let x=h.x+rr(-6,6),z=h.z+rr(-6,6);if(!okSpot(x,z)){x=h.x;z=h.z;}
-   const d={...m,herd,x,z,y:ground(x,z),yaw:rr(0,TAU),st:'graze',t:rr(2,8),tx:x,tz:z,speed:0,phase:Math.random()*10,neckPitch:0,headYaw:0,pitch:0,
-    walkSpeed:kind==='fawn'?.8:1.05,runSpeed:kind==='fawn'?7.4:8.6,mother:null};
-   if(kind==='fawn')d.mother=herd.members.find(q=>q.kind==='doe')||herd.members[0]||null;
-   herd.members.push(d);deer.push(d);root.add(d.root);}
+   let x=h.x+rr(-6,6),z=h.z+rr(-6,6);if(!okSpot(x,z)){x=h.x;z=h.z;}spawn(herd,kind,x,z);}
  }
- // obstáculo leve: o personagem não atravessa o cervo
- const state={px:0,pz:0,speed:0};let lx=null,lz=null;
- if(O&&O.blocked){const prev=O.blocked;O.blocked=function(fx,fz,tx,tz){for(const d of deer){if(!d.root.visible)continue;const r=.45*d.S;if(Math.hypot(tx-d.x,tz-d.z)<r&&Math.hypot(tx-d.x,tz-d.z)<Math.hypot(fx-d.x,fz-d.z))return true;}return prev.call(this,fx,fz,tx,tz);};}
+ // obstáculo leve: o personagem não atravessa o cervo vivo
+ const state={px:0,pz:0,speed:0,run:false};let lx=null,lz=null;
+ if(O&&O.blocked){const prev=O.blocked;O.blocked=function(fx,fz,tx,tz){for(const d of deer){if(!d.alive||!d.root.visible)continue;const r=.45*d.S;if(Math.hypot(tx-d.x,tz-d.z)<r&&Math.hypot(tx-d.x,tz-d.z)<Math.hypot(fx-d.x,fz-d.z))return true;}return prev.call(this,fx,fz,tx,tz);};}
+ const scare=(herd,fromX,fromZ)=>{const lead=herd.members.find(q=>q.alive)||herd.members[0];if(!lead)return;if(herd.alarm<=0)herd.fleeDir=Math.atan2(lead.x-fromX,lead.z-fromZ);herd.alarm=rr(4,6);};
+
+ /* ---------- magias acertam os cervos ---------- */
+ const DMG=[45,65,50],RAD=[1.25,1.9,1.5],SPD=[18,11,15];
+ addEventListener('arcano-magia',ev=>{const m=ev.detail;if(!m)return;const o=m.origin,dv=m.direction,len=(m.len||10)+(m.slot===1?1.5:0);
+  for(const d of deer){if(!d.alive)continue;const cx=d.x,cy=d.y+.85*d.S,cz=d.z;const wx=cx-o.x,wy=cy-o.y,wz=cz-o.z;
+   const tAlong=clamp(wx*dv.x+wy*dv.y+wz*dv.z,0,len),px=o.x+dv.x*tAlong,py=o.y+dv.y*tAlong,pz=o.z+dv.z*tAlong;
+   const miss=Math.hypot(cx-px,(cy-py)*.7,cz-pz),r=RAD[m.slot]*(m.slot===1?(.5+tAlong/len):1)+.35*d.S;
+   if(miss<r){const delay=tAlong/SPD[m.slot]*1000;setTimeout(()=>hit(d,DMG[m.slot]*(1-.35*miss/r),m.slot,o),delay);}
+   else if(Math.hypot(wx,wz)<25)scare(d.herd,o.x,o.z);}});
+ function hit(d,dmg,slot,o){if(!d.alive)return;d.hp-=dmg;d.stagger=.35;if(slot===2)d.slow=3.5;
+  if(d.hp<=0)die(d);scare(d.herd,o.x,o.z);d.notice=3;}
+ function die(d){d.alive=false;d.st='dead';d.deathT=0;d.speed=0;d.rollDir=Math.random()<.5?-1:1;
+  d.herd.births.push(rr(BIRTH_MIN,BIRTH_MAX));}          // a manada repõe com um filhote depois de um tempo
+ function remove(d){if(!deer.includes(d))return;root.remove(d.root);d.root.traverse(o=>{if(o.isMesh&&o.geometry)o.geometry.dispose();});
+  deer.splice(deer.indexOf(d),1);const m=d.herd.members;m.splice(m.indexOf(d),1);for(const q of deer)if(q.mother===d)q.mother=null;}
+ function birth(herd){
+  const adults=herd.members.filter(q=>q.alive&&q.kind!=='fawn');
+  if(!adults.length){ // a manada acabou: um casal de outra manada chega pela mata (fora da vista do jogador)
+   let x=herd.home.x,z=herd.home.z;for(let k=0;k<20;k++){const a=rr(0,TAU),tx=herd.home.x+Math.cos(a)*rr(10,22),tz=herd.home.z+Math.sin(a)*rr(10,22);if(okSpot(tx,tz)&&Math.hypot(tx-state.px,tz-state.pz)>45){x=tx;z=tz;break;}}
+   if(Math.hypot(x-state.px,z-state.pz)<45)return false;
+   spawn(herd,'doe',x,z);spawn(herd,'buck',x+1.5,z+1);return true;}
+  if(herd.members.filter(q=>q.alive).length>=herd.cap)return true;
+  const mom=adults.find(q=>q.kind==='doe')||adults[0];
+  const a=rr(0,TAU),x=mom.x+Math.cos(a)*1.2,z=mom.z+Math.sin(a)*1.2,ok=okSpot(x,z);
+  const f=spawn(herd,'fawn',ok?x:mom.x,ok?z:mom.z,{grow:0,future:Math.random()<.5?'buck':'doe',mother:mom,yaw:mom.yaw});
+  f.st='walk';f.tx=mom.x;f.tz=mom.z;f.t=3;return true;}
+ function grownUp(d){ // o filhote cresceu: vira macho (com chifres) ou fêmea, no mesmo lugar
+  const n=spawn(d.herd,d.future||'doe',d.x,d.z,{yaw:d.yaw});n.st=d.st==='flee'?'flee':'graze';n.t=d.t;n.fleeYaw=d.fleeYaw;n.y=d.y;n.root.visible=d.root.visible;remove(d);}
 
  /* ---------- comportamento ---------- */
  function choose(d){
   const h=d.herd.home;let x=d.x,z=d.z;
-  for(let k=0;k<12;k++){const ref=d.mother&&Math.random()<.8?d.mother:h,r=d.mother?rr(1,3):rr(2,14),a=rr(0,TAU);const tx=ref.x+Math.cos(a)*r,tz=ref.z+Math.sin(a)*r;if(okSpot(tx,tz)){x=tx;z=tz;break;}}
+  const mom=d.mother&&d.mother.alive?d.mother:null;
+  for(let k=0;k<12;k++){const ref=mom&&Math.random()<.85?mom:h,r=mom?rr(1,3):rr(2,14),a=rr(0,TAU);const tx=ref.x+Math.cos(a)*r,tz=ref.z+Math.sin(a)*r;if(okSpot(tx,tz)){x=tx;z=tz;break;}}
   d.tx=x;d.tz=z;}
+ // Percepção: VISÃO (vê bem o que está à frente; atrás é ponto cego) + AUDIÇÃO (passos; correr faz muito barulho).
+ // Chegar pelas costas andando devagar dá pouca chance de ser notado; de frente ou correndo, o cervo nota logo.
+ function perceive(d,dt,dp,dxp,dzp,playing){
+  if(!playing||dp>26){d.notice=Math.max(0,d.notice-.35*dt);return;}
+  const tx=-dxp/dp,tz=-dzp/dp,front=Math.sin(d.yaw)*tx+Math.cos(d.yaw)*tz;          // 1 = personagem bem na frente
+  const sight=front>.25?1:front>-.35?lerp(.14,1,(front+.35)/.6):.1;
+  const spd=state.speed,moving=Math.min(1,spd/1.6),running=state.run&&spd>1.2;
+  const distK=Math.pow(clamp(1-dp/22,0,1),2),grazing=d.st==='graze'&&d.neckPitch>1?.35:1;
+  const hearing=running?2.6:spd>.2?.4:.03;   // andando pelas costas: ~1 em 5 chances de ser notado antes de chegar perto
+  d.moodT=(d.moodT||0)-dt;if(d.moodT<=0){d.moodT=rr(4,9);d.mood=rr(.45,1.75);}   // atenção varia: às vezes distraído, às vezes desconfiado
+  const rate=distK*(sight*(.3+.7*moving)*1.7*grazing+hearing*(dp<12?1:.6))*(d.kind==='fawn'?.8:1)*(d.mood||1);
+  d.notice+=rate*dt;if(rate<.05)d.notice=Math.max(0,d.notice-.3*dt);
+  if(dp<1.6)d.notice=9;                                                                // encostou: nota na hora
+  if(d.notice>2.2)scare(d.herd,state.px,state.pz);
+  else if(d.notice>1&&d.st!=='flee'&&d.herd.alarm<=0&&d.st!=='alert'){d.st='alert';d.t=rr(2.5,5);}
+ }
  function update(d,dt,now){
-  const dxp=d.x-state.px,dzp=d.z-state.pz,dp=Math.hypot(dxp,dzp),herd=d.herd;
-  // susto da manada: perto demais, ou chegando correndo
-  if(document.body.classList.contains('play-active')){
-   if(dp<8.5*(d.kind==='fawn'?1.2:1)||(dp<17&&state.speed>3.4)){if(herd.alarm<=0)herd.fleeDir=Math.atan2(herd.members[0].x-state.px,herd.members[0].z-state.pz);herd.alarm=rr(4,6);}
-   else if(dp<16&&d.st!=='flee'&&herd.alarm<=0&&d.st!=='alert'){d.st='alert';d.t=rr(2.5,5);}
-  }
+  const dxp=d.x-state.px,dzp=d.z-state.pz,dp=Math.hypot(dxp,dzp)||.01,herd=d.herd;
+  if(!d.alive){ // caído de lado; depois de um tempo some na mata
+   d.deathT+=dt;d.roll+=(d.rollDir*PI*.5-d.roll)*Math.min(1,dt*5);
+   for(const L of d.legs){L.hip.rotation.x+=((L.front?.35:-.35)-L.hip.rotation.x)*Math.min(1,dt*4);L.knee.rotation.x*=.9;}
+   d.neckPitch+=(.6-d.neckPitch)*Math.min(1,dt*3);d.neck.rotation.x=d.neckPitch;d.head.rotation.x=-.3;d.body.position.y=0;d.body.rotation.set(0,0,0);
+   const sink=d.deathT>32?(d.deathT-32)*.25:0;
+   d.root.position.set(d.x,d.y-sink,d.z);d.root.rotation.set(0,d.yaw,d.roll,'YXZ');
+   if(d.deathT>36)remove(d);return;}
+  if(d.grow!=null){d.grow=Math.min(1,d.grow+dt/GROW_TIME);applyGrowth(d);if(d.grow>=1){grownUp(d);return;}}
+  perceive(d,dt,dp,dxp,dzp,document.body.classList.contains('play-active'));
   if(herd.alarm>0&&d.st!=='flee'){d.st='flee';d.t=herd.alarm;d.fleeYaw=herd.fleeDir+rr(-.35,.35);}
   d.t-=dt;let targetSpeed=0,wantYaw=d.yaw;
   if(d.st==='flee'){
-   // corre para longe do personagem; se bater em obstáculo/água, desvia
    let best=d.fleeYaw;const away=Math.atan2(dxp,dzp);if(dp<20)best=lerp(best,away,.04);d.fleeYaw=best;
-   for(const off of [0,.5,-.5,1,-1,1.6,-1.6]){const a=best+off,nx=d.x+Math.sin(a)*2.2,nz=d.z+Math.cos(a)*2.2;if(canGo(d.x,d.z,nx,nz)){wantYaw=a;break;}}
-   targetSpeed=d.runSpeed;if(d.t<=0&&dp>22){d.st='alert';d.t=rr(1.5,3);herd.home={x:d.x,z:d.z};}
+   for(const off of [0,.5,-.5,1,-1,1.6,-1.6,2.4,-2.4]){const a=best+off,nx=d.x+Math.sin(a)*2.2,nz=d.z+Math.cos(a)*2.2;if(canGo(d.x,d.z,nx,nz)){wantYaw=a;break;}}
+   targetSpeed=d.runSpeed;if(d.t<=0&&dp>22){d.st='alert';d.t=rr(1.5,3);d.notice=Math.min(d.notice,1.2);herd.home={x:d.x,z:d.z};}
    if(d.t<=0&&dp<=22)d.t=1;}
-  else if(d.st==='alert'){wantYaw=d.yaw;if(d.t<=0){d.st='graze';d.t=rr(3,7);}}
+  else if(d.st==='alert'){if(d.t<=0){d.st='graze';d.t=rr(3,7);d.notice*=.5;}}
   else if(d.st==='graze'){if(d.t<=0){if(Math.random()<.6){d.st='walk';choose(d);d.t=rr(4,9);}else d.t=rr(2,6);}}
   else if(d.st==='walk'){const dx=d.tx-d.x,dz=d.tz-d.z,L=Math.hypot(dx,dz);
    if(L<.4||d.t<=0){d.st='graze';d.t=rr(3,9);}else{wantYaw=Math.atan2(dx,dz);targetSpeed=d.walkSpeed*(L<1.5?.6:1);
     const nx=d.x+Math.sin(d.yaw)*.8,nz=d.z+Math.cos(d.yaw)*.8;if(!canGo(d.x,d.z,nx,nz)){choose(d);}}}
-  // virar e mover
+  if(d.slow>0){d.slow-=dt;targetSpeed*=.4;}
+  if(d.stagger>0){d.stagger-=dt;targetSpeed*=.2;}
   const turn=d.st==='flee'?3.4:1.6;d.yaw+=clamp(angDiff(d.yaw,wantYaw),-turn*dt,turn*dt);
   d.speed+=(targetSpeed-d.speed)*Math.min(1,dt*(d.st==='flee'?3:2));
   if(d.speed>.01){const nx=d.x+Math.sin(d.yaw)*d.speed*dt,nz=d.z+Math.cos(d.yaw)*d.speed*dt;if(canGo(d.x,d.z,nx,nz)){d.x=nx;d.z=nz;}else{d.speed*=.3;if(d.st==='walk')choose(d);}}
-  // chão e inclinação
   const gy=ground(d.x,d.z),fy=ground(d.x+Math.sin(d.yaw)*.5,d.z+Math.cos(d.yaw)*.5),by=ground(d.x-Math.sin(d.yaw)*.5,d.z-Math.cos(d.yaw)*.5);
   d.y+=(gy-d.y)*Math.min(1,dt*12);d.pitch+=(clamp(Math.atan2(by-fy,1),-.35,.35)-d.pitch)*Math.min(1,dt*6);
   /* ---------- animação ---------- */
@@ -177,21 +232,17 @@ function install(){
   let bob=0,bodyPitch=0;
   for(const L of d.legs){
    let swing=0,bend=0;
-   if(running){ // galope saltado: patas da frente juntas, de trás juntas, defasadas
-    const p=ph+(L.front?0:PI*.9)+(L.side>0?.18:0);swing=Math.sin(p)*.95;bend=Math.max(0,Math.sin(p+1.2))*1.25*(L.front?1:-1);}
-   else if(walking){ // passo diagonal: 4 tempos
-    const off=L.front?(L.side<0?0:PI):(L.side<0?PI*1.5:PI*.5),p=ph+off;swing=Math.sin(p)*.42;bend=Math.max(0,Math.sin(p+1.3))*.7*(L.front?1:-1);}
+   if(running){const p=ph+(L.front?0:PI*.9)+(L.side>0?.18:0);swing=Math.sin(p)*.95;bend=Math.max(0,Math.sin(p+1.2))*1.25*(L.front?1:-1);}
+   else if(walking){const off=L.front?(L.side<0?0:PI):(L.side<0?PI*1.5:PI*.5),p=ph+off;swing=Math.sin(p)*.42;bend=Math.max(0,Math.sin(p+1.3))*.7*(L.front?1:-1);}
    L.hip.rotation.x=swing;L.knee.rotation.x=(L.front?bend:-Math.abs(bend)*.4+(running?Math.sin(ph+2)*.4:0));}
   if(running){bob=Math.abs(Math.sin(ph))*.22;bodyPitch=Math.sin(ph+.6)*.12;}else if(walking){bob=Math.abs(Math.sin(ph*2))*.025;}
-  
-  // pescoço/cabeça: pastando abaixa até o chão e mastiga; alerta, cabeça alta olhando o personagem
   let wantNeck=0,wantHeadYaw=0,chew=0;
   if(d.st==='graze'&&!walking){wantNeck=2.2;chew=Math.sin(now*.011)*.06;bodyPitch=.08;}
   else if(d.st==='alert'){wantNeck=-.25;wantHeadYaw=clamp(angDiff(d.yaw,Math.atan2(-dxp,-dzp)),-1.1,1.1);}
   else if(running)wantNeck=-.1+Math.sin(ph)*.12;else if(walking)wantNeck=.15+Math.sin(ph*2)*.04;
   d.neckPitch+=(wantNeck-d.neckPitch)*Math.min(1,dt*3.5);d.headYaw+=(wantHeadYaw-d.headYaw)*Math.min(1,dt*4);
-  d.body.position.y=bob*d.S;d.body.rotation.x=bodyPitch;d.neck.rotation.x=d.neckPitch;d.neck.rotation.y=d.headYaw*.5;d.head.rotation.x=-d.neckPitch*.45+chew;d.head.rotation.y=d.headYaw*.5;
-  // orelhas e cauda
+  const flinch=d.stagger>0?Math.sin(d.stagger*30)*.08:0;
+  d.body.position.y=bob*d.S;d.body.rotation.set(bodyPitch,0,flinch);d.neck.rotation.x=d.neckPitch;d.neck.rotation.y=d.headYaw*.5;d.head.rotation.x=-d.neckPitch*.45+chew;d.head.rotation.y=d.headYaw*.5;
   for(const e of d.ears){const tw=Math.max(0,Math.sin(now*.0013+e.ph*3))>.985?Math.sin(now*.05)*.5:0;
    e.g.rotation.x=-.2+(d.st==='alert'?-.35:0)+tw*.6;e.g.rotation.z=e.s*(d.st==='alert'?-.55:-.9)+tw*.3;}
   d.tail.rotation.x=(d.st==='flee'?-1.3:-.2)+Math.sin(now*.02+d.phase)*(d.st==='flee'?.25:.12);
@@ -202,11 +253,15 @@ function install(){
  (function loop(now){requestAnimationFrame(loop);const dt=Math.min(.05,(now-last)/1000);last=now;if(dt<=0)return;
   const pl=api.getGrassPlayer&&api.getGrassPlayer(),cam=api.getMainCamera&&api.getMainCamera();
   const src=document.body.classList.contains('play-active')&&pl?pl.position:(cam?cam.position:null);if(!src)return;
-  state.px=src.x;state.pz=src.z;if(lx!=null){const sp=Math.hypot(src.x-lx,src.z-lz)/dt;state.speed+=((sp>40?0:sp)-state.speed)*Math.min(1,dt*6);}lx=src.x;lz=src.z;
-  for(const h of new Set(deer.map(d=>d.herd)))if(h.alarm>0)h.alarm-=dt;
-  for(const d of deer){const dist=Math.hypot(d.x-src.x,d.z-src.z);const vis=dist<150;if(d.root.visible!==vis)d.root.visible=vis;if(vis)update(d,dt,now);}
+  state.px=src.x;state.pz=src.z;state.run=!!(pl&&((pl.keys&&pl.keys.has&&pl.keys.has('shift'))||(pl.input&&pl.input.run)));if(lx!=null){const sp=Math.hypot(src.x-lx,src.z-lz)/dt;state.speed+=((sp>40?0:sp)-state.speed)*Math.min(1,dt*6);}lx=src.x;lz=src.z;
+  for(const h of herds){if(h.alarm>0)h.alarm-=dt;
+   for(let i=h.births.length-1;i>=0;i--){h.births[i]-=dt;if(h.births[i]<=0){if(birth(h))h.births.splice(i,1);else h.births[i]=20;}}}
+  for(const d of deer.slice()){if(!deer.includes(d))continue;const dist=Math.hypot(d.x-src.x,d.z-src.z);const vis=dist<150;if(d.root.visible!==vis)d.root.visible=vis;
+   if(vis)update(d,dt,now);
+   else if(!d.alive){d.deathT+=dt;if(d.deathT>36)remove(d);}
+   else if(d.grow!=null){d.grow=Math.min(1,d.grow+dt/GROW_TIME);if(d.grow>=1)grownUp(d);}}
  })(last);
- window.arcanoAnimais={deer,homes,makeDeer};
+ window.arcanoAnimais={deer,herds,homes,makeDeer,hit:(d,dmg)=>hit(d,dmg,0,{x:state.px,z:state.pz}),config:{BIRTH_MIN,BIRTH_MAX,GROW_TIME}};
 }
 install();
 })();
