@@ -1243,55 +1243,67 @@ function install(){
   // ---------- Nível de detalhe ----------
   // Perto do personagem: os modelos originais. Longe: árvore leve no mesmo
   // formato e cor (uma chamada de desenho para milhares). Troca ao andar.
-  const NEAR=mobile?38:58;
+  // Níveis de detalhe: SEMPRE a mesma árvore. Perto: modelo completo; longe: versão simplificada do próprio modelo
+  // (mesma silhueta, cores e materiais). As trocas acontecem longe do personagem, quase imperceptíveis.
+  const NEAR=mobile?55:115;                       // modelos originais completos
+  const ORGMAP={BirchTree_1:'betula',CommonTree_1:'carvalho',CommonTree_3:'bordo'};
+  const ORGR=mobile?26:50,ORGR2=mobile?80:170;    // orgânicas: completa / meia distância / longe
   const group=new T.Group();group.name='Floresta da Ilha Central';
   const M=new T.Matrix4(),Q=new T.Quaternion(),E=new T.Euler(),P=new T.Vector3(),S=new T.Vector3();
   const perT=templates.map(()=>0);for(const s of spots)perT[s.t]++;
-  const nearMeshes=templates.map((tpl,t)=>tpl.parts.map(part=>{
-   const cap=Math.max(1,Math.min(perT[t],mobile?160:420));
+  const isOrg=t=>!!(ORGMAP[templates[t].name]&&window.arcanoTrees&&window.arcanoTrees.instPool);
+  const nearMeshes=templates.map((tpl,t)=>isOrg(t)?[]:tpl.parts.map(part=>{
+   const cap=Math.max(1,Math.min(perT[t],mobile?220:700));
    const im=new T.InstancedMesh(part.geometry,part.material,cap);im.name='Árvore da ilha · '+tpl.name;
    im.count=0;im.castShadow=false;im.receiveShadow=false;im.frustumCulled=false;group.add(im);return {im,part,cap};
   }));
-  // Árvore leve: tronco + copa arredondada (folhosas) ou cones (pinheiros), em 1 m
-  // de altura; grupo 0 = tronco, grupo 1 = copa (material com a cor do tipo).
-  const part=(geo,x,y,z,sy)=>{const g=geo.toNonIndexed();g.scale(1,sy,1);g.translate(x,y,z);g.computeVertexNormals();return g;};
-  const merge=(trunk,crown)=>{const list=trunk.concat(crown);let n=0;for(const g of list)n+=g.attributes.position.count;const Pp=new Float32Array(n*3),Nn=new Float32Array(n*3);let o=0;
-   for(const g of list){Pp.set(g.attributes.position.array,o*3);Nn.set(g.attributes.normal.array,o*3);o+=g.attributes.position.count;}
-   let nt=0;for(const g of trunk)nt+=g.attributes.position.count;
-   const geo=new T.BufferGeometry();geo.setAttribute('position',new T.BufferAttribute(Pp,3));geo.setAttribute('normal',new T.BufferAttribute(Nn,3));geo.addGroup(0,nt,0);geo.addGroup(nt,n-nt,1);return geo;};
-  const roundGeo=merge([part(new T.CylinderGeometry(.035,.05,.45,6),0,.225,0,1)],
-   [part(new T.IcosahedronGeometry(.32,1),0,.58,0,.85),part(new T.IcosahedronGeometry(.24,1),.12,.78,.05,.9),part(new T.IcosahedronGeometry(.22,1),-.13,.72,-.06,.9)]);
-  const pineGeo=merge([part(new T.CylinderGeometry(.03,.045,.3,6),0,.15,0,1)],
-   [part(new T.ConeGeometry(.3,.45,8),0,.42,0,1),part(new T.ConeGeometry(.23,.38,8),0,.66,0,1),part(new T.ConeGeometry(.15,.3,8),0,.86,0,1)]);
-  const trunkMat=new T.MeshStandardMaterial({color:'#7a4a2c',roughness:1});
-  const leafColor=name=>/Birch/i.test(name)?'#d6c65c':/Maple|CommonTree_3/i.test(name)?'#d77a45':/Pine/i.test(name)?'#3f7a4a':'#4f8f42';
-  const farMeshes=templates.map((tpl,t)=>{const im=new T.InstancedMesh(tpl.pine?pineGeo:roundGeo,[/Birch/i.test(tpl.name)?new T.MeshStandardMaterial({color:'#ece6d6',roughness:1}):trunkMat,new T.MeshStandardMaterial({color:leafColor(tpl.name),roughness:1})],Math.max(1,perT[t]));
-   im.name='Floresta distante (árvores leves)';im.count=0;im.castShadow=false;im.receiveShadow=false;im.frustumCulled=false;group.add(im);return im;});
-  let lastX=1e9,lastZ=1e9,orgPool=null,orgMid=null;
-  const ORGMAP={BirchTree_1:'betula',CommonTree_1:'carvalho',CommonTree_3:'bordo'},ORGR=mobile?22:34,ORGR2=mobile?55:95;
+  // Simplificação por agrupamento de vértices (mantém normais por face, uv e cor): poucos triângulos, mesmo formato.
+  function lodGeo(geo,rel,target){
+   let g=geo.index?geo.toNonIndexed():geo.clone();g.applyMatrix4(rel);g.computeBoundingBox();const sz=new T.Vector3();g.boundingBox.getSize(sz);
+   const pos=g.attributes.position,nor=g.attributes.normal,uv=g.attributes.uv,col=g.attributes.color,mx=Math.max(sz.x,sz.y,sz.z)||1;let best=null;
+   for(let div=20;div>=3;div--){const cell=mx/div,map=new Map(),PS=[],NS=[],US=[],CS=[],CN=[],idx=[];
+    const vid=i=>{const x=pos.getX(i),y=pos.getY(i),z=pos.getZ(i);let k=Math.round(x/cell)+','+Math.round(y/cell)+','+Math.round(z/cell);
+     
+     let id=map.get(k);if(id===undefined){id=CN.length;map.set(k,id);CN.push(0);PS.push(0,0,0);NS.push(0,0,0);if(uv)US.push(uv.getX(i),uv.getY(i));if(col)CS.push(col.getX(i),col.getY(i),col.getZ(i));}
+     CN[id]++;PS[id*3]+=x;PS[id*3+1]+=y;PS[id*3+2]+=z;if(nor){NS[id*3]+=nor.getX(i);NS[id*3+1]+=nor.getY(i);NS[id*3+2]+=nor.getZ(i);}return id;};
+    const grs=g.groups.length?g.groups:[{start:0,count:pos.count,materialIndex:0}],GR=[];for(const gr of grs){const st=idx.length,seen=new Set();for(let i=gr.start;i<Math.min(pos.count,gr.start+gr.count);i+=3){const A=vid(i),B=vid(i+1),C2=vid(i+2);if(A===B||B===C2||A===C2)continue;const key=[A,B,C2].sort((p,q)=>p-q).join(",");if(seen.has(key))continue;seen.add(key);idx.push(A,B,C2);}GR.push([st,idx.length-st,gr.materialIndex]);}
+    for(let k=0;k<CN.length;k++){PS[k*3]/=CN[k];PS[k*3+1]/=CN[k];PS[k*3+2]/=CN[k];const l=Math.hypot(NS[k*3],NS[k*3+1],NS[k*3+2])||1;NS[k*3]/=l;NS[k*3+1]/=l;NS[k*3+2]/=l;}
+    const out=new T.BufferGeometry();out.setAttribute('position',new T.Float32BufferAttribute(PS,3));if(nor)out.setAttribute('normal',new T.Float32BufferAttribute(NS,3));else out.computeVertexNormals();
+    if(uv)out.setAttribute('uv',new T.Float32BufferAttribute(US,2));if(col)out.setAttribute('color',new T.Float32BufferAttribute(CS,col.itemSize===4?3:3));out.setIndex(idx);if(g.groups.length)for(const q of GR)out.addGroup(q[0],q[1],q[2]);
+    best=out;if(idx.length/3<=target)break;}
+   {const fl=best.toNonIndexed();fl.computeVertexNormals();best.dispose();best=fl;} // faces retas, como o modelo low-poly original
+   g.dispose();return best;}
+  const farMeshes=templates.map((tpl,t)=>isOrg(t)?[]:tpl.parts.map(part=>{
+   const geo=lodGeo(part.geometry,part.rel,tpl.parts.length>1?220:380);
+   const im=new T.InstancedMesh(geo,part.material,Math.max(1,perT[t]));im.name='Floresta distante · '+tpl.name+' (mesmo modelo, simplificado)';
+   im.count=0;im.castShadow=false;im.receiveShadow=false;im.frustumCulled=false;group.add(im);return im;}));
+  let lastX=1e9,lastZ=1e9,orgPool=null,orgMid=null,orgFar=null;
   function rebuild(px,pz){
    lastX=px;lastZ=pz;
    const nearCount=templates.map(()=>0),farCount=templates.map(()=>0);
-   // árvores orgânicas (carvalho, bordo, bétula) nas mais próximas; o resto segue como antes
-   const chosen=new Set();
-   if(!orgPool&&window.arcanoTrees&&window.arcanoTrees.pool){orgPool=window.arcanoTrees.pool(scene,mobile);orgMid=window.arcanoTrees.pool(scene,mobile,{cap:mobile?40:240,density:mobile?.1:.12,name:'Árvores orgânicas (meia distância)'});}
-   if(orgPool){const cand=[];for(const s of spots){const nm=ORGMAP[templates[s.t].name];if(!nm)continue;const d=Math.hypot(s.x-px,s.z-pz);if(d<ORGR2)cand.push({s,d,nm});}
-    cand.sort((a,b)=>a.d-b.d);const list=[],mid=[];let nn=0;while(nn<cand.length&&nn<orgPool.cap&&cand[nn].d<ORGR)nn++;
-    cand.slice(0,nn+orgMid.cap).forEach((q,i)=>{chosen.add(q.s);(i<nn?list:mid).push({x:q.s.x,y:q.s.y,z:q.s.z,rot:q.s.rot,type:q.nm,k:Math.floor(Math.abs(Math.sin(q.s.x*12.9+q.s.z*78.2))*4),sc:.9+(q.s.s-.8)*.5});});
-    orgPool.update(list);orgMid.update(mid);}
+   if(!orgPool&&window.arcanoTrees&&window.arcanoTrees.instPool){
+    orgPool=window.arcanoTrees.pool(scene,mobile,{cap:mobile?10:36});
+    orgMid=window.arcanoTrees.instPool(scene,{lod:1,cap:mobile?90:320,name:'Árvores orgânicas (meia distância, mesma árvore)'});
+    orgFar=window.arcanoTrees.instPool(scene,{lod:2,cap:mobile?500:900,name:'Árvores orgânicas (longe, mesma árvore)'});}
+   if(orgPool){const near=[],mid=[],far=[];
+    for(const s of spots){const nm=ORGMAP[templates[s.t].name];if(!nm)continue;const d=Math.hypot(s.x-px,s.z-pz);
+     const q={x:s.x,y:s.y,z:s.z,rot:s.rot,type:nm,k:Math.floor(Math.abs(Math.sin(s.x*12.9+s.z*78.2))*4),sc:.9+(s.s-.8)*.5,d};
+     (d<ORGR?near:d<ORGR2?mid:far).push(q);}
+    near.sort((a,b)=>a.d-b.d);mid.push(...near.splice(orgPool.cap));
+    orgPool.update(near);orgMid.update(mid);orgFar.update(far);}
    for(const s of spots){
-    const d=Math.hypot(s.x-px,s.z-pz),tpl=templates[s.t];
-    if(chosen.has(s.t===undefined?s:s))continue;
-    if(d<NEAR&&nearCount[s.t]<nearMeshes[s.t][0].cap){
-     const k=nearCount[s.t]++;
-     for(const nm of nearMeshes[s.t]){M.compose(P.set(s.x,s.y-.08,s.z),Q.setFromEuler(E.set(0,s.rot,0)),S.setScalar(s.s)).multiply(nm.part.rel);nm.im.setMatrixAt(k,M);}
+    const t=s.t;if(isOrg(t))continue;
+    const d=Math.hypot(s.x-px,s.z-pz);
+    if(d<NEAR&&nearCount[t]<nearMeshes[t][0].cap){
+     const k=nearCount[t]++;
+     for(const nm of nearMeshes[t]){M.compose(P.set(s.x,s.y-.08,s.z),Q.setFromEuler(E.set(0,s.rot,0)),S.setScalar(s.s)).multiply(nm.part.rel);nm.im.setMatrixAt(k,M);}
      continue;
     }
-    const f=farMeshes[s.t],k=farCount[s.t]++;
-    M.compose(P.set(s.x,s.y-.05,s.z),Q.setFromEuler(E.set(0,s.rot,0)),S.set(tpl.w*s.s*1.25,tpl.h*s.s,tpl.w*s.s*1.25));f.setMatrixAt(k,M);
+    const k=farCount[t]++;M.compose(P.set(s.x,s.y-.08,s.z),Q.setFromEuler(E.set(0,s.rot,0)),S.setScalar(s.s));
+    for(const im of farMeshes[t])im.setMatrixAt(k,M);
    }
    nearMeshes.forEach((parts,t)=>parts.forEach(nm=>{nm.im.count=nearCount[t];nm.im.instanceMatrix.needsUpdate=true;}));
-   farMeshes.forEach((f,t)=>{f.count=farCount[t];f.instanceMatrix.needsUpdate=true;});
+   farMeshes.forEach((parts,t)=>parts.forEach(im=>{im.count=farCount[t];im.instanceMatrix.needsUpdate=true;}));
   }
   function where(){const p=api.getGrassPlayer&&api.getGrassPlayer();if(p)return p.position;const c=api.getMainCamera&&api.getMainCamera();return c?c.position:null;}
   {const w=where();rebuild(w?w.x:0,w?w.z:0);}

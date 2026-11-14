@@ -6,7 +6,7 @@
 'use strict';
 const T=window.THREE;if(!T)return;
 const PI=Math.PI,TAU=PI*2;
-const CUR={density:1,shadows:true};
+const CUR={density:1,shadows:true,lod:0}; // lod 0 = completa, 1 = meia distância, 2 = longe (mesma árvore, menos polígonos)
 const mkRng=sd=>{let s=(sd>>>0)||1;return()=>{s=(s*1664525+1013904223)>>>0;return s/4294967296;};};
 
 /* ---------- Texturas ---------- */
@@ -92,9 +92,10 @@ function leafMat(kind){if(matCache['l'+kind])return matCache['l'+kind];const m=m
 
 /* ---------- Construção ---------- */
 function Builder(kind,R){
- const g=new T.Group(),leaves={};
+ const g=new T.Group(),leaves={};let rng=R; // folhas usam um gerador próprio por massa: a forma da árvore é a mesma em todos os níveis de detalhe
  function tube(pts,rad,flare,sd,sides){
-  const curve=new T.CatmullRomCurve3(pts.map(p=>new T.Vector3(p[0],p[1],p[2]))),N=Math.max(10,Math.round(curve.getLength()*3.5)),S=sides||10,fr=curve.computeFrenetFrames(N,false),len=curve.getLength();
+  if((CUR.lod===2&&rad[0]<.07)||(CUR.lod===1&&rad[0]<.035))return;
+  const curve=new T.CatmullRomCurve3(pts.map(p=>new T.Vector3(p[0],p[1],p[2]))),N=CUR.lod===2?Math.max(2,Math.round(curve.getLength()*.45)):CUR.lod===1?Math.max(4,Math.round(curve.getLength()*.9)):Math.max(10,Math.round(curve.getLength()*3.5)),S=CUR.lod===2?3:CUR.lod===1?5:(sides||10),fr=curve.computeFrenetFrames(N,false),len=curve.getLength();
   const P=[],U=[],I=[];
   for(let i=0;i<=N;i++){const t=i/N,pos=curve.getPoint(t),f=t*(rad.length-1),k=Math.min(rad.length-2,Math.floor(f)),rr=(rad[k]+(rad[k+1]-rad[k])*(f-k))*(1+flare*Math.exp(-t*8)),nn=fr.normals[i],bb=fr.binormals[i];
    for(let j=0;j<=S;j++){const an=j/S*TAU,lump=1+.09*Math.sin(an*3+t*8+sd)+.06*Math.sin(an*5-t*13+sd*2)+(flare>0?.15*Math.max(0,Math.sin(an*4+sd))*Math.exp(-t*7):0),dx=nn.x*Math.cos(an)+bb.x*Math.sin(an),dy=nn.y*Math.cos(an)+bb.y*Math.sin(an),dz=nn.z*Math.cos(an)+bb.z*Math.sin(an);
@@ -104,7 +105,7 @@ function Builder(kind,R){
  }
  function card(lk,px,py,pz,size,nrm,col,orient){ // um cartão de folha/flor
   const L=leaves[lk]||(leaves[lk]=[]);
-  const a=R()*TAU,ca=Math.cos(a),sa=Math.sin(a),tl=R()*1.4-.7;
+  const a=rng()*TAU,ca=Math.cos(a),sa=Math.sin(a),tl=rng()*1.4-.7;
   let ux=[ca,0,sa],uy=[-sa*Math.sin(tl),Math.cos(tl),ca*Math.sin(tl)];
   if(orient){ux=orient.u;uy=orient.v;}
   const hs=size/2,asp=orient&&orient.asp?orient.asp:1,p=[[-hs,-hs*asp],[hs,-hs*asp],[hs,hs*asp],[-hs,hs*asp]].map(([u,v])=>[px+ux[0]*u+uy[0]*v,py+ux[1]*u+uy[1]*v,pz+ux[2]*u+uy[2]*v]);
@@ -112,6 +113,7 @@ function Builder(kind,R){
  }
  const twigs={P:[],U:[],I:[]};
  function twig(a,b,r){ // galhinho reto de 5 lados, base grossa e ponta fina
+  if(CUR.lod)return;
   const dx=b[0]-a[0],dy=b[1]-a[1],dz=b[2]-a[2],L=Math.hypot(dx,dy,dz)||1,dir=[dx/L,dy/L,dz/L];
   let ux=Math.abs(dir[1])>.9?[1,0,0]:[0,1,0];const nx=[dir[1]*ux[2]-dir[2]*ux[1],dir[2]*ux[0]-dir[0]*ux[2],dir[0]*ux[1]-dir[1]*ux[0]],nl=Math.hypot(...nx)||1;nx[0]/=nl;nx[1]/=nl;nx[2]/=nl;
   const bx=[dir[1]*nx[2]-dir[2]*nx[1],dir[2]*nx[0]-dir[0]*nx[2],dir[0]*nx[1]-dir[1]*nx[0]],S=5,base=twigs.P.length/3;
@@ -121,18 +123,20 @@ function Builder(kind,R){
  const ALIGNED={oakleaf:1,small:1,lance:1,maple:1,acacia:1,broad:1,round:1,fan:1};
  /* Massa de folhagem com "cumes": vários lóbulos, cada um com galhinhos que saem do miolo e folhas ao longo deles. */
  function clump(lk,cx,cy,cz,rx,ry,rz,n,size,palette,opt){
-  opt=opt||{};if(ALIGNED[lk]){n*=2.4;size*=1.3;}n=Math.max(30,n*CUR.density);if(CUR.density<.8)size*=1+(1-CUR.density)*.55;const lobes=[{x:0,y:0,z:0,r:.62,w:1.3}];
-  const nl=opt.lobes||(5+Math.floor(R()*3));
-  for(let i=0;i<nl;i++){let vx=R()-.5,vy=R()-.15,vz=R()-.5;if(opt.flat)vy*=.25;const l=Math.hypot(vx,vy,vz)||1;lobes.push({x:vx/l*.62,y:vy/l*.5,z:vz/l*.62,r:.42+R()*.2,w:1});}
-  const wsum=lobes.reduce((a,b)=>a+b.w*b.r*b.r,0),per=9;
+  opt=opt||{};const Rl=mkRng(Math.floor(R()*4294967295)+1),R0=rng;rng=Rl;if(ALIGNED[lk]){n*=2.4;size*=1.3;}
+  const lod=CUR.lod,n0=Math.max(30,n*(lod?.4:CUR.density));n=lod===2?Math.max(5,n0*.09):lod===1?Math.max(12,n0*.32):n0;if(lod)size*=1.33;else if(CUR.density<.8)size*=1+(1-CUR.density)*.55;const lobes=[{x:0,y:0,z:0,r:.62,w:1.3}];
+  const nl=lod===2?3:(opt.lobes||(5+Math.floor(Rl()*3)));
+  for(let i=0;i<nl;i++){let vx=Rl()-.5,vy=Rl()-.15,vz=Rl()-.5;if(opt.flat)vy*=.25;const l=Math.hypot(vx,vy,vz)||1;lobes.push({x:vx/l*.62,y:vy/l*.5,z:vz/l*.62,r:.42+Rl()*.2,w:1});}
+  const wsum=lobes.reduce((a,b)=>a+b.w*b.r*b.r,0),per=lod===2?2:lod===1?4:9,minS=lod?1:2;
+  if(lod){let est=0;for(const lb of lobes)est+=Math.max(minS,Math.round(n*lb.w*lb.r*lb.r/wsum/per))*per;size*=Math.min(2.6,Math.sqrt(n0/est))*.9;}
   for(const lb of lobes){
-   const share=n*lb.w*lb.r*lb.r/wsum,sprigs=Math.max(2,Math.round(share/per));
+   const share=n*lb.w*lb.r*lb.r/wsum,sprigs=Math.max(minS,Math.round(share/per));
    // galho principal do lóbulo (do centro da massa até o centro do lóbulo)
    const c0=[cx,cy,cz],c1=[cx+lb.x*rx,cy+lb.y*ry,cz+lb.z*rz];
    if(lb.x||lb.y||lb.z)twig(c0,c1,size*.14);
    for(let sp=0;sp<sprigs;sp++){
-    let vx=R()-.5,vy=R()-.5,vz=R()-.5;const l=Math.hypot(vx,vy,vz)||1;vx/=l;vy/=l;vz/=l;if(vy<0)vy*=opt.flat?.3:.8;
-    const sh=(opt.inner||.5)+(1-(opt.inner||.5))*Math.pow(R(),.45);
+    let vx=Rl()-.5,vy=Rl()-.5,vz=Rl()-.5;const l=Math.hypot(vx,vy,vz)||1;vx/=l;vy/=l;vz/=l;if(vy<0)vy*=opt.flat?.3:.8;
+    const sh=(opt.inner||.5)+(1-(opt.inner||.5))*Math.pow(Rl(),.45);
     const e=[c1[0]+vx*lb.r*rx*sh,c1[1]+vy*lb.r*ry*sh,c1[2]+vz*lb.r*rz*sh],s0=[c1[0]+vx*lb.r*rx*sh*.3,c1[1]+vy*lb.r*ry*sh*.3,c1[2]+vz*lb.r*rz*sh*.3];
     twig(s0,e,size*.05);
     const dx=e[0]-s0[0],dy=e[1]-s0[1],dz=e[2]-s0[2],dl=Math.hypot(dx,dy,dz)||1,dir=[dx/dl,dy/dl,dz/dl];
@@ -140,11 +144,11 @@ function Builder(kind,R){
     const rad=Math.hypot(vx*.9,vz*.9)*0,top=Math.max(0,vy),low=Math.max(0,-vy);
     const br=Math.max(.45,.5+.42*sh+.22*top-.16*low-(lb.x===0&&lb.y===0&&lb.z===0?.1:0));
     for(let k=0;k<per;k++){
-     const t=.45+.55*R(),px=s0[0]+dx*t+(R()-.5)*size*.5,py=s0[1]+dy*t+(R()-.5)*size*.5,pz=s0[2]+dz*t+(R()-.5)*size*.5;
-     const pc=palette[Math.floor(R()*palette.length)],col=pc.map(v=>Math.min(1.2,v*(br+(R()-.5)*.08))),sz=size*(1.0+R()*.5);
+     const t=.45+.55*Rl(),px=s0[0]+dx*t+(Rl()-.5)*size*.5,py=s0[1]+dy*t+(Rl()-.5)*size*.5,pz=s0[2]+dz*t+(Rl()-.5)*size*.5;
+     const pc=palette[Math.floor(Rl()*palette.length)],col=pc.map(v=>Math.min(1.2,v*(br+(Rl()-.5)*.08))),sz=size*(1.0+Rl()*.5);
      const nrm=[vx*.8,vy*.8+.35,vz*.8];
      if(ALIGNED[lk]){ // folha presa ao galhinho, apontando para fora e abrindo para os lados
-      const ang=(R()-.5)*1.6,ca=Math.cos(ang),sa=Math.sin(ang);let sx=R()-.5,sy=R()-.5,sz2=R()-.5;const dd=sx*dir[0]+sy*dir[1]+sz2*dir[2];sx-=dd*dir[0];sy-=dd*dir[1];sz2-=dd*dir[2];const sl=Math.hypot(sx,sy,sz2)||1;sx/=sl;sy/=sl;sz2/=sl;
+      const ang=(Rl()-.5)*1.6,ca=Math.cos(ang),sa=Math.sin(ang);let sx=Rl()-.5,sy=Rl()-.5,sz2=Rl()-.5;const dd=sx*dir[0]+sy*dir[1]+sz2*dir[2];sx-=dd*dir[0];sy-=dd*dir[1];sz2-=dd*dir[2];const sl=Math.hypot(sx,sy,sz2)||1;sx/=sl;sy/=sl;sz2/=sl;
       const v=[dir[0]*ca+sx*sa,dir[1]*ca+sy*sa-.12,dir[2]*ca+sz2*sa],vl=Math.hypot(...v);v[0]/=vl;v[1]/=vl;v[2]/=vl;
       let u=[v[1]*sz2-v[2]*sy,v[2]*sx-v[0]*sz2,v[0]*sy-v[1]*sx];const ul=Math.hypot(...u)||1;u=[u[0]/ul,u[1]/ul,u[2]/ul];
       // o cartão nasce na ponta do galho: base em (px,py,pz) e cresce para fora
@@ -153,6 +157,7 @@ function Builder(kind,R){
     }
    }
   }
+  rng=R0;
  }
  function finish(){
   if(twigs.P.length){const gg=new T.BufferGeometry();gg.setAttribute('position',new T.Float32BufferAttribute(twigs.P,3));gg.setAttribute('uv',new T.Float32BufferAttribute(twigs.U,2));gg.setIndex(twigs.I);gg.computeVertexNormals();const m=new T.Mesh(gg,barkMat(kind));m.castShadow=true;m.receiveShadow=true;g.add(m);}
@@ -306,7 +311,20 @@ window.arcanoVillageTree=function(g,x,y,z,s,dark){
 };
 window.arcanoTrees={
  types:Object.keys(TYPES),
- make(type,o){o=o||{};const f=TYPES[type];if(!f)return null;CUR.density=o.density||1;CUR.shadows=o.shadows!==false;const R=mkRng(o.seed||(type.length*131+7));const g=f(o.h||({cerejeira:5,carvalho:8,pinheiro:10,betula:7,salgueiro:7,bordo:6.5,acacia:7,dourada:8,roxa:6,cipreste:9,bambu:9,frondosa:11,redonda:5})[type],R);g.name='Árvore '+type;CUR.density=1;CUR.shadows=true;return g;},
+ make(type,o){o=o||{};const f=TYPES[type];if(!f)return null;CUR.density=o.density||1;CUR.shadows=o.shadows!==false;CUR.lod=o.lod||0;const R=mkRng(o.seed||(type.length*131+7));const g=f(o.h||({cerejeira:5,carvalho:8,pinheiro:10,betula:7,salgueiro:7,bordo:6.5,acacia:7,dourada:8,roxa:6,cipreste:9,bambu:9,frondosa:11,redonda:5})[type],R);g.name='Árvore '+type;CUR.density=1;CUR.shadows=true;CUR.lod=0;return g;},
+ // Floresta instanciada: a MESMA árvore (mesmas variantes do pool) em nível de detalhe menor, milhares numa chamada por peça.
+ instPool(scene,o){
+  o=o||{};const cap=o.cap||300,VAR={carvalho:[7,9.5,12,8.5],bordo:[5,6.5,8.5,5.8],betula:[5.5,7,9,6.5]},sets={},group=new T.Group();group.name=o.name||'Árvores orgânicas (instanciadas)';scene.add(group);
+  const getSet=(type,vi)=>{const k=type+vi;if(sets[k])return sets[k];
+   const g=window.arcanoTrees.make(type,{h:VAR[type][vi],seed:1000+vi*37+type.length*11,density:.4,lod:o.lod||1,shadows:false});g.updateMatrixWorld(true);const parts=[];
+   g.traverse(m=>{if(!m.isMesh)return;const im=new T.InstancedMesh(m.geometry,m.material,cap);im.count=0;im.frustumCulled=false;im.castShadow=false;im.receiveShadow=false;im.userData.rel=m.matrixWorld.clone();group.add(im);parts.push(im);});
+   return sets[k]={parts,n:0};};
+  const M=new T.Matrix4(),M2=new T.Matrix4(),Q=new T.Quaternion(),E=new T.Euler(),P=new T.Vector3(),S=new T.Vector3();
+  return {cap,group,prepare(){for(const ty in VAR)for(let v=0;v<4;v++)getSet(ty,v);},update(list){for(const k in sets)sets[k].n=0;
+   for(const q of list){const st=getSet(q.type,q.k%4);if(st.n>=cap)continue;const i=st.n++;M.compose(P.set(q.x,q.y-.05,q.z),Q.setFromEuler(E.set(0,q.rot,0)),S.setScalar(q.sc));
+    for(const im of st.parts)im.setMatrixAt(i,M2.copy(M).multiply(im.userData.rel));}
+   for(const k in sets)for(const im of sets[k].parts){im.count=sets[k].n;im.instanceMatrix.needsUpdate=true;}}};
+ },
  pool(scene,lite,o){
   o=o||{};const cap=o.cap||(lite?7:16),dens=o.density||(lite?.22:.4),VAR={carvalho:[7,9.5,12,8.5],bordo:[5,6.5,8.5,5.8],betula:[5.5,7,9,6.5]},vars={},items=[],group=new T.Group();group.name=o.name||'Árvores orgânicas (perto)';scene.add(group);
   const variant=(type,vi)=>{const k=type+vi;return vars[k]||(vars[k]=window.arcanoTrees.make(type,{h:VAR[type][vi],seed:1000+vi*37+type.length*11,density:dens,shadows:false}));};
