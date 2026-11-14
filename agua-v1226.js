@@ -3130,7 +3130,7 @@ function spawnLeafDrips(dt){
  }
 }
 let mode='rain',process='combined',level=3,lastRainLevel=3,timeScale=4,paused=false,showWet=true,showFoam=true,enableInfiltration=false;
-let rainStyle='enhanced',time=0,visualTime=0,acc=0,spawnAcc=0,lastUI=0,wetted=0,frame=0;
+let rainIdle=false,hydroIdle=0,rainStyle='enhanced',time=0,visualTime=0,acc=0,spawnAcc=0,lastUI=0,wetted=0,frame=0;
 // Escala V12.21: fonte única para deposição, visual, vento e movimento superficial.
 // Valores em unidades internas por segundo SIMULADO; não equivalem a mm/h calibrados.
 const rainNames=['Sem chuva','Garoa','Chuva fraca','Chuva moderada','Chuva forte','Temporal intenso'];
@@ -3558,6 +3558,9 @@ function emitGameWaterFootstep(x,z,heading,running,side){
  }
 }
 function dropStep(dt){
+ // Sem chuva, sem gotas no ar e com a mata seca: nada a calcular (gotas, respingos, folhas pingando, materiais molhados).
+ if(level===0&&!drops.length&&!splashes.length&&wetBarkLeaves<=0){if(streak.count||splashMesh.count){streak.count=0;dropG.setDrawRange(0,0);splashMesh.count=0;}rainIdle=true;return;}
+ rainIdle=false;
  // A densidade visual segue o MESMO nível aplicado à física.
  // O clima só modula o número de gotas e a distribuição entre as regiões.
  const severe=stormActive(),profile=RAIN_SCALE[level];
@@ -4717,7 +4720,9 @@ function loop(now){
   dropStep(dt);
   acc+=dt*timeScale;
   const step=timeScale>=64?.22:timeScale>=16?.14:timeScale>=4?.09:.06;
-  let steps=0;while(acc>=step&&steps<12){hydrologyStep(step);acc-=step;steps++;}
+  // Hidrologia das poças: quando não chove e não sobrou água no chão por alguns segundos, pausa (volta sozinha quando chover).
+  hydroIdle=(level===0&&wetted<.02)?hydroIdle+dt:0;
+  if(hydroIdle<4){let steps=0;while(acc>=step&&steps<12){hydrologyStep(step);acc-=step;steps++;}}else acc=0;
   // Solo e árvores naturais são estáticos: não simular mineralização,
   // fertilização, mortalidade ou crescimento ecológico por célula.
   plantVisualSeconds+=dt;

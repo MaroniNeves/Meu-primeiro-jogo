@@ -64,7 +64,7 @@ function install(){
    c.x+=sin(uTime*.05+aSeed.x*6.28)*1.6;c.z+=cos(uTime*.043+aSeed.x*4.1)*1.6;
    vec3 p=c+r*position.x*s*aSeed.y+vec3(0.,1.,0.)*(position.y+.5)*s*aSeed.z-vec3(0.,s*aSeed.z*.18,0.);
    vW=p;vUv=uv;vSeed=aSeed.x;vDens=aSeed.w;
-   float d=distance(cameraPosition,c);vFade=smoothstep(1.5,8.,distance(cameraPosition,p))*(1.-smoothstep(150.,210.,d));
+   float d=distance(cameraPosition,c);vFade=smoothstep(1.5,8.,distance(cameraPosition,p))*mix(.45,1.,smoothstep(14.,34.,d))*(1.-smoothstep(150.,210.,d)); // perto, quem dá o volume são os flocos
    gl_Position=projectionMatrix*viewMatrix*vec4(p,1.);}`,
   fragmentShader:`uniform vec3 uColor;uniform float uOpacity,uTime;uniform vec4 uTrail[${TR}];varying vec2 vUv;varying float vFade;varying float vDens;varying vec3 vW;varying float vSeed;${NOISE}
   void main(){if(vFade<.002)discard;
@@ -98,6 +98,58 @@ function install(){
   void main(){vec2 q=gl_PointCoord-.5;float r=length(q);float a=(1.-smoothstep(.0,.5,r));a*=a;if(a*vA<.01)discard;gl_FragColor=vec4(uColor*a*vA*uOpacity,1.);}`});
  const pts=new T.Points(mg,mm);pts.frustumCulled=false;pts.renderOrder=8;pts.name='Luzes na névoa';scene.add(pts);
 
+ /* ---------- Volume perto do personagem: nuvem de flocos de névoa ---------- */
+ // Os véus grandes ficam para a distância; perto, a névoa é feita de muitos flocos macios que se sobrepõem
+ // (volume de verdade: dá para entrar nela, ver camadas na frente e atrás do personagem).
+ // Cada floco tem velocidade: o personagem empurra e faz redemoinho ao passar; depois a névoa volta a se acomodar.
+ const mobile=/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
+ const PN=mobile?380:1000,PA=new Float32Array(PN*4),PB=new Float32Array(PN*4),vel=new Float32Array(PN*3),life=new Float32Array(PN*2);
+ const pgeo=new T.InstancedBufferGeometry();pgeo.index=base.index;pgeo.setAttribute('position',base.attributes.position);pgeo.setAttribute('uv',base.attributes.uv);
+ const aP=new T.InstancedBufferAttribute(PA,4).setUsage(T.DynamicDrawUsage),aB=new T.InstancedBufferAttribute(PB,4).setUsage(T.DynamicDrawUsage);
+ pgeo.setAttribute('aP',aP);pgeo.setAttribute('aB',aB);pgeo.instanceCount=PN;
+ const PU={uTime:U.uTime,uColor:U.uColor,uOpacity:{value:.3}};
+ const pmat=new T.ShaderMaterial({uniforms:PU,transparent:true,depthWrite:false,
+  vertexShader:`attribute vec4 aP;attribute vec4 aB;varying vec2 vUv;varying float vA;varying float vSeed;
+  void main(){vec4 mc=viewMatrix*vec4(aP.xyz,1.);float d=-mc.z;
+   vA=aB.y*aB.z*smoothstep(.9,3.2,d)*(1.-smoothstep(30.,42.,d));vUv=uv;vSeed=aB.x;
+   if(vA<.002){gl_Position=vec4(2.,2.,2.,1.);return;}
+   float rot=aB.x*6.283;vec2 q=mat2(cos(rot),-sin(rot),sin(rot),cos(rot))*position.xy*aP.w;
+   gl_Position=projectionMatrix*(mc+vec4(q.x,q.y*.62,0.,0.));}`,
+  fragmentShader:`uniform vec3 uColor;uniform float uOpacity,uTime;varying vec2 vUv;varying float vA;varying float vSeed;${NOISE}
+  void main(){vec2 q=vUv-.5;float r=length(q)*2.;float b=1.-smoothstep(.15,1.,r);if(b<=0.)discard;
+   float n=nf(q*2.6+vec2(vSeed*13.,vSeed*7.)+vec2(uTime*.06,-uTime*.04));
+   float a=b*b*smoothstep(.2,.75,n)*vA*uOpacity;if(a<.003)discard;
+   gl_FragColor=vec4(uColor*(.94+.12*n),a);
+   #include <tonemapping_fragment>
+   #include <encodings_fragment>
+  }`});
+ const puffs=new T.Mesh(pgeo,pmat);puffs.frustumCulled=false;puffs.renderOrder=0;puffs.name='Neblina em volume (perto)';scene.add(puffs);
+ let near=[],nearAt=-1e9;
+ const spawn=(i,px,pz)=>{if(!near.length){PB[i*4+1]=0;life[i*2]=0;life[i*2+1]=1+Math.random()*2;return;}
+  const c=near[Math.floor(Math.random()*near.length)],a=Math.random()*6.283,rr=c[3]*.55*Math.sqrt(Math.random());
+  const x=c[0]+Math.cos(a)*rr,z=c[2]+Math.sin(a)*rr,y=H(x,z)+.25+Math.pow(Math.random(),1.6)*1.9;
+  PA.set([x,y,z,1.8+Math.random()*2.6],i*4);PB.set([Math.random(),Math.min(1,c[7]*1.15),0,0],i*4);
+  vel[i*3]=(Math.random()-.5)*.15;vel[i*3+1]=0;vel[i*3+2]=(Math.random()-.5)*.15;life[i*2]=0;life[i*2+1]=7+Math.random()*9;};
+ let ppx=null,ppz=null;
+ function updatePuffs(dt){
+  const pl=api.getGrassPlayer&&api.getGrassPlayer(),cam=api.getMainCamera&&api.getMainCamera();
+  const playing=pl&&document.body.classList.contains('play-active'),src=playing?pl.position:cam&&cam.position;if(!src)return;
+  if(t-nearAt>1.2){nearAt=t;near=cards.filter(c=>Math.hypot(c[0]-src.x,c[2]-src.z)<52);}
+  // velocidade do personagem
+  let vx=0,vz=0;if(playing){if(ppx!=null&&dt>0){vx=(src.x-ppx)/dt;vz=(src.z-ppz)/dt;}ppx=src.x;ppz=src.z;}
+  const sp=Math.min(8,Math.hypot(vx,vz)),py=src.y;
+  for(let i=0;i<PN;i++){const o=i*4;
+   life[i*2]+=dt;const L=life[i*2],LM=life[i*2+1];
+   if(L>=LM||Math.hypot(PA[o]-src.x,PA[o+2]-src.z)>48){spawn(i,src.x,src.z);continue;}
+   PB[o+2]=Math.min(1,L/1.6)*Math.min(1,(LM-L)/2);
+   if(playing){const dx=PA[o]-src.x,dz=PA[o+2]-src.z,dy=PA[o+1]-(py+.9),r=Math.hypot(dx,dz);
+    if(r<3.2&&Math.abs(dy)<2.4){const k=(1-r/3.2)*(1-r/3.2),ix=dx/Math.max(r,.2),iz=dz/Math.max(r,.2),side=(ix*vz-iz*vx)>0?1:-1;
+     const push=(1.2+sp*1.1)*k,swirl=sp*.9*k;
+     vel[i*3]+=(ix*push-iz*swirl*side+vx*.35*k)*dt*3;vel[i*3+2]+=(iz*push+ix*swirl*side+vz*.35*k)*dt*3;vel[i*3+1]+=.5*k*sp*dt;}}
+   const damp=Math.exp(-dt*1.1);vel[i*3]*=damp;vel[i*3+1]*=Math.exp(-dt*1.6);vel[i*3+2]*=damp;
+   PA[o]+=(vel[i*3]+.12)*dt;PA[o+1]+=vel[i*3+1]*dt;PA[o+2]+=(vel[i*3+2]+.05)*dt;}
+  aP.needsUpdate=true;aB.needsUpdate=true;}
+
  /* ---------- Cor pela luz do dia ---------- */
  const lights=[];scene.traverse(q=>{if(q.isHemisphereLight||q.isDirectionalLight||q.isAmbientLight)lights.push(q);});
  const dayF=()=>{const Rv=window.arcanoAnimeRiver,u=Rv&&Rv.material&&Rv.material.uniforms&&Rv.material.uniforms.uSun;const y=u?u.value.y:.5;return Math.min(1,Math.max(0,(y+.1)/.28));};
@@ -111,6 +163,7 @@ function install(){
   U.uColor.value.copy(tmp);U.uOpacity.value=.5+.35*day;
   MU.uColor.value.copy(mNight).lerp(mDay,day);MU.uOpacity.value=.55+.45*(1-day); // à noite viram vaga-lumes
   MU.uScale.value=api.renderer.domElement.height*.9;
+  PU.uOpacity.value=.24+.14*day;updatePuffs(dt);
   // rastro: um ponto novo a cada ~0,5 m andado; cada ponto se apaga em ~3 s
   for(const v of trail)v.z*=Math.exp(-dt/2.6);
   const pl=api.getGrassPlayer&&api.getGrassPlayer();

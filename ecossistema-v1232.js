@@ -227,12 +227,12 @@ vArcBurn=0.0;
   // Um pequeno desvio lateral evita que d=0 deixe as lâminas imóveis.
   if(uArcPlayer.w>.001){
    vec2 d=arcRoot-uArcPlayer.xy;
-   float reach=max(0.0,1.0-length(d)/.95);
+   float reach=max(0.0,1.0-length(d)/1.25);
    float pressure=reach*reach*(3.0-2.0*reach);
    if(pressure>.001){
     vec2 across=vec2(cos(uArcPlayer.z),-sin(uArcPlayer.z));
     vec2 away=normalize(d+across*.075);
-    arcMove+=away*(.55*uArcPlayer.w*pressure);
+    arcMove+=away*(.85*uArcPlayer.w*pressure);
     arcCompression=max(arcCompression,.16*uArcPlayer.w*pressure);
    }
   }
@@ -254,7 +254,7 @@ vArcBurn=0.0;
   }
   // Deslocamento mundo XZ -> coordenadas do tufo, que pode estar rotacionado.
   float arcWorldHeight=length(instanceMatrix[1].xyz)/max(uArcGrassInvHeight,.001);
-  float arcMaxBend=arcWorldHeight*(.75+.3*uArcStorm);
+  float arcMaxBend=arcWorldHeight*(.9+.2*uArcStorm);
   float arcMoveLength=length(arcMove);
   if(arcMoveLength>arcMaxBend)arcMove*=arcMaxBend/max(arcMoveLength,.001);
   vec2 arcAxisX=instanceMatrix[0].xz,arcAxisZ=instanceMatrix[2].xz;
@@ -277,7 +277,7 @@ vArcBurn=0.0;
   shader.fragmentShader=shader.fragmentShader.replace(c,
    c+'\n diffuseColor.rgb=mix(diffuseColor.rgb, vec3(.105,.087,.068), clamp(vArcBurn*.94,0.,1.));');
  };
- mat.customProgramCacheKey=()=> 'arcano-grass-fire-cc0-burn-v1268-'+name;
+ mat.customProgramCacheKey=()=> 'arcano-grass-fire-cc0-burn-v1269-'+name;
  return mat;
 }
 function animateGrassVisuals(dt){
