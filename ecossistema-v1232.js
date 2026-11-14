@@ -227,34 +227,34 @@ vArcBurn=0.0;
   // Um pequeno desvio lateral evita que d=0 deixe as lâminas imóveis.
   if(uArcPlayer.w>.001){
    vec2 d=arcRoot-uArcPlayer.xy;
-   float reach=max(0.0,1.0-length(d)/.52);
+   float reach=max(0.0,1.0-length(d)/.95);
    float pressure=reach*reach*(3.0-2.0*reach);
    if(pressure>.001){
     vec2 across=vec2(cos(uArcPlayer.z),-sin(uArcPlayer.z));
     vec2 away=normalize(d+across*.075);
-    arcMove+=away*(.20*uArcPlayer.w*pressure);
-    arcCompression=max(arcCompression,.045*uArcPlayer.w*pressure);
+    arcMove+=away*(.55*uArcPlayer.w*pressure);
+    arcCompression=max(arcCompression,.16*uArcPlayer.w*pressure);
    }
   }
   // Marcas passageiras continuam a ceder por cerca de um segundo,
   // recuperando altura sem reduzir a quantidade de plantas.
   if(uArcTrail0.w>.001){
    vec2 d=arcRoot-uArcTrail0.xy;
-   float reach=max(0.0,1.0-length(d)/.37);
+   float reach=max(0.0,1.0-length(d)/.7);
    float pressure=reach*reach*(3.0-2.0*reach);
-   arcMove+=normalize(d+vec2(.015,.019))*(.09*uArcTrail0.w*pressure);
-   arcCompression=max(arcCompression,.025*uArcTrail0.w*pressure);
+   arcMove+=normalize(d+vec2(.015,.019))*(.30*uArcTrail0.w*pressure);
+   arcCompression=max(arcCompression,.10*uArcTrail0.w*pressure);
   }
   if(uArcTrail1.w>.001){
    vec2 d=arcRoot-uArcTrail1.xy;
-   float reach=max(0.0,1.0-length(d)/.37);
+   float reach=max(0.0,1.0-length(d)/.7);
    float pressure=reach*reach*(3.0-2.0*reach);
-   arcMove+=normalize(d+vec2(-.017,.013))*(.09*uArcTrail1.w*pressure);
-   arcCompression=max(arcCompression,.025*uArcTrail1.w*pressure);
+   arcMove+=normalize(d+vec2(-.017,.013))*(.30*uArcTrail1.w*pressure);
+   arcCompression=max(arcCompression,.10*uArcTrail1.w*pressure);
   }
   // Deslocamento mundo XZ -> coordenadas do tufo, que pode estar rotacionado.
   float arcWorldHeight=length(instanceMatrix[1].xyz)/max(uArcGrassInvHeight,.001);
-  float arcMaxBend=arcWorldHeight*(.42+.48*uArcStorm);
+  float arcMaxBend=arcWorldHeight*(.75+.3*uArcStorm);
   float arcMoveLength=length(arcMove);
   if(arcMoveLength>arcMaxBend)arcMove*=arcMaxBend/max(arcMoveLength,.001);
   vec2 arcAxisX=instanceMatrix[0].xz,arcAxisZ=instanceMatrix[2].xz;
@@ -277,7 +277,7 @@ vArcBurn=0.0;
   shader.fragmentShader=shader.fragmentShader.replace(c,
    c+'\n diffuseColor.rgb=mix(diffuseColor.rgb, vec3(.105,.087,.068), clamp(vArcBurn*.94,0.,1.));');
  };
- mat.customProgramCacheKey=()=> 'arcano-grass-fire-cc0-burn-v1267-'+name;
+ mat.customProgramCacheKey=()=> 'arcano-grass-fire-cc0-burn-v1268-'+name;
  return mat;
 }
 function animateGrassVisuals(dt){
@@ -312,7 +312,7 @@ function animateGrassVisuals(dt){
  const trail=[u.uArcTrail0.value,u.uArcTrail1.value];
  for(let i=0;i<2;i++){
   const t=trail[i];
-  if(t.w>0)t.w=Math.max(0,t.w-realDt*1.20);
+  if(t.w>0)t.w=Math.max(0,t.w-realDt*.45);
  }
  if(!p||p.grassOnGround===false){
   current.w=0;grassVisual.stepDistance=0;
@@ -328,7 +328,7 @@ function animateGrassVisuals(dt){
    const step=speed>2.4?.31:.43;
    if(grassVisual.stepDistance>=step){
     grassVisual.stepDistance%=step;
-    trail[grassVisual.trailIndex].set(x,z,0,.38);
+    trail[grassVisual.trailIndex].set(x,z,0,.7);
     grassVisual.trailIndex=1-grassVisual.trailIndex;
    }
   }

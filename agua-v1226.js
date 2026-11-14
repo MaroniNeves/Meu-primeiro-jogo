@@ -2954,6 +2954,7 @@ function rockHeightAt(x,z){
  return top;
 }
 function impactHeightAt(x,z){
+ if(Math.abs(x)>W*.49||Math.abs(z)>L*.49){const IH=window.arcanoIslandHeight;if(!IH)return -50;let y=IH(x,z);const o=window.arcanoOuterWater&&window.arcanoOuterWater(x,z);if(o)y=Math.max(y,o.level);return y;}
  const h=sample(soil,x,z),d=sample(depth,x,z);
  const liquid=d>=SURFACE_RIPPLE?h+d:h;
  return Math.max(liquid,rockHeightAt(x,z));
@@ -2973,14 +2974,14 @@ const dropTexture=(()=>{const c=document.createElement('canvas');c.width=c.heigh
  x.fillStyle=g;x.fillRect(0,0,64,64);return new T.CanvasTexture(c);})();
 const halo=new T.Points(dropG,new T.PointsMaterial({color:'#bad4df',map:dropTexture,transparent:true,
  size:mobile?10:9,sizeAttenuation:false,depthWrite:false,opacity:.46}));
-halo.frustumCulled=false;halo.renderOrder=5;scene.add(halo);
+halo.frustumCulled=false;halo.renderOrder=0;scene.add(halo); // ordem 0: com ordem>0 a chuva sumia fora da área da ponte
 const streak=new T.InstancedMesh(new T.CylinderGeometry(.012,.016,.32,6),
  new T.MeshBasicMaterial({color:'#b0cdd9',transparent:true,opacity:.66,depthWrite:false}),MAX_DROPS);
-streak.frustumCulled=false;streak.renderOrder=5;streak.count=0;scene.add(streak);
+streak.frustumCulled=false;streak.renderOrder=0;streak.count=0;scene.add(streak);
 // Sprays: true droplets of soil or water moving in small arcs.
 const splashMesh=new T.InstancedMesh(new T.IcosahedronGeometry(.055,0),
  new T.MeshBasicMaterial({color:'#e1ebee',transparent:true,opacity:.80,depthWrite:false}),MAX_SPLASH);
-splashMesh.frustumCulled=false;splashMesh.renderOrder=6;splashMesh.count=0;scene.add(splashMesh);
+splashMesh.frustumCulled=false;splashMesh.renderOrder=0;splashMesh.count=0;scene.add(splashMesh);
 // Cada gota em uma poça cria duas cristas sucessivas sem planos flutuantes.
 const rippleMaterial=new T.ShaderMaterial({side:T.DoubleSide,transparent:true,depthWrite:false,depthTest:true,
  vertexShader:'attribute float strength; attribute float mud; varying float vStrength; varying float vMud; void main(){vStrength=strength;vMud=mud;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
@@ -3486,7 +3487,10 @@ const waterTintScratch=new T.Color(),dirtTintScratch=new T.Color();
 function spawnSplash(x,z,h){
  const onRiver=riverDepthAt(x,z)>.025;
  const i=Math.round((x+W*.5)/dx),j=Math.round((z+L*.5)/dz);
- if(i<0||j<0||i>=NX||j>=NZ)return;
+ if(i<0||j<0||i>=NX||j>=NZ){ // fora da área simulada: respingo simples (sem física de solo)
+  const ow=window.arcanoOuterWater&&window.arcanoOuterWater(x,z),n=ow?4:2;
+  for(let q=0;q<n&&splashes.length<MAX_SPLASH;q++){const an=random()*Math.PI*2,sp=.35*(.5+random());splashes.push({x,z,y:h+.02,vx:Math.cos(an)*sp,vz:Math.sin(an)*sp,vy:.5*(.5+random()),life:.22+random()*.12,age:0,color:(ow?waterTintBase:dirtTintDark).clone(),size:.10+random()*.05});}
+  return;}
  const k=idx(i,j);
  if(rockHeightAt(x,z)>sample(soil,x,z)+sample(depth,x,z)+.007)return;
  totalImpacts++;
@@ -3570,12 +3574,14 @@ function dropStep(dt){
   let x=0,z=0,accepted=!physicalWeather;
   // Amostragem espacial favorece regiões de precipitação sem fabricar gotas onde está seco.
   for(let attempt=0;attempt<(physicalWeather?4:1);attempt++){
-   if(level>=4&&random()<.88){
-    const focus=game.active?game.position:target;
-    const radius=level===5?13:18;
-    x=clamp(focus.x+(random()-.5)*radius*2,-W*.49,W*.49);
-    z=clamp(focus.z+(random()-.5)*radius*2,-L*.49,L*.49);
-   }else{x=(random()-.5)*(W-.8);z=(random()-.5)*(L-.8);}
+   {// a chuva visível acompanha quem está vendo, no mapa inteiro (antes ficava presa à área da ponte)
+    const focus=game.active?game.position:camera.position;
+    const near=random()<(level>=4?.7:.5),radius=near?(level===5?14:20):46;
+    const a=random()*Math.PI*2,rr=radius*Math.sqrt(random());
+    x=focus.x+Math.cos(a)*rr;z=focus.z+Math.sin(a)*rr;
+   }
+   if(!physicalWeather)accepted=true;
+   if(Math.abs(x)>W*.49||Math.abs(z)>L*.49){accepted=true;break;} // fora da área simulada: segue a chuva média
    if(!physicalWeather){accepted=true;break;}
    const local=atmosphereRainAt(x,z);
    if(local>0&&random()<clamp(local/Math.max(.0000001,atmRainPeak),0,1)){
@@ -3586,7 +3592,7 @@ function dropStep(dt){
   // controlada pelo campo de precipitação da atmosfera.
   if(!accepted&&level<=2)accepted=true;
   if(!accepted)continue;
-  drops.push({x,z,y:terrainContact(x,z)+3.0+random()*6.5,
+  drops.push({x,z,y:impactHeightAt(x,z)+3.0+random()*6.5,
    speed:profile.speed+random()*profile.speedVar,
    stretch:profile.length*(.79+random()*.44)});
  }

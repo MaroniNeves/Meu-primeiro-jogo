@@ -36,7 +36,7 @@ function install(){
   const dense=grid.get(Math.round(x/20)+','+Math.round(z/20))||0;if(dense<4)continue;
   const y=H(x,z);let mean=0;for(const a of [0,2.1,4.2])mean+=H(x+Math.cos(a)*30,z+Math.sin(a)*30)/3;
   const valley=sm(-.5,3,mean-y),wet=nearWater(x,z)?.45:0,p=patch(x,z);
-  if(p+valley*.35+wet<.78)continue;
+  if(p+valley*.35+wet<.68)continue;
   const n=2+Math.floor(R()*3);
   for(let k=0;k<n;k++){const cx=x+(R()-.5)*18,cz=z+(R()-.5)*18,s=12+R()*12;add(cx,H(cx,cz)+.7+R()*.5,cz,s,1.5+R()*.9,.3,.5+R()*.25);forestCards++;}
   for(let k=0;k<5;k++){const mx=x+(R()-.5)*22,mz=z+(R()-.5)*22;motes.push([mx,H(mx,mz)+.4+R()*2.2,mz,R()]);}
@@ -55,7 +55,8 @@ function install(){
  const off=new Float32Array(N*4),sd=new Float32Array(N*4);
  cards.forEach((c,i)=>{off.set([c[0],c[1],c[2],c[3]],i*4);sd.set([c[4],c[5],c[6],c[7]],i*4);});
  geo.setAttribute('aOff',new T.InstancedBufferAttribute(off,4));geo.setAttribute('aSeed',new T.InstancedBufferAttribute(sd,4));geo.instanceCount=N;
- const U={uTime:{value:0},uColor:{value:new T.Color('#e8f1ff')},uOpacity:{value:.5}};
+ const TR=8,trail=Array.from({length:TR},()=>new T.Vector4(0,0,0,0));
+ const U={uTime:{value:0},uColor:{value:new T.Color('#e8f1ff')},uOpacity:{value:.5},uTrail:{value:trail}};
  const mat=new T.ShaderMaterial({uniforms:U,transparent:true,depthWrite:false,
   vertexShader:`attribute vec4 aOff;attribute vec4 aSeed;uniform float uTime;varying vec2 vUv;varying float vFade;varying float vDens;varying vec3 vW;varying float vSeed;
   void main(){vec3 c=aOff.xyz;float s=aOff.w;
@@ -65,12 +66,18 @@ function install(){
    vW=p;vUv=uv;vSeed=aSeed.x;vDens=aSeed.w;
    float d=distance(cameraPosition,c);vFade=smoothstep(1.5,8.,distance(cameraPosition,p))*(1.-smoothstep(150.,210.,d));
    gl_Position=projectionMatrix*viewMatrix*vec4(p,1.);}`,
-  fragmentShader:`uniform vec3 uColor;uniform float uOpacity,uTime;varying vec2 vUv;varying float vFade;varying float vDens;varying vec3 vW;varying float vSeed;${NOISE}
+  fragmentShader:`uniform vec3 uColor;uniform float uOpacity,uTime;uniform vec4 uTrail[${TR}];varying vec2 vUv;varying float vFade;varying float vDens;varying vec3 vW;varying float vSeed;${NOISE}
   void main(){if(vFade<.002)discard;
    float side=smoothstep(0.,.32,vUv.x)*smoothstep(1.,.68,vUv.x);
    float vy=smoothstep(.08,.32,vUv.y)*(1.-smoothstep(.45,1.,vUv.y));
-   float n=nf(vec2(vW.x+vW.z*.6,vW.y*2.2)*.09+vec2(uTime*.025,vSeed*11.)+vec2(0.,uTime*.012));
-   float a=side*vy*smoothstep(.28,.72,n)*vFade*uOpacity*vDens;if(a<.003)discard;
+   // o personagem abre caminho: a névoa é empurrada para os lados e gira atrás dele (redemoinho), depois fecha de novo
+   vec2 disp=vec2(0.);float clear=0.;
+   for(int i=0;i<${TR};i++){vec4 t=uTrail[i];if(t.z<.01)continue;vec2 d=vW.xz-t.xy;float r=length(d);
+    float k=t.z*exp(-r*r/6.5);vec2 dir=d/max(r,.3);vec2 sw=vec2(-dir.y,dir.x)*sign(sin(t.w));
+    disp+=(dir*1.6+sw*2.2*(1.-t.z*.5))*k;clear=max(clear,k*(1.-smoothstep(.6,2.6,r)));}
+   vec2 q0=vec2(vW.x+vW.z*.6,vW.y*2.2)*.09+vec2(uTime*.025,vSeed*11.)+vec2(0.,uTime*.012);
+   float n=nf(q0+disp*.22);
+   float a=side*vy*smoothstep(.22,.66,n)*vFade*uOpacity*vDens*(1.-clear*.75);if(a<.003)discard;
    gl_FragColor=vec4(uColor*(.92+.16*n),a);
    #include <tonemapping_fragment>
    #include <encodings_fragment>
@@ -81,10 +88,10 @@ function install(){
  const M=motes.length,mg=new T.BufferGeometry(),mp=new Float32Array(M*3),ms=new Float32Array(M);
  motes.forEach((m,i)=>{mp.set([m[0],m[1],m[2]],i*3);ms[i]=m[3];});
  mg.setAttribute('position',new T.BufferAttribute(mp,3));mg.setAttribute('aSeed',new T.BufferAttribute(ms,1));
- const MU={uTime:{value:0},uColor:{value:new T.Color('#cfe8ff')},uOpacity:{value:.8},uScale:{value:300}};
+ const MU={uTime:{value:0},uColor:{value:new T.Color('#cfe8ff')},uOpacity:{value:.8},uScale:{value:300},uTrail:{value:trail}};
  const mm=new T.ShaderMaterial({uniforms:MU,transparent:true,depthWrite:false,blending:T.AdditiveBlending,
-  vertexShader:`attribute float aSeed;uniform float uTime,uScale;varying float vA;
-  void main(){vec3 p=position;float t=uTime*(.25+aSeed*.3)+aSeed*40.;p.x+=sin(t)*.8+sin(t*2.3)*.2;p.y+=sin(t*.7+aSeed*9.)*.45;p.z+=cos(t*.83)*.8;
+  vertexShader:`attribute float aSeed;uniform float uTime,uScale;uniform vec4 uTrail[${TR}];varying float vA;
+  void main(){vec3 p=position;for(int i=0;i<${TR};i++){vec4 t=uTrail[i];if(t.z<.01)continue;vec2 d=p.xz-t.xy;float r=length(d);float k=t.z*exp(-r*r/5.);vec2 dir=d/max(r,.3);p.xz+=(dir*1.2+vec2(-dir.y,dir.x)*1.4)*k;p.y+=.6*k;}float t=uTime*(.25+aSeed*.3)+aSeed*40.;p.x+=sin(t)*.8+sin(t*2.3)*.2;p.y+=sin(t*.7+aSeed*9.)*.45;p.z+=cos(t*.83)*.8;
    vec4 mv=modelViewMatrix*vec4(p,1.);float d=-mv.z;vA=(1.-smoothstep(35.,60.,d))*(.55+.45*sin(uTime*2.+aSeed*30.));
    gl_PointSize=uScale*(.05+.04*aSeed)/max(d,.5);gl_Position=projectionMatrix*mv;}`,
   fragmentShader:`uniform vec3 uColor;uniform float uOpacity;varying float vA;
@@ -101,9 +108,17 @@ function install(){
   tmp.copy(cNight).lerp(cDay,day).lerp(cDusk,dusk*.35);
   // um pouco da cor real do céu/sol (as luzes da cena mudam com a hora)
   let sky=null;for(const l of lights)if(l.isHemisphereLight){sky=l.color;break;}if(sky)tmp.lerp(sky,.15);
-  U.uColor.value.copy(tmp);U.uOpacity.value=.4+.3*day;
+  U.uColor.value.copy(tmp);U.uOpacity.value=.5+.35*day;
   MU.uColor.value.copy(mNight).lerp(mDay,day);MU.uOpacity.value=.55+.45*(1-day); // à noite viram vaga-lumes
-  MU.uScale.value=api.renderer.domElement.height*.9;}
+  MU.uScale.value=api.renderer.domElement.height*.9;
+  // rastro: um ponto novo a cada ~0,5 m andado; cada ponto se apaga em ~3 s
+  for(const v of trail)v.z*=Math.exp(-dt/2.6);
+  const pl=api.getGrassPlayer&&api.getGrassPlayer();
+  if(pl&&document.body.classList.contains('play-active')){const p=pl.position;
+   if(lastP==null||Math.hypot(p.x-lastP.x,p.z-lastP.z)>.5){const v=trail[ti];ti=(ti+1)%TR;const mv=lastP?Math.hypot(p.x-lastP.x,p.z-lastP.z):0;v.set(p.x,p.z,Math.min(1,.55+mv*.3),Math.random()*6.28);lastP={x:p.x,z:p.z};}
+   else{const v=trail[(ti+TR-1)%TR];v.z=Math.max(v.z,.55);v.x+=(p.x-v.x)*.2;v.y+=(p.z-v.y)*.2;} // parado: ainda afasta um pouco em volta
+  }}
+ let lastP=null,ti=0;
  tick();
  window.arcanoNevoa={fog,pts,cards:N,motes:M,forestCards};
 }

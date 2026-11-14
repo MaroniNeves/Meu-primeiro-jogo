@@ -662,15 +662,19 @@ function build(api,H){
  // piso sob o jogador: o mais alto que fica abaixo dos pés (até 7 m) — pular ou cair não solta das paredes
  const cellUnder=(s,lx,lz,yr)=>{const I=Math.floor((lx-GX0)/GC),J=Math.floor((lz-GZ0)/GC);if(I<0||J<0||I>=GN||J>=GN)return null;
   let best=null,bf=-1e9;for(const c of s.L.get(I,J)){const f=bil(c.y,(lx-GX0)/GC-I,(lz-GZ0)/GC-J);if(f<=yr+.75&&yr-f<7&&f>bf){bf=f;best=c;}}return best||findCell(s,lx,lz,yr);};
+ // só usa o piso de baixo quando o personagem está DENTRO da mina (abaixo da superfície da colina);
+ // em cima da colina ou fora dela vale a busca normal (antes travava/“pisava” na masmorra estando lá em cima).
+ const underHill=(s,lx,lz,yr)=>{if(s.domeY&&s.domeR(lx,lz)<1)return yr<s.domeY(lx,lz)-1.2;const w=s.toW(lx,lz);return yr<H(w.x,w.z)-s.g-1.2;};
+ const cellFor=(s,lx,lz,yr)=>underHill(s,lx,lz,yr)?cellUnder(s,lx,lz,yr):findCell(s,lx,lz,yr);
  const platH=(s,c,lx,lz)=>{let h=0;for(const p of s.plat)if(p.L===c.L&&Math.hypot(lx-p.x,lz-p.z)<p.r)h=Math.max(h,p.h);return h;};
  const floorAt=(s,c,lx,lz)=>bil(c.y,(lx-GX0)/GC-c.I,(lz-GZ0)/GC-c.J)+(c.kind==='stair'?.1:0)+platH(s,c,lx,lz);
  const passable=(c,sd)=>{if(c.nb[sd]){const d=c.door[sd];if(!d)return true;return d.open&&d.t>(d.leaves?.5:.4);}return sd===3&&!!c.portal;};
  (window.arcanoExtraDecks=window.arcanoExtraDecks||[]).push({surfaceAt(x,z){const py=pY();for(const s of SITES){if(!s.L)continue;const dx=x-s.x,dz=z-s.z;if(dx*dx+dz*dz>2600)continue;
-   const t=s.toL(x,z),c=cellUnder(s,t.x,t.z,py-s.g);if(c)return s.g+floorAt(s,c,t.x,t.z)+.02;}return null;},blocksSegment(){return false;}});
- const cellBlocked=(s,f,t,yr)=>{const cf=cellUnder(s,f.x,f.z,yr);
-  if(!cf){if(yr<-1.5&&f.x>GX0-2&&f.x<GX0+GN*GC+2&&f.z>GZ0-2&&f.z<GZ0+GN*GC+2)return !cellUnder(s,t.x,t.z,yr); // perdido no subsolo: só volta para uma célula
+   const t=s.toL(x,z),c=cellFor(s,t.x,t.z,py-s.g);if(c)return s.g+floorAt(s,c,t.x,t.z)+.02;}return null;},blocksSegment(){return false;}});
+ const cellBlocked=(s,f,t,yr)=>{const cf=cellFor(s,f.x,f.z,yr);
+  if(!cf){if(underHill(s,f.x,f.z,yr)&&f.x>GX0-2&&f.x<GX0+GN*GC+2&&f.z>GZ0-2&&f.z<GZ0+GN*GC+2)return !cellUnder(s,t.x,t.z,yr); // perdido no subsolo: só volta para uma célula
    if(s.domeR(t.x,t.z)<1){if(Math.abs(t.x)<TW/2-.3&&t.z>PZ-1.6&&Math.abs(yr)<1.6)return false;const ct=findCell(s,t.x,t.z,yr,1.2);return !(ct&&ct.L===0&&ct.room==='entrada');}return false;}
-  const ct=cellUnder(s,t.x,t.z,yr);
+  const ct=cellFor(s,t.x,t.z,yr);
   if(!ct)return !(cf.portal&&t.z>=PZ-.05);
   if(ct!==cf){const di=ct.I-cf.I,dj=ct.J-cf.J;
    if(Math.abs(di)+Math.abs(dj)===1){const sd=di===1?1:di===-1?0:dj===1?3:2;if(cf.nb[sd]!==ct||!passable(cf,sd))return true;}
@@ -683,7 +687,7 @@ function build(api,H){
    if(cellBlocked(s,s.toL(fx,fz),s.toL(tx,tz),pY()-s.g))return true;}return ob.call(this,fx,fz,tx,tz);};}
  const tmpF=new T.Vector3(),q3=new T.Vector3();
  const mineCam=(focus,cam)=>{for(const s of SITES){if(!s.L)continue;const dx=focus.x-s.x,dz=focus.z-s.z;if(dx*dx+dz*dz>2600)continue;
-   const f=s.toL(focus.x,focus.z),fy=focus.y-s.g,cf=cellUnder(s,f.x,f.z,pY()-s.g),inside=!!cf&&!(cf.portal&&f.z>PZ-.4);
+   const f=s.toL(focus.x,focus.z),fy=focus.y-s.g,cf=cellFor(s,f.x,f.z,pY()-s.g),inside=!!cf&&!(cf.portal&&f.z>PZ-.4);
    const okIn=(x,y,z)=>{const c=findCell(s,x,z,y-1.2,2.6);if(!c)return false;const fl=floorAt(s,c,x,z);if(y<fl+.3||y>fl+c.ceil-.3)return false;
     const u=x-(GX0+c.I*GC),v=z-(GZ0+c.J*GC),d=[u,GC-u,v,GC-v];for(let sd=0;sd<4;sd++)if(!passable(c,sd)&&d[sd]<.3)return false;return Math.abs(fl-fy)<6;};
    const ok=(x,y,z)=>{if(inside)return okIn(x,y,z)||(z>PZ+.2&&cf.L===0&&y>-.5);if(s.domeR(x,z)>=1)return true;if(okIn(x,y,z))return true;return y>s.domeY(x,z)+.4;};
