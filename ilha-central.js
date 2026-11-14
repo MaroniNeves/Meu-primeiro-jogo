@@ -188,6 +188,13 @@ function install(){
   }
   return res;
  }
+ // Os dois afluentes da montanha mais próximos (de cursos diferentes): para emendar margens sem degrau entre eles.
+ function streamInfo2(x,z){const res=[];
+  for(let si_=0;si_<STREAMS.length;si_++){const S=STREAMS[si_];if(S.south)continue;const b=S.box;if(x<b[0]||x>b[1]||z<b[2]||z>b[3])continue;const P=S.pts;let best=null,bd=1e9;
+   for(let i=0;i<P.length-1;i++){const a=P[i],c=P[i+1],vx=c.x-a.x,vz=c.z-a.z,wx=x-a.x,wz=z-a.z;const t=clamp((wx*vx+wz*vz)/(vx*vx+vz*vz),0,1),dd=Math.hypot(wx-vx*t,wz-vz*t);
+    if(dd<bd){bd=dd;best={d:dd,level:a.level+(c.level-a.level)*t,sid:si_};}}
+   if(best)res.push(best);}
+  res.sort((p,q)=>p.d-q.d);return res;}
  // Rio ao sul (continua o rio da área detalhada) e lago da nascente ao norte.
  // Canal do rio com a MESMA fórmula da área detalhada (agua-v1226.js, elevation):
  // fundo e margens continuam iguais dos dois lados da emenda — um mapa só.
@@ -212,13 +219,24 @@ function install(){
    const lvJ=joinLevel(x,z,si.level),depth=.95-1.65*sI(clamp((si.d/si.w-.50)/.45,0,1)),bankT=sI(clamp((si.w+7-si.d)/7,0,1)),tgt=y+(lvJ-depth-y)*bankT;
    y=inMainRiver(x,z,2)?Math.min(y,tgt):tgt;
   }
-  else if(si&&si.d<STREAM_W+6){
+  else if(si&&si.d<STREAM_W+16){
+   const two=streamInfo2(x,z),one=q=>{let yy=y;const depth=.75-1.2*sI(clamp((q.d/STREAM_W-.45)/.5,0,1)),bankT=sI(clamp((STREAM_W+6-q.d)/6,0,1));if(bankT>0)yy=yy+(q.level-depth-yy)*bankT;
+     if(q.d>STREAM_W*.78&&lakeE(x,z)>1.15){const top=q.level+.12+(Math.min(q.d,STREAM_W+3.5)-STREAM_W*.78)*.12;yy=Math.max(yy,top-Math.max(0,q.d-(STREAM_W+3.5))*.55);}return yy;};
+   if(two.length>1&&two[1].d<STREAM_W+16&&two[0].d>STREAM_W*.78){
+    // entre dois cursos: mistura as duas margens numa faixa de ~7 m (antes virava um paredão onde trocava o curso mais próximo)
+    const yA=one(two[0]),yB=one(two[1]),t=.5*(1-sm(0,7,two[1].d-two[0].d));let ym=yA+(yB-yA)*t;
+    // a margem do curso mais próximo continua acima da água dele (sem lâmina d'água escorrendo pela encosta)
+    {const cl=q=>q.d<STREAM_W*.78?-1e9:q.level+.12+(Math.min(q.d,STREAM_W+3.5)-STREAM_W*.78)*.12-Math.max(0,q.d-(STREAM_W+3.5))*1.1,cA=cl(two[0]),cB=cl(two[1]);ym=Math.max(ym,cB<-1e8?cA:cA+(cB-cA)*t);}return finishWater(x,z,ym);}
    const depth=.75-1.2*sI(clamp((si.d/STREAM_W-.45)/.5,0,1));
    const bankT=sI(clamp((STREAM_W+6-si.d)/6,0,1));
-   y=y+(si.level-depth-y)*bankT;
+   if(bankT>0)y=y+(si.level-depth-y)*bankT;
    // Barranco: as margens nunca ficam abaixo da água (encosta da montanha).
-   if(si.d>STREAM_W*.78&&si.d<STREAM_W+3.5&&lakeE(x,z)>1.15)y=Math.max(y,si.level+.12+(si.d-STREAM_W*.78)*.12);
+   // ...e por fora descem em talude suave até o terreno (antes acabavam num degrau vertical na encosta)
+   if(si.d>STREAM_W*.78&&lakeE(x,z)>1.15){const top=si.level+.12+(Math.min(si.d,STREAM_W+3.5)-STREAM_W*.78)*.12,lev=top-Math.max(0,si.d-(STREAM_W+3.5))*.55;y=Math.max(y,lev);}
   }
+  return finishWater(x,z,y);
+ }
+ function finishWater(x,z,y){
   {const le=lagoonE(x,z);if(le<1.7){const bw=6/LAGOON.rz,bankT=sI(clamp((1+bw-le)/bw,0,1)),bed=LAGOON.y-(.8+1.8*(1-clamp(le,0,1)**2))+1.4*sI(clamp((le-.45)/.55,0,1));y=Math.min(y,y+(bed-y)*bankT);}}
   if(z<INNER.z0+4&&z>LAKE.z-LAKE.rz-14){
    // Bacia do lago com margem suave.
@@ -301,7 +319,9 @@ function install(){
  function pondWater(x,z){
   if(z>INNER.z0+.01)return null;
   const le=lakeE(x,z),canal=z>LAKE.z&&Math.abs(x-river.center(z))<half(z)+3;
-  const si=streamInfo(x,z),inS=si&&si.d<STREAM_W+3.4;
+  const si=streamInfo(x,z);let inS=si&&si.d<STREAM_W+3.4;
+  // dois cursos lado a lado (perto das bifurcações): a água fica só no canal, sem escorrer pelo barranco entre eles
+  if(inS&&si.d>STREAM_W*.8&&!STREAMS[si.sid].south&&Math.min(Math.hypot(x-splitB.x,z-splitB.z),Math.hypot(x-splitC.x,z-splitC.z),Math.hypot(x-joinC.x,z-joinC.z))>9){const two=streamInfo2(x,z);if(two.length>1&&two[1].d<STREAM_W+16&&two[1].d-two[0].d<7)inS=false;}
   const lakeish=le<1.6||canal;
   if(!lakeish&&!inS)return null;
   const toRiver=sm(LAKE.z,INNER.z0,z);
@@ -875,8 +895,9 @@ function install(){
     if(!(ok[a]&&ok[b]&&ok[c]&&ok[d]))continue;
     if(dep[a]+dep[b]+dep[c]+dep[d]<=0)continue;
     const lo=Math.min(lev[a],lev[b],lev[c],lev[d]),hi=Math.max(lev[a],lev[b],lev[c],lev[d]);
-    const same=sidA[a]===sidA[b]&&sidA[a]===sidA[c]&&sidA[a]===sidA[d];
-    if(hi-lo>(same?1.2:.25))continue;
+    const jx=p[a*3],jz=p[a*3+2],nearJ=Math.min(Math.hypot(jx-splitB.x,jz-splitB.z),Math.hypot(jx-splitC.x,jz-splitC.z),Math.hypot(jx-joinC.x,jz-joinC.z))<14;
+    const same=nearJ||(sidA[a]===sidA[b]&&sidA[a]===sidA[c]&&sidA[a]===sidA[d]);
+    if(hi-lo>(nearJ?2.6:same?1.2:.25))continue;
     wet[j*(nx-1)+i]=1;
    }
    // Só a água ligada ao corpo principal (poças soltas na margem eram os 'vazamentos').
