@@ -26,11 +26,12 @@ function install(){
  function water(x,z){
   if(x>B.x0+.5&&x<B.x1-.5&&z>B.z0+.5&&z<B.z1-.5){
    const d=P.depthAt(x,z);if(!(d>0))return null;const level=P.levelAt(z),bed=G.heightAt(x,z);if(level-bed<=0)return null;
-   const dc=P.center(z+.5)-P.center(z-.5),l=Math.hypot(dc,1);return {level,depth:level-bed,bed,flow:[dc/l,1/l],lake:false};}
+   const dc=P.center(z+.5)-P.center(z-.5),l=Math.hypot(dc,1),fa=window.arcanoFlowAt&&window.arcanoFlowAt(x,z),sp=fa?Math.hypot(fa[0],fa[1])*1.9:1;return {level,depth:level-bed,bed,flow:[dc/l*sp,1/l*sp],lake:false};}
   const o=OW(x,z);if(!o)return null;
   const inLG=LG&&Math.hypot(x-LG.x,z-LG.z)<LG.r+16,inLake=Math.hypot((x-I.lake.x)/(I.lake.rx+3),(z-I.lake.z)/(I.lake.rz+3))<1;
   let flow=[0,0];if(!inLG&&!inLake){if(z>B.z1){const dc=P.center(z+.5)-P.center(z-.5),l=Math.hypot(dc,1);flow=[dc/l,1/l];}else flow=[0,.6];}
   {const BR=window.arcanoBracos;if(BR&&z>B.z1&&Math.abs(x-P.center(z))>8){let bd=1e9,bp=null;for(const b of BR.branches)for(const p of b.pts){const dd=Math.abs(p.x-x)+Math.abs(p.z-z);if(dd<bd){bd=dd;bp=p;}}if(bp&&bd<16)flow=[bp.tx,bp.tz];}}
+  if(window.arcanoFlowAt&&!inLG&&!inLake){const fa=window.arcanoFlowAt(x,z);if(fa[0]||fa[1])flow=[fa[0]*1.9,fa[1]*1.9];}
   return {level:o.level,depth:o.depth,bed:o.level-o.depth,flow,lake:inLG||inLake};
  }
  // regiões: caixas onde sortear pontos

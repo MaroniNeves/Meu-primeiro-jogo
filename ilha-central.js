@@ -115,6 +115,9 @@ function install(){
  // O curso principal (A) se divide: B sai do meio de A e entra no lago pelo sul;
  // C sai do alto de A, contorna pelo oeste e se junta a B. Ilhotas entre eles.
  const STREAM_W=3.4;
+ // Correnteza: mesma fórmula do rio da área detalhada (0,26 + declive×3,6), mais rápida onde o leito estreita.
+ // Declive = quanto a água desce por metro, que acompanha a elevação do terreno.
+ const flowSpeed=(grad,wRatio)=>clamp((.26+Math.max(0,grad)*3.6)*Math.pow(clamp(wRatio||1,.45,2.2),-.5),.16,1.45);
  function mkStream(way,startLevel,endLevel,mouth){
   const pts=[];
   for(let i=0;i<way.length-1;i++){const a=way[i],b=way[i+1],L=Math.hypot(b.x-a.x,b.z-a.z),k=Math.ceil(L/2);
@@ -131,7 +134,8 @@ function install(){
    const dE=dist[iE],D=Math.min(40,(acc-dE)*.4);let i0=0;while(i0<iE&&dist[i0]-dE>D)i0++;const L0=pts[i0].level;
    for(let i=i0;i<pts.length;i++)pts[i].level=Math.min(pts[i].level,i>=iE?endLevel:endLevel+(L0-endLevel)*(dist[i]-dE)/D);}
   pts.forEach((p,i)=>{const q=pts[Math.min(pts.length-1,i+1)],o=pts[Math.max(0,i-1)];let tx=q.x-o.x,tz=q.z-o.z;const tl=Math.hypot(tx,tz)||1;p.tx=tx/tl;p.tz=tz/tl;
-   p.speed=.35+Math.min(.9,Math.max(0,(o.level-q.level)/Math.max(.1,tl))*4);});
+   const a=pts[Math.max(0,i-3)],b=pts[Math.min(pts.length-1,i+3)];let L=0;for(let k=Math.max(0,i-3);k<Math.min(pts.length-1,i+3);k++)L+=Math.hypot(pts[k+1].x-pts[k].x,pts[k+1].z-pts[k].z);
+   p.speed=flowSpeed((a.level-b.level)/Math.max(.5,L),STREAM_W/7);});
   let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;for(const p of pts){x0=Math.min(x0,p.x);x1=Math.max(x1,p.x);z0=Math.min(z0,p.z);z1=Math.max(z1,p.z);}
   return {pts,box:[x0-12,x1+12,z0-12,z1+12],spring:pts[0]};
  }
@@ -155,7 +159,7 @@ function install(){
   pts.push({x:way[way.length-1].x,z:way[way.length-1].z});
   let acc=0;const dist=[0];for(let i=1;i<pts.length;i++){acc+=Math.hypot(pts[i].x-pts[i-1].x,pts[i].z-pts[i-1].z);dist.push(acc);}
   pts.forEach((p,i)=>{p.level=l0+(l1-l0)*dist[i]/acc;});
-  pts.forEach((p,i)=>{const q=pts[Math.min(pts.length-1,i+1)],o=pts[Math.max(0,i-1)];let tx=q.x-o.x,tz=q.z-o.z;const tl=Math.hypot(tx,tz)||1;p.tx=tx/tl;p.tz=tz/tl;p.speed=.42;});
+  pts.forEach((p,i)=>{const q=pts[Math.min(pts.length-1,i+1)],o=pts[Math.max(0,i-1)];let tx=q.x-o.x,tz=q.z-o.z;const tl=Math.hypot(tx,tz)||1;p.tx=tx/tl;p.tz=tz/tl;p.grad=(o.level-q.level)/Math.max(.3,tl);});
   let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;for(const p of pts){x0=Math.min(x0,p.x);x1=Math.max(x1,p.x);z0=Math.min(z0,p.z);z1=Math.max(z1,p.z);}
   return {pts,box:[x0-16,x1+16,z0-16,z1+16],spring:pts[0],south:true,w:6.4};}
  // Perto de onde sai (e de onde volta ao rio), o braço abre em leque: sem banco de areia na bifurcação.
@@ -167,6 +171,7 @@ function install(){
  const branchE=mkBranch([RC(136),{x:34,z:146},{x:74,z:150},{x:108,z:158},{x:84,z:170},{x:40,z:175},RC(181)],river.levelAt(136),river.levelAt(181));
  const branchB=mkBranch([RC(58),{x:14,z:68},{x:18,z:80},RC(94)],river.levelAt(58),river.levelAt(94));
  branchE.joinEnd=true;branchB.joinEnd=true;
+ {const HM=half(INNER.z1);for(const B of [branchW,branchE,branchB])B.pts.forEach((p,i)=>{p.speed=flowSpeed(p.grad,B.w*branchWiden(B,i)/HM);});}
  const SOUTH=[branchW,branchE,branchB];STREAMS.push(...SOUTH);
  const inMainRiver=(x,z,pad)=>z>INNER.z1&&Math.abs(x-river.center(z))<half(z)+(pad||0);
  // Distância ao afluente mais próximo, nível da água e direção da correnteza.
@@ -802,8 +807,9 @@ function install(){
      p[k*3]=x;p[k*3+1]=lvl+.003-row.fall*fallDepth;p[k*3+2]=z;
      uvA[k*2]=s;uvA[k*2+1]=r/(N-1);
      dep[k]=row.fall?1:Math.max(0,lvl-window.arcanoIslandHeight(x,cz));
-     // Mesma velocidade da correnteza do rio da área detalhada.
-     flow[k*2]=.52*turn/nrm;flow[k*2+1]=.52/nrm;
+     // Correnteza pelo declive da água e pela largura (continua igual na emenda com a área detalhada).
+     const sp=row.fall?1.2:flowSpeed(Math.abs(levelFn(cz-.5)-levelFn(cz+.5)),widthFn(cz)/half(INNER.z1));
+     flow[k*2]=sp*turn/nrm;flow[k*2+1]=sp/nrm;
      if(r<N-1&&c<COLS-1){const a=k,b=k+1,cc=k+COLS,d=cc+1;ix.push(a,cc,b,b,cc,d);}
     }
    });
@@ -832,7 +838,7 @@ function install(){
    const pos=[],uvA=[],dep=[],flw=[],ix=[];let prevRow=-1;
    for(let i=0;i<P.length;i++){if(!keep[i]){prevRow=-1;continue;}const p=P[i],nx=p.tz,nz=-p.tx,row=pos.length/3;
     for(let c=0;c<COLS;c++){const bw=B.w*branchWiden(B,i),sc=(c/(COLS-1))*2-1,x=p.x+nx*sc*bw*.98,z=p.z+nz*sc*bw*.98,lvv=inMainRiver(x,z,-.4)?river.levelAt(z)-.03:joinLevel(x,z,p.level);pos.push(x,lvv+.002,z);uvA.push(c/(COLS-1),i/(P.length-1));
-     dep.push(Math.max(0,lvv-window.arcanoIslandHeight(x,z)));flw.push(p.tx*.52,p.tz*.52);}
+     dep.push(Math.max(0,lvv-window.arcanoIslandHeight(x,z)));flw.push(p.tx*p.speed,p.tz*p.speed);}
     if(prevRow>=0)for(let c=0;c<COLS-1;c++){const a=prevRow+c,b=a+1,cc=row+c,d=cc+1;ix.push(a,cc,b,b,cc,d);}prevRow=row;}
    if(!ix.length)continue;const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(pos,3));g.setAttribute('uv',new T.Float32BufferAttribute(uvA,2));
    g.setAttribute('waterDepth',new T.Float32BufferAttribute(dep,1));g.setAttribute('waterFlow',new T.Float32BufferAttribute(flw,2));g.setIndex(ix);g.computeBoundingSphere();
@@ -1315,6 +1321,17 @@ function install(){
  window.arcanoIsland={center:C,radius:R,cityRadius:CITY_R,castleRadius:CASTLE_R,height:window.arcanoIslandHeight,land,roads,lake:LAKE,port:PORT,portSite:{angle:PA,u:PU,v:PV,plaza:PLAZA,y:PORT_Y,uvOf:portUV,at:portXZ},inner:INNER,village:VILLAGE,streams:STREAMS};
  // Água fora da área detalhada (rio até a borda, canal e lago): nível e profundidade.
  // Usado para nadar, mergulhar e fazer ondulações também nessas águas.
+ window.arcanoFlowAt=(x,z)=>{
+  const P=window.arcanoRiverProfile;
+  if(x>INNER.x0&&x<INNER.x1&&z>INNER.z0&&z<INNER.z1){if(!P)return [0,0];const g=Math.abs((P.levelAt(z+.25)-P.levelAt(z-.25))/.5),hw=typeof P.halfWidth==='function'?P.halfWidth(z):P.halfWidth;
+   if(Math.abs(x-P.center(z))>hw+.5)return [0,0];const sp=clamp(.26+g*3.6,.3,1.25)*Math.pow(clamp(half(INNER.z1)/hw,.45,2.2),.5),t=(P.center(z+.25)-P.center(z-.25))/.5,n=Math.hypot(t,1);return [sp*t/n,sp/n];}
+  if(z>INNER.z1&&inMainRiver(x,z,.3)){const t=(river.center(z+.25)-river.center(z-.25))/.5,n=Math.hypot(t,1),sp=flowSpeed(Math.abs(river.levelAt(z-.5)-river.levelAt(z+.5)),half(z)/half(INNER.z1));return [sp*t/n,sp/n];}
+  {const LG=window.arcanoLagoGrande;if(LG&&LG.inside(x,z,2))return [0,0];}
+  if(lagoonE(x,z)<1.05)return [0,0];
+  {const si=streamInfo(x,z);if(si&&STREAMS[si.sid].south&&si.d<si.w+.5)return [si.tx*si.speed,si.tz*si.speed];}
+  {const w=pondWater(x,z);if(w)return [w.fx,w.fz];}
+  return [0,0];
+ };
  window.arcanoOuterWater=(x,z)=>{
   let level=null;
   if(z>INNER.z1&&Math.abs(x-river.center(z))<half(z)+.2)level=river.levelAt(z);

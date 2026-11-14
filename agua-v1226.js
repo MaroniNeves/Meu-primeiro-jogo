@@ -3447,7 +3447,7 @@ function rebuild(){
   waterDepths[k]=riverShore(x,z)<0?Math.max(0,clearance):0;
   waterMud[k]=0;
   const gradient=Math.abs((riverLevelAt(z+.25)-riverLevelAt(z-.25))/.5);
-  const speed=clamp(.26+gradient*3.6,.30,1.25);
+  const speed=clamp(.26+gradient*3.6,.30,1.25)*Math.pow(clamp(riverWidth(L*.5)/riverWidth(z),.45,2.2),.5); // estreito = mais rápido
   const turn=(center(z+.25)-center(z-.25))/.5;
   const normalizer=Math.hypot(turn,1);
   waterFlow[k*2]=speed*turn/normalizer;
@@ -4008,6 +4008,8 @@ function updateGame(dt){
  // Natação: em água funda o personagem boia com a cabeça para fora.
  // Espaço/C (ou o botão Mergulhar) afunda até o leito; soltando, volta à tona.
  const swimDepth=onBridge?0:riverDepthAt(game.position.x,game.position.z);
+ function currentDrift(f,minDepth){const fa=window.arcanoFlowAt&&window.arcanoFlowAt(game.position.x,game.position.z);if(!fa||!(fa[0]||fa[1])||f<=0)return;const k=f*dt,nx=game.position.x+fa[0]*k,nz=game.position.z+fa[1]*k,O=window.arcanoObstacles;
+  if(!(O&&O.blocked&&O.blocked(game.position.x,game.position.z,nx,nz))&&riverDepthAt(nx,nz)>minDepth){game.position.x=nx;game.position.z=nz;}}
  const groundY=solidGameFootHeight(game.position.x,game.position.z);
  if(swimDepth>1.15){
   const floatY=waterLevelAtXZ(game.position.x,game.position.z)-1.2;
@@ -4017,9 +4019,13 @@ function updateGame(dt){
   game.swimY+=clamp(target-game.swimY,-1.7*dt,1.3*dt);
   game.position.y=Math.max(groundY,game.swimY);
   game.swimming=true;
+  // A correnteza leva quem está nadando (mais forte nas descidas e trechos estreitos).
+  currentDrift(dive?.35:.9,.9);
  }else{
   game.swimY=null;game.swimming=false;
   game.position.y=groundY;
+  // andando com água pela cintura a correnteza também empurra (mais fraco)
+  if(swimDepth>.45)currentDrift(.45*Math.min(1,(swimDepth-.45)/.45),.4);
  }
  const diveButton=$('gameDive');
  if(diveButton)diveButton.style.display=game.swimming&&game.active?'':'none';
