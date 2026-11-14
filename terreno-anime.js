@@ -75,7 +75,7 @@ function patchGrass(material){
 }
 
 /* ---------- Terra ---------- */
-const LAND_KEY='anime-land-v9';
+const LAND_KEY='anime-land-v10';
 // Relógio das cáusticas no fundo do rio.
 const landTime={value:0};
 (function tick(t){landTime.value=t/1000;requestAnimationFrame(tick);})(0);
@@ -165,6 +165,8 @@ function patchLand(material){
      // Leito submerso: tons frios e escuros, com manchas.
      float under=(1.-smoothstep(-.04,.02,hw))*(1.-smoothstep(.3,.8,sd));
      vec3 bed=mix(animeLin(vec3(.74,.68,.50)),animeLin(vec3(.52,.54,.44)),smoothstep(.0,2.5,-hw));
+     // leito encharcado como na tempestade: lama escura acinzentada, mais escura perto da margem
+     bed=mix(bed,animeLin(vec3(.36,.31,.26))*(.82+.36*animeNoise(w*.8)),.72-.22*smoothstep(.5,3.,-hw));
      outC=mix(outC,bed*(.85+.3*big),under);
      // Cáusticas: redes de luz dançando no leito, só debaixo d'água.
      // Areia do leito com marcas de ondulação da correnteza.
@@ -192,8 +194,9 @@ function patchLand(material){
      // Faixa de terra/areia molhada escura ao longo de toda a margem (borda irregular), com um brilho úmido leve.
      float wn=animeNoise(w*.55)*.9+animeNoise(w*2.1)*.35;
      float wetSand=(1.-smoothstep(.4,2.+wn*1.4,sd))*(1.-smoothstep(.5,1.4+wn*.3,hw))*(1.-under);
-     vec3 wetC=outC*vec3(.40,.40,.43);wetC=mix(wetC,vec3(dot(wetC,vec3(.3,.5,.2))),.3);
-     outC=mix(outC,wetC,wetSand*.9);
+     vec3 mudC=animeLin(vec3(.34,.29,.24))*(.8+.4*animeNoise(w*.9+3.));   // terra encharcada da tempestade
+     vec3 wetC=mix(outC*vec3(.42,.41,.42),mudC,.6);
+     outC=mix(outC,wetC,wetSand*.95);
      float edge=(1.-smoothstep(.0,.35,sd))*(1.-under);outC=mix(outC,outC*.82,edge*.6); // linha mais escura colada na água
      outC+=animeLin(vec3(.55,.6,.62))*wetSand*.05*smoothstep(.55,.8,animeNoise(w*6.+uAnimeTime*.2));
     }
