@@ -75,7 +75,7 @@ function patchGrass(material){
 }
 
 /* ---------- Terra ---------- */
-const LAND_KEY='anime-land-v5';
+const LAND_KEY='anime-land-v9';
 // Relógio das cáusticas no fundo do rio.
 const landTime={value:0};
 (function tick(t){landTime.value=t/1000;requestAnimationFrame(tick);})(0);
@@ -175,9 +175,6 @@ function patchLand(material){
      float caus=animeWaterCaustic(w*1.6,uAnimeTime*.55+23.);
      caus=caus*.85+animeWaterCaustic(w*2.7+1.7,uAnimeTime*.4+11.)*.35;
      outC+=animeLin(vec3(.85,1.,.95))*caus*under*.30*(1.-smoothstep(.8,3.5,-hw));
-     // Areia molhada logo acima da linha d'água.
-     float wetSand=(1.-smoothstep(.0,.55,sd))*(1.-smoothstep(.06,.30,hw))*(1.-under);
-     outC=mix(outC,animeLin(vec3(.66,.55,.42)),wetSand*.6);
      // Faixa de cascalho e seixos arredondados.
      float gravel=smoothstep(.1,.6,sd)*(1.-smoothstep(1.8,3.2,sd))*(1.-smoothstep(.9,1.6,hw));
      // Pedrinhas irregulares (forma deformada por ruído, tamanhos e tons variados).
@@ -191,6 +188,14 @@ function patchLand(material){
      pebC*=.85+.3*smoothstep(-.05,.08,q.y); // topo mais claro, base mais escura
      outC=mix(outC,mix(animeLin(vec3(.70,.62,.50)),outC,.4),gravel*.6);
      outC=mix(outC,pebC*(.9+.2*small),pebble*gravel*.85);
+     // Margem molhada (depois do cascalho, para escurecer também as pedrinhas).
+     // Faixa de terra/areia molhada escura ao longo de toda a margem (borda irregular), com um brilho úmido leve.
+     float wn=animeNoise(w*.55)*.9+animeNoise(w*2.1)*.35;
+     float wetSand=(1.-smoothstep(.4,2.+wn*1.4,sd))*(1.-smoothstep(.5,1.4+wn*.3,hw))*(1.-under);
+     vec3 wetC=outC*vec3(.40,.40,.43);wetC=mix(wetC,vec3(dot(wetC,vec3(.3,.5,.2))),.3);
+     outC=mix(outC,wetC,wetSand*.9);
+     float edge=(1.-smoothstep(.0,.35,sd))*(1.-under);outC=mix(outC,outC*.82,edge*.6); // linha mais escura colada na água
+     outC+=animeLin(vec3(.55,.6,.62))*wetSand*.05*smoothstep(.55,.8,animeNoise(w*6.+uAnimeTime*.2));
     }
     // ---------- Penhascos: encostas íngremes viram rocha em camadas ----------
     float cliff=1.-smoothstep(.50,.78,vAnimeUpN+(small-.5)*.12);

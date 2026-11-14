@@ -133,6 +133,12 @@ function install(){
    let iE=pts.length-1;if(mouth)for(let i=0;i<pts.length;i++)if(mouth(pts[i])){iE=i;break;}
    const dE=dist[iE],D=Math.min(40,(acc-dE)*.4);let i0=0;while(i0<iE&&dist[i0]-dE>D)i0++;const L0=pts[i0].level;
    for(let i=i0;i<pts.length;i++)pts[i].level=Math.min(pts[i].level,i>=iE?endLevel:endLevel+(L0-endLevel)*(dist[i]-dE)/D);}
+  // Nível em rampa contínua: o "min" com o terreno deixava patamares planos seguidos de quedas bruscas
+  // (água em placas com paredes e margens em degraus). Suaviza e mantém sempre descendo; início, foz e trecho no lago ficam fixos.
+  {const n=pts.length,L=pts.map(p=>p.level),fix=pts.map((p,i)=>(i===0&&startLevel!==Infinity)||i===n-1||(mouth&&mouth(p)));
+   for(let it=0;it<8;it++){const c=L.slice();for(let i=1;i<n-1;i++){if(fix[i])continue;let sum=0,k=0;for(let j=-6;j<=6;j++){sum+=c[Math.min(n-1,Math.max(0,i+j))];k++;}L[i]=sum/k;}}
+   for(let i=1;i<n;i++)if(!fix[i])L[i]=Math.min(L[i],L[i-1]-.003);
+   pts.forEach((p,i)=>{if(!fix[i])p.level=Math.max(L[i],endLevel);});}
   pts.forEach((p,i)=>{const q=pts[Math.min(pts.length-1,i+1)],o=pts[Math.max(0,i-1)];let tx=q.x-o.x,tz=q.z-o.z;const tl=Math.hypot(tx,tz)||1;p.tx=tx/tl;p.tz=tz/tl;
    const a=pts[Math.max(0,i-3)],b=pts[Math.min(pts.length-1,i+3)];let L=0;for(let k=Math.max(0,i-3);k<Math.min(pts.length-1,i+3);k++)L+=Math.hypot(pts[k+1].x-pts[k].x,pts[k+1].z-pts[k].z);
    p.speed=flowSpeed((a.level-b.level)/Math.max(.5,L),STREAM_W/7);});
