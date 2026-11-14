@@ -36,11 +36,13 @@ function build(){
  };
  const roadDist=(x,z)=>{
   let best=1e9;
-  for(const line of isl.roads||[])for(let i=0;i<line.length-1;i++){
+  for(const line of isl.roads||[]){if(!line.bb){let a=1e9,c=-1e9,e=1e9,f=-1e9;for(const p of line){a=Math.min(a,p.x);c=Math.max(c,p.x);e=Math.min(e,p.z);f=Math.max(f,p.z);}line.bb=[a,c,e,f];}
+   if(x<line.bb[0]-best||x>line.bb[1]+best||z<line.bb[2]-best||z>line.bb[3]+best)continue;
+   for(let i=0;i<line.length-1;i++){
    const a=line[i],b=line[i+1],vx=b.x-a.x,vz=b.z-a.z,wx=x-a.x,wz=z-a.z;
    const t=Math.max(0,Math.min(1,(wx*vx+wz*vz)/(vx*vx+vz*vz)));
    best=Math.min(best,Math.hypot(wx-vx*t,wz-vz*t));
-  }
+  }}
   const inRoad=Math.abs(z-(.92-.70*Math.sin(x*.47+.6)+.17*Math.sin(x*1.34)));
   if(Math.abs(x)<64&&Math.abs(z)<50)best=Math.min(best,inRoad);
   return best;

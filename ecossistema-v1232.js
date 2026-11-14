@@ -802,6 +802,10 @@ async function grassShape(){
   // os milhões de vértices dos setores fora da câmera.
   for(const name of names){
    const entries=groups.get(name);if(!entries.count)continue;
+   {const M=entries.matrices,K=entries.keys,B=entries.biomes,tmp=new Float32Array(16);
+    for(let i=entries.count-1;i>0;i--){const j=Math.floor(random()*(i+1));if(i===j)continue;
+     tmp.set(M.subarray(i*16,i*16+16));M.copyWithin(i*16,j*16,j*16+16);M.set(tmp,j*16);
+     const k=K[i];K[i]=K[j];K[j]=k;const b=B[i];B[i]=B[j];B[j]=b;}}
    const mesh=new T.InstancedMesh(meshLibrary[name],materials.get(name),entries.count);
    // Copiar os mesmos 16 floats de cada matriz de uma única vez.
    mesh.instanceMatrix.array.set(entries.matrices.subarray(0,entries.count*16));
@@ -1559,6 +1563,22 @@ function moveAnimals(t){
 // V12.53: uma só leitura dos índices ecológicos por célula, em vez de
 // percorrer as ~2 milhões de instâncias a cada 0,7 s. Os setores que
 // realmente mudaram são os únicos cujos buffers são revisitados.
+// Densidade da grama pela distância da câmera (o maior custo de desenho do jogo: ~250 milhões de triângulos por quadro).
+let grassLodLast=0;
+function updateGrassLod(){
+ const now=performance.now();if(now-grassLodLast<220)return;grassLodLast=now;
+ const cam=api.getMainCamera?.();if(!cam)return;const cx=cam.position.x,cz=cam.position.z;
+ for(const sector of grassChunkMeshes.values())for(const mesh of sector){
+  const n=mesh.userData.planted||0,bs=mesh.boundingSphere;if(!n||!bs)continue;
+  const d=Math.max(0,Math.hypot(bs.center.x-cx,bs.center.z-cz)-7);
+  // fração máxima por tipo (os tufos mais pesados ficam mais ralos) × queda com a distância
+  const nm=mesh.name,base=/grassMixed1/.test(nm)?.22:/grassTall/.test(nm)?.3:/grassShort/.test(nm)?.45:.7;
+  const far=/grassTall|grassMixed1/.test(nm)?50:62;
+  const k=d>far?0:base*(d<10?1:Math.max(.12,Math.pow(1-(d-10)/(far-10),1.5)));
+  const c=Math.round(n*k);if(c!==mesh.count){mesh.count=c;mesh.visible=c>0;}
+ }
+}
+setInterval(updateGrassLod,250);
 function updateGrassMeshes(force=false){
  if(!grassChunkMeshes.size)return;
  const dirty=new Set();
@@ -1599,8 +1619,8 @@ function updateGrassMeshes(force=false){
   for(const mesh of sector){
    const keys=mesh.userData.grassKeys,previous=mesh.userData.lastScale;
    const buffer=mesh.instanceMatrix.array;
-   let firstChanged=mesh.count,lastChanged=-1;
-   for(let i=0;i<mesh.count;i++){
+   let firstChanged=mesh.userData.planted||mesh.count,lastChanged=-1;
+   for(let i=0,n=mesh.userData.planted||mesh.count;i<n;i++){
     const scale=grassCurrentScale[keys[i]];
     const last=previous[i]||1;
     if(Math.abs(scale-last)<.018)continue;

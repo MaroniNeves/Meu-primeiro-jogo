@@ -4729,7 +4729,8 @@ function loop(now){
   if(plantVisualSeconds>=12){updateForestHealth();plantVisualSeconds=0;}
   if(acc>step*14)acc=step*14;
   updateGroundFog(dt);
-  if(++frame%2===0)rebuild();
+  // Repintura do chão da área central: a cada 2 quadros durante chuva/poças; parado e seco, ~2 vezes por segundo.
+  if(++frame%(rainIdle?20:5)===0)rebuild();
   waterM.uniforms.uTime.value=visualTime;
   animateClimate(dt);
   animateForest(dt);

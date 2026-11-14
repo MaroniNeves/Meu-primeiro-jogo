@@ -11,7 +11,7 @@
 const T=window.THREE;
 if(!T)return;
 const mobile=/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)||innerWidth<680;
-const CHUNK=24,RANGE=mobile?48:84,NEAR=mobile?30:42,PER_M2=mobile?6:10;
+const CHUNK=24,RANGE=mobile?44:72,NEAR=mobile?26:36,PER_M2=mobile?4:6; // menos tufos: a grama era o maior peso do jogo
 const INNER={x0:-64,x1:64,z0:-50,z1:50};
 // Outros módulos registram aqui áreas sem grama: (x,z)=>true.
 window.arcanoNoGrass=window.arcanoNoGrass||[];
@@ -106,7 +106,7 @@ function install(){
   for(let i=ci0-rc;i<=ci0+rc;i++)for(let j=cj0-rc;j<=cj0+rc;j++){
    const cx=(i+.5)*CHUNK,cz=(j+.5)*CHUNK,d=Math.hypot(cx-src.x,cz-src.z);
    if(d>RANGE+CHUNK*.7)continue;
-   const dens=d<NEAR+CHUNK*.7?1:.5,key=i+','+j;want.set(key,dens);
+   const dens=d<NEAR+CHUNK*.7?1:.3,key=i+','+j;want.set(key,dens);
    const have=chunks.get(key);
    if((!have||have.dens!==dens)&&!queue.some(q=>q.key===key&&q.dens===dens))queue.push({key,i,j,d,dens});
   }

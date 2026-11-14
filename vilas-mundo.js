@@ -46,7 +46,10 @@ for(const s of SITES){
 for(const c of CAMPS)CLEAR.push({x:c.x,z:c.z,r:11});
 window.arcanoVilas=SITES;window.arcanoAcampamentos=CAMPS;
 
-const NG=[];(window.arcanoNoGrass=window.arcanoNoGrass||[]).push((x,z)=>{for(let i=0;i<NG.length;i++){const n=NG[i];if(Math.hypot(x-n[0],z-n[1])<n[2])return true;}return false;});
+// Sem grama nas vilas: grade espacial (antes cada tufo de grama testava TODOS os círculos — 13% da CPU ao plantar grama)
+const NG=[];let ngGrid=null,ngLen=-1;const NGC=16;
+function ngBuild(){ngGrid=new Map();ngLen=NG.length;for(const n of NG){const r=n[2];for(let i=Math.floor((n[0]-r)/NGC);i<=Math.floor((n[0]+r)/NGC);i++)for(let j=Math.floor((n[1]-r)/NGC);j<=Math.floor((n[1]+r)/NGC);j++){const k=i*65536+j;let l=ngGrid.get(k);if(!l)ngGrid.set(k,l=[]);l.push(n);}}}
+(window.arcanoNoGrass=window.arcanoNoGrass||[]).push((x,z)=>{if(ngLen!==NG.length)ngBuild();const l=ngGrid.get(Math.floor(x/NGC)*65536+Math.floor(z/NGC));if(!l)return false;for(let i=0;i<l.length;i++){const n=l[i];if(Math.hypot(x-n[0],z-n[1])<n[2])return true;}return false;});
 
 /* ---------- Geometria 2D para o sorteio das casas ---------- */
 const segPt=(px,pz,a,b)=>{const dx=b.x-a.x,dz=b.z-a.z,l=dx*dx+dz*dz||1;let t=((px-a.x)*dx+(pz-a.z)*dz)/l;t=Math.max(0,Math.min(1,t));return {x:a.x+dx*t,z:a.z+dz*t};};
