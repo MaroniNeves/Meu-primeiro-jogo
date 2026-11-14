@@ -142,9 +142,13 @@ function Mg(){const P=[],N=[],C=[],c=new T.Color();
 const mat=(x,y,z,rx,ry,rz,sx,sy,sz)=>new T.Matrix4().compose(new T.Vector3(x,y,z),new T.Quaternion().setFromEuler(new T.Euler(rx||0,ry||0,rz||0)),
  new T.Vector3(sx==null?1:sx,sy==null?(sx==null?1:sx):sy,sz==null?(sx==null?1:sx):sz));
 const facet=c=>(x,y,z,nx,ny,nz)=>{const j=.86+hash(nx,ny,nz)*.2;return [c.r*j,c.g*j,c.b*j];};
+// lascas: corta a pedra por planos aleatórios — faces retas e quinas vivas, como rocha quebrada
+function chip(p,R,n,depth){const pl=[];for(let k=0;k<n;k++){const u=R()*2-1,a=R()*TAU,s=Math.sqrt(1-u*u);pl.push([s*Math.cos(a),u*.8,s*Math.sin(a),depth[0]+R()*(depth[1]-depth[0])]);}
+ for(let i=0;i<p.count;i++){let x=p.getX(i),y=p.getY(i),z=p.getZ(i);for(const q of pl){const d=x*q[0]+y*q[1]+z*q[2]-q[3];if(d>0){x-=q[0]*d;y-=q[1]*d;z-=q[2]*d;}}p.setXYZ(i,x,y,z);}}
 function rock(B,R,x,y,z,r,sx,sy,sz,base,ry,moss,detail){
- const g=new T.IcosahedronGeometry(1,detail==null?(mobile?0:1):detail),p=g.attributes.position,o1=R()*10,o2=R()*10;
- for(let i=0;i<p.count;i++){const vx=p.getX(i),vy=p.getY(i),vz=p.getZ(i),k=1+.17*Math.sin(vx*2.3+o1)*Math.cos(vz*2.1+o2)+.1*Math.sin(vy*3.7+o2);p.setXYZ(i,vx*k,vy*k,vz*k);}
+ const g=new T.IcosahedronGeometry(1,detail==null?(mobile?1:2):Math.max(1,detail)),p=g.attributes.position,o1=R()*10,o2=R()*10;
+ for(let i=0;i<p.count;i++){const vx=p.getX(i),vy=p.getY(i),vz=p.getZ(i),k=1+.17*Math.sin(vx*2.3+o1)*Math.cos(vz*2.1+o2)+.1*Math.sin(vy*3.7+o2)+.05*Math.sin(vx*7.1+vy*5.3+o1);p.setXYZ(i,vx*k,vy*k,vz*k);}
+ chip(p,R,6+Math.floor(R()*5),[.55,.9]);
  const hsl={};new T.Color(base).getHSL(hsl);const l=hsl.l*(.82+R()*.34),h=hsl.h+(R()-.5)*.03;
  const top=new T.Color().setHSL(h,hsl.s,Math.min(.92,l*1.28)),mid=new T.Color().setHSL(h,hsl.s,l),bot=new T.Color().setHSL(h,hsl.s*.9,l*.66),ms=new T.Color(R()<.5?'#6f9a46':'#5d8a3c');
  B.add(g,(X,Y,Z,nx,ny,nz)=>{const j=.9+hash(nx,ny,nz)*.16;let c=ny>.3?top:ny<-.25?bot:mid;if(moss&&ny>.55&&hash(nx*3,ny,nz*3)<moss)c=ms;
@@ -257,7 +261,7 @@ function build(api,H){
  const domeMat=new T.MeshStandardMaterial({vertexColors:true,roughness:.96,metalness:0,flatShading:true});
  const inMat=new T.MeshBasicMaterial({vertexColors:true,fog:false});
  const RT=rockTexture(),dayU={value:new T.Color(0,0,0)};
- const rockMat=shaderize(new T.MeshBasicMaterial({vertexColors:true,fog:false}),{tex:RT,scale:.22,str:.6}),rockDayMat=shaderize(new T.MeshBasicMaterial({vertexColors:true,fog:false}),{tex:RT,scale:.22,str:.6,day:dayU});
+ const rockMat=shaderize(new T.MeshBasicMaterial({vertexColors:true,fog:false,side:T.DoubleSide}),{tex:RT,scale:.22,str:.6}),rockDayMat=shaderize(new T.MeshBasicMaterial({vertexColors:true,fog:false,side:T.DoubleSide}),{tex:RT,scale:.22,str:.6,day:dayU});
  const propDayMat=shaderize(new T.MeshBasicMaterial({vertexColors:true,fog:false}),{day:dayU});
  const plantMat=new T.MeshBasicMaterial({vertexColors:true,fog:false,side:T.DoubleSide}),plantDayMat=shaderize(new T.MeshBasicMaterial({vertexColors:true,fog:false,side:T.DoubleSide}),{day:dayU});
  shaderize(domeMat,{tex:RT,scale:.16,str:1});
@@ -364,10 +368,14 @@ function build(api,H){
   for(const q of LY.secrets)fades.push({x:q.x,z:q.z,y:q.y,r:1.8});fades.push({x:LY.gate.x,z:LY.gate.z,y:-18,r:4.2});
   s.D=(x,y,z)=>{let f=1;for(const q of fades){if(Math.abs(y-q.y)>6)continue;
     if(q.portal){if(z>PZ-q.r)f*=Math.max(0,(PZ-.2-z)/(q.r-.2));}else{const d=Math.hypot(x-q.x,z-q.z);if(d<q.r)f*=sm(q.r*.45,q.r,d);}}
-   if(f<=0)return [0,0,0];const a=.24*f,b=.1*f,c=.09*f,e=.04*f;
-   return [a*N3(x*.32,y*.35,z*.32,1)+b*N3(x*1.05,y*1.1,z*1.05,4)+c*N3(x*2.6,y*2.4,z*2.6,8)+e*N3(x*4.3,y*4.1,z*4.3,10),
+   if(f<=0)return [0,0,0];const a=.3*f,b=.15*f,c=.1*f,e=.05*f;
+   // estratos: faixas de rocha que saem/entram da parede em degraus, com espessura variando
+   const sy=y*1.15+.6*N3(x*.2,0,z*.2,3),fr=sy-Math.floor(sy),st=.17*f*(sm(.05,.2,fr)-sm(.72,.9,fr))*(.6+.4*N3(x*.4,Math.floor(sy),z*.4,6));
+   // blocos: degraus verticais (fraturas)
+   const bk=.1*f*Math.sign(N3(x*.55,y*.15,z*.55,14));
+   return [a*N3(x*.32,y*.35,z*.32,1)+b*N3(x*1.05,y*1.1,z*1.05,4)+c*N3(x*2.6,y*2.4,z*2.6,8)+e*N3(x*4.3,y*4.1,z*4.3,10)+st+bk,
     .07*f*N3(x*.5,y*.4,z*.5,7)+e*N3(y*4.2,z*4.4,x*4.1,12),
-    a*N3(x*.32,y*.35,z*.32,2)+b*N3(x*1.05,y*1.1,z*1.05,5)+c*N3(x*2.6,y*2.4,z*2.6,9)+e*N3(z*4.3,x*4.2,y*4.1,13)];};
+    a*N3(x*.32,y*.35,z*.32,2)+b*N3(x*1.05,y*1.1,z*1.05,5)+c*N3(x*2.6,y*2.4,z*2.6,9)+e*N3(z*4.3,x*4.2,y*4.1,13)+st-bk];};
   objs.push({s,root,ext,exHalo,exLamp,levels:[],flick:[],sparks:[],built:false});
   const W3=(lx,ly,lz)=>{const w=s.toW(lx,lz);return {x:w.x,y:s.g+ly,z:w.z};};
   s.dungeon={levels:LVF.map((y,i)=>({nome:LNAME[i],y:s.g+y})),
@@ -378,7 +386,7 @@ function build(api,H){
  /* ================= Malha da dungeon ================= */
  const PALS=[{w:[.47,.5,.6],f:[.56,.48,.36],c:[.33,.36,.45],moss:true},{w:[.44,.48,.6],f:[.46,.44,.42],c:[.3,.33,.43],moss:true},{w:[.45,.42,.56],f:[.37,.35,.41],c:[.27,.25,.32],moss:false}];
  function buildDungeon(o){
-  const s=o.s,LY=s.L,R=mkR(s.seed*53+5),MX=LY.MX,D=s.D,K=mobile?2:4,sub=GC/K;
+  const s=o.s,LY=s.L,R=mkR(s.seed*53+5),MX=LY.MX,D=s.D,K=mobile?3:6,sub=GC/K;
   const lvGroups=[0,1,2].map(L=>{const g=new T.Group();g.name='Mina · '+LNAME[L];o.root.add(g);return g;});o.levels=lvGroups;
   const lights=[[],[],[]],PR=[Mg(),Mg(),Mg()],PC=[Mg(),Mg(),Mg()],PG=[Mg(),Mg(),Mg()],FL=[Mg(),Mg(),Mg()],pendingBakes=[];
   const WD='#7b4a2a',WD2='#6a3f23';
@@ -439,17 +447,25 @@ function build(api,H){
    for(const h of [.7,1.5,2.3])box(B,Math.hypot(b.x-a.x,b.z-a.z)+.3,.22,.08,R()<.5?WD:WD2,mat((a.x+b.x)/2+a.nx*.08,a.fl+h,(a.z+b.z)/2+a.nz*.08,0,Math.atan2(b.x-a.x,b.z-a.z)+PI/2));
    log(B,[a.x,a.fl+ht,a.z],[b.x,b.fl+ht,b.z],.13,WD2);};
   const innerCells=(L,room)=>cellsL(L).filter(c=>c.room===room&&c.nb.every(Boolean));
+  // espinho de rocha irregular: anéis de gotejamento, calombos e ponta torta (no lugar do cone liso)
+  const spike=(r,h,seed)=>{const g=new T.CylinderGeometry(0,1,1,mobile?8:12,mobile?6:10),p=g.attributes.position;
+   for(let i=0;i<p.count;i++){let x=p.getX(i),y=p.getY(i)+.5,z=p.getZ(i);const a=Math.atan2(z,x),ring=1+.13*Math.sin(y*19+seed)+.07*Math.sin(y*41+seed*2),lump=1+.18*Math.sin(a*3+seed+y*4)+.09*Math.sin(a*7-seed*1.7+y*9);
+    const k=ring*lump*(1-.25*y*y);x*=k*r;z*=k*r;x+=Math.sin(seed)*.18*r*y*y*3;z+=Math.cos(seed*1.3)*.18*r*y*y*3;p.setXYZ(i,x,(y-.5)*h,z);}
+   return g;};
   const stalag=(L,room,n)=>{for(const c of pick(innerCells(L,room),n)){const x=x0c(c)+.4+R()*1.2,z=z0c(c)+.4+R()*1.2,y=bil(c.y,(x-x0c(c))/GC,(z-z0c(c))/GC),h=.7+R()*1.4,r=.25+R()*.3;
-    PR[L].add(new T.ConeGeometry(r,h,7,2),facet(new T.Color(R()<.5?'#7d7a80':'#6f6c75')),mat(x,y+h/2-.05,z,0,R()*TAU));obst(L,x,z,r+.1);}};
+    PR[L].add(spike(r,h,R()*20),facet(new T.Color(R()<.5?'#7d7a80':'#6f6c75')),mat(x,y+h/2-.05,z,0,R()*TAU));if(R()<.6){const r2=r*.5,h2=h*.45,a=R()*TAU;PR[L].add(spike(r2,h2,R()*20),facet(new T.Color('#75727a')),mat(x+Math.cos(a)*r*1.1,y+h2/2-.05,z+Math.sin(a)*r*1.1,0,R()*TAU));}obst(L,x,z,r+.1);}};
   const stalac=(L,room,n)=>{for(const c of pick(innerCells(L,room),n)){const x=x0c(c)+.3+R()*1.4,z=z0c(c)+.3+R()*1.4,y=bil(c.y,.5,.5)+c.ceil+.25,h=.5+R()*1.3;
-    PR[L].add(new T.ConeGeometry(.12+R()*.2,h,6,2),facet(new T.Color('#6a6870')),mat(x,y-h/2,z,PI,R()*TAU));}};
+    PR[L].add(spike(.12+R()*.2,h,R()*20),facet(new T.Color('#6a6870')),mat(x,y-h/2,z,PI,R()*TAU));}};
   const column=(L,x,z,ceil)=>{const y=LVF[L]+fl0(L,x,z),g=new T.CylinderGeometry(.7,.95,ceil+1,9,7),p=g.attributes.position;
    for(let i=0;i<p.count;i++){const vx=p.getX(i),vy=p.getY(i),vz=p.getZ(i),k=1+.18*N3(vx*2,vy*1.3,vz*2,s.seed);p.setXYZ(i,vx*k,vy,vz*k);}
    PR[L].add(g,(X,Y,Z,nx,ny,nz)=>{const j=.8+.25*hash(nx,ny,nz),c=PALS[L].w;if(Math.abs(N3(X*1.5,Y*1.2,Z*1.5,9))<.08)return lin3([c[0]*.45,c[1]*.45,c[2]*.45]);return lin3([c[0]*j,c[1]*j,c[2]*j]);},mat(x,y+ceil/2-.1,z));obst(L,x,z,1.0);};
   const rubble=(L,x,z,n,sp)=>{const y=LVF[L]+fl0(L,x,z);for(let k=0;k<n;k++)rock(PR[L],R,x+(R()-.5)*sp,y+.05,z+(R()-.5)*sp,.12+R()*.3,1,.7,1,R()<.5?'#77767c':'#6b6a70',null,0,0);};
   const PL=[Mg(),Mg(),Mg()],PB=[Mg(),Mg(),Mg()];
-  const boulder=(B,x,y,z,r,sx,sy,sz,L)=>{const g=new T.IcosahedronGeometry(1,2),p=g.attributes.position,o1=R()*10,o2=R()*10;
-   for(let i=0;i<p.count;i++){const vx=p.getX(i),vy=p.getY(i),vz=p.getZ(i),k=1+.13*Math.sin(vx*2.1+o1)*Math.cos(vz*1.9+o2)+.07*Math.sin(vy*3.3+o2)+.04*Math.sin(vx*6+vz*5);p.setXYZ(i,vx*k,vy*k*(vy<0?.8:1),vz*k);}
+  const boulder=(B,x,y,z,r,sx,sy,sz,L)=>{const g=new T.IcosahedronGeometry(1,mobile?2:3),p=g.attributes.position,o1=R()*10,o2=R()*10;
+   for(let i=0;i<p.count;i++){const vx=p.getX(i),vy=p.getY(i),vz=p.getZ(i),k=1+.13*Math.sin(vx*2.1+o1)*Math.cos(vz*1.9+o2)+.07*Math.sin(vy*3.3+o2)+.04*Math.sin(vx*6+vz*5)+.025*Math.sin(vx*11+vy*9+vz*7+o1);p.setXYZ(i,vx*k,vy*k*(vy<0?.8:1),vz*k);}
+   chip(p,R,7+Math.floor(R()*6),[.5,.88]);
+   // camadas: degraus horizontais finos na pedra (rocha sedimentar)
+   {const lay=.18+R()*.12;for(let i=0;i<p.count;i++){const vy=p.getY(i),q=vy/lay,fq=q-Math.floor(q),k=1-.06*sm(.75,.95,fq);p.setX(i,p.getX(i)*k);p.setZ(i,p.getZ(i)*k);}}
    const w=PALS[L].w,j=.66+R()*.16;
    B.add(g,(X,Y,Z,nx,ny,nz)=>{const hh=(Y-y)/(r*sy);let c=[w[0]*j*(1.05+.2*hh),w[1]*j*(1.05+.2*hh),w[2]*j*(1.05+.2*hh)];
     if(ny>.45&&N3(X*1.4,Y,Z*1.4,7)>-.35){const m=Math.min(1,(ny-.45)*2.5);c=[c[0]+(.36-c[0])*m,c[1]+(.56-c[1])*m,c[2]+(.28-c[2])*m];}
@@ -463,7 +479,7 @@ function build(api,H){
    PL[L].add(new T.CircleGeometry(.015,5),(X,Y,Z)=>lin3([1,.95,.6]),mat(x,y+h+.003,z,-PI/2+.3,0,0));};
   const vine=(L,p,len)=>{let x=p.x,y=p.y,z=p.z;const n=Math.floor(len/.16);for(let i=0;i<n;i++){y-=.16;x+=p.nx*.01+Math.sin(i*.7)*.012;z+=p.nz*.01+Math.cos(i*.6)*.012;
     log(PL[L],[x,y+.16,z],[x,y,z],.01,'#3a5a2a',3);if(i%2===0){const a=Math.atan2(p.nx,p.nz)+(i%4?1:-1)*.9;PL[L].add(leafGeo(.13,.08),(X,Y,Z)=>lin3([.24+.06*(i%3),.48,.2]),mat(x,y,z,.5,a,PI*.9));}}};
-  const bigStalac=(L,x,y,z,len,rad)=>{const g=new T.ConeGeometry(rad,len,8,4),p=g.attributes.position;for(let i=0;i<p.count;i++){const vx=p.getX(i),vy=p.getY(i),vz=p.getZ(i),k=1+.18*Math.sin(vy*4+x)*Math.cos(vx*5+z);p.setXYZ(i,vx*k,vy,vz*k);}
+  const bigStalac=(L,x,y,z,len,rad)=>{const g=spike(rad,len,x*3.1+z*1.7);
    const w=PALS[L].w;PR[L].add(g,(X,Y,Z)=>{const t=Math.min(1,Math.max(0,(y-Y)/len));return lin3([w[0]*(.7+.25*t),w[1]*(.7+.25*t),w[2]*(.72+.27*t)]);},mat(x,y-len/2,z,PI,R()*TAU,0));};
   const decorate=(L)=>{
    for(const c of cellsL(L)){if(c.stair||c.ramp)continue;const big=c.kind==='room';
@@ -471,9 +487,9 @@ function build(api,H){
     const nSt=big?(R()<.75?1+Math.floor(R()*3):0):(R()<.35?1:0);for(let k=0;k<nSt;k++){const x=x0c(c)+.25+R()*1.5,z=z0c(c)+.25+R()*1.5,top=bil(c.y,(x-x0c(c))/GC,(z-z0c(c))/GC)+c.ceil+.62,mx=Math.max(.3,c.ceil-2.3)+.27;
      bigStalac(L,x,top,z,Math.min(mx,.4+R()*(big?2.2:.9)),.1+R()*.22);}}
    for(const w of walls(L)){const c=w.c;if(c.stair||c.ramp)continue;
-    if(c.kind==='room'&&R()<.42){const r=(c.ceil>4.5?.7:.5)+R()*(c.ceil>4.5?.6:.35),t=.2+R()*.6,p=wallPt(c,w.sd,t,0,r*.3);boulder(PB[L],p.x,p.fl+r*.3,p.z,r,1.1,.8,1,L);if(r>.75)obst(L,p.x,p.z,r*.55);
+    if(c.kind==='room'&&R()<.6){if(R()<.45){const t2=R(),p2=wallPt(c,w.sd,t2,0,.18),r2=.22+R()*.25;boulder(PB[L],p2.x,p2.fl+r2*.2,p2.z,r2,1.2,.7,1,L);}const r=(c.ceil>4.5?.7:.5)+R()*(c.ceil>4.5?.6:.35),t=.2+R()*.6,p=wallPt(c,w.sd,t,0,r*.3);boulder(PB[L],p.x,p.fl+r*.3,p.z,r,1.1,.8,1,L);if(r>.75)obst(L,p.x,p.z,r*.55);
      if(L===0||R()<.25){const q=wallPt(c,w.sd,t,0,r*.95+.25);if(R()<.6)fern(L,q.x,q.fl,q.z,.8+R()*.5);else tuft(L,q.x,q.fl,q.z);}}
-    else if(c.kind==='tunnel'&&R()<.2){const r=.35+R()*.25,p=wallPt(c,w.sd,.2+R()*.6,0,r*.2);boulder(PB[L],p.x,p.fl+r*.25,p.z,r,1,.75,1,L);}
+    else if(c.kind==='tunnel'&&R()<.38){const r=.35+R()*.25,p=wallPt(c,w.sd,.2+R()*.6,0,r*.2);boulder(PB[L],p.x,p.fl+r*.25,p.z,r,1,.75,1,L);}
     if(L===0&&R()<.3){const p=wallPt(c,w.sd,.2+R()*.6,c.ceil-.05,.12);vine(L,p,.8+R()*1.8);}}};
   const LOOT=[()=>'Moedas de ouro ×'+(20+Math.floor(R()*60)),()=>'Poção de vida',()=>'Cristal azul raro',()=>'Pergaminho de magia',()=>'Amuleto de cristal',()=>'Chave antiga'];
   const loot=n=>{const a=[];for(let i=0;i<n;i++)a.push(LOOT[Math.floor(R()*LOOT.length)]);return a;};
@@ -640,14 +656,18 @@ function build(api,H){
  const pY=()=>{const p=api.getGrassPlayer&&api.getGrassPlayer();return p?p.position.y:0;};
  const findCell=(s,lx,lz,yr,tol)=>{const I=Math.floor((lx-GX0)/GC),J=Math.floor((lz-GZ0)/GC);if(I<0||J<0||I>=GN||J>=GN)return null;
   let best=null,bd=tol||1.7;for(const c of s.L.get(I,J)){const f=bil(c.y,(lx-GX0)/GC-I,(lz-GZ0)/GC-J),d=Math.abs(f-yr);if(d<bd){bd=d;best=c;}}return best;};
+ // piso sob o jogador: o mais alto que fica abaixo dos pés (até 7 m) — pular ou cair não solta das paredes
+ const cellUnder=(s,lx,lz,yr)=>{const I=Math.floor((lx-GX0)/GC),J=Math.floor((lz-GZ0)/GC);if(I<0||J<0||I>=GN||J>=GN)return null;
+  let best=null,bf=-1e9;for(const c of s.L.get(I,J)){const f=bil(c.y,(lx-GX0)/GC-I,(lz-GZ0)/GC-J);if(f<=yr+.75&&yr-f<7&&f>bf){bf=f;best=c;}}return best||findCell(s,lx,lz,yr);};
  const platH=(s,c,lx,lz)=>{let h=0;for(const p of s.plat)if(p.L===c.L&&Math.hypot(lx-p.x,lz-p.z)<p.r)h=Math.max(h,p.h);return h;};
  const floorAt=(s,c,lx,lz)=>bil(c.y,(lx-GX0)/GC-c.I,(lz-GZ0)/GC-c.J)+(c.kind==='stair'?.1:0)+platH(s,c,lx,lz);
  const passable=(c,sd)=>{if(c.nb[sd]){const d=c.door[sd];if(!d)return true;return d.open&&d.t>(d.leaves?.5:.4);}return sd===3&&!!c.portal;};
  (window.arcanoExtraDecks=window.arcanoExtraDecks||[]).push({surfaceAt(x,z){const py=pY();for(const s of SITES){if(!s.L)continue;const dx=x-s.x,dz=z-s.z;if(dx*dx+dz*dz>2600)continue;
-   const t=s.toL(x,z),c=findCell(s,t.x,t.z,py-s.g);if(c)return s.g+floorAt(s,c,t.x,t.z)+.02;}return null;},blocksSegment(){return false;}});
- const cellBlocked=(s,f,t,yr)=>{const cf=findCell(s,f.x,f.z,yr);
-  if(!cf){if(s.domeR(t.x,t.z)<1){if(Math.abs(t.x)<TW/2-.3&&t.z>PZ-1.6&&Math.abs(yr)<1.6)return false;const ct=findCell(s,t.x,t.z,yr,1.2);return !(ct&&ct.L===0&&ct.room==='entrada');}return false;}
-  const ct=findCell(s,t.x,t.z,yr);
+   const t=s.toL(x,z),c=cellUnder(s,t.x,t.z,py-s.g);if(c)return s.g+floorAt(s,c,t.x,t.z)+.02;}return null;},blocksSegment(){return false;}});
+ const cellBlocked=(s,f,t,yr)=>{const cf=cellUnder(s,f.x,f.z,yr);
+  if(!cf){if(yr<-1.5&&f.x>GX0-2&&f.x<GX0+GN*GC+2&&f.z>GZ0-2&&f.z<GZ0+GN*GC+2)return !cellUnder(s,t.x,t.z,yr); // perdido no subsolo: só volta para uma célula
+   if(s.domeR(t.x,t.z)<1){if(Math.abs(t.x)<TW/2-.3&&t.z>PZ-1.6&&Math.abs(yr)<1.6)return false;const ct=findCell(s,t.x,t.z,yr,1.2);return !(ct&&ct.L===0&&ct.room==='entrada');}return false;}
+  const ct=cellUnder(s,t.x,t.z,yr);
   if(!ct)return !(cf.portal&&t.z>=PZ-.05);
   if(ct!==cf){const di=ct.I-cf.I,dj=ct.J-cf.J;
    if(Math.abs(di)+Math.abs(dj)===1){const sd=di===1?1:di===-1?0:dj===1?3:2;if(cf.nb[sd]!==ct||!passable(cf,sd))return true;}
@@ -660,7 +680,7 @@ function build(api,H){
    if(cellBlocked(s,s.toL(fx,fz),s.toL(tx,tz),pY()-s.g))return true;}return ob.call(this,fx,fz,tx,tz);};}
  const tmpF=new T.Vector3(),q3=new T.Vector3();
  const mineCam=(focus,cam)=>{for(const s of SITES){if(!s.L)continue;const dx=focus.x-s.x,dz=focus.z-s.z;if(dx*dx+dz*dz>2600)continue;
-   const f=s.toL(focus.x,focus.z),fy=focus.y-s.g,cf=findCell(s,f.x,f.z,pY()-s.g),inside=!!cf&&!(cf.portal&&f.z>PZ-.4);
+   const f=s.toL(focus.x,focus.z),fy=focus.y-s.g,cf=cellUnder(s,f.x,f.z,pY()-s.g),inside=!!cf&&!(cf.portal&&f.z>PZ-.4);
    const okIn=(x,y,z)=>{const c=findCell(s,x,z,y-1.2,2.6);if(!c)return false;const fl=floorAt(s,c,x,z);if(y<fl+.3||y>fl+c.ceil-.3)return false;
     const u=x-(GX0+c.I*GC),v=z-(GZ0+c.J*GC),d=[u,GC-u,v,GC-v];for(let sd=0;sd<4;sd++)if(!passable(c,sd)&&d[sd]<.3)return false;return Math.abs(fl-fy)<6;};
    const ok=(x,y,z)=>{if(inside)return okIn(x,y,z)||(z>PZ+.2&&cf.L===0&&y>-.5);if(s.domeR(x,z)>=1)return true;if(okIn(x,y,z))return true;return y>s.domeY(x,z)+.4;};
