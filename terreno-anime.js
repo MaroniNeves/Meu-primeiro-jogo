@@ -75,12 +75,13 @@ function patchGrass(material){
 }
 
 /* ---------- Terra ---------- */
-const LAND_KEY='anime-land-v10';
+const LAND_KEY='anime-land-v11';
 // Relógio das cáusticas no fundo do rio.
-const landTime={value:0};
-(function tick(t){landTime.value=t/1000;requestAnimationFrame(tick);})(0);
+const landTime={value:0},landWet={value:0};
+(function tick(t){landTime.value=t/1000;landWet.value+=((window.arcanoMolhado||0)-landWet.value)*.05;requestAnimationFrame(tick);})(0);
 const CAUSTIC=`
 uniform float uAnimeTime;
+uniform float uAnimeWet;
 vec2 animeHash2(vec2 p){p=vec2(dot(p,vec2(127.1,311.7)),dot(p,vec2(269.5,183.3)));return fract(sin(p)*43758.5453);}
 float animeCaustic(vec2 p,float t){
  vec2 n=floor(p),f=fract(p);float d1=8.,d2=8.;
@@ -124,6 +125,7 @@ function patchLand(material){
    '#include <begin_vertex>',
    '#include <begin_vertex>\n vAnimeWorld=(modelMatrix*vec4(transformed,1.0)).xyz;\n vAnimeGreen=animeGreen;\n vAnimeShore=animeShore;\n vAnimeUpN=normalize(normal).y;');
   shader.uniforms.uAnimeTime=landTime;
+  shader.uniforms.uAnimeWet=landWet;
   shader.fragmentShader='varying float vAnimeUpN;\nvarying vec2 vAnimeShore;\nvarying float vAnimeGreen;\nvarying vec3 vAnimeWorld;\n'+NOISE+CAUSTIC+shader.fragmentShader.replace(
    '#include <color_fragment>',
    `#include <color_fragment>
@@ -221,6 +223,8 @@ function patchLand(material){
      cliffC=mix(cliffC,animeLin(vec3(.45,.58,.30)),smoothstep(.55,.85,animeNoise(w*.35+band))*smoothstep(.9,.99,layer)*.6);
      outC=mix(outC,cliffC,cliff);
     }
+    // chão molhado pela chuva (sobe aos poucos e seca depois): terra bem mais escura, grama um pouco
+    outC*=mix(1.,mix(.66,.86,green),uAnimeWet*(1.-cliff*.3));
     diffuseColor.rgb=outC*.78;
    }`);
  };

@@ -323,10 +323,9 @@ const CLIMATE={
 // O nível escolhido controla o temporal mesmo depois de entrar no modo Temporal.
 function stormActive(){return level===5;}
 function automaticClimate(level){
- if(level===0)return 'sunny';
+ if(level===0)return 'partlyCloudy';
  if(level>=5)return 'storm';
- if(level>=4)return 'overcast';
- return 'partlyCloudy';
+ return 'overcast';
 }
 function applyClimate(next){
  climate=CLIMATE[next]?next:'partlyCloudy';weatherCfg=CLIMATE[climate];
@@ -379,7 +378,7 @@ const atmTemp=new Float32Array(ATM_N),atmHumidity=new Float32Array(ATM_N),
  atmRain=new Float32Array(ATM_N),atmWindX=new Float32Array(ATM_N),
  atmWindZ=new Float32Array(ATM_N),atmNextHum=new Float32Array(ATM_N),
  atmNextCloud=new Float32Array(ATM_N),rainField=new Float32Array(size);
-let physicalWeather=true,dayClock=390,atmosAccumulator=0,lastAtmosEvap=0,lastAtmosRain=0;
+let physicalWeather=false,dayClock=390,atmosAccumulator=0,lastAtmosEvap=0,lastAtmosRain=0;
 // Hora do dia (0–24) para testes e para outros módulos: window.arcanoSetHour(21).
 window.arcanoSetHour=h=>{dayClock=(((h/24)*DAY_SECONDS)%DAY_SECONDS+DAY_SECONDS)%DAY_SECONDS;};window.arcanoGetHour=()=>dayClock/DAY_SECONDS*24;
 let atmRainMean=0,atmRainPeak=0,atmCloudMean=.42,atmHumMean=.70,atmTempMean=23,
@@ -538,6 +537,28 @@ function atmosphereStep(dt){
  }
  atmWindRevision++;
 }
+// Clima SIMPLES (sem atmosfera física, sem solo esquentando, sem vapor):
+// a cada 15 minutos há 30% de chance de começar a chover; dessas chuvas, metade é temporal.
+// A chuva dura 15 minutos (começa e termina aos poucos). O vento muda devagar de direção e inclina a chuva.
+// window.arcanoMolhado (0..1) diz o quanto o chão está molhado (sobe com a chuva e seca depois).
+const WEATHER={state:'seco',t:0,next:900,dur:900,storm:false,wet:0,windHead:Math.random()*Math.PI*2,windTurn:0};
+function simpleWeather(dt){
+ const w=WEATHER;w.t+=dt;
+ if(w.state==='seco'){if(w.t>=w.next){w.t=0;w.next=900;if(Math.random()<.3){w.state='chuva';w.storm=Math.random()<.5;w.dur=900;}}}
+ else if(w.t>=w.dur){w.state='seco';w.t=0;w.next=900;}
+ const raining=w.state==='chuva',ramp=raining?Math.min(1,w.t/45,(w.dur-w.t)/45):0;
+ const want=!raining?0:ramp<.33?1:ramp<.7?(w.storm?3:2):(w.storm?5:3);
+ if(want!==level)setRainLevel(want);
+ const cloudT=raining?(w.storm?.97:.8):.3;atmCloudMean+=(cloudT-atmCloudMean)*Math.min(1,dt*.03);
+ // vento: direção vaga devagar; mais forte na chuva e muito forte no temporal
+ w.windTurn+=(Math.random()-.5)*.05*dt;w.windTurn*=.97;w.windHead+=w.windTurn*dt;atmWindHeading=w.windHead;
+ const windT=raining?(w.storm?1.7:.75):.32+.12*Math.sin(weatherTime*.05);atmWindMean+=(windT-atmWindMean)*Math.min(1,dt*.08);
+ w.wet=clamp(w.wet+(raining&&level>=2?dt/(w.storm?50:110):-dt/300),0,1);window.arcanoMolhado=w.wet;
+ atmRainMean=atmRainPeak=level>0?RAIN_SCALE[level].rate:0;atmHumMean=raining?.95:.65;
+}
+window.arcanoClima={get estado(){return {chovendo:WEATHER.state==='chuva',temporal:WEATHER.storm&&WEATHER.state==='chuva',nivel:level,tempo:WEATHER.t,molhado:WEATHER.wet};},
+ chover(temporal){WEATHER.state='chuva';WEATHER.storm=!!temporal;WEATHER.t=0;WEATHER.dur=900;},parar(){WEATHER.state='seco';WEATHER.t=0;WEATHER.next=900;},W:WEATHER};
+// UM dia = 24 minutos REAIS (1440 segundos).
 function updateAtmosphere(dt){
  // O relógio solar corre em tempo real: 1440 s = 24 h do jogo.
  const wasDay=dayClock;
@@ -546,7 +567,7 @@ function updateAtmosphere(dt){
  atmosAccumulator+=dt;
  if(atmosAccumulator>=.55){
   const amount=Math.min(2.0,atmosAccumulator);
-  atmosAccumulator=0;atmosphereStep(amount);
+  atmosAccumulator=0;simpleWeather(amount);
  }
  // Trajetória contínua do sol: leste ao amanhecer, alto no meio-dia, oeste ao entardecer.
  const phase=dayClock/DAY_SECONDS,angle=2*Math.PI*(phase-.25);
@@ -580,7 +601,7 @@ function updateAtmosphere(dt){
   waterM.uniforms.uSun.value.copy(skySunDir);
   waterM.uniforms.uSunPower.value=(weatherCfg?weatherCfg.sunVisible:1)*dayLight;
  }
- if(climateChoice==='auto'&&physicalWeather){
+ if(climateChoice==='auto'){
   skyM.uniforms.uCoverage.value=stormActive()?Math.max(atmCloudMean,.92):atmCloudMean;
   skyM.uniforms.uWind.value=clamp(atmWindMean*.8,0,1.2);
   if(typeof waterM!=='undefined'){
@@ -592,7 +613,7 @@ function updateAtmosphere(dt){
 // V12.24 — Neblina de radiação pós-chuva: solo molhado + orvalho + vento
 // fraco + resfriamento noturno/amanhecer. TEMPORAL NUNCA DISPARA NEBLINA.
 // A chuva frontal pode gerar neblina na natureza, mas foi excluída por direção de arte.
-let fogEnabled=true,fogStrength=0,fogTarget=0,fogRainMemory=0,fogRainAge=1e6;
+let fogEnabled=false,fogStrength=0,fogTarget=0,fogRainMemory=0,fogRainAge=1e6;
 let fogLastRain=0,fogClock=0,fogWetness=0,fogDewGap=10,fogCause='solo seco';
 const mistGroup=new T.Group();mistGroup.name='Névoa baixa física de vale pós-chuva';
 scene.add(mistGroup);
@@ -3129,7 +3150,7 @@ function spawnLeafDrips(dt){
   if(!spawned){leafDripAccumulator=0;break;}
  }
 }
-let mode='rain',process='combined',level=3,lastRainLevel=3,timeScale=4,paused=false,showWet=true,showFoam=true,enableInfiltration=false;
+let mode='rain',process='combined',level=0,lastRainLevel=3,timeScale=4,paused=false,showWet=true,showFoam=true,enableInfiltration=false;
 let rainIdle=false,hydroIdle=0,rainStyle='enhanced',time=0,visualTime=0,acc=0,spawnAcc=0,lastUI=0,wetted=0,frame=0;
 // Escala V12.21: fonte única para deposição, visual, vento e movimento superficial.
 // Valores em unidades internas por segundo SIMULADO; não equivalem a mm/h calibrados.
@@ -3201,7 +3222,10 @@ function roadRainFactor(x,z){
  const patch=clamp((lowSpot-.65)/.29,0,1);
  return patch*(level===4?.32:1)*clamp((1.05-distance)/.32,0,1);
 }
+let hydroDone=false;
 function hydrologyStep(dt){
+ if(hydroDone)return; // sem poças físicas nem infiltração: só o rio e o lago fixos, calculados uma vez
+ hydroDone=true;dt=0;
  // Lagoas fixas são identificadas uma única vez, evitando cálculo por célula
  // a cada passo da física. Poças temporárias desaparecem com o tempo.
  if(!permanentLakeMask){
@@ -3226,12 +3250,10 @@ function hydrologyStep(dt){
    depth[k]=.12; // lago permanente, sem ganho de volume pela chuva
   }else{
    const x=gridX[k],z=gridZ[k],factor=roadRainFactor(x,z);
-   if(rain>0&&factor>0){const added=rain*factor;depth[k]+=added;stats.rain+=added*area;}
-   const lost=Math.min(depth[k],evap*(factor===0?6:1));depth[k]-=lost;stats.evaporated+=lost*area;
+   depth[k]=0;
   }
   // Solo escurece após chover e seca suavemente, sem infiltração de poças.
-  soilMoisture[k]=clamp(soilMoisture[k]+rain*.15-.000045*dt,0,soilCapacity[k]);
-  turbidity[k]=Math.max(0,turbidity[k]-.001*dt);
+
  }
 }
 // Aquífero pedagógico: a percolação existente chega ao lençol, que escoa
@@ -3498,7 +3520,7 @@ function spawnSplash(x,z,h){
  const inWater=sample(depth,x,z)>=SURFACE_RIPPLE;
  const muddy=turbidity[k];
  // Um impacto em poça mobiliza pequenas partículas; água barrenta expele gotículas castanhas.
- if(inWater)turbidity[k]=clamp(turbidity[k]+.0018*SOIL_PROFILES[SOIL_KEYS[soilKeyIndex[k]]].erosion,0,1);
+
  const waterTint=waterTintScratch.copy(waterTintBase).lerp(waterTintMud,muddy*.91);
  const dirtTint=dirtTintScratch.set(SOIL_PROFILES[SOIL_KEYS[soilKeyIndex[k]]].col);
  dirtTint.lerp(dirtTintDark,saturation*.45);
@@ -3612,7 +3634,7 @@ function dropStep(dt){
   if(d.y<=gh){
    if(d.fromLeaf){
     // A gota saiu da copa, não foi contabilizada como chuva nova.
-    add(d.x,d.z,d.volume);
+
     if(displayedImpacts<3){spawnSplash(d.x,d.z,gh);displayedImpacts++;}
    }else if(displayedImpacts<([0,1,2,4,7,13][level])){
     spawnSplash(d.x,d.z,gh);displayedImpacts++;
@@ -4724,8 +4746,7 @@ function loop(now){
   acc+=dt*timeScale;
   const step=timeScale>=64?.22:timeScale>=16?.14:timeScale>=4?.09:.06;
   // Hidrologia das poças: quando não chove e não sobrou água no chão por alguns segundos, pausa (volta sozinha quando chover).
-  hydroIdle=(level===0&&wetted<.02)?hydroIdle+dt:0;
-  if(hydroIdle<4){let steps=0;while(acc>=step&&steps<12){hydrologyStep(step);acc-=step;steps++;}}else acc=0;
+  if(!hydroDone)hydrologyStep(step);acc=0;hydroIdle=99;
   // Solo e árvores naturais são estáticos: não simular mineralização,
   // fertilização, mortalidade ou crescimento ecológico por célula.
   plantVisualSeconds+=dt;
