@@ -4715,8 +4715,9 @@ function updateInfo(force){
 let last=performance.now();const gamePerf={elapsed:0,frames:0,lastFps:0};
 function loop(now){
  requestAnimationFrame(loop);const rawDt=Math.max(0,(now-last)/1000),dt=Math.min(rawDt,.065);last=now;
- updateGame(dt);
- if(!paused&&!document.hidden){
+ // pausa do menu (celular): o mundo para, só continua desenhando
+ if(!window.arcanoPausa)updateGame(dt);
+ if(!paused&&!document.hidden&&!window.arcanoPausa){
   time+=dt*timeScale;visualTime+=dt*(1+.16*Math.log2(timeScale));
   updateAtmosphere(dt);
   dropStep(dt);

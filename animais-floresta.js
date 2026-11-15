@@ -250,7 +250,7 @@ function install(){
  }
  /* ---------- laço ---------- */
  let last=performance.now();
- (function loop(now){requestAnimationFrame(loop);const dt=Math.min(.05,(now-last)/1000);last=now;if(dt<=0)return;
+ (function loop(now){requestAnimationFrame(loop);const dt=Math.min(.05,(now-last)/1000);last=now;if(dt<=0)return;if(window.arcanoPausa)return;
   const pl=api.getGrassPlayer&&api.getGrassPlayer(),cam=api.getMainCamera&&api.getMainCamera();
   const src=document.body.classList.contains('play-active')&&pl?pl.position:(cam?cam.position:null);if(!src)return;
   state.px=src.x;state.pz=src.z;state.run=!!(pl&&((pl.keys&&pl.keys.has&&pl.keys.has('shift'))||(pl.input&&pl.input.run)));if(lx!=null){const sp=Math.hypot(src.x-lx,src.z-lz)/dt;state.speed+=((sp>40?0:sp)-state.speed)*Math.min(1,dt*6);}lx=src.x;lz=src.z;
