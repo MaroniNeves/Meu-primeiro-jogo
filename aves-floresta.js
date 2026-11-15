@@ -57,7 +57,7 @@ function kit(Merger){
  return {make(){const k=(Math.random()*SPECIES.length)|0,P=made[k],g=new T.Group(),inner=new T.Group();g.add(inner);const size=rr(.2,.27);inner.scale.setScalar(size);
    inner.add(new T.Mesh(P.body,mat));const wings=[];
    for(const s of [-1,1]){const root=new T.Group();root.position.set(s*.25,.53,.04);root.scale.x=s;inner.add(root);root.add(new T.Mesh(P.w1,mat));const tip=new T.Group();tip.position.x=.5;root.add(tip);tip.add(new T.Mesh(P.w2,mat));root.visible=false;wings.push({s,root,tip});}
-   return {g,inner,wings,size,ph:rr(0,TAU)};}};
+   return {g,inner,wings,size,ph:rr(0,TAU),sp:SPECIES[k].n};}};
 }
 
 function install(){
@@ -132,6 +132,7 @@ function install(){
    b.t-=dt;wingsFold(b);
    if(b.look==null||b.lookT<=0){b.look=rr(-.35,.6);b.lookT=rr(.4,1.6);b.yawT=b.g.rotation.y+rr(-.9,.9);}b.lookT-=dt;
    b.inner.rotation.x+=(b.look-b.inner.rotation.x)*Math.min(1,dt*8);if(b.yawT!=null)b.g.rotation.y+=angTo(b.g.rotation.y,b.yawT)*Math.min(1,dt*6);
+   if(b.sing>0){b.sing-=dt;b.inner.rotation.x=-.32+Math.sin(state.t*28)*.07;}   // cantando: bico para cima, tremendo
    if(dp<3.2)G.alarm=Math.max(G.alarm,.01);
    if(G.alarm>0&&dp<5){b.inner.rotation.x=0;goPerch(b,true);return;}
    if(b.t<=0&&!night&&G.alarm<=0&&pDist(G.x,G.z)>6){b.inner.rotation.x=0;b.land={x:G.x+rr(-1.8,1.8),z:G.z+rr(-1.8,1.8)};b.land.y=ground(b.land.x,b.land.z);b.st='down';b.vy=1;}
@@ -139,7 +140,9 @@ function install(){
   }else if(b.st==='flee'||b.st==='up'){ // indo para o galho/telhado
    b.t+=dt;const fast=b.st==='flee';wingsFly(b,true,state.t*(fast?26:20)+b.ph);
    const d=flyTo(b,b.p.x,b.p.y+(Math.hypot(b.p.x-b.x,b.p.z-b.z)>2?.6:0),b.p.z,fast?7.5:5,dt);place(b);
-   if(d<.22||b.t>9){settle(b,b.p);b.g.rotation.y=b.p.face+rr(-.6,.6);b.st='perch';b.t=fast?rr(8,16):rr(4,12);}
+   if(d<.22||b.t>9){settle(b,b.p);b.g.rotation.y=b.p.face+rr(-.6,.6);b.st='perch';b.t=fast?rr(8,16):rr(4,12);
+    // pousou na árvore: 30% de chance de cantar (o som sai do próprio pássaro). Assustado (fugindo) não canta.
+    if(!fast&&Math.random()<.3){const A=window.arcanoAudio;if(A&&A.birdAt&&A.birdAt(b.x,b.y,b.z,b.sp)){b.sing=1.4;}}}
   }else if(b.st==='down'){ // desce planando até o chão
    const far=Math.hypot(b.land.x-b.x,b.land.z-b.z),d=flyTo(b,b.land.x,b.land.y+(far>2.5?.9:0),b.land.z,4.5,dt),flap=d<1.6||((state.t+b.ph)%2.2)<.8;wingsFly(b,flap,state.t*20+b.ph);place(b);
    if(dp<4){G.alarm=.01;goPerch(b,true);return;}

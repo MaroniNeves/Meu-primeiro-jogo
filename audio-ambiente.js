@@ -81,13 +81,14 @@ function tick(){requestAnimationFrame(tick);const now=performance.now(),dt=Math.
  let wind=.45;try{wind=clamp(a.atmosphere.getGrassWindPower(),0,2);}catch(e){}
  const gust=.55+.45*Math.sin(now*.00031)*Math.sin(now*.00017+1)+.25*Math.sin(now*.0013);
  const set=(g,v)=>g.gain.setTargetAtTime(v,T,.35);
- set(beds.wind,out*(.05+.09*wind*gust));beds.windF.frequency.setTargetAtTime(300+260*gust,T,.4);
- set(beds.leaves,out*env.trees*(.03+.1*wind*clamp(gust,0,1.3)));
- set(beds.lake,out*env.water*(1-env.river*.6)*.22);set(beds.river,out*env.water*env.river*.26);
+ set(beds.wind,out*(.018+.032*Math.min(1.2,wind)*gust));   // vento mais baixo (estava alto demais)beds.windF.frequency.setTargetAtTime(300+260*gust,T,.4);
+ set(beds.leaves,out*env.trees*(.012+.04*Math.min(1.2,wind)*clamp(gust,0,1.3)));
+ set(beds.lake,out*env.water*(1-env.river*.6)*.085);set(beds.river,out*env.water*env.river*.1);   // água mais baixa
  set(beds.cicada,out*day*env.trees*.035*(.6+.4*Math.sin(now*.0007)));
  set(beds.cave,env.inMine?.14:0);
  // pássaros (dia) e corujas (noite) perto das árvores
- cool.bird-=dt;if(out&&cool.bird<=0){cool.bird=rr(1.2,4.5)/(.3+env.trees+(day>.5?.2:0));if(day>.25&&Math.random()<.4+.6*env.trees){const k=Object.keys(BIRDS),b=BIRDS[k[Math.random()*k.length|0]];b(T+.05,rr(-.9,.9),rr(.04,.09)*(.4+env.trees*.6)*day);}}
+ cool.bird-=dt;if(false&&out&&cool.bird<=0){ // (canto aleatório desligado: agora cantam os pássaros de verdade, ver birdAt)
+cool.bird=rr(1.2,4.5)/(.3+env.trees+(day>.5?.2:0));if(day>.25&&Math.random()<.4+.6*env.trees){const k=Object.keys(BIRDS),b=BIRDS[k[Math.random()*k.length|0]];b(T+.05,rr(-.9,.9),rr(.04,.09)*(.4+env.trees*.6)*day);}}
  cool.owl-=dt;if(out&&cool.owl<=0){cool.owl=rr(8,20);if(night>.65&&env.trees>.2)owl(T+.05,rr(-.8,.8),.07*env.trees);}
  // grilos: entardecer e noite, onde tem mato
  if(out&&(night>.35||dusk>.5))for(const c of crick){c.t-=dt;if(c.t<=0){c.t=c.rate*rr(.85,1.2);if(Math.random()<.85)cricket(T+.02,c.pan,.018*c.vol*Math.max(night,dusk*.6)*(.4+.6*(1-env.water*.5)));}}
@@ -103,5 +104,10 @@ function tick(){requestAnimationFrame(tick);const now=performance.now(),dt=Math.
  cool.drip-=dt;if(env.inMine&&cool.drip<=0){cool.drip=rr(.6,2.6);drip(T+.02,rr(-.8,.8),rr(.04,.09));}
 }
 tick();
-window.arcanoAudio={start,toggle,get env(){return env;},get ctx(){return ac;},get master(){return master;}};
+// canto vindo de um pássaro de verdade: direção (esquerda/direita) e volume pela distância
+const SPECIES_SONG={pardal:'pardal',sabiá:'sabia',canário:'canario',azulão:'bemtevi',cardeal:'sabia',periquito:'pardal'};
+function birdAt(x,y,z,species){if(!ac||!on||ac.state!=='running'||env.under||env.inMine)return false;const a=api(),cam=a&&a.getMainCamera&&a.getMainCamera();if(!cam)return false;
+ const d=Math.hypot(x-cam.position.x,y-cam.position.y,z-cam.position.z);if(d>55)return false;const v=.085*Math.pow(1-d/55,1.4)*(.5+.5*dayF());if(v<.004)return false;
+ const b=BIRDS[SPECIES_SONG[species]]||BIRDS.pardal;b(ac.currentTime+.03,panOf(x,z),v);return true;}
+window.arcanoAudio={start,toggle,birdAt,get env(){return env;},get ctx(){return ac;},get master(){return master;}};
 })();

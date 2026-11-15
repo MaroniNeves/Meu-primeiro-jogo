@@ -34,28 +34,25 @@ function step(kind,run,side){
  if(kind==='stone'&&window.arcanoAudio.env&&window.arcanoAudio.env.inMine)pan.connect(prevOut);
  out=tmp;
  try{
+  // passos MACIOS: só ruído filtrado com ataque suave (sem tons de "batida na tábua")
+  const att=.014;
   if(kind==='grass'){
-   noise(ac,t,.16*k,[F(ac,'highpass',1400,.5),F(ac,'bandpass',rr(3200,4600),.8)],.16*k,.01);
-   noise(ac,t+.03,.12,[F(ac,'bandpass',rr(6000,8000),1)],.05*k);
-   tone(ac,t,rr(80,95),45,.07,.10*k);
-   if(run)noise(ac,t+.05,.22,[F(ac,'highpass',2500,.6)],.06);}
+   noise(ac,t,.2*k,[F(ac,'bandpass',rr(1700,2500),.55),F(ac,'lowpass',4200,.5)],.06*k,att);   // capim amassando
+   noise(ac,t,.12,[F(ac,'lowpass',170,.7)],.07*k,att);                                         // pisada abafada
+   if(run)noise(ac,t+.04,.2,[F(ac,'bandpass',3200,.6)],.025,.02);}
   else if(kind==='dirt'){
-   noise(ac,t,.11*k,[F(ac,'lowpass',rr(700,1000),.9)],.32*k);
-   noise(ac,t+.01,.07,[F(ac,'bandpass',2600,1.2)],.05*k);
-   tone(ac,t,rr(70,85),40,.08,.16*k);
-   if(run)noise(ac,t+.06,.16,[F(ac,'bandpass',1800,.8)],.07);}            // arrasto de cascalho
+   noise(ac,t,.13*k,[F(ac,'lowpass',rr(520,700),.6)],.1*k,att);
+   noise(ac,t+.01,.09,[F(ac,'bandpass',1500,.7)],.022*k,att);                                   // terrinha
+   if(run)noise(ac,t+.05,.14,[F(ac,'bandpass',1200,.6)],.03,.02);}
   else if(kind==='stone'){
-   noise(ac,t,.06,[F(ac,'bandpass',rr(1800,2600),1.6)],.26*k);
-   tone(ac,t,rr(260,320),150,.05,.07*k,'triangle');
-   tone(ac,t,rr(90,110),50,.06,.12*k);}
+   noise(ac,t,.09,[F(ac,'bandpass',rr(1000,1400),.7)],.05*k,att);                               // sola na pedra
+   noise(ac,t,.1,[F(ac,'lowpass',220,.7)],.06*k,att);}
   else if(kind==='wood'){
-   noise(ac,t,.08,[F(ac,'bandpass',rr(500,700),2.2)],.22*k);
-   tone(ac,t,rr(170,210),110,.16,.2*k,'triangle');
-   tone(ac,t+.008,rr(340,420),260,.07,.05*k);}
+   noise(ac,t,.12,[F(ac,'lowpass',rr(700,950),.6)],.075*k,att);
+   noise(ac,t,.14,[F(ac,'lowpass',180,.8)],.07*k,att);}
   else if(kind==='water'){
-   noise(ac,t,.32*k,[F(ac,'bandpass',rr(900,1400),.7)],.22*k,.012);
-   noise(ac,t+.05,.4,[F(ac,'lowpass',600,.8)],.12*k,.03);
-   tone(ac,t+.02,rr(380,460),170,.12,.04);}
+   noise(ac,t,.3*k,[F(ac,'bandpass',rr(900,1300),.6)],.12*k,.02);
+   noise(ac,t+.05,.38,[F(ac,'lowpass',550,.7)],.07*k,.04);}
  }finally{out=prevOut;}
 }
 /* ---------- uma braçada nadando ---------- */
@@ -82,8 +79,11 @@ function surface(p,g){
  const gr=window.arcanoIslandGreen?window.arcanoIslandGreen(x,z):.6;return gr>.42?'grass':'dirt';
 }
 
-/* ---------- laço: mede a distância andada e toca os passos ---------- */
-let lx=null,lz=null,acc=0,side=1,strokeAcc=0,wasSwim=false;
+/* ---------- laço: o passo toca quando o pé da animação encosta no chão (sincronizado com o personagem) ---------- */
+let lx=null,lz=null,strokeAcc=0,wasSwim=false,feet=null,feetRoot=null;const wp={x:0,y:0,z:0};
+function findFeet(g){const r=g.root;if(!r)return null;if(feetRoot===r&&feet)return feet;feetRoot=r;const L=[],R=[];r.traverse(o=>{if(!o.isBone)return;if(/LeftFoot$/i.test(o.name))L.push(o);if(/RightFoot$/i.test(o.name))R.push(o);});
+ feet=L.length&&R.length?[{b:L[0],side:-1,base:.07,up:false},{b:R[0],side:1,base:.07,up:false}]:null;return feet;}
+const V=window.THREE?new window.THREE.Vector3():null;
 function tick(){requestAnimationFrame(tick);
  if(!document.body.classList.contains('play-active')){lx=null;return;}
  const api=window.arcanoWaterV1226,g=api&&api.getGrassPlayer&&api.getGrassPlayer();if(!g||!g.position)return;
@@ -94,10 +94,13 @@ function tick(){requestAnimationFrame(tick);
   if(!wasSwim){stroke(true);strokeAcc=0;}                                                   // entrou nadando: tchibum
   strokeAcc+=moved;if(strokeAcc>(run?1.1:.95)){strokeAcc=0;stroke(run);}
   wasSwim=true;return;}
- if(wasSwim){wasSwim=false;step('water',false,side);}
- if(moved<.002){acc=Math.min(acc,.4);return;}
- acc+=moved;const stride=run?1.05:.72;
- if(acc>=stride){acc-=stride;side=-side;step(surface(p,g),run,side);}
+ if(wasSwim){wasSwim=false;step('water',false,1);}
+ const F2=findFeet(g);if(!F2||!V)return;
+ const moving=moved>.004;
+ for(const f of F2){f.b.getWorldPosition(V);const h=V.y-p.y;
+  f.base=Math.min(f.base+.02*(1/60),h);                                                     // altura do pé apoiado (se adapta ao modelo)
+  if(h>f.base+.045)f.up=true;
+  else if(f.up&&h<f.base+.014){f.up=false;if(moving){wp.x=V.x;wp.y=p.y;wp.z=V.z;step(surface(wp,g),run,f.side);}}}
 }
 tick();
 window.arcanoSonsJogador={step,stroke,surface};
