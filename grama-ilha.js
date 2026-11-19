@@ -11,7 +11,7 @@
 const T=window.THREE;
 if(!T)return;
 const mobile=/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)||innerWidth<680;
-const CHUNK=24,RANGE=mobile?44:72,NEAR=mobile?26:36,PER_M2=mobile?4:6; // menos tufos: a grama era o maior peso do jogo
+const CHUNK=24,RANGE=mobile?44:72,NEAR=mobile?26:36,PER_M2=mobile?3:4.5; // menos tufos: a grama era o maior peso do jogo
 const INNER={x0:-64,x1:64,z0:-50,z1:50};
 // Outros módulos registram aqui áreas sem grama: (x,z)=>true.
 window.arcanoNoGrass=window.arcanoNoGrass||[];

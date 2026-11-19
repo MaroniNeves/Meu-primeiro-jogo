@@ -1107,7 +1107,7 @@ function install(){
   grad.addColorStop(0,'rgba(150,120,80,0)');grad.addColorStop(.14,'rgba(150,120,80,.85)');
   grad.addColorStop(.86,'rgba(150,120,80,.85)');grad.addColorStop(1,'rgba(150,120,80,0)');
   g.fillStyle=grad;g.fillRect(0,0,256,256);
-  for(let k=0;k<70;k++){
+  for(let k=0;k<0;k++){ // pedras pintadas desligadas: agora são pedras 3D (ver "Pedras da calçada")
    const x=40+rnd()*176,y=rnd()*256,w=14+rnd()*16,h=11+rnd()*12,l=60+rnd()*14;
    g.fillStyle=`hsl(${32+rnd()*12},${12+rnd()*10}%,${l}%)`;
    g.beginPath();g.ellipse(x,y,w/2,h/2,rnd()*3,0,6.3);g.fill();
@@ -1145,6 +1145,39 @@ function install(){
   rg.setIndex(idx);rg.computeVertexNormals();
   const roadMesh=new T.Mesh(rg,mat);roadMesh.name='Estrada calçada';roadMesh.receiveShadow=true;roadMesh.renderOrder=1;
   scene.add(roadMesh);
+  // ---------- Pedras da calçada em 3D (pedras de verdade, baixas e irregulares) ----------
+  {
+   const sg=new T.IcosahedronGeometry(1,1),sp=sg.attributes.position;
+   for(let i=0;i<sp.count;i++){let x=sp.getX(i),y=sp.getY(i),z=sp.getZ(i);const n=1+.16*Math.sin(x*5.1+z*3.7)+.1*Math.sin(y*7.3-x*4.1);
+    y=y<0?y*.25:y*(.55+.1*Math.sin(x*3+z*2));sp.setXYZ(i,x*n,y,z*n);}
+   sg.computeVertexNormals();
+   const sm=new T.MeshStandardMaterial({color:'#ffffff',roughness:.9,metalness:0});
+   const PX=[],GRID=new Map(),GC=16,rs=(()=>{let a=91731;return()=>{a=(a*16807)%2147483647;return a/2147483647;};})();
+   for(const line of lines){
+    const pts=line.pts,hw=line.w*.72;
+    for(let i=0;i<pts.length-1;i++){const a=pts[i],b=pts[i+1],len=Math.hypot(b.x-a.x,b.z-a.z);if(len<1e-3)continue;const tx=(b.x-a.x)/len,tz=(b.z-a.z)/len;
+     for(let d=0;d<len;d+=.36){const cx=a.x+tx*d,cz=a.z+tz*d;
+      if(bridge&&bridge.center&&Math.abs(cx-bridge.center.x)<bridge.span/2+1&&Math.abs(cz-bridge.center.z)<3)continue;
+      if(((streamInfo(cx,cz)||{d:99}).d<STREAM_W+1.2))continue;
+      for(let off=-hw;off<=hw;off+=.34){if(rs()<.2)continue;
+       const edge=Math.abs(off)/hw;if(edge>.8&&rs()<edge)continue;                         // bordas mais ralas
+       const x=cx-tz*(off+(rs()-.5)*.14)+tx*(rs()-.5)*.14,z=cz+tx*(off+(rs()-.5)*.14)+tz*(rs()-.5)*.14;
+       const k=Math.floor(x/GC)*65536+Math.floor(z/GC);let l=GRID.get(k);if(!l)GRID.set(k,l=[]);l.push(PX.length/6);
+       PX.push(x,groundAt(x,z)+.06,z,.11+rs()*.07,rs()*6.283,rs());}}}
+   }
+   const P=new Float32Array(PX);const MAXN=innerWidth<680?3500:7000,RAD=innerWidth<680?30:44;
+   const im=new T.InstancedMesh(sg,sm,MAXN);im.name='Calçada da estrada · blocos 3D';im.count=0;im.frustumCulled=false;im.receiveShadow=true;im.castShadow=false;scene.add(im);
+   const o=new T.Object3D(),col=new T.Color();let lx=1e9,lz=1e9;
+   function refill(px,pz){let n=0;const c0=Math.floor((px-RAD)/GC),c1=Math.floor((px+RAD)/GC),r0=Math.floor((pz-RAD)/GC),r1=Math.floor((pz+RAD)/GC);
+    for(let i=c0;i<=c1&&n<MAXN;i++)for(let j=r0;j<=r1&&n<MAXN;j++){const l=GRID.get(i*65536+j);if(!l)continue;
+     for(const q of l){const b=q*6,x=P[b],z=P[b+2];if((x-px)*(x-px)+(z-pz)*(z-pz)>RAD*RAD)continue;
+      const sc=P[b+3],t=P[b+5];o.position.set(x,P[b+1],z);o.rotation.set(0,P[b+4],0);o.scale.set(sc*(1+t*.45),sc,sc*(1.25-t*.4));o.updateMatrix();im.setMatrixAt(n,o.matrix);
+      col.setHSL(.07+t*.04,.08+t*.08,.42+t*.18);im.setColorAt(n,col);if(++n>=MAXN)break;}}
+    im.count=n;im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true;}
+   setInterval(()=>{const a=window.arcanoWaterV1226,pl=a&&a.getGrassPlayer&&a.getGrassPlayer(),cam=a&&a.getMainCamera&&a.getMainCamera(),p=pl?pl.position:cam&&cam.position;if(!p)return;
+    if(Math.hypot(p.x-lx,p.z-lz)>5){lx=p.x;lz=p.z;refill(p.x,p.z);}},300);
+   window.arcanoCalcada={total:P.length/6,mesh:im,refill};
+  }
  }
  // ---------- Pontes de pedra onde as estradas cruzam os afluentes ----------
  {

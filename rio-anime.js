@@ -358,7 +358,7 @@ function install(){
   const z=player?player.position.z:camera.position.z;
   const y=window.arcanoWaterLevelAt?window.arcanoWaterLevelAt(player?player.position.x:camera.position.x,z):(profile?profile.levelAt(z):0);
   u.uMirrorY.value=y;
-  mirror.copy(camera,false);
+  mirror.copy(camera,false);mirror.layers.disable(2);   // a grama (camada 2) não entra no reflexo
   mirror.position.copy(camera.position);mirror.position.y=2*y-camera.position.y;
   camera.getWorldDirection(tmp);
   look.copy(camera.position).add(tmp);look.y=2*y-look.y;

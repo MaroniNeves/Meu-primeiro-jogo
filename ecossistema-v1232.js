@@ -1572,7 +1572,7 @@ function updateGrassLod(){
   const n=mesh.userData.planted||0,bs=mesh.boundingSphere;if(!n||!bs)continue;
   const d=Math.max(0,Math.hypot(bs.center.x-cx,bs.center.z-cz)-7);
   // fração máxima por tipo (os tufos mais pesados ficam mais ralos) × queda com a distância
-  const nm=mesh.name,base=/grassMixed1/.test(nm)?.22:/grassTall/.test(nm)?.3:/grassShort/.test(nm)?.45:.7;
+  const nm=mesh.name,base=/grassMixed1/.test(nm)?.14:/grassTall/.test(nm)?.2:/grassShort/.test(nm)?.32:.55;
   const far=/grassTall|grassMixed1/.test(nm)?50:62;
   const k=d>far?0:base*(d<10?1:Math.max(.12,Math.pow(1-(d-10)/(far-10),1.5)));
   const c=Math.round(n*k);if(c!==mesh.count){mesh.count=c;mesh.visible=c>0;}
