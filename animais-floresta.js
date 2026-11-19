@@ -258,13 +258,19 @@ function animarCervo(d,dt,now,dxp,dzp){
    L.hip.rotation.x=swing;L.knee.rotation.x=(L.front?bend:-Math.abs(bend)*.4+(running?Math.sin(ph+2)*.4:0));}
   if(running){bob=Math.abs(Math.sin(ph))*.22;bodyPitch=Math.sin(ph+.6)*.12;}else if(walking){bob=Math.abs(Math.sin(ph*2))*.025;}
   let wantNeck=0,wantHeadYaw=0,chew=0;
-  if(d.st==='graze'&&!walking){wantNeck=2.2;chew=Math.sin(now*.011)*.06;bodyPitch=.08;}
+  if(d.st==='graze'&&!walking){wantNeck=2.2;chew=Math.sin(now*.011)*.06;if(!d.neck2)bodyPitch=.08;}
   else if(d.st==='alert'){wantNeck=-.25;wantHeadYaw=clamp(angDiff(d.yaw,Math.atan2(-dxp,-dzp)),-1.1,1.1);}
   else if(running)wantNeck=-.1+Math.sin(ph)*.12;else if(walking)wantNeck=.15+Math.sin(ph*2)*.04;
   d.neckPitch+=(wantNeck-d.neckPitch)*Math.min(1,dt*3.5);d.headYaw+=(wantHeadYaw-d.headYaw)*Math.min(1,dt*4);
+  // pastar como um cervo de verdade: a frente do corpo abaixa, as patas da frente vão para a frente (e abrem um pouco),
+  // o pescoço desce em diagonal saindo da cernelha e a cabeça aponta para o capim — cascos sempre no chão.
+  d.gz=(d.gz||0)+(((d.st==='graze'&&!walking&&d.neck2)?1:0)-(d.gz||0))*Math.min(1,dt*2.2);const gz=d.gz*d.gz*(3-2*d.gz);
+  if(gz>.001){bodyPitch+=.18*gz;bob-=.066*gz;
+   for(const L of d.legs){if(L.front){L.hip.rotation.x+=-.639*gz;L.hip.rotation.z=L.side*.15*gz;}else{L.hip.rotation.x+=.08*gz;L.hip.rotation.z=L.side*.06*gz;L.knee.rotation.x+=-.12*gz;}}}
+  else for(const L of d.legs)L.hip.rotation.z=0;
   const flinch=d.stagger>0?Math.sin(d.stagger*30)*.08:0;
   d.body.position.y=bob*d.S;d.body.rotation.set(bodyPitch,0,flinch);d.neck.rotation.x=d.neckPitch;d.neck.rotation.y=d.headYaw*.5;d.head.rotation.x=-d.neckPitch*.45+chew;d.head.rotation.y=d.headYaw*.5;
-  if(d.neck2){d.neck.rotation.x=d.neckPitch*.95;d.neck2.rotation.x=d.neckPitch*.2;d.neck.rotation.y=d.neck2.rotation.y=d.headYaw*.25;d.head.rotation.x=-d.neckPitch*.6+chew;}   // pescoço em curva
+  if(d.neck2){d.neck.rotation.x=d.neckPitch*.841;d.neck2.rotation.x=d.neckPitch*.055;d.neck.rotation.y=d.neck2.rotation.y=d.headYaw*.25;d.head.rotation.x=-d.neckPitch*.386+chew;}   // pescoço desce em diagonal (o corpo ajuda a abaixar)
   for(const e of d.ears){const tw=Math.max(0,Math.sin(now*.0013+e.ph*3))>.985?Math.sin(now*.05)*.5:0;
    e.g.rotation.x=-.2+(d.st==='alert'?-.35:0)+tw*.6;e.g.rotation.z=e.s*(d.st==='alert'?-.55:-.9)+tw*.3;}
   d.tail.rotation.x=(d.st==='flee'?-1.3:-.2)+Math.sin(now*.02+d.phase)*(d.st==='flee'?.25:.12);
