@@ -1145,6 +1145,12 @@ function install(){
   rg.setIndex(idx);rg.computeVertexNormals();
   const roadMesh=new T.Mesh(rg,mat);roadMesh.name='Estrada calçada';roadMesh.receiveShadow=true;roadMesh.renderOrder=1;
   scene.add(roadMesh);
+  // o pé pisa na superfície da estrada (5 cm acima do terreno, com as pedrinhas), não no terreno embaixo dela
+  {const GS=8,G=new Map(),key=(i,j)=>i*65536+j;
+   for(const line of lines)for(let i=0;i<line.pts.length-1;i++){const a=line.pts[i],b=line.pts[i+1],hw=line.w*.92;const i0=Math.floor((Math.min(a.x,b.x)-hw)/GS),i1=Math.floor((Math.max(a.x,b.x)+hw)/GS),j0=Math.floor((Math.min(a.z,b.z)-hw)/GS),j1=Math.floor((Math.max(a.z,b.z)+hw)/GS);
+    for(let ii=i0;ii<=i1;ii++)for(let jj=j0;jj<=j1;jj++){const k=key(ii,jj);let l=G.get(k);if(!l)G.set(k,l=[]);l.push([a.x,a.z,b.x,b.z,hw]);}}
+   (window.arcanoGroundOverrides=window.arcanoGroundOverrides||[]).push((x,z)=>{const l=G.get(key(Math.floor(x/GS),Math.floor(z/GS)));if(!l)return null;
+    for(const [ax,az,bx,bz,hw] of l){const dx=bx-ax,dz=bz-az,L2=dx*dx+dz*dz||1,t=Math.max(0,Math.min(1,((x-ax)*dx+(z-az)*dz)/L2)),px=ax+dx*t-x,pz=az+dz*t-z;if(px*px+pz*pz<hw*hw){if(bridge&&bridge.center&&Math.abs(x-bridge.center.x)<bridge.span/2+1&&Math.abs(z-bridge.center.z)<3)return null;return groundAt(x,z)+.07;}}return null;});}
   // ---------- Pedras da calçada em 3D (pedras de verdade, baixas e irregulares) ----------
   {
    // 5 formatos diferentes (seixo redondo, pedra angulosa, laje chata, pedra comprida, cascalho quebrado)

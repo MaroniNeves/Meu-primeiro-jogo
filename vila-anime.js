@@ -170,13 +170,13 @@ function houseTorre(g,w,d,roof){
  const cg=new T.ConeGeometry(r+.8,3.8,16);shingleUV(cg,2*Math.PI*(r+.8),Math.hypot(3.8,r+.8));const c=new T.Mesh(cg,roof);c.position.set(0,9.6,0);g.add(c);box(g,.2,1,.2,M.gold,0,12,0);
  // Anexo baixo ao lado, com telhado próprio, cantos de madeira e janela.
  const ax=w*.42,aw=w*.55,ad=d*.7,az=d*.05;
- box(g,aw,2.8,ad,M.plaster,ax,1.4,az);gable(g,aw,ad,2.8,1.4,roof,.4,M.plaster);g.children.slice(-5).forEach(o=>o.position.x+=ax);
+ box(g,aw,2.8,ad,M.plaster,ax,1.4,az);{const n0=g.children.length;gable(g,aw,ad,2.8,1.4,roof,.4,M.plaster);g.children.slice(n0).forEach(o=>o.position.x+=ax);}
  for(const sx of [-1,1])for(const sz of [-1,1])box(g,.2,2.8,.2,M.timber,ax+sx*aw/2,1.4,az+sz*ad/2);
  box(g,aw+.06,.18,.22,M.timber,ax,2.75,az+ad/2);box(g,aw+.06,.18,.22,M.timber,ax,.1,az+ad/2);
  windowAt(g,ax+aw/2+.08,1.7,az,Math.PI/2);
  door(g,w,r+.03,M.timber,M.wood);
  for(const [y,a] of [[3.6,0],[5.6,.9],[5.6,-.9],[3.6,Math.PI]]){windowAt(g,Math.sin(a)*(r+.06),y,Math.cos(a)*(r+.06),a,false);}
- flowerBox(g,ax,1.6,az+ad/2+.12,0);
+ windowAt(g,ax,1.75,az+ad/2+.08,0);flowerBox(g,ax,1.02,az+ad/2+.27,0);
 }
 function houseChale(g,w,d,roof){
  const fy=.7,holes=[{f:0,u:0,w:1.3,y0:fy,y1:fy+2.2},winH(0,-w*.3,2.5),winH(0,w*.3,2.5),winH(2,0,2.5),winH(3,0,2.5)];
