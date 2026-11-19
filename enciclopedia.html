@@ -88,7 +88,7 @@ body.noite #titulo{color:#eef3ff;text-shadow:none}body.noite #titulo div,body.no
 <script defer src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 <script defer src="./fauna-margens.js?v=6"></script>
 <script defer src="./aves-floresta.js?v=4"></script>
-<script defer src="./animais-floresta.js?v=10"></script>
+<script defer src="./animais-floresta.js?v=11"></script>
 <script defer src="./vida-aquatica.js?v=7"></script>
 <script defer src="./ecossistema-v1232.js?v=largo-8"></script>
 <script>
@@ -245,7 +245,10 @@ const st={semAgua:false,esp:null,var:0,modo:null,girar:true,lento:false,raioBase
 let cur=null,T0=performance.now()/1000,tAnim=0;
 // caixa só do que está visível (asas recolhidas e a língua do sapo ficam de fora)
 function medir(obj){obj.updateMatrixWorld(true);const b=new T.Box3(),bb=new T.Box3();
- const vai=o=>{if(!o.visible)return;if((o.isMesh||o.isPoints)&&o.geometry){const g=o.geometry;if(!g.boundingBox)g.computeBoundingBox();
+ const vai=o=>{if(!o.visible||o.userData.ink)return;
+  if(o.isSkinnedMesh){const v=new T.Vector3(),n=o.geometry.attributes.position.count,f=(o.applyBoneTransform||o.boneTransform).bind(o);o.skeleton.update();
+   for(let i=0;i<n;i+=5){v.fromBufferAttribute(o.geometry.attributes.position,i);f(i,v);v.applyMatrix4(o.matrixWorld);b.expandByPoint(v);}for(const c of o.children)vai(c);return;}
+  if((o.isMesh||o.isPoints)&&o.geometry){const g=o.geometry;if(!g.boundingBox)g.computeBoundingBox();
    if(o.isInstancedMesh){const m=new T.Matrix4();o.getMatrixAt(0,m);bb.copy(g.boundingBox).applyMatrix4(m).applyMatrix4(o.matrixWorld);}else bb.copy(g.boundingBox).applyMatrix4(o.matrixWorld);b.union(bb);}
   for(const c of o.children)vai(c);};
  vai(obj);if(b.isEmpty())return null;const s=b.getSize(new T.Vector3());if(Math.max(s.x,s.y,s.z)<1e-4)return null;return b;}

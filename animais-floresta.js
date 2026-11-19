@@ -12,6 +12,7 @@
 'use strict';
 const T=window.THREE;if(!T)return;
 const PI=Math.PI,TAU=PI*2,clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),lerp=(a,b,t)=>a+(b-a)*t,rr=(a,b)=>a+Math.random()*(b-a);
+const mobile=/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)||innerWidth<680;
 const sstep=t=>{t=clamp(t,0,1);return t*t*(3-2*t);};
 const angDiff=(a,b)=>{let d=(b-a)%TAU;if(d>PI)d-=TAU;if(d<-PI)d+=TAU;return d;};
 
@@ -74,49 +75,152 @@ function coat(kind){
   return shade(c,x,y,z);};
 }
 
-/* ---------- um cervo (peças articuladas) ---------- */
+/* ---------- pele única ----------
+   O cervo é descrito por formas (tubos ao longo de curvas e elipsoides) somadas de modo SUAVE: onde duas formas
+   se encontram, a superfície faz uma curva contínua em vez de uma quina. Dessa soma sai UMA malha fechada
+   (surface nets), com cor e "peso de osso" por vértice. A malha se dobra com um esqueleto cujos ossos ficam
+   nos mesmos lugares das articulações de antes (quadril, joelho, pescoço, cabeça, cauda), então a animação não muda.
+   Olhos, nariz, orelhas e chifres continuam como peças presas ao osso da cabeça. */
+const smin=(a,b,k)=>{const h=Math.max(k-Math.abs(a-b),0)/k;return Math.min(a,b)-h*h*k*.25;};
+function tubePrim(path,prof,o){o=o||{};const n=o.n||24,ca=o.ca==null?.15:o.ca,cb=o.cb==null?.15:o.cb;
+ const X=new T.Vector3(1,0,0),Y=new T.Vector3(0,1,0),at=s=>new T.Vector3(...spline(path,s)),tg=new T.Vector3(),sd=new T.Vector3(),up=new T.Vector3();
+ const A=new Float64Array((n+1)*14),box=[1e9,1e9,1e9,-1e9,-1e9,-1e9];
+ for(let i=0;i<=n;i++){const s=i/n,P=at(s);tg.subVectors(at(Math.min(1,s+.01)),at(Math.max(0,s-.01))).normalize();
+  sd.copy(Math.abs(tg.dot(X))>.9?Y:X);up.crossVectors(tg,sd).normalize();sd.crossVectors(up,tg).normalize();
+  let c=1;if(ca>0&&s<ca)c=Math.sqrt(Math.max(0,1-Math.pow(1-s/ca,2)));if(cb>0&&s>1-cb)c=Math.min(c,Math.sqrt(Math.max(0,1-Math.pow(1-(1-s)/cb,2))));
+  const pr=spline(prof,s),w=Math.max(.004,pr[0]*c),d=Math.max(.004,pr[1]*c);
+  A.set([P.x,P.y,P.z,tg.x,tg.y,tg.z,sd.x,sd.y,sd.z,up.x,up.y,up.z,w,d],i*14);
+  const r=Math.max(w,d);box[0]=Math.min(box[0],P.x-r);box[1]=Math.min(box[1],P.y-r);box[2]=Math.min(box[2],P.z-r);box[3]=Math.max(box[3],P.x+r);box[4]=Math.max(box[4],P.y+r);box[5]=Math.max(box[5],P.z+r);}
+ const sdf=(x,y,z)=>{let bi=0,bt=0,bd=1e9;
+  for(let i=0;i<n;i++){const o0=i*14,o1=o0+14,ax=A[o0],ay=A[o0+1],az=A[o0+2],ex=A[o1]-ax,ey=A[o1+1]-ay,ez=A[o1+2]-az,L=ex*ex+ey*ey+ez*ez;
+   let t=L>0?((x-ax)*ex+(y-ay)*ey+(z-az)*ez)/L:0;t=t<0?0:t>1?1:t;const qx=x-ax-ex*t,qy=y-ay-ey*t,qz=z-az-ez*t,dd=qx*qx+qy*qy+qz*qz;if(dd<bd){bd=dd;bi=i;bt=t;}}
+  const o0=bi*14,o1=o0+14,L=(k)=>A[o0+k]+(A[o1+k]-A[o0+k])*bt;
+  const qx=x-L(0),qy=y-L(1),qz=z-L(2),u=qx*L(6)+qy*L(7)+qz*L(8),v=qx*L(9)+qy*L(10)+qz*L(11),a=qx*L(3)+qy*L(4)+qz*L(5),w=L(12),d=L(13);
+  const k0=Math.sqrt((u/w)*(u/w)+(v/d)*(v/d)),k1=Math.sqrt((u/(w*w))*(u/(w*w))+(v/(d*d))*(v/(d*d)));
+  let de=k1>1e-9?k0*(k0-1)/k1:-Math.min(w,d);
+  if((bi===0&&bt===0&&a<0)||(bi===n-1&&bt===1&&a>0))de=de>0?Math.hypot(de,a):Math.max(de,Math.abs(a));
+  return de;};
+ return {sdf,box};}
+function ellPrim(cx,cy,cz,rx,ry,rz){return {box:[cx-rx,cy-ry,cz-rz,cx+rx,cy+ry,cz+rz],sdf:(x,y,z)=>{const px=(x-cx)/rx,py=(y-cy)/ry,pz=(z-cz)/rz,k0=Math.sqrt(px*px+py*py+pz*pz),k1=Math.sqrt(px*px/(rx*rx)+py*py/(ry*ry)+pz*pz/(rz*rz));return k1>1e-9?k0*(k0-1)/k1:-Math.min(rx,ry,rz);}};}
+// cor escrita no espaço de uma articulação (como antes) mas avaliada no espaço do corpo
+const em=(fn,ox,oy,oz)=>(x,y,z,nx,ny,nz)=>fn(x-ox,y-oy,z-oz,nx,ny,nz);
+
+function skinGeometry(prims,h){
+ // 1) grade com a soma suave das formas
+ const B=[1e9,1e9,1e9,-1e9,-1e9,-1e9];for(const p of prims)for(let i=0;i<3;i++){B[i]=Math.min(B[i],p.box[i]-p.k-3*h);B[i+3]=Math.max(B[i+3],p.box[i+3]+p.k+3*h);}
+ const NX=Math.ceil((B[3]-B[0])/h)+1,NY=Math.ceil((B[4]-B[1])/h)+1,NZ=Math.ceil((B[5]-B[2])/h)+1,F=new Float32Array(NX*NY*NZ).fill(1),id=(i,j,k)=>i+NX*(j+NY*k);
+ for(const p of prims){const m=p.k+2*h,i0=Math.max(0,Math.floor((p.box[0]-m-B[0])/h)),i1=Math.min(NX-1,Math.ceil((p.box[3]+m-B[0])/h)),j0=Math.max(0,Math.floor((p.box[1]-m-B[1])/h)),j1=Math.min(NY-1,Math.ceil((p.box[4]+m-B[1])/h)),k0=Math.max(0,Math.floor((p.box[2]-m-B[2])/h)),k1=Math.min(NZ-1,Math.ceil((p.box[5]+m-B[2])/h));
+  for(let k=k0;k<=k1;k++){const z=B[2]+k*h;for(let j=j0;j<=j1;j++){const y=B[1]+j*h;let q=id(i0,j,k);for(let i=i0;i<=i1;i++,q++){const d=p.sdf(B[0]+i*h,y,z);F[q]=smin(F[q],d,p.k);}}}}
+ // 2) surface nets: um vértice por célula cortada pela superfície, um quadrilátero por aresta cortada
+ const CX=NX-1,CY=NY-1,cell=new Int32Array(CX*CY*(NZ-1)).fill(-1),pos=[],E=[[0,1],[2,3],[4,5],[6,7],[0,2],[1,3],[4,6],[5,7],[0,4],[1,5],[2,6],[3,7]],f=new Float32Array(8);
+ for(let k=0;k<NZ-1;k++)for(let j=0;j<CY;j++)for(let i=0;i<CX;i++){let neg=0;
+  for(let c=0;c<8;c++){f[c]=F[id(i+(c&1),j+((c>>1)&1),k+((c>>2)&1))];if(f[c]<0)neg++;}
+  if(neg===0||neg===8)continue;let sx=0,sy=0,sz=0,ne=0;
+  for(const [a,b] of E){if((f[a]<0)===(f[b]<0))continue;const t=f[a]/(f[a]-f[b]);sx+=(a&1)+((b&1)-(a&1))*t;sy+=((a>>1)&1)+(((b>>1)&1)-((a>>1)&1))*t;sz+=((a>>2)&1)+(((b>>2)&1)-((a>>2)&1))*t;ne++;}
+  cell[i+CX*(j+CY*k)]=pos.length/3;pos.push(B[0]+(i+sx/ne)*h,B[1]+(j+sy/ne)*h,B[2]+(k+sz/ne)*h);}
+ const idx=[],C=(i,j,k)=>cell[i+CX*(j+CY*k)];
+ // vira a face para fora: "out" é o lado da aresta que fica fora do bicho
+ const quad=(a,b,c,d,ax,outNeg)=>{if(a<0||b<0||c<0||d<0)return;
+  const ux=pos[c*3]-pos[a*3],uy=pos[c*3+1]-pos[a*3+1],uz=pos[c*3+2]-pos[a*3+2],vx=pos[d*3]-pos[b*3],vy=pos[d*3+1]-pos[b*3+1],vz=pos[d*3+2]-pos[b*3+2];   // diagonais do quadrilátero
+  const n=[uy*vz-uz*vy,uz*vx-ux*vz,ux*vy-uy*vx][ax]*(outNeg?-1:1);
+  if(n<0)idx.push(a,c,b,a,d,c);else idx.push(a,b,c,a,c,d);};
+ for(let k=0;k<NZ;k++)for(let j=0;j<NY;j++)for(let i=0;i<NX;i++){const f0=F[id(i,j,k)],in0=f0<0;
+  if(i<NX-1&&j>0&&k>0&&j<NY-1&&k<NZ-1&&in0!==(F[id(i+1,j,k)]<0))quad(C(i,j-1,k-1),C(i,j,k-1),C(i,j,k),C(i,j-1,k),0,!in0);
+  if(j<NY-1&&i>0&&k>0&&i<NX-1&&k<NZ-1&&in0!==(F[id(i,j+1,k)]<0))quad(C(i-1,j,k-1),C(i-1,j,k),C(i,j,k),C(i,j,k-1),1,!in0);
+  if(k<NZ-1&&i>0&&j>0&&i<NX-1&&j<NY-1&&in0!==(F[id(i,j,k+1)]<0))quad(C(i-1,j-1,k),C(i,j-1,k),C(i,j,k),C(i-1,j,k),2,!in0);}
+ // 3) alisa os degraus da grade (Taubin: alisa sem encolher)
+ const nV=pos.length/3,nb=Array.from({length:nV},()=>new Set());
+ for(let t=0;t<idx.length;t+=3){const a=idx[t],b=idx[t+1],c=idx[t+2];nb[a].add(b).add(c);nb[b].add(a).add(c);nb[c].add(a).add(b);}
+ const P=Float64Array.from(pos);
+ for(let it=0;it<6;it++){const lam=it%2?-.53:.5,Q=P.slice();
+  for(let v=0;v<nV;v++){const s=nb[v];if(!s.size)continue;let x=0,y=0,z=0;for(const u of s){x+=P[u*3];y+=P[u*3+1];z+=P[u*3+2];}const m=s.size;
+   Q[v*3]=P[v*3]+lam*(x/m-P[v*3]);Q[v*3+1]=P[v*3+1]+lam*(y/m-P[v*3+1]);Q[v*3+2]=P[v*3+2]+lam*(z/m-P[v*3+2]);}P.set(Q);}
+ const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(Float32Array.from(P),3));g.setIndex(nV>65535?new T.Uint32BufferAttribute(idx,1):new T.Uint16BufferAttribute(idx,1));g.computeVertexNormals();
+ // 4) cor e ossos de cada vértice: as formas mais próximas da superfície dividem a cor e o peso (transição suave nas juntas)
+ const pa=g.attributes.position,na=g.attributes.normal,col=new Float32Array(nV*3),si=new Uint16Array(nV*4),sw=new Float32Array(nV*4);
+ for(let v=0;v<nV;v++){const x=pa.getX(v),y=pa.getY(v),z=pa.getZ(v),nx=na.getX(v),ny=na.getY(v),nz=na.getZ(v);const ds=[];let dm=1e9;
+  for(const p of prims){const b=p.box,m=.08;if(x<b[0]-m||y<b[1]-m||z<b[2]-m||x>b[3]+m||y>b[4]+m||z>b[5]+m)continue;const d=p.sdf(x,y,z);ds.push([p,d]);if(d<dm)dm=d;}
+  let cr=0,cg=0,cbb=0,cw=0;const bw=new Map();
+  for(const [p,d] of ds){const wc=Math.exp(-(d-dm)/(p.sc||.012)),wb=Math.exp(-(d-dm)/(p.sb||.03));
+   if(wc>1e-3){const c=p.col(x,y,z,nx,ny,nz);cr+=c[0]*wc;cg+=c[1]*wc;cbb+=c[2]*wc;cw+=wc;}
+   bw.set(p.bone,(bw.get(p.bone)||0)+wb);}
+  col[v*3]=cr/cw;col[v*3+1]=cg/cw;col[v*3+2]=cbb/cw;
+  const top=[...bw].sort((a,b)=>b[1]-a[1]).slice(0,4),tw=top.reduce((s,e)=>s+e[1],0);
+  top.forEach(([b,w],q)=>{si[v*4+q]=b;sw[v*4+q]=w/tw;});}
+ g.setAttribute('color',new T.BufferAttribute(col,3));g.setAttribute('skinIndex',new T.Uint16BufferAttribute(si,4));g.setAttribute('skinWeight',new T.Float32BufferAttribute(sw,4));
+ g.computeBoundingSphere();g.boundingSphere.radius*=1.35;g.userData.shared=true;return g;}
+
+/* ---------- um cervo ---------- */
+const PELE={};   // uma malha por tipo (macho, fêmea, filhote), compartilhada por todos os cervos daquele tipo
+// ossos: 0 corpo, 1 pescoço, 2 cabeça, 3 cauda, 4.. quadril/joelho de cada perna
+const NECK=[0,1.14,.47],HEAD=[0,.56,.25],TAIL=[0,1.13,-.63],LEGS=[[-1,true],[1,true],[-1,false],[1,false]];
+const hipAt=(fx,front)=>[fx*.15,front?1.0:1.04,front?.4:-.42],kneeOf=front=>front?[0,-.45,.02]:[0,-.42,-.1];
+function deerPrims(kind){
+ const buck=kind==='buck',fur=coat(kind),brown=C3(buck?'#8c522b':'#a0653b'),tan=C3('#97663f'),cream=C3('#efe3c9'),hoofC=C3('#2a1a12'),P=[];
+ const add=(prim,bone,k,col,sc,sb)=>P.push({...prim,bone,k,col,sc,sb});
+ const tube=(path,prof,o,ofs)=>tubePrim(path.map(p=>[p[0]+ofs[0],p[1]+ofs[1],p[2]+ofs[2]]),prof,o);
+ const ell=(x,y,z,rx,ry,rz,ofs)=>ellPrim(x+ofs[0],y+ofs[1],z+ofs[2],rx,ry,rz);
+ const Z=[0,0,0],N0=NECK,H0=[NECK[0]+HEAD[0],NECK[1]+HEAD[1],NECK[2]+HEAD[2]];
+ // tronco
+ const K=[[-.66,1.13,.95,.09],[-.56,1.21,.82,.18],[-.42,1.25,.8,.23],[-.25,1.225,.87,.235],[-.05,1.215,.81,.255],[.15,1.24,.75,.25],[.32,1.3,.73,.22],[.48,1.27,.78,.17],[.62,1.17,.92,.09]];
+ add(tubePrim(K.map(k=>[0,(k[1]+k[2])/2,k[0]]),K.map(k=>[k[3],(k[1]-k[2])/2]),{n:30,ca:.1,cb:.12}),0,.02,fur);
+ // cauda
+ add(tube([[0,.01,0],[0,-.06,-.05],[0,-.15,-.06]],[[.045,.028],[.052,.032],[.034,.02]],{n:8,ca:.3,cb:.35},TAIL),3,.03,em((x,y,z,nx,ny,nz)=>nz<-.25?C3('#8c522b'):C3('#ffffff'),...TAIL));
+ // pescoço
+ {const th=buck?1.12:1;
+  add(tube([[0,-.02,-.01],[0,.16,.06],[0,.36,.14],[0,.54,.22]],[[.13*th,.13*th],[.125*th,.155*th],[.095*th,.115*th],[.08,.095]],{n:16,ca:.12,cb:.08},N0),1,.11,
+   em((x,y,z,nx,ny,nz)=>{let c=brown;if(nz>.3&&ny<.3)c=mixC(c,cream,.3*sstep((nz-.3)/.4));if(y>.4&&nz>.3&&ny<.05)c=C3('#fbf6ea');if(buck&&ny>.3&&y<.3)c=mixC(c,C3('#6f4a30'),.5);return shade(c,x,y,z);},...N0),null,.07);}
+ // volume de transição garganta → peito (sem dobra na frente do pescoço)
+ add(ell(0,.1,.1,.115*(buck?1.1:1),.17,.12,N0),1,.09,em((x,y,z,nx,ny,nz)=>shade(mixC(brown,cream,.2*sstep((nz-.3)/.4)),x,y,z),...N0),null,.08);
+ // cabeça: crânio em cunha + ponta do nariz + queixo
+ const headCol=em((x,y,z,nx,ny,nz)=>{let c=C3(buck?'#8a5530':'#9a6038');if(ny<-.35)c=C3('#efe2c8');if(z>.26&&z<.315&&ny>-.35)c=C3('#efe6d4');if(ny>.55&&z<.17&&z>-.02)c=mixC(c,C3('#5e3820'),.45);return shade(c,x,y,z);},...H0);
+ add(tube([[0,.07,-.07],[0,.06,.06],[0,.02,.2],[0,-.02,.31],[0,-.024,.365]],[[.08,.09],[.112,.118],[.074,.084],[.054,.058],[.04,.042]],{n:16,ca:.22,cb:.12},H0),2,.04,headCol);
+ add(ell(0,-.016,.372,.042,.03,.026,H0),2,.012,()=>C3('#17110f'),.006);
+ add(ell(0,-.058,.29,.034,.022,.045,H0),2,.02,()=>C3('#f3ead8'));
+ // pernas
+ LEGS.forEach(([fx,front],li)=>{const hp=hipAt(fx,front),kp=kneeOf(front),kn=[hp[0]+kp[0],hp[1]+kp[1],hp[2]+kp[2]],bh=4+li*2,bk=5+li*2;
+  const inner=c=>(x,y,z,nx)=>{const k=mixC(c(y),cream,.45*sstep((-nx*fx-.15)/.6));return shade(k,x,y,z);};
+  if(front)add(tube([[0,.1,.02],[0,-.12,.045],[0,-.3,.03],[0,-.45,.02]],[[.072,.13],[.068,.11],[.048,.062],[.038,.044]],{n:14,ca:.2,cb:.12},hp),bh,.06,em(inner(y=>y>-.15?brown:mixC(brown,tan,.6)),...hp));
+  else add(tube([[0,.12,.04],[0,-.12,.09],[0,-.3,-.02],[0,-.42,-.1]],[[.1,.2],[.092,.17],[.052,.085],[.04,.055]],{n:14,ca:.25,cb:.12},hp),bh,.06,em(inner(y=>y>-.2?brown:mixC(brown,tan,.6)),...hp));
+  const low=em(inner(()=>tan),...kn),L=front?.37:.47,pz=front?.045:.085,fz=front?.005:.045;
+  if(front)add(ell(0,0,.005,.042,.045,.048,kn),bk,.025,low);else add(ell(0,.02,-.05,.026,.045,.03,kn),bk,.025,low);
+  add(tube([[0,.01,0],[0,-L*.5,fz*.5],[0,-L,fz]],[[.034,.042],[.025,.03],[.027,.032]],{n:8,ca:0,cb:0},kn),bk,.02,low);
+  add(ell(0,-L,fz,.032,.035,.04,kn),bk,.015,low);
+  add(tube([[0,-L,fz],[0,-L-.05,fz+.02],[0,-L-.09,pz]],[[.026,.03],[.027,.031],[.03,.034]],{n:6,ca:0,cb:0},kn),bk,.015,low);
+  add(ell(0,-L-.13,pz+.018,.036,.046,.036,kn),bk,.01,()=>hoofC,.006);});
+ return P;}
+function deerSkin(kind){
+ if(!PELE[kind]){const t0=performance.now();PELE[kind]=skinGeometry(deerPrims(kind),mobile?.022:.016);PELE[kind].userData.ms=Math.round(performance.now()-t0);}
+ return PELE[kind];}
+
 function makeDeer(kind){
  const S=kind==='fawn'?.62:kind==='doe'?.9:1,buck=kind==='buck';
  const root=new T.Group();root.name='Cervo ('+(buck?'macho':kind==='doe'?'fêmea':'filhote')+')';
- const body=new T.Group();body.scale.setScalar(S);root.add(body);
- const fur=coat(kind),brown=C3(buck?'#8c522b':'#a0653b'),tan=C3('#97663f'),cream=C3('#efe3c9'),hoof='#2a1a12';
- // tronco: peito fundo, cernelha alta, cintura recolhida, garupa redonda
+ const brown=C3(buck?'#8c522b':'#a0653b');
+ // esqueleto (mesmos pontos de articulação de antes)
+ const body=new T.Bone(),neck=new T.Bone(),head=new T.Bone(),tail=new T.Bone();
+ neck.position.set(...NECK);head.position.set(...HEAD);tail.position.set(...TAIL);body.add(neck,tail);neck.add(head);
+ const bones=[body,neck,head,tail],legs=[];
+ for(const [fx,front] of LEGS){const hip=new T.Bone(),knee=new T.Bone();hip.position.set(...hipAt(fx,front));knee.position.set(...kneeOf(front));body.add(hip);hip.add(knee);bones.push(hip,knee);legs.push({hip,knee,front,side:fx});}
+ root.add(body);
+ const geo=deerSkin(kind),skin=new T.SkinnedMesh(geo,furMat),ink=new T.SkinnedMesh(geo,inkMat);
+ skin.castShadow=true;ink.userData.ink=true;root.add(skin,ink);root.updateMatrixWorld(true);
+ const sk=new T.Skeleton(bones);skin.bind(sk);ink.bind(sk,skin.bindMatrix);
+ body.scale.setScalar(S);
+ // detalhes do rosto (sem contorno: ficam encostados na pele)
  {const B=Builder();
-  const K=[ // z, topo, baixo, meia-largura
-   [-.66,1.13,.95,.09],[-.56,1.21,.82,.18],[-.42,1.25,.8,.23],[-.25,1.225,.87,.235],[-.05,1.215,.81,.255],[.15,1.24,.75,.25],[.32,1.3,.73,.22],[.48,1.27,.78,.17],[.62,1.17,.92,.09]];
-  B.sweep(K.map(k=>[0,(k[1]+k[2])/2,k[0]]),K.map(k=>[k[3],(k[1]-k[2])/2]),{n:40,m:28,ca:.1,cb:.12},null,fur);
-  body.add(meshWithInk(B.build(),true));}
- const tail=new T.Group();tail.position.set(0,1.13,-.63);body.add(tail);
- {const B=Builder();B.sweep([[0,.01,0],[0,-.06,-.05],[0,-.15,-.06]],[[.045,.028],[.052,.032],[.034,.02]],{n:10,m:12,ca:.3,cb:.35},null,(x,y,z,nx,ny,nz)=>nz<-.25?C3('#8c522b'):C3('#ffffff'));tail.add(meshWithInk(B.build(),true));}
- // pescoço → cabeça (o macho tem pescoço mais grosso)
- const neck=new T.Group();neck.position.set(0,1.14,.47);body.add(neck);
- {const B=Builder(),th=buck?1.12:1;
-  B.sweep([[0,-.02,-.01],[0,.16,.06],[0,.36,.14],[0,.54,.22]],[[.13*th,.13*th,buck?.4:0],[.125*th,.155*th,buck?.3:0],[.095*th,.115*th,0],[.08,.095,0]],{n:22,m:18,ca:.12,cb:.08},null,
-   (x,y,z,nx,ny,nz)=>{let c=brown;if(nz>.3&&ny<.3)c=mixC(c,cream,.3*sstep((nz-.3)/.4));if(y>.4&&nz>.3&&ny<.05)c=C3('#fbf6ea');if(buck&&ny>.3&&y<.3)c=mixC(c,C3('#6f4a30'),.5);return shade(c,x,y,z);});
-  neck.add(meshWithInk(B.build(),true));}
- const head=new T.Group();head.position.set(0,.56,.25);neck.add(head);
- {const B=Builder();
-  // crânio largo nos olhos afinando até o focinho
-  B.sweep([[0,.07,-.07],[0,.06,.06],[0,.02,.2],[0,-.02,.31],[0,-.024,.365]],[[.08,.09],[.112,.118],[.074,.084],[.054,.058],[.04,.042]],{n:22,m:18,ca:.22,cb:.12},null,
-   (x,y,z,nx,ny,nz)=>{let c=C3(buck?'#8a5530':'#9a6038');
-    if(ny<-.35)c=C3('#efe2c8');                                   // queixo/garganta clara
-    if(z>.26&&z<.315&&ny>-.35)c=C3('#efe6d4');                    // faixa clara atrás do nariz
-    if(ny>.55&&z<.17&&z>-.02)c=mixC(c,C3('#5e3820'),.45);          // testa mais escura
-    return shade(c,x,y,z);});
-  B.ell(0,-.016,.372,.042,.03,.026,'#17110f',null,12);                                  // nariz
   for(const s of [-1,1])B.ell(s*.021,-.02,.393,.01,.008,.006,'#000000',null,6);         // narinas
-  B.ell(0,-.05,.325,.034,.004,.035,'#3a2418',null,8);                                   // boca
-  B.ell(0,-.058,.29,.034,.022,.045,'#f3ead8',null,10);                                  // queixo
+  B.ell(0,-.05,.326,.03,.004,.032,'#3a2418',null,8);                                    // boca
   for(const s of [-1,1]){
-   B.ell(s*.088,.066,.118,.036,.041,.043,'#efe6d6',null,12);                           // anel claro do olho
-   B.ell(s*.099,.066,.12,.028,.033,.035,'#120c0a',null,12);                            // olho
-   B.ell(s*.118,.082,.134,.009,.009,.009,'#ffffff',null,6);                            // brilho
-   B.ell(s*.09,.104,.112,.032,.008,.022,'#4a2a18',null,8);                             // sobrancelha
-   B.ell(s*.083,.03,.185,.016,.011,.028,'#3a2416',null,8);}                            // glândula lacrimal
-  head.add(meshWithInk(B.build(),true));}
+   B.ell(s*.09,.066,.118,.033,.039,.041,'#efe6d6',null,12);                            // anel claro do olho
+   B.ell(s*.1,.066,.12,.027,.032,.034,'#120c0a',null,12);                              // olho
+   B.ell(s*.119,.082,.134,.009,.009,.009,'#ffffff',null,6);                            // brilho
+   B.ell(s*.092,.104,.112,.03,.008,.021,'#4a2a18',null,8);                             // sobrancelha
+   B.ell(s*.085,.03,.185,.015,.01,.026,'#3a2416',null,8);}                             // glândula lacrimal
+  const m=new T.Mesh(B.build(),furMat);head.add(m);}
  const ears=[];
  for(const s of [-1,1]){const e=new T.Group();e.position.set(s*.08,.13,.0);e.rotation.set(-.2,s*.35,s*-.9);head.add(e);
-  const g=sweepGeo([[0,0,0],[0,.08,0],[0,.16,0],[0,.215,0]],[[.026,.012],[.06,.015],[.058,.014],[.012,.006]],{n:14,m:14,ca:.08,cb:.25});
+  const g=sweepGeo([[0,-.02,0],[0,.08,0],[0,.16,0],[0,.215,0]],[[.03,.016],[.06,.015],[.058,.014],[.012,.006]],{n:14,m:14,ca:.08,cb:.25});
   {const p=g.attributes.position;for(let i=0;i<p.count;i++){const x=p.getX(i);p.setZ(i,p.getZ(i)-Math.max(0,1-Math.pow(x/.062,2))*.022);}}   // concha voltada para a frente
   const B=Builder();B.add(g,null,null,(x,y,z,nx,ny,nz)=>{if(y>.185)return C3('#3e2616');if(nz>.25&&Math.abs(x)<.044&&y>.02)return y<.09?C3('#e8b8a8'):C3('#f4ebe0');return brown;});
   e.add(meshWithInk(B.build(),true));ears.push({g:e,s,ph:Math.random()*10});}
@@ -129,26 +233,7 @@ function makeDeer(kind){
    tine([s*.16,.37,-.03],[s*.17,.47,0],[s*.16,.55,.04],.012);
    tine([s*.205,.48,-.01],[s*.25,.58,-.02],[s*.28,.66,-.02],.011);}
   head.add(meshWithInk(B.build(),true));}
- // pernas: ombro/quadril → joelho/jarrete → canela → boleto → quartela → casco de duas unhas
- const legs=[];
- for(const [fx,front] of [[-1,true],[1,true],[-1,false],[1,false]]){
-  const hip=new T.Group();hip.position.set(fx*.15,front?1.0:1.04,front?.4:-.42);body.add(hip);
-  const inner=c=>(x,y,z,nx)=>{let k=c(y);if(nx*fx<-.35)k=mixC(k,cream,.55);return shade(k,x,y,z);};
-  const B=Builder();
-  if(front)B.sweep([[0,.1,.02],[0,-.12,.045],[0,-.3,.03],[0,-.45,.02]],[[.072,.13],[.068,.11],[.048,.062],[.038,.044]],{n:18,m:14,ca:.2,cb:.12},null,inner(y=>y>-.15?brown:mixC(brown,tan,.6)));
-  else B.sweep([[0,.12,.04],[0,-.12,.09],[0,-.3,-.02],[0,-.42,-.1]],[[.1,.2],[.092,.17],[.052,.085],[.04,.055]],{n:20,m:14,ca:.25,cb:.12},null,inner(y=>y>-.2?brown:mixC(brown,tan,.6)));
-  hip.add(meshWithInk(B.build(),true));
-  const knee=new T.Group();knee.position.set(0,front?-.45:-.42,front?.02:-.1);hip.add(knee);
-  const B2=Builder(),low=inner(()=>tan),L=front?.37:.47,pz=front?.045:.085,fz=front?.005:.045;
-  if(front)B2.ell(0,0,.005,.042,.045,.048,null,low,10);else B2.ell(0,.02,-.05,.026,.045,.03,null,low,10);   // joelho / ponta do jarrete
-  B2.sweep([[0,.01,0],[0,-L*.5,fz*.5],[0,-L,fz]],[[.034,.042],[.025,.03],[.027,.032]],{n:10,m:10,ca:0,cb:0},null,low);
-  B2.ell(0,-L,fz,.032,.035,.04,null,low,10);                                         // boleto
-  B2.sweep([[0,-L,fz],[0,-L-.05,fz+.02],[0,-L-.09,pz]],[[.026,.03],[.027,.031],[.03,.034]],{n:6,m:10,ca:0,cb:0},null,low);
-  for(const t of [-1,1]){B2.ell(t*.017,-L-.135,pz+.018,.018,.044,.034,hoof,null,10);      // casco (duas unhas)
-   B2.ell(t*.02,-L-.02,fz-.035,.009,.013,.009,hoof,null,6);}                           // unhas de cima
-  knee.add(meshWithInk(B2.build(),true));
-  legs.push({hip,knee,front,side:fx});}
- return {root,body,neck,head,tail,ears,legs,S,kind};
+ return {root,body,neck,head,tail,ears,legs,S,kind,skin};
 }
 
 /* ---------- animação (pernas, pescoço, orelhas, cauda) — usada no jogo e na enciclopédia dos bichos ---------- */
@@ -234,7 +319,7 @@ function install(){
   if(d.hp<=0)die(d);scare(d.herd,o.x,o.z);d.notice=3;}
  function die(d){d.alive=false;d.st='dead';d.deathT=0;d.speed=0;d.rollDir=Math.random()<.5?-1:1;
   d.herd.births.push(rr(BIRTH_MIN,BIRTH_MAX));}          // a manada repõe com um filhote depois de um tempo
- function remove(d){if(!deer.includes(d))return;root.remove(d.root);d.root.traverse(o=>{if(o.isMesh&&o.geometry)o.geometry.dispose();});
+ function remove(d){if(!deer.includes(d))return;root.remove(d.root);d.root.traverse(o=>{if(o.isMesh&&o.geometry&&!o.geometry.userData.shared)o.geometry.dispose();});
   deer.splice(deer.indexOf(d),1);const m=d.herd.members;m.splice(m.indexOf(d),1);for(const q of deer)if(q.mother===d)q.mother=null;}
  function birth(herd){
   const adults=herd.members.filter(q=>q.alive&&q.kind!=='fawn');
