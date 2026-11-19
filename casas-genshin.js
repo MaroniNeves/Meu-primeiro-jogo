@@ -319,12 +319,12 @@ function build(o){o=o||{};
  const annexOn=!!(o.annex&&floors>=2),annexSide=towerSide?-towerSide:(o.annex==='left'?-1:1),annexD=D*.78,annexZ=-(D-annexD)/2-.1;let innerDoor=null;
  const faces=[{ry:0,w:W,dz:D/2,front:true},{ry:PI,w:W,dz:D/2},{ry:PI/2,w:D,dz:W/2},{ry:-PI/2,w:D,dz:W/2}];
  for(const F of faces){
-  const xs=framePos(F.w,F.front?3.2:3.0,!!F.front),wins=[],holes=[];
+  const xs=framePos(F.w,F.front?(bay?3.2:2.5):3.0,!!F.front),wins=[],holes=[];
   for(let i=0;i<xs.length-1;i++){const cx=(xs[i]+xs[i+1])/2,pw=xs[i+1]-xs[i];
    for(let f=0;f<floors;f++){
     if(F.front&&bay&&Math.abs(cx)<Wc/2+.1)continue;
     if(F.front&&f===0&&Math.abs(cx)<.01)continue;
-    if(!F.front&&f===0&&R()<.35)continue;
+    if(!F.front&&f===0&&floors>1&&R()<.35)continue;
     const w=Math.min(.9,pw*.27);wins.push({cx,f,w,opt:{shutters:R()<(o.shut==null?.4:o.shut),flowers:f===0&&R()<.5}});holes.push({cx,y0:f*fh+.85,w,h:1.6});}}
   if(annexOn&&Math.abs(F.ry-annexSide*PI/2)<1e-6){ // parede lateral do lado do anexo: porta interna
    const want=annexSide>0?-annexZ:annexZ;let bc=0,bd=1e9;for(let i=0;i<xs.length-1;i++){const c=(xs[i]+xs[i+1])/2;if(Math.abs(c-want)<bd&&Math.abs(c-want)<annexD/2-.7){bd=Math.abs(c-want);bc=c;}}
@@ -333,7 +333,7 @@ function build(o){o=o||{};
   if(F.front){holes.push({cx:0,y0:.04,w:1.5,h:2.46});if(bay)for(let f=1;f<floors;f++)holes.push({cx:0,y0:f*fh+.25,w:Wc-.7,h:fh-.8,rect:true});}
   B.push(0,Y0,0,F.ry);B.push(0,0,F.dz,0);
   wallPanel(B,F.front||F.ry===PI?F.w:F.w-.6,H,holes,TH);
-  const skip=F.front&&bay?((cx,f)=>Math.abs(cx)<Wc/2+.1&&f===0):null;
+  const skip=F.front?((cx,f)=>f===0&&(bay?Math.abs(cx)<Wc/2+.1:Math.abs(cx)<.01)):null;
   const ws=new Set(wins.map(w=>w.cx.toFixed(2)+'_'+w.f));
   wallFrame(B,S,F.w,H,floors,fh,{skip,xs,hasWin:(cx,f)=>ws.has(cx.toFixed(2)+'_'+f)||(F.front&&f===0&&Math.abs(cx)<.01)});
   for(const w of wins)win(B,w.cx,w.f,w.w,1.6,w.opt);

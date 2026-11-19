@@ -17,19 +17,20 @@ const KIT=VM.KIT={};
 function base(ctx,x,z,ry,w,d,plinthM){
  const pd=ctx.pad(x,z,w+.5,d+.5,ry),bg=new T.Group();bg.position.set(x,pd.y,z);bg.rotation.y=ry;ctx.g.add(bg);
  box(bg,w+.4,pd.depth+F,d+.4,plinthM||ctx.M.stone,0,-pd.depth,0,0,2);
- ctx.colBox(x,z,w/2+.15,d/2+.15,ry);ctx.noGrassC(x,z,Math.max(w,d)*.62+1.8);
+ if(REC)REC.base={x,z,ry,w,d};else ctx.colBox(x,z,w/2+.15,d/2+.15,ry);ctx.noGrassC(x,z,Math.max(w,d)*.62+1.8);
  return bg;
 }
 function doorAt(bg,M,x,z,w,h,leaf,frame,arch){
- box(bg,w,h,.1,leaf,x,F,z+.02,0,1.2);
+ if(REC){REC.holes.push({door:true,x,z,ry:0,w,h,y0:F,y1:F+h});const pv=new T.Group();pv.position.set(x-w/2+.05,F+.08,z-WT-.04);pv.rotation.y=PI*.47;bg.add(pv);box(pv,w-.06,h-.1,.08,leaf,(w-.06)/2,0,0,0,1.2);sph(pv,.045,M.gold,w*.8,h*.48,.07,1,1,1,6);}
+ else box(bg,w,h,.1,leaf,x,F,z+.02,0,1.2);
  for(const s of [-1,1])box(bg,.14,h+.14,.22,frame,x+s*(w/2+.07),F,z,0,1);
  box(bg,w+.42,.16,.24,frame,x,F+h,z,0,1);
- sph(bg,.045,M.gold,x+w*.32,F+h*.5,z+.09,1,1,1,6);
+ if(!REC)sph(bg,.045,M.gold,x+w*.32,F+h*.5,z+.09,1,1,1,6);
  if(arch){const a=new T.Mesh(new T.TorusGeometry(w/2+.08,.08,6,14,PI),frame);a.position.set(x,F+h,z+.02);bg.add(a);const d=new T.Mesh(new T.CircleGeometry(w/2,14,0,PI),leaf);d.position.set(x,F+h,z+.07);bg.add(d);}
  box(bg,w+.5,.12,.6,M.stone,x,F-.12,z+.4,0,1.5);
 }
 function winAt(bg,M,x,y,z,ry,w,h,o){
- o=o||{};const wg=new T.Group();wg.position.set(x,y,z);wg.rotation.y=ry;bg.add(wg);          // origem = centro da janela
+ o=o||{};if(REC)REC.holes.push({x,z,ry,w,h,y0:y-h/2,y1:y+h/2});const wg=new T.Group();wg.position.set(x,y,z);wg.rotation.y=ry;bg.add(wg);          // origem = centro da janela
  box(wg,w,h,.08,M.glass,0,-h/2,.02,0,1);
  const fm=o.frame||M.woodDark;
  box(wg,w+.26,.11,.2,fm,0,-h/2-.11,.05,0,1);box(wg,w+.26,.1,.16,fm,0,h/2,.03,0,1);
@@ -66,12 +67,89 @@ function well(ctx,x,z,o){
 function lanternPost(ctx,x,z,m){const M=ctx.M,y=ctx.gy(x,z),g=ctx.g;cyl(g,.07,.1,2.7,m||M.woodDark,x,y,z,6,1.5);box(g,.34,.4,.34,M.lantern,x,y+2.5,z,0,1);box(g,.46,.08,.46,M.iron,x,y+2.9,z,0,1);ctx.colCircle(x,z,.2);}
 function cabinSign(ctx,x,z,ry){const M=ctx.M,y=ctx.gy(x,z),g=ctx.g;cyl(g,.05,.05,1.9,M.woodDark,x,y,z,5,1);box(g,.9,.38,.06,M.wood,x+.35*Math.cos(ry),y+1.25,z-.35*Math.sin(ry),ry,1);}
 
+/* ---------- Casas ocas: paredes com vãos de verdade, piso, forro e móveis ---------- */
+let REC=null;const WT=.2;
+// parede maciça da casa: numa casa oca vira paredes com vãos (montadas no fim, quando já se sabe onde ficam porta e janelas)
+function wallBox(bg,w,h,d,m,y,tile){if(REC){REC.walls.push({w,h,d,m,y,tile:tile||2.5});return;}box(bg,w,h,d,m,0,y,0,0,tile);}
+function bandBox(bg,w,h,d,m,y,tile){if(!REC){box(bg,w,h,d,m,0,y,0,0,tile);return;}const t=.1;box(bg,w,h,t,m,0,y,(d-t)/2,0,tile);box(bg,w,h,t,m,0,y,-(d-t)/2,0,tile);box(bg,t,h,d-2*t,m,(w-t)/2,y,0,0,tile);box(bg,t,h,d-2*t,m,-(w-t)/2,y,0,0,tile);}
+function faceOf(hl,W,D){const tol=.45;if(Math.abs(hl.z-D/2)<tol&&Math.abs(Math.sin(hl.ry))<.3&&Math.cos(hl.ry)>0)return 0;if(Math.abs(hl.z+D/2)<tol)return 1;if(Math.abs(hl.x-W/2)<tol)return 2;if(Math.abs(hl.x+W/2)<tol)return 3;return -1;}
+const FACE_RY=[0,PI,PI/2,-PI/2];
+function wallShape(L,H,cuts){ // cuts: {u0,u1,v0,v1}; v0=0: entalhe na base (porta), senão furo (janela)
+ const sh=new T.Shape(),notch=cuts.filter(c=>c.v0<=.02).sort((a,b)=>a.u0-b.u0);sh.moveTo(-L/2,0);
+ for(const c of notch){sh.lineTo(c.u0,0);sh.lineTo(c.u0,c.v1);sh.lineTo(c.u1,c.v1);sh.lineTo(c.u1,0);}
+ sh.lineTo(L/2,0);sh.lineTo(L/2,H);sh.lineTo(-L/2,H);sh.lineTo(-L/2,0);
+ for(const c of cuts)if(c.v0>.02){const p=new T.Path();p.moveTo(c.u0,c.v0);p.lineTo(c.u1,c.v0);p.lineTo(c.u1,c.v1);p.lineTo(c.u0,c.v1);p.lineTo(c.u0,c.v0);sh.holes.push(p);}
+ return sh;}
+function finishHollow(ctx,bg,Rc,opt){opt=opt||{};const M=ctx.M,B=Rc.base;
+ let W=B.w,D=B.d,y0=F,top=F+2.5;
+ if(Rc.walls.length){W=Math.max(...Rc.walls.map(j=>j.w));D=Math.max(...Rc.walls.map(j=>j.d));y0=Math.min(...Rc.walls.map(j=>j.y));top=Math.max(...Rc.walls.map(j=>j.y+j.h));}
+ if(opt.top)top=opt.top;if(opt.y0!=null)y0=opt.y0;
+ const doors=Rc.holes.filter(h=>h.door);
+ // paredes com os vãos recortados
+ for(const j of Rc.walls){
+  for(let fi=0;fi<4;fi++){const ry=FACE_RY[fi],L=fi<2?W:D-2*WT,off=fi<2?D/2:W/2,c=Math.cos(ry),sn=Math.sin(ry),cuts=[];
+   for(const hl of Rc.holes){if(faceOf(hl,W,D)!==fi)continue;const u=hl.x*c-hl.z*sn,v0=Math.max(0,hl.y0-j.y),v1=Math.min(j.h,hl.y1-j.y);if(v1-v0<.05)continue;
+    cuts.push({u0:Math.max(-L/2+.15,u-hl.w/2),u1:Math.min(L/2-.15,u+hl.w/2),v0:v0<.05?0:v0,v1:v1>j.h-.05?j.h-.06:v1});}
+   const g=new T.ExtrudeGeometry(wallShape(L,j.h,cuts),{depth:WT,bevelEnabled:false});const uv=g.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)/j.tile,uv.getY(i)/j.tile);
+   const fg=new T.Group();fg.rotation.y=ry;bg.add(fg);const m=new T.Mesh(g,j.m);m.position.set(0,j.y,off-WT);fg.add(m);}}
+ // piso, forro e vigas
+ const iw=W-2*WT,id=D-2*WT;
+ box(bg,iw,.08,id,M.deck,0,y0,0,0,1.6);box(bg,iw,.12,id,M.woodH,0,top-.12,0,0,1.6);
+ {const nb=Math.max(1,Math.round(iw/1.4));for(let i=1;i<nb;i++)box(bg,.16,.16,id,M.woodDark,-iw/2+i*iw/nb,top-.28,0,0,1);}
+ // móveis
+ const dx=doors.length?doors[0].x:0;furnish(bg,M,iw,id,y0+.08,top,dx,opt.style);
+ // colisão: paredes, com vão nas portas
+ const cr=Math.cos(B.ry),sr=Math.sin(B.ry),Lc=(ox,oz)=>[B.x+ox*cr+oz*sr,B.z-ox*sr+oz*cr];
+ const seg=(ax,az,hx,hz)=>{if(hx<=.02||hz<=.02)return;const [lx,lz]=Lc(ax,az);ctx.colBox(lx,lz,hx,hz,B.ry);};
+ {let u=-W/2;const ds=doors.filter(h=>faceOf(h,W,D)===0).sort((a,b)=>a.x-b.x);for(const h of ds){seg((u+h.x-h.w/2)/2,D/2-WT/2,(h.x-h.w/2-u)/2,WT/2+.05);u=h.x+h.w/2;}seg((u+W/2)/2,D/2-WT/2,(W/2-u)/2,WT/2+.05);}
+ seg(0,-D/2+WT/2,W/2,WT/2+.05);seg(W/2-WT/2,0,WT/2+.05,D/2);seg(-W/2+WT/2,0,WT/2+.05,D/2);
+ // sala registrada: chão de dentro, degrau da porta e câmera dentro do cômodo (vilas-mundo.js)
+ const a=new T.Object3D();a.position.copy(bg.position);a.rotation.y=B.ry;ctx.live.add(a);a.name='Sala da casa';
+ a.userData.rooms=[{x:0,z:0,hw:iw/2-.12,hd:id/2-.12,y:y0+.08,top:top-.2}];
+ a.userData.floor={W,D,y:y0+.08,step:{x0:dx-.8,x1:dx+.8,z0:D/2-.35,z1:D/2+1.1,y:y0*.55}};
+ a.userData.casa={ctx:{centers:{},list:[]},update(){},pick(){return 0;},toggleId(){},set(){},roof(){}};
+ (window.arcanoSalasVilas=window.arcanoSalasVilas||[]).push(a);}
+// mobília conforme o tamanho do cômodo; o lado da porta fica livre
+function furnish(bg,M,iw,id,y,top,dx,style){
+ const ix=iw/2,iz=id/2,s=dx>=0?-1:1,small=iw<4.2;
+ if(style==='oriental'){ // tatame, mesa baixa com almofadas, futon e nicho
+  box(bg,iw*.7,.03,id*.6,M.hay,0,y,0,0,1);box(bg,1.3,.08,.8,M.woodDark,0,y+.3,0,0,1);for(const a of [-1,1])for(const b of [-1,1])box(bg,.08,.3,.08,M.woodDark,a*.55,y,b*.3,0,1);
+  for(const a of [-1,1])box(bg,.55,.1,.55,M.red,a*1.0,y,0,0,1);
+  box(bg,1.0,.12,2.0,M.cloth,s*(ix-.6),y,-iz+1.1,0,1);box(bg,1.0,.08,1.2,M.blue,s*(ix-.6),y+.12,-iz+1.4,0,1);
+  box(bg,1.6,.2,.5,M.woodDark,-s*(ix-1.0),y+.5,-iz+.3,0,1);cyl(bg,.12,.09,.4,M.white,-s*(ix-1.0),y+.7,-iz+.3,8,1);
+  sph(bg,.26,M.lantern,0,top-.9,0,1,1.25,1,8);return;}
+ // tapete
+ box(bg,Math.min(2.6,iw*.45),.02,Math.min(1.7,id*.4),M.red,0,y,.1,0,1);box(bg,Math.min(2.2,iw*.38),.025,Math.min(1.3,id*.3),M.cloth,0,y,.1,0,1);
+ // cama no fundo, do lado oposto à porta
+ const bx=s*(ix-1.05),bz=-iz+.62;box(bg,2.0,.32,1.15,M.wood,bx,y,bz,0,1);box(bg,1.9,.16,1.05,M.cloth,bx,y+.32,bz,0,1);box(bg,1.25,.07,1.08,M.blue,bx-s*.3,y+.46,bz,0,1);box(bg,.45,.12,.75,M.cloth,bx+s*.7,y+.48,bz,0,1);
+ box(bg,.1,.85,1.15,M.wood,bx+s*1.0,y,bz,0,1);
+ if(!small){
+  // baú ao pé da cama
+  box(bg,.9,.5,.5,M.wood,bx,y,bz+.95,0,1);box(bg,.94,.06,.54,M.iron,bx,y+.36,bz+.95,0,1);
+  // estante na parede do fundo
+  const ex=-s*(ix-.85),cl=[M.red,M.blue,M.green,M.hay,M.cloth];box(bg,1.5,1.9,.34,M.woodDark,ex,y,-iz+.18,0,1);
+  for(let i=0;i<3;i++){box(bg,1.42,.05,.36,M.wood,ex,y+.45+i*.55,-iz+.2,0,1);for(let k=0;k<6;k++)box(bg,.14,.3+((k*7+i*3)%4)*.04,.24,cl[(k+i)%cl.length],ex-.55+k*.2,y+.5+i*.55,-iz+.2,0,1);}
+  // mesa com dois bancos
+  const tx=-s*Math.min(iw*.18,1.3),tz=.35;box(bg,1.3,.08,.8,M.wood,tx,y+.72,tz,0,1);for(const a of [-1,1])for(const b of [-1,1])box(bg,.08,.72,.08,M.woodDark,tx+a*.55,y,tz+b*.3,0,1);
+  for(const a of [-1,1]){box(bg,.42,.06,.42,M.wood,tx+a*.95,y+.44,tz,0,1);for(const b of [-1,1])box(bg,.05,.44,.05,M.woodDark,tx+a*.95+b*.15,y,tz+b*.15,0,1);}
+  cyl(bg,.12,.1,.2,M.blue,tx,y+.8,tz,8,1);sph(bg,.08,M.lantern,tx+.35,y+.86,tz-.1,1,1,1,6);
+  // fogão de pedra na parede lateral, com brasa
+  const fx=s*(ix-.4),fz=.35;box(bg,.8,1.0,1.1,M.stone,fx,y,fz,0,1.5);box(bg,.1,.45,.6,M.iron,fx-s*.36,y+.15,fz,0,1);box(bg,.2,.2,.45,M.lantern,fx-s*.3,y+.18,fz,0,1);box(bg,.45,top-y-1.0,.55,M.stone,fx+s*.1,y+1.0,fz,0,1.5);
+ }else box(bg,.42,.45,.42,M.wood,-s*(ix-.5),y,.2,0,1);
+ // lampião pendurado
+ VM.rod(bg,0,top-.12,0,0,top-.62,0,.012,M.iron,3);sph(bg,.16,M.lantern,0,top-.75,0,1,1.2,1,8);
+}
+// envolve os construtores escolhidos: paredes ocas + interior
+function hollowKit(kit,name,opt){const fn=kit[name];kit[name]=function(ctx,x,z,ry,o){REC={holes:[],walls:[]};let bg,Rc;try{bg=fn.call(this,ctx,x,z,ry,o);}finally{Rc=REC;REC=null;}
+ if(Rc&&Rc.base&&(Rc.walls.length||opt&&opt.style))finishHollow(ctx,bg,Rc,opt);else if(Rc&&Rc.base){const B=Rc.base;ctx.colBox(B.x,B.z,B.w/2+.15,B.d/2+.15,B.ry);}
+ return bg;};}
+
 /* =============== 1. VILA DO MOINHO (campo) =============== */
 KIT.moinho={
  casa(ctx,x,z,ry,o){o=o||{};const M=ctx.M,w=o.w||6.8,d=o.d||5.2,h=2.7,bg=base(ctx,x,z,ry,w,d);
-  box(bg,w,1.0,d,M.stone,0,F,0,0,2);box(bg,w,h-1,d,M.plaster,0,F+1,0,0,2.5);
+  wallBox(bg,w,1.0,d,M.stone,F,2);wallBox(bg,w,h-1,d,M.plaster,F+1,2.5);
   for(const sx of [-1,1])for(const sz of [-1,1])box(bg,.22,h,.22,M.woodDark,sx*w/2,F,sz*d/2,0,1);
-  box(bg,w+.12,.18,d+.12,M.woodDark,0,F+1,0,0,1.5);box(bg,w+.12,.2,d+.12,M.woodDark,0,F+h-.1,0,0,1.5);
+  bandBox(bg,w+.12,.18,d+.12,M.woodDark,F+1,1.5);bandBox(bg,w+.12,.2,d+.12,M.woodDark,F+h-.1,1.5);
   VM.hipRoof(bg,w+1.7,d+1.7,2.4,M.thatch,0,F+h,0,2.6);
   chimney(bg,M,w/2-1.2,F+h-.4,-d/4,3.0,M.stone);
   doorAt(bg,M,-w/4,d/2,1.1,2.1,M.wood,M.woodDark,true);
@@ -128,7 +206,7 @@ KIT.moinho={
   for(let i=0;i<3;i++)hayBale(ctx,x+Math.cos(ry)*(w/2+1)+i*.1,z-Math.sin(ry)*(w/2+1)+i*1.1,rnd()*3);
  },
  cabana(ctx,x,z,ry){const M=ctx.M,w=3.8,d=3.2,bg=base(ctx,x,z,ry,w,d);
-  box(bg,w,.8,d,M.stone,0,F,0,0,2);box(bg,w,1.6,d,M.plaster,0,F+.8,0,0,2.5);
+  wallBox(bg,w,.8,d,M.stone,F,2);wallBox(bg,w,1.6,d,M.plaster,F+.8,2.5);
   VM.hipRoof(bg,w+1.2,d+1.2,1.7,M.thatch,0,F+2.4,0,2.6);doorAt(bg,M,0,d/2,.9,1.9,M.wood,M.woodDark,false);winAt(bg,M,w/2+.02,F+1.7,0,PI/2,.7,.8,{shut:M.green});
   chimney(bg,M,-w/2+.7,F+2.1,-d/4,2.0,M.stone);barrel(bg,M,w/2+.1,0,d/2-.3);return bg;}
 };
@@ -139,7 +217,7 @@ KIT.moinho.extras=function(ctx,L){ // L: layout pronto; árvores frutíferas, ho
 /* =============== 2. VILA DOS LENHADORES (toras) =============== */
 KIT.lenhadores={
  casa(ctx,x,z,ry,o){o=o||{};const M=ctx.M,w=o.w||6.6,d=o.d||5.2,h=2.7,bg=base(ctx,x,z,ry,w,d);
-  box(bg,w,h,d,M.log,0,F,0,0,1.6);
+  wallBox(bg,w,h,d,M.log,F,1.6);
   // pontas de tora nos cantos (entrelaçadas)
   for(let r=0;r<8;r++){const yy=F+.2+r*.33;for(const sx of [-1,1])for(const sz of [-1,1]){const l=cyl(bg,.17,.17,.9,M.log,sx*w/2,yy,sz*d/2,7,1);if(r%2)l.rotation.z=PI/2;else l.rotation.x=PI/2;}}
   VM.gableRoof(bg,w,d,2.3,M.roofShake,M.woodH,0,F+h,0,.9,.7,2.6);
@@ -153,7 +231,7 @@ KIT.lenhadores={
   {const P=[],U=[];VM.pushQuad(P,U,[-w*.34,2.45+F,d/2+1.6],[w*.34,2.45+F,d/2+1.6],[w*.34,F+h+.1,d/2-.1],[-w*.34,F+h+.1,d/2-.1],[0,0],[2,0],[2,1],[0,1]);VM.roofMesh(bg,P,U,M.roofShake,0,0,0);}
   return bg;},
  casarao(ctx,x,z,ry){const M=ctx.M,w=9.6,d=6.4,h=2.9,bg=base(ctx,x,z,ry,w,d);
-  box(bg,w,h,d,M.log,0,F,0,0,1.6);
+  wallBox(bg,w,h,d,M.log,F,1.6);
   for(let r=0;r<9;r++){const yy=F+.2+r*.32;for(const sx of [-1,1])for(const sz of [-1,1]){const l=cyl(bg,.17,.17,.9,M.log,sx*w/2,yy,sz*d/2,7,1);if(r%2)l.rotation.z=PI/2;else l.rotation.x=PI/2;}}
   VM.gableRoof(bg,w,d,2.6,M.roofShake,M.woodH,0,F+h,0,.9,.8,2.6);lie(bg,.18,w+1.9,M.log,0,F+h+2.6,0,'x');
   for(const s of [-1,1]){const a=box(bg,.12,1.3,.12,M.cream,s*(w/2+.75),F+h+1.6,0,0,1);a.rotation.z=-s*.5;}  // galhadas na empena
@@ -184,13 +262,13 @@ KIT.lenhadores={
 function arcDoor(bg,M,x,z,w,h,leaf){doorAt(bg,M,x,z,w,h,leaf,M.stone,true);}
 KIT.mediterranea={
  casa(ctx,x,z,ry,o){o=o||{};const M=ctx.M,w=o.w||6.4,d=o.d||5.4,h=o.h||3.3,bg=base(ctx,x,z,ry,w,d,M.stone);
-  box(bg,w,h,d,M.white,0,F,0,0,3);box(bg,w+.12,.22,d+.12,M.stone,0,F+h-.1,d*0,0,2);
+  wallBox(bg,w,h,d,M.white,F,3);bandBox(bg,w+.12,.22,d+.12,M.stone,F+h-.1,2);
   if(o.terraco){
    // terraço com parapeito, pérgula e escada externa
    box(bg,w+.3,.3,d+.3,M.white,0,F+h,0,0,3);for(const sx of [-1,1])box(bg,.3,.8,d+.3,M.white,sx*(w/2+.1),F+h+.3,0,0,3);box(bg,w,.8,.3,M.white,0,F+h+.3,-d/2-.1,0,3);
    for(const sx of [-1,1])for(const sz of [0,1])cyl(bg,.1,.1,2.2,M.woodDark,sx*(w/2-.5),F+h+.3,(sz?1:-1)*(d/2-.6),6,1);
    for(let i=0;i<6;i++)box(bg,w-.6,.07,.1,M.woodDark,0,F+h+2.5,-d/2+.6+i*(d-1.2)/5,0,1);box(bg,.1,.1,d-1,M.woodDark,-w/2+.5,F+h+2.5,0,0,1);box(bg,.1,.1,d-1,M.woodDark,w/2-.5,F+h+2.5,0,0,1);
-   for(let i=0;i<6;i++){box(bg,.9,.3,.5,M.white,w/2+.6+.0,F+i*.5,d/2-1-i*.62+0,0,2);}
+   {const n=9,rise=(h+.3)/n,run=Math.min(.5,(d-.6)/n);for(let i=0;i<n;i++)box(bg,.9,F+(i+1)*rise,run+.02,M.white,w/2+.6,0,d/2-.3-(i+.5)*run,0,2);box(bg,.12,F+h+.3,d-.6,M.white,w/2+1.1,0,0,0,2);}
    sph(bg,.45,M.leaf,-w/2+.8,F+h+1.0,-d/2+.8,1,.8,1,8);
   }else VM.hipRoof(bg,w+1.2,d+1.2,1.25,M.roofTerra,0,F+h,0,2.4);
   arcDoor(bg,M,-w/5,d/2,1.2,2.1,M.blueDoor);
@@ -218,7 +296,7 @@ KIT.mediterranea={
   const ol=ctx.M.olive||(ctx.M.olive=new T.MeshStandardMaterial({color:'#859d6a',roughness:1}));
   for(const [dx,dy,dz,r] of [[.5,2.7,.1,.95],[-.5,2.6,-.1,.9],[0,3.1,0,.8]])sph(g,r*s,ol,x+dx*s,y+dy*s,z+dz*s,1.15,.7,1.15,8);ctx.colCircle(x,z,.4*s);},
  cabana(ctx,x,z,ry){const M=ctx.M,w=3.8,d=3.2,bg=base(ctx,x,z,ry,w,d,M.stone);
-  box(bg,w,2.3,d,M.white,0,F,0,0,3);VM.hipRoof(bg,w+1,d+1,1.0,M.roofTerra,0,F+2.3,0,2.4);arcDoor(bg,M,-.4,d/2,.9,1.8,M.blueDoor);winAt(bg,M,w/2+.02,F+1.6,0,PI/2,.7,.8,{shut:M.blue,frame:M.stone});
+  wallBox(bg,w,2.3,d,M.white,F,3);VM.hipRoof(bg,w+1,d+1,1.0,M.roofTerra,0,F+2.3,0,2.4);arcDoor(bg,M,-.4,d/2,.9,1.8,M.blueDoor);winAt(bg,M,w/2+.02,F+1.6,0,PI/2,.7,.8,{shut:M.blue,frame:M.stone});
   cyl(bg,.22,.16,.4,M.roofTerra,1.0,F,d/2+.4,8,1);sph(bg,.3,M.leaf,1.0,F+.55,d/2+.4,1,.8,1,7);return bg;}
 };
 
@@ -229,7 +307,7 @@ function dragonEnds(bg,M,L,yRidge){
 }
 KIT.nordica={
  longa(ctx,x,z,ry){const M=ctx.M,w=14,d=6.4,h=2.5,bg=base(ctx,x,z,ry,w,d,M.stoneDark);
-  box(bg,w,h,d,M.woodDark,0,F,0,0,2.4);for(let i=0;i<=7;i++)box(bg,.22,h,.28,M.wood,-w/2+i*w/7,F,d/2+.02,0,1);box(bg,w+.1,.2,.3,M.wood,0,F+h-.1,d/2+.02,0,1);
+  wallBox(bg,w,h,d,M.woodDark,F,2.4);for(let i=0;i<=7;i++)box(bg,.22,h,.28,M.wood,-w/2+i*w/7,F,d/2+.02,0,1);box(bg,w+.1,.2,.3,M.wood,0,F+h-.1,d/2+.02,0,1);
   VM.gableRoof(bg,w,d,3.3,M.turf,M.woodDark,0,F+h,0,1.0,1.0,2.8);box(bg,w+2,.28,.5,M.woodDark,0,F+h+3.3,0,0,1.5);dragonEnds(bg,M,w+.6,F+h+3.3);
   doorAt(bg,M,0,d/2,1.4,2.2,M.red,M.gold,false);
   const sh=[M.red,M.blue,M.hay,M.cream,M.red,M.blue];for(let i=0;i<6;i++){const sx=-w/2+1.4+i*(w-2.8)/5;if(Math.abs(sx)<1.4)continue;const dd=cyl(bg,.42,.42,.08,sh[i],0,0,0,12,1);dd.rotation.x=PI/2;dd.position.set(sx,F+1.8,d/2+.08);sph(bg,.08,M.iron,sx,F+1.8,d/2+.14,1,1,1,6);}
@@ -237,7 +315,7 @@ KIT.nordica={
   chimney(bg,M,w/4,F+h+1.2,-d/4,2.6,M.stoneDark);
   return bg;},
  sala(ctx,x,z,ry){const M=ctx.M,w=8.6,d=5.6,h=2.4,bg=base(ctx,x,z,ry,w,d,M.stoneDark);
-  box(bg,w,h,d,M.woodDark,0,F,0,0,2.4);for(let i=0;i<=5;i++)box(bg,.2,h,.26,M.wood,-w/2+i*w/5,F,d/2+.02,0,1);
+  wallBox(bg,w,h,d,M.woodDark,F,2.4);for(let i=0;i<=5;i++){const px=-w/2+i*w/5;if(Math.abs(px+1)<.85)continue;box(bg,.2,h,.26,M.wood,px,F,d/2+.02,0,1);}
   VM.gableRoof(bg,w,d,2.9,M.turf,M.woodDark,0,F+h,0,.9,.9,2.8);box(bg,w+1.8,.26,.5,M.woodDark,0,F+h+2.9,0,0,1.5);dragonEnds(bg,M,w+.3,F+h+2.9);
   doorAt(bg,M,-1,d/2,1.2,2.1,M.red,M.gold,false);winAt(bg,M,2.1,F+1.9,d/2+.02,0,.8,.7,{frame:M.woodDark});
   const dd=cyl(bg,.4,.4,.08,M.blue,0,0,0,12,1);dd.rotation.x=PI/2;dd.position.set(3.3,F+1.6,d/2+.08);
@@ -273,7 +351,8 @@ KIT.oriental={
   for(const sx of [-1,0,1])cyl(bg,.15,.15,2.8,M.redLacquer,sx*w/2,fy,d/2,8,1.5);
   // paredes shoji (acendem à noite) e portas de correr
   box(bg,w,2.5,.1,M.shoji,0,fy,-d/2,0,1.2);for(const s of [-1,1])box(bg,.1,2.5,d,M.shoji,s*w/2,fy,0,0,1.2);
-  box(bg,w/2,2.5,.1,M.shoji,-w/4,fy,d/2-.05,0,1.2);box(bg,w/2,2.5,.1,M.shoji,w/4+.0,fy,d/2-.02,0,1.2);
+  if(REC){box(bg,w/2,2.5,.1,M.shoji,w/4-.04,fy,d/2-.13,0,1.2);box(bg,w/2,2.5,.1,M.shoji,w/4+.0,fy,d/2-.02,0,1.2);REC.holes.push({door:true,x:-w/4,z:d/2,ry:0,w:w/2-.3,h:2.5,y0:fy,y1:fy+2.5});}
+  else{box(bg,w/2,2.5,.1,M.shoji,-w/4,fy,d/2-.05,0,1.2);box(bg,w/2,2.5,.1,M.shoji,w/4+.0,fy,d/2-.02,0,1.2);}
   box(bg,w,.2,d+.1,M.woodDark,0,fy+2.5,0,0,1.5);
   box(bg,w+.1,.5,.14,M.woodDark,0,fy,d/2+.02,0,1.5);
   // telhado em dois níveis com cantos dourados
@@ -383,6 +462,11 @@ function mushHouse(ctx,x,z,ry,o){
  ctx.colCircle(x,z,sr+.35);ctx.noGrassC(x,z,cr+1.2);
  return bg;
 }
+hollowKit(KIT.moinho,'casa');hollowKit(KIT.moinho,'cabana');
+hollowKit(KIT.lenhadores,'casa');hollowKit(KIT.lenhadores,'casarao');
+hollowKit(KIT.mediterranea,'casa');hollowKit(KIT.mediterranea,'cabana');
+hollowKit(KIT.nordica,'longa');hollowKit(KIT.nordica,'sala');
+hollowKit(KIT.oriental,'casa',{style:'oriental',y0:F+.25,top:F+.25+2.5});
 KIT.cogumelos={
  casa(ctx,x,z,ry,o){return mushHouse(ctx,x,z,ry,o||{});},
  grande(ctx,x,z,ry,o){o=Object.assign({sr:2.4,sh:4.8,cr:4.7,ch:2.2,windows:[[1.3,3.6],[-1.3,3.6],[0,2.2]]},o||{});return mushHouse(ctx,x,z,ry,o);},

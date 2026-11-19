@@ -237,9 +237,9 @@ function install(){
 }
 /* ---- portas e janelas das casas novas: chão interno, tecla E / botão, animação ---- */
 function casasInteracao(){
- const list=window.arcanoCasasJogo||[];if(!list.length)return;
+ const list=[];
  const api=window.arcanoWaterV1226,inv=new Map(),tmp=new T.Vector3();
- const refresh=()=>{for(const h of list){h.updateWorldMatrix(true,false);inv.set(h,h.matrixWorld.clone().invert());}};refresh();setInterval(refresh,2000);
+ const refresh=()=>{list.length=0;list.push(...(window.arcanoCasasJogo||[]),...(window.arcanoSalasVilas||[]));for(const h of list){h.updateWorldMatrix(true,false);inv.set(h,h.matrixWorld.clone().invert());}};refresh();setInterval(refresh,2000);
  // chão de dentro da casa (e degrau da porta) para o personagem andar no piso, não no terreno
  (window.arcanoGroundOverrides=window.arcanoGroundOverrides||[]).push((x,z)=>{for(const h of list){const f=h.userData.floor;tmp.set(x,0,z).applyMatrix4(inv.get(h));
    for(const rm of h.userData.rooms)if(Math.abs(tmp.x-rm.x)<rm.hw+.2&&Math.abs(tmp.z-rm.z)<rm.hd+.2)return h.matrixWorld.elements[13]+rm.y;
