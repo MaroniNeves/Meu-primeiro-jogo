@@ -1147,36 +1147,49 @@ function install(){
   scene.add(roadMesh);
   // ---------- Pedras da calçada em 3D (pedras de verdade, baixas e irregulares) ----------
   {
-   const sg=new T.IcosahedronGeometry(1,1),sp=sg.attributes.position;
-   for(let i=0;i<sp.count;i++){let x=sp.getX(i),y=sp.getY(i),z=sp.getZ(i);const n=1+.16*Math.sin(x*5.1+z*3.7)+.1*Math.sin(y*7.3-x*4.1);
-    y=y<0?y*.25:y*(.55+.1*Math.sin(x*3+z*2));sp.setXYZ(i,x*n,y,z*n);}
-   sg.computeVertexNormals();
-   const sm=new T.MeshStandardMaterial({color:'#ffffff',roughness:.9,metalness:0});
-   const PX=[],GRID=new Map(),GC=16,rs=(()=>{let a=91731;return()=>{a=(a*16807)%2147483647;return a/2147483647;};})();
+   // 5 formatos diferentes (seixo redondo, pedra angulosa, laje chata, pedra comprida, cascalho quebrado)
+   const mk=(geo,fn)=>{const p=geo.attributes.position;for(let i=0;i<p.count;i++){const v=fn(p.getX(i),p.getY(i),p.getZ(i));p.setXYZ(i,v[0],v[1],v[2]);}geo.computeVertexNormals();return geo;};
+   const SHAPES=[
+    mk(new T.IcosahedronGeometry(1,1),(x,y,z)=>{const n=1+.12*Math.sin(x*4.1+z*3.3);return [x*n,y<0?y*.2:y*.5,z*n];}),                 // seixo liso
+    mk(new T.DodecahedronGeometry(1,0),(x,y,z)=>{const n=1+.2*Math.sin(x*6.7-z*5.3+y*2);return [x*n,y<0?y*.25:y*.7,z*n*.9];}),          // angulosa
+    mk(new T.IcosahedronGeometry(1,0),(x,y,z)=>[x*1.15,y<0?y*.12:y*.28,z*.95]),                                                      // laje chata
+    mk(new T.IcosahedronGeometry(1,1),(x,y,z)=>{const n=1+.15*Math.sin(z*5+x*2);return [x*1.6*n,y<0?y*.2:y*.45,z*.7*n];}),             // comprida
+    mk(new T.OctahedronGeometry(1,0),(x,y,z)=>[x*(1+.3*Math.sign(z)),y<0?y*.2:y*.6,z*(.9-.2*Math.sign(x))])                          // cascalho quebrado
+   ];
+   const MATS=[new T.MeshStandardMaterial({color:'#fff',roughness:.85}),new T.MeshStandardMaterial({color:'#fff',roughness:.95,flatShading:true})];
+   const SHMAT=[0,1,1,0,1];
+   // cores variadas: bege, cinza, cinza-azulado, marrom-avermelhado, quase preto, quase branco
+   const PAL=[[.09,.14,.66],[.08,.04,.5],[.58,.08,.55],[.03,.28,.36],[.07,.05,.26],[.1,.06,.8],[.6,.04,.4]];
+   const PX=[],GRID=new Map(),GC=16,NF=8,rs=(()=>{let a=91731;return()=>{a=(a*16807)%2147483647;return a/2147483647;};})();
    for(const line of lines){
     const pts=line.pts,hw=line.w*.72;
     for(let i=0;i<pts.length-1;i++){const a=pts[i],b=pts[i+1],len=Math.hypot(b.x-a.x,b.z-a.z);if(len<1e-3)continue;const tx=(b.x-a.x)/len,tz=(b.z-a.z)/len;
-     for(let d=0;d<len;d+=.36){const cx=a.x+tx*d,cz=a.z+tz*d;
+     for(let d=0;d<len;d+=.46){const cx=a.x+tx*d,cz=a.z+tz*d;
       if(bridge&&bridge.center&&Math.abs(cx-bridge.center.x)<bridge.span/2+1&&Math.abs(cz-bridge.center.z)<3)continue;
       if(((streamInfo(cx,cz)||{d:99}).d<STREAM_W+1.2))continue;
-      for(let off=-hw;off<=hw;off+=.34){if(rs()<.2)continue;
-       const edge=Math.abs(off)/hw;if(edge>.8&&rs()<edge)continue;                         // bordas mais ralas
-       const x=cx-tz*(off+(rs()-.5)*.14)+tx*(rs()-.5)*.14,z=cz+tx*(off+(rs()-.5)*.14)+tz*(rs()-.5)*.14;
-       const k=Math.floor(x/GC)*65536+Math.floor(z/GC);let l=GRID.get(k);if(!l)GRID.set(k,l=[]);l.push(PX.length/6);
-       PX.push(x,groundAt(x,z)+.06,z,.11+rs()*.07,rs()*6.283,rs());}}}
+      for(let off=-hw;off<=hw;off+=.42){if(rs()<.42)continue;                                  // bem menos pedras, espalhadas
+       const edge=Math.abs(off)/hw;if(edge>.75&&rs()<edge)continue;
+       const x=cx-tz*(off+(rs()-.5)*.4)+tx*(rs()-.5)*.45,z=cz+tx*(off+(rs()-.5)*.4)+tz*(rs()-.5)*.45;
+       const sh=Math.floor(rs()*SHAPES.length),u=rs(),size=u<.7?.05+rs()*.035:u<.94?.085+rs()*.03:.11+rs()*.03;   // quase todas pequenas
+       const k=Math.floor(x/GC)*65536+Math.floor(z/GC);let l=GRID.get(k);if(!l)GRID.set(k,l=[]);l.push(PX.length/NF);
+       PX.push(x,groundAt(x,z)+.05,z,size,rs()*6.283,sh,Math.floor(rs()*PAL.length),rs());}}}
    }
-   const P=new Float32Array(PX);const MAXN=innerWidth<680?3500:7000,RAD=innerWidth<680?30:44;
-   const im=new T.InstancedMesh(sg,sm,MAXN);im.name='Calçada da estrada · blocos 3D';im.count=0;im.frustumCulled=false;im.receiveShadow=true;im.castShadow=false;scene.add(im);
+   const P=new Float32Array(PX);const MAXN=innerWidth<680?1200:2500,RAD=innerWidth<680?30:44;
+   const IMS=SHAPES.map((g,i)=>{const m=new T.InstancedMesh(g,MATS[SHMAT[i]],MAXN);m.name='Calçada da estrada · blocos 3D '+i;m.count=0;m.frustumCulled=false;m.receiveShadow=true;m.castShadow=false;scene.add(m);return m;});
+   const im=IMS[0];
    const o=new T.Object3D(),col=new T.Color();let lx=1e9,lz=1e9;
-   function refill(px,pz){let n=0;const c0=Math.floor((px-RAD)/GC),c1=Math.floor((px+RAD)/GC),r0=Math.floor((pz-RAD)/GC),r1=Math.floor((pz+RAD)/GC);
-    for(let i=c0;i<=c1&&n<MAXN;i++)for(let j=r0;j<=r1&&n<MAXN;j++){const l=GRID.get(i*65536+j);if(!l)continue;
-     for(const q of l){const b=q*6,x=P[b],z=P[b+2];if((x-px)*(x-px)+(z-pz)*(z-pz)>RAD*RAD)continue;
-      const sc=P[b+3],t=P[b+5];o.position.set(x,P[b+1],z);o.rotation.set(0,P[b+4],0);o.scale.set(sc*(1+t*.45),sc,sc*(1.25-t*.4));o.updateMatrix();im.setMatrixAt(n,o.matrix);
-      col.setHSL(.07+t*.04,.08+t*.08,.42+t*.18);im.setColorAt(n,col);if(++n>=MAXN)break;}}
-    im.count=n;im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true;}
+   function refill(px,pz){const N=IMS.map(()=>0);const c0=Math.floor((px-RAD)/GC),c1=Math.floor((px+RAD)/GC),r0=Math.floor((pz-RAD)/GC),r1=Math.floor((pz+RAD)/GC);
+    for(let i=c0;i<=c1;i++)for(let j=r0;j<=r1;j++){const l=GRID.get(i*65536+j);if(!l)continue;
+     for(const q of l){const b=q*NF,x=P[b],z=P[b+2];if((x-px)*(x-px)+(z-pz)*(z-pz)>RAD*RAD)continue;
+      const sh=P[b+5],m=IMS[sh];if(N[sh]>=MAXN)continue;
+      const sc=P[b+3],t=P[b+7],pc=PAL[P[b+6]];
+      o.position.set(x,P[b+1],z);o.rotation.set((t-.5)*.35,P[b+4],(t*7%1-.5)*.35);
+      o.scale.set(sc*(.8+t*.5),sc*(.7+(t*13%1)*.7),sc*(.8+(t*29%1)*.5));o.updateMatrix();m.setMatrixAt(N[sh],o.matrix);
+      col.setHSL(pc[0]+(t-.5)*.03,pc[1]*(.8+t*.4),pc[2]*(.85+(t*17%1)*.3));m.setColorAt(N[sh],col);N[sh]++;}}
+    IMS.forEach((m,i)=>{m.count=N[i];m.instanceMatrix.needsUpdate=true;if(m.instanceColor)m.instanceColor.needsUpdate=true;});}
    setInterval(()=>{const a=window.arcanoWaterV1226,pl=a&&a.getGrassPlayer&&a.getGrassPlayer(),cam=a&&a.getMainCamera&&a.getMainCamera(),p=pl?pl.position:cam&&cam.position;if(!p)return;
     if(Math.hypot(p.x-lx,p.z-lz)>5){lx=p.x;lz=p.z;refill(p.x,p.z);}},300);
-   window.arcanoCalcada={total:P.length/6,mesh:im,refill};
+   window.arcanoCalcada={total:P.length/NF,mesh:im,meshes:IMS,refill};
   }
  }
  // ---------- Pontes de pedra onde as estradas cruzam os afluentes ----------
