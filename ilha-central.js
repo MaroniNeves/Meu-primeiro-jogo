@@ -1121,6 +1121,10 @@ function install(){
   const lines=roads.map(l=>({pts:l,w:2.4}));
   {const pts=[];for(let x=INNER.x0;x<=INNER.x1;x+=1.5)pts.push({x,z:roadZ(x)});lines.push({pts,w:1.7});}
   const pos=[],uvs=[],idx=[];
+  // altura da malha desenhada do terreno (grade de 2 m em triângulos), não só da fórmula
+  const NODE=new Map(),node=(i,j)=>{const k=i*4096+j;let h=NODE.get(k);if(h===undefined){h=groundAt(-436+i*2,-666+j*2);NODE.set(k,h);}return h;};
+  const meshH=(x,z)=>{const fx=(x+436)/2,fz=(z+666)/2,i=Math.floor(fx),j=Math.floor(fz),u=fx-i,v=fz-j;
+   const h00=node(i,j),h10=node(i+1,j),h01=node(i,j+1);if(u+v<=1)return h00+(h10-h00)*u+(h01-h00)*v;const h11=node(i+1,j+1);return h11+(h01-h11)*(1-u)+(h10-h11)*(1-v);};
   for(const line of lines){
    // Reamostra a cada 1,2 m.
    const P=[];
@@ -1134,8 +1138,6 @@ function install(){
     const onBridge=bridge&&bridge.center&&Math.abs(p.x-bridge.center.x)<bridge.span/2+1&&Math.abs(p.z-bridge.center.z)<3||((streamInfo(p.x,p.z)||{d:99}).d<STREAM_W+1.2); // vau do afluente: sem calçada
     const base=pos.length/3;
     // altura da malha desenhada do terreno (grade de 2 m em triângulos), não só da fórmula: a estrada fica rente sem sumir embaixo
-    const meshH=(x,z)=>{const fx=(x+436)/2,fz=(z+666)/2,i=Math.floor(fx),j=Math.floor(fz),u=fx-i,v=fz-j,x0=-436+i*2,z0=-666+j*2;
-     const h00=groundAt(x0,z0),h10=groundAt(x0+2,z0),h01=groundAt(x0,z0+2);if(u+v<=1)return h00+(h10-h00)*u+(h01-h00)*v;const h11=groundAt(x0+2,z0+2);return h11+(h01-h11)*(1-u)+(h10-h11)*(1-v);};
     const NC=7; // 7 pontos na largura: a estrada acompanha o relevo de perto
     for(let c=0;c<NC;c++){
      const off=(c/(NC-1)*2-1)*line.w,x=p.x-tz*off,z=p.z+tx*off;
@@ -1144,11 +1146,64 @@ function install(){
     if(i>0&&!onBridge){const a=base-NC;for(let c=0;c<NC-1;c++)idx.push(a+c,base+c,a+c+1,a+c+1,base+c,base+c+1);}
    }
   }
+  // garantia: nenhum ponto da estrada fica abaixo do terreno desenhado. Cada triângulo é conferido em 28 pontos;
+  // onde o terreno passa por cima, os cantos sobem só o necessário (alguns milímetros a poucos centímetros).
+  for(let it=0;it<6;it++){let fixed=0;const lift=new Float32Array(pos.length/3);
+   for(let t=0;t<idx.length;t+=3){const a=idx[t]*3,b=idx[t+1]*3,c=idx[t+2]*3;if(pos[a+1]<-20)continue;let need=0;
+    for(let i=0;i<=6;i++)for(let j=0;j<=6-i;j++){const u=i/6,v=j/6,w=1-u-v,x=pos[a]*w+pos[b]*u+pos[c]*v,z=pos[a+2]*w+pos[b+2]*u+pos[c+2]*v,y=pos[a+1]*w+pos[b+1]*u+pos[c+1]*v,d=meshH(x,z)+.008-y;if(d>need)need=d;}
+    {const x=(pos[a]+pos[b]+pos[c])/3,z=(pos[a+2]+pos[b+2]+pos[c+2])/3,y=(pos[a+1]+pos[b+1]+pos[c+1])/3,d=groundAt(x,z)+.012-y;if(d>need)need=d;} // malhas mais finas (perto da água) seguem a fórmula
+    if(need>1e-4){for(const k of [a,b,c])lift[k/3]=Math.max(lift[k/3],need);fixed++;}}
+   if(!fixed)break;for(let k=0;k<lift.length;k++)pos[k*3+1]+=lift[k];}
   const rg=new T.BufferGeometry();
   rg.setAttribute('position',new T.Float32BufferAttribute(pos,3));rg.setAttribute('uv',new T.Float32BufferAttribute(uvs,2));
   rg.setIndex(idx);rg.computeVertexNormals();
   const roadMesh=new T.Mesh(rg,mat);roadMesh.name='Estrada calçada';roadMesh.receiveShadow=true;roadMesh.renderOrder=1;
   scene.add(roadMesh);
+  // ---- Estrada assentada nas malhas de terreno reais ----
+  // A área central e as margens têm malhas próprias (mais finas, da água) que não seguem a fórmula do relevo.
+  // Quando todas existem, cada triângulo da estrada é conferido em 28 pontos contra o triângulo de terreno
+  // embaixo; onde o terreno passaria por cima, os cantos sobem só o necessário. Nenhum ponto fica coberto.
+  {let tries=0,Y0=null,sig='';
+   const run=()=>{const ms=[];scene.traverse(o=>{if(o.isMesh&&o!==roadMesh&&/terreno|Terra absorvente|Costura/i.test(o.name)&&!/Base inferior/i.test(o.name))ms.push(o);});
+    if(!ms.some(m=>/Terra absorvente/i.test(m.name))&&tries++<30){setTimeout(run,1000);return;}
+    const T0=performance.now(),P=rg.attributes.position,I=rg.index.array,K=(i,j)=>i*100000+j,want=new Set();
+    // recomeça da altura original (a malha da área central muda de forma depois de criada)
+    if(!Y0){Y0=new Float32Array(P.count);for(let k=0;k<P.count;k++)Y0[k]=P.getY(k);}
+    sig=ms.map(m=>m.uuid+':'+m.geometry.attributes.position.version).join('|');
+    for(let t=0;t<I.length;t+=3){const a=I[t],b=I[t+1],c=I[t+2];if(P.getY(a)<-20)continue;
+     const i0=Math.floor(Math.min(P.getX(a),P.getX(b),P.getX(c))),i1=Math.floor(Math.max(P.getX(a),P.getX(b),P.getX(c))),j0=Math.floor(Math.min(P.getZ(a),P.getZ(b),P.getZ(c))),j1=Math.floor(Math.max(P.getZ(a),P.getZ(b),P.getZ(c)));
+     for(let i=i0;i<=i1;i++)for(let j=j0;j<=j1;j++)want.add(K(i,j));}
+    const TR=[],cell=new Map();
+    for(const m of ms){m.updateMatrixWorld(true);const p=m.geometry.attributes.position,ix=m.geometry.index,e=m.matrixWorld.elements,n=ix?ix.count:p.count;
+     const W=k=>{const x=p.getX(k),y=p.getY(k),z=p.getZ(k);return [e[0]*x+e[4]*y+e[8]*z+e[12],e[1]*x+e[5]*y+e[9]*z+e[13],e[2]*x+e[6]*y+e[10]*z+e[14]];};
+     for(let t=0;t<n;t+=3){const ka=ix?ix.getX(t):t,kb=ix?ix.getX(t+1):t+1,kc=ix?ix.getX(t+2):t+2;
+      const xa=p.getX(ka),xb=p.getX(kb),xc=p.getX(kc),za=p.getZ(ka),zb=p.getZ(kb),zc=p.getZ(kc);
+      const i0=Math.floor(Math.min(xa,xb,xc)+e[12]),i1=Math.floor(Math.max(xa,xb,xc)+e[12]),j0=Math.floor(Math.min(za,zb,zc)+e[14]),j1=Math.floor(Math.max(za,zb,zc)+e[14]);
+      let hit=false;for(let i=i0;i<=i1&&!hit;i++)for(let j=j0;j<=j1;j++)if(want.has(K(i,j))){hit=true;break;}
+      if(!hit)continue;const id=TR.length;TR.push([W(ka),W(kb),W(kc)]);
+      for(let i=i0;i<=i1;i++)for(let j=j0;j<=j1;j++){const k=K(i,j);if(!want.has(k))continue;let l=cell.get(k);if(!l)cell.set(k,l=[]);l.push(id);}}}
+    const top=(x,z)=>{const l=cell.get(K(Math.floor(x),Math.floor(z)));if(!l)return null;let best=null;
+     for(const id of l){const [A,B,C]=TR[id],d=(B[2]-C[2])*(A[0]-C[0])+(C[0]-B[0])*(A[2]-C[2]);if(Math.abs(d)<1e-9)continue;
+      const u=((B[2]-C[2])*(x-C[0])+(C[0]-B[0])*(z-C[2]))/d,v=((C[2]-A[2])*(x-C[0])+(A[0]-C[0])*(z-C[2]))/d,w=1-u-v;if(u<-1e-6||v<-1e-6||w<-1e-6)continue;
+      const y=A[1]*u+B[1]*v+C[1]*w;if(best==null||y>best)best=y;}return best;};
+    // cada ponto parte da superfície desenhada do terreno (+1,2 cm): nem flutua, nem afunda
+    for(let k=0;k<P.count;k++){if(Y0[k]<-20){P.setY(k,Y0[k]);continue;}const t=top(P.getX(k),P.getZ(k));P.setY(k,t!=null?t+.012:Y0[k]);}
+    for(let it=0;it<10;it++){let fixed=0;const lift=new Float32Array(P.count);
+     for(let t=0;t<I.length;t+=3){const a=I[t],b=I[t+1],c=I[t+2];if(P.getY(a)<-20)continue;let need=0;
+      for(let i=0;i<=10;i++)for(let j=0;j<=10-i;j++){const u=i/10,v=j/10,w=1-u-v,x=P.getX(a)*w+P.getX(b)*u+P.getX(c)*v,z=P.getZ(a)*w+P.getZ(b)*u+P.getZ(c)*v,y=P.getY(a)*w+P.getY(b)*u+P.getY(c)*v,tp=top(x,z);
+       if(tp!=null&&tp+.009-y>need)need=tp+.009-y;}
+      // exato: vértices do terreno que caem dentro do triângulo da estrada e bordas em 24 pontos
+      {const ax=P.getX(a),az=P.getZ(a),bx=P.getX(b),bz=P.getZ(b),cx=P.getX(c),cz=P.getZ(c),ay=P.getY(a),by=P.getY(b),cy=P.getY(c),dd=(bz-cz)*(ax-cx)+(cx-bx)*(az-cz);
+       if(Math.abs(dd)>1e-9){const seen=new Set(),i0=Math.floor(Math.min(ax,bx,cx)),i1=Math.floor(Math.max(ax,bx,cx)),j0=Math.floor(Math.min(az,bz,cz)),j1=Math.floor(Math.max(az,bz,cz));
+        for(let ii=i0;ii<=i1;ii++)for(let jj=j0;jj<=j1;jj++){const l=cell.get(K(ii,jj));if(!l)continue;for(const id of l){if(seen.has(id))continue;seen.add(id);for(const V of TR[id]){const u=((bz-cz)*(V[0]-cx)+(cx-bx)*(V[2]-cz))/dd,v=((cz-az)*(V[0]-cx)+(ax-cx)*(V[2]-cz))/dd,w=1-u-v;if(u<-1e-6||v<-1e-6||w<-1e-6)continue;const t2=top(V[0],V[2]);const yy=ay*u+by*v+cy*w;if(t2!=null&&t2+.009-yy>need)need=t2+.009-yy;}}}
+        for(const [p0,p1] of [[a,b],[b,c],[c,a]])for(let k=1;k<24;k++){const f=k/24,x=P.getX(p0)+(P.getX(p1)-P.getX(p0))*f,z=P.getZ(p0)+(P.getZ(p1)-P.getZ(p0))*f,y=P.getY(p0)+(P.getY(p1)-P.getY(p0))*f,tp=top(x,z);if(tp!=null&&tp+.009-y>need)need=tp+.009-y;}}}
+      if(need>1e-4){lift[a]=Math.max(lift[a],need);lift[b]=Math.max(lift[b],need);lift[c]=Math.max(lift[c],need);fixed++;}}
+     if(!fixed)break;for(let k=0;k<P.count;k++)if(lift[k])P.setY(k,P.getY(k)+lift[k]);}
+    P.needsUpdate=true;rg.computeVertexNormals();rg.computeBoundingSphere();
+    window.arcanoEstradaTopo=top;window.arcanoEstradaTempo=Math.round(performance.now()-T0);if(window.arcanoCalcada&&window.arcanoCalcada.assentar)window.arcanoCalcada.assentar(top);
+    // vigia: se alguma malha de terreno mudar, assenta de novo
+    const watch=setInterval(()=>{const s2=ms.map(m=>m.uuid+':'+m.geometry.attributes.position.version).join('|');if(s2!==sig){clearInterval(watch);run();}},2000);setTimeout(()=>clearInterval(watch),60000);};
+   setTimeout(run,1500);}
   // ---------- Pedras da calçada em 3D (pedras de verdade, baixas e irregulares) ----------
   {
    // 5 formatos diferentes (seixo redondo, pedra angulosa, laje chata, pedra comprida, cascalho quebrado)
@@ -1193,7 +1248,9 @@ function install(){
     IMS.forEach((m,i)=>{m.count=N[i];m.instanceMatrix.needsUpdate=true;if(m.instanceColor)m.instanceColor.needsUpdate=true;});}
    setInterval(()=>{const a=window.arcanoWaterV1226,pl=a&&a.getGrassPlayer&&a.getGrassPlayer(),cam=a&&a.getMainCamera&&a.getMainCamera(),p=pl?pl.position:cam&&cam.position;if(!p)return;
     if(Math.hypot(p.x-lx,p.z-lz)>5){lx=p.x;lz=p.z;refill(p.x,p.z);}},300);
-   window.arcanoCalcada={total:P.length/NF,mesh:im,meshes:IMS,refill};
+   // assenta as pedrinhas na superfície real do terreno (chamado depois que todas as malhas existem)
+   let PY0=null;const assentar=top=>{if(!PY0){PY0=new Float32Array(P.length/NF);for(let q=0;q<P.length;q+=NF)PY0[q/NF]=P[q+1];}for(let q=0;q<P.length;q+=NF){const b=PY0[q/NF],t=top(P[q],P[q+2]);P[q+1]=t!=null&&t+.008>b?t+.008:b;}lx=lz=1e9;};
+   window.arcanoCalcada={total:P.length/NF,mesh:im,meshes:IMS,refill,assentar};
   }
  }
  // ---------- Pontes de pedra onde as estradas cruzam os afluentes ----------
