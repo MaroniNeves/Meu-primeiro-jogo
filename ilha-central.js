@@ -1124,7 +1124,7 @@ function install(){
   for(const line of lines){
    // Reamostra a cada 1,2 m.
    const P=[];
-   for(let i=0;i<line.pts.length-1;i++){const a=line.pts[i],b=line.pts[i+1],len=Math.hypot(b.x-a.x,b.z-a.z),steps=Math.max(1,Math.ceil(len/1.2));for(let s=0;s<steps;s++)P.push({x:a.x+(b.x-a.x)*s/steps,z:a.z+(b.z-a.z)*s/steps});}
+   for(let i=0;i<line.pts.length-1;i++){const a=line.pts[i],b=line.pts[i+1],len=Math.hypot(b.x-a.x,b.z-a.z),steps=Math.max(1,Math.ceil(len/.6));for(let s=0;s<steps;s++)P.push({x:a.x+(b.x-a.x)*s/steps,z:a.z+(b.z-a.z)*s/steps});}
    P.push(line.pts[line.pts.length-1]);
    let along=0,prev=null;
    for(let i=0;i<P.length;i++){
@@ -1133,11 +1133,15 @@ function install(){
     if(prev)along+=Math.hypot(p.x-prev.x,p.z-prev.z);prev=p;
     const onBridge=bridge&&bridge.center&&Math.abs(p.x-bridge.center.x)<bridge.span/2+1&&Math.abs(p.z-bridge.center.z)<3||((streamInfo(p.x,p.z)||{d:99}).d<STREAM_W+1.2); // vau do afluente: sem calçada
     const base=pos.length/3;
-    for(let c=0;c<3;c++){
-     const off=(c-1)*line.w,x=p.x-tz*off,z=p.z+tx*off;
-     pos.push(x,groundAt(x,z)+.05-(onBridge?50:0),z);uvs.push(c/2,along/3);
+    // altura da malha desenhada do terreno (grade de 2 m em triângulos), não só da fórmula: a estrada fica rente sem sumir embaixo
+    const meshH=(x,z)=>{const fx=(x+436)/2,fz=(z+666)/2,i=Math.floor(fx),j=Math.floor(fz),u=fx-i,v=fz-j,x0=-436+i*2,z0=-666+j*2;
+     const h00=groundAt(x0,z0),h10=groundAt(x0+2,z0),h01=groundAt(x0,z0+2);if(u+v<=1)return h00+(h10-h00)*u+(h01-h00)*v;const h11=groundAt(x0+2,z0+2);return h11+(h01-h11)*(1-u)+(h10-h11)*(1-v);};
+    const NC=7; // 7 pontos na largura: a estrada acompanha o relevo de perto
+    for(let c=0;c<NC;c++){
+     const off=(c/(NC-1)*2-1)*line.w,x=p.x-tz*off,z=p.z+tx*off;
+     pos.push(x,Math.max(groundAt(x,z),meshH(x,z))+.012-(onBridge?50:0),z);uvs.push(c/(NC-1),along/3);
     }
-    if(i>0&&!onBridge){const a=base-3;idx.push(a,base,a+1,a+1,base,base+1,a+1,base+1,a+2,a+2,base+1,base+2);}
+    if(i>0&&!onBridge){const a=base-NC;for(let c=0;c<NC-1;c++)idx.push(a+c,base+c,a+c+1,a+c+1,base+c,base+c+1);}
    }
   }
   const rg=new T.BufferGeometry();
@@ -1145,12 +1149,6 @@ function install(){
   rg.setIndex(idx);rg.computeVertexNormals();
   const roadMesh=new T.Mesh(rg,mat);roadMesh.name='Estrada calçada';roadMesh.receiveShadow=true;roadMesh.renderOrder=1;
   scene.add(roadMesh);
-  // o pé pisa na superfície da estrada (5 cm acima do terreno, com as pedrinhas), não no terreno embaixo dela
-  {const GS=8,G=new Map(),key=(i,j)=>i*65536+j;
-   for(const line of lines)for(let i=0;i<line.pts.length-1;i++){const a=line.pts[i],b=line.pts[i+1],hw=line.w*.92;const i0=Math.floor((Math.min(a.x,b.x)-hw)/GS),i1=Math.floor((Math.max(a.x,b.x)+hw)/GS),j0=Math.floor((Math.min(a.z,b.z)-hw)/GS),j1=Math.floor((Math.max(a.z,b.z)+hw)/GS);
-    for(let ii=i0;ii<=i1;ii++)for(let jj=j0;jj<=j1;jj++){const k=key(ii,jj);let l=G.get(k);if(!l)G.set(k,l=[]);l.push([a.x,a.z,b.x,b.z,hw]);}}
-   (window.arcanoGroundOverrides=window.arcanoGroundOverrides||[]).push((x,z)=>{const l=G.get(key(Math.floor(x/GS),Math.floor(z/GS)));if(!l)return null;
-    for(const [ax,az,bx,bz,hw] of l){const dx=bx-ax,dz=bz-az,L2=dx*dx+dz*dz||1,t=Math.max(0,Math.min(1,((x-ax)*dx+(z-az)*dz)/L2)),px=ax+dx*t-x,pz=az+dz*t-z;if(px*px+pz*pz<hw*hw){if(bridge&&bridge.center&&Math.abs(x-bridge.center.x)<bridge.span/2+1&&Math.abs(z-bridge.center.z)<3)return null;return groundAt(x,z)+.07;}}return null;});}
   // ---------- Pedras da calçada em 3D (pedras de verdade, baixas e irregulares) ----------
   {
    // 5 formatos diferentes (seixo redondo, pedra angulosa, laje chata, pedra comprida, cascalho quebrado)
@@ -1178,7 +1176,7 @@ function install(){
        const x=cx-tz*(off+(rs()-.5)*.4)+tx*(rs()-.5)*.45,z=cz+tx*(off+(rs()-.5)*.4)+tz*(rs()-.5)*.45;
        const sh=Math.floor(rs()*SHAPES.length),u=rs(),size=u<.7?.05+rs()*.035:u<.94?.085+rs()*.03:.11+rs()*.03;   // quase todas pequenas
        const k=Math.floor(x/GC)*65536+Math.floor(z/GC);let l=GRID.get(k);if(!l)GRID.set(k,l=[]);l.push(PX.length/NF);
-       PX.push(x,groundAt(x,z)+.05,z,size,rs()*6.283,sh,Math.floor(rs()*PAL.length),rs());}}}
+       PX.push(x,groundAt(x,z)+.008,z,size,rs()*6.283,sh,Math.floor(rs()*PAL.length),rs());}}}
    }
    const P=new Float32Array(PX);const MAXN=innerWidth<680?1200:2500,RAD=innerWidth<680?30:44;
    const IMS=SHAPES.map((g,i)=>{const m=new T.InstancedMesh(g,MATS[SHMAT[i]],MAXN);m.name='Calçada da estrada · blocos 3D '+i;m.count=0;m.frustumCulled=false;m.receiveShadow=true;m.castShadow=false;scene.add(m);return m;});
