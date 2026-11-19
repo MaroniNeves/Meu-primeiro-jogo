@@ -1187,7 +1187,8 @@ function install(){
       const u=((B[2]-C[2])*(x-C[0])+(C[0]-B[0])*(z-C[2]))/d,v=((C[2]-A[2])*(x-C[0])+(A[0]-C[0])*(z-C[2]))/d,w=1-u-v;if(u<-1e-6||v<-1e-6||w<-1e-6)continue;
       const y=A[1]*u+B[1]*v+C[1]*w;if(best==null||y>best)best=y;}return best;};
     // cada ponto parte da superfície desenhada do terreno (+1,2 cm): nem flutua, nem afunda
-    for(let k=0;k<P.count;k++){if(Y0[k]<-20){P.setY(k,Y0[k]);continue;}const t=top(P.getX(k),P.getZ(k));P.setY(k,t!=null?t+.012:Y0[k]);}
+    const SEAT=new Float32Array(P.count);
+    for(let k=0;k<P.count;k++){if(Y0[k]<-20){P.setY(k,Y0[k]);continue;}const t=top(P.getX(k),P.getZ(k));P.setY(k,t!=null?t+.012:Y0[k]);SEAT[k]=P.getY(k);}
     for(let it=0;it<10;it++){let fixed=0;const lift=new Float32Array(P.count);
      for(let t=0;t<I.length;t+=3){const a=I[t],b=I[t+1],c=I[t+2];if(P.getY(a)<-20)continue;let need=0;
       for(let i=0;i<=10;i++)for(let j=0;j<=10-i;j++){const u=i/10,v=j/10,w=1-u-v,x=P.getX(a)*w+P.getX(b)*u+P.getX(c)*v,z=P.getZ(a)*w+P.getZ(b)*u+P.getZ(c)*v,y=P.getY(a)*w+P.getY(b)*u+P.getY(c)*v,tp=top(x,z);
@@ -1199,8 +1200,34 @@ function install(){
         for(const [p0,p1] of [[a,b],[b,c],[c,a]])for(let k=1;k<24;k++){const f=k/24,x=P.getX(p0)+(P.getX(p1)-P.getX(p0))*f,z=P.getZ(p0)+(P.getZ(p1)-P.getZ(p0))*f,y=P.getY(p0)+(P.getY(p1)-P.getY(p0))*f,tp=top(x,z);if(tp!=null&&tp+.009-y>need)need=tp+.009-y;}}}
       if(need>1e-4){lift[a]=Math.max(lift[a],need);lift[b]=Math.max(lift[b],need);lift[c]=Math.max(lift[c],need);fixed++;}}
      if(!fixed)break;for(let k=0;k<P.count;k++)if(lift[k])P.setY(k,P.getY(k)+lift[k]);}
+    // As subidas pontuais (um canto sobe e os vizinhos não) faziam quinas que pegavam luz diferente: pareciam cortes.
+    // Cada subida se espalha suave para os vizinhos (só sobe, nunca desce: o terreno continua sem cobrir nada).
+    const NCv=7,nb=(k,m)=>m>=0&&m<P.count&&Y0[m]>=-20&&Math.abs(P.getX(k)-P.getX(m))+Math.abs(P.getZ(k)-P.getZ(m))<1.8;
+    {let D=new Float32Array(P.count);for(let k=0;k<P.count;k++)D[k]=Y0[k]<-20?0:Math.max(0,P.getY(k)-SEAT[k]);
+     for(let pass=0;pass<5;pass++){const D2=D.slice();for(let k=0;k<P.count;k++){if(Y0[k]<-20)continue;const c=k%NCv;let m=D[k];
+       if(c>0&&nb(k,k-1))m=Math.max(m,D[k-1]*.68);if(c<NCv-1&&nb(k,k+1))m=Math.max(m,D[k+1]*.68);if(nb(k,k-NCv))m=Math.max(m,D[k-NCv]*.68);if(nb(k,k+NCv))m=Math.max(m,D[k+NCv]*.68);D2[k]=m;}D=D2;}
+     for(let k=0;k<P.count;k++)if(Y0[k]>=-20)P.setY(k,SEAT[k]+D[k]);}
     P.needsUpdate=true;rg.computeVertexNormals();rg.computeBoundingSphere();
-    window.arcanoEstradaTopo=top;window.arcanoEstradaTempo=Math.round(performance.now()-T0);if(window.arcanoCalcada&&window.arcanoCalcada.assentar)window.arcanoCalcada.assentar(top);
+    // luz da estrada sem quinas: normais alisadas com os vizinhos (a estrada é quase plana)
+    {const Nn=rg.attributes.normal;let A=Float32Array.from(Nn.array);
+     for(let pass=0;pass<3;pass++){const B=A.slice();for(let k=0;k<P.count;k++){if(Y0[k]<-20)continue;const c=k%NCv;let x=A[k*3],y=A[k*3+1],z=A[k*3+2],n=1;
+       const add=m=>{x+=A[m*3];y+=A[m*3+1];z+=A[m*3+2];n++;};if(c>0&&nb(k,k-1))add(k-1);if(c<NCv-1&&nb(k,k+1))add(k+1);if(nb(k,k-NCv))add(k-NCv);if(nb(k,k+NCv))add(k+NCv);
+       const l=Math.hypot(x,y,z)||1;B[k*3]=x/l;B[k*3+1]=y/l;B[k*3+2]=z/l;}A=B;}
+     Nn.array.set(A);Nn.needsUpdate=true;}
+    // altura final da estrada em (x,z): usada pelas pedrinhas para não ficarem embaixo das partes que subiram
+    const RC=new Map();for(let t=0;t<I.length;t+=3){const a=I[t],b=I[t+1],c=I[t+2];if(P.getY(a)<-20)continue;
+     const i0=Math.floor(Math.min(P.getX(a),P.getX(b),P.getX(c))),i1=Math.floor(Math.max(P.getX(a),P.getX(b),P.getX(c))),j0=Math.floor(Math.min(P.getZ(a),P.getZ(b),P.getZ(c))),j1=Math.floor(Math.max(P.getZ(a),P.getZ(b),P.getZ(c)));
+     for(let i=i0;i<=i1;i++)for(let j=j0;j<=j1;j++){const k=K(i,j);let l=RC.get(k);if(!l)RC.set(k,l=[]);l.push(t);}}
+    const roadAt=(x,z)=>{const l=RC.get(K(Math.floor(x),Math.floor(z)));let best=null;if(l)for(const t of l){const a=I[t],b=I[t+1],c=I[t+2],ax=P.getX(a),az=P.getZ(a),bx=P.getX(b),bz=P.getZ(b),cx=P.getX(c),cz=P.getZ(c),d=(bz-cz)*(ax-cx)+(cx-bx)*(az-cz);if(Math.abs(d)<1e-9)continue;
+      const u=((bz-cz)*(x-cx)+(cx-bx)*(z-cz))/d,v=((cz-az)*(x-cx)+(ax-cx)*(z-cz))/d,w=1-u-v;if(u<-1e-6||v<-1e-6||w<-1e-6)continue;const y=P.getY(a)*u+P.getY(b)*v+P.getY(c)*w;if(best==null||y>best)best=y;}
+     const tp=top(x,z);return best==null?tp:tp==null?best-.012:Math.max(tp,best-.012);};
+    window.arcanoEstradaAltura=roadAt;
+    // o personagem pisa na superfície da estrada (onde ela subiu um pouco sobre degraus do terreno, não afunda)
+    const onRoad=(x,z)=>{const l=RC.get(K(Math.floor(x),Math.floor(z)));if(!l)return null;let best=null;for(const t of l){const a=I[t],b=I[t+1],c=I[t+2],ax=P.getX(a),az=P.getZ(a),bx=P.getX(b),bz=P.getZ(b),cx=P.getX(c),cz=P.getZ(c),d=(bz-cz)*(ax-cx)+(cx-bx)*(az-cz);if(Math.abs(d)<1e-9)continue;
+      const u=((bz-cz)*(x-cx)+(cx-bx)*(z-cz))/d,v=((cz-az)*(x-cx)+(ax-cx)*(z-cz))/d,w=1-u-v;if(u<-1e-6||v<-1e-6||w<-1e-6)continue;const y=P.getY(a)*u+P.getY(b)*v+P.getY(c)*w;if(best==null||y>best)best=y;}return best;};
+    if(window.arcanoGroundOverrides&&!window.arcanoEstradaPiso){window.arcanoEstradaPiso=1;window.arcanoGroundOverrides.push((x,z)=>window.arcanoEstradaSob?window.arcanoEstradaSob(x,z):null);}
+    window.arcanoEstradaSob=onRoad;
+    window.arcanoEstradaTopo=top;window.arcanoEstradaTempo=Math.round(performance.now()-T0);if(window.arcanoCalcada&&window.arcanoCalcada.assentar)window.arcanoCalcada.assentar(roadAt);
     // vigia: se alguma malha de terreno mudar, assenta de novo
     const watch=setInterval(()=>{const s2=ms.map(m=>m.uuid+':'+m.geometry.attributes.position.version).join('|');if(s2!==sig){clearInterval(watch);run();}},2000);setTimeout(()=>clearInterval(watch),60000);};
    setTimeout(run,1500);}
