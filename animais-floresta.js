@@ -168,11 +168,11 @@ function deerPrims(kind){
  add(tube([[0,.01,0],[0,-.06,-.05],[0,-.15,-.06]],[[.045,.028],[.052,.032],[.034,.02]],{n:8,ca:.3,cb:.35},TAIL),3,.03,em((x,y,z,nx,ny,nz)=>nz<-.25?C3('#8c522b'):C3('#ffffff'),...TAIL));
  // pescoço: vai até dentro do crânio, para a cabeça nascer dele (sem degrau na nuca nem embaixo da mandíbula)
  {const th=buck?1.12:1;
-  add(tube([[0,-.02,-.01],[0,.16,.06],[0,.36,.14],[0,.52,.21],[0,.63,.27]],[[.13*th,.13*th],[.125*th,.155*th],[.095*th,.115*th],[.085,.1],[.075,.088]],{n:18,ca:.12,cb:.18},N0),1,.11,
+  add(tube([[0,-.02,-.01],[0,.16,.06],[0,.36,.14],[0,.52,.21],[0,.63,.27]],[[.13*th,.13*th],[.125*th,.155*th],[.095*th,.115*th],[.09,.108],[.092,.11]],{n:18,ca:.12,cb:.22},N0),1,.12,
    em((x,y,z,nx,ny,nz)=>{let c=brown;c=mixC(c,cream,.3*sstep((nz-.3)/.4));
     c=mixC(c,C3('#fbf6ea'),sstep((y-.36)/.08)*sstep((nz-.2)/.25)*sstep((.15-ny)/.3));              // mancha branca da garganta
     if(buck)c=mixC(c,C3('#6f4a30'),.5*sstep((ny-.2)/.3)*sstep((.32-y)/.1));
-    return shade(c,x,y,z);},...N0),null,.07);}
+    return shade(c,x,y,z);},...N0),null,.1);}
  // volume de transição garganta → peito (sem dobra na frente do pescoço)
  add(ell(0,.1,.1,.115*(buck?1.1:1),.17,.12,N0),1,.09,em((x,y,z,nx,ny,nz)=>shade(mixC(brown,cream,.2*sstep((nz-.3)/.4)),x,y,z),...N0),null,.08);
  // cabeça: crânio em cunha + ponta do nariz + queixo (emenda larga com o pescoço; cores com bordas suaves)
@@ -181,7 +181,7 @@ function deerPrims(kind){
   c=mixC(c,C3('#efe6d4'),sstep(1-Math.abs(z-.29)/.035)*sstep((ny+.4)/.3));                            // faixa clara atrás do nariz
   c=mixC(c,C3('#5e3820'),.45*sstep((ny-.45)/.25)*sstep((.17-z)/.06)*sstep((z+.02)/.06));              // testa mais escura
   return shade(c,x,y,z);},...H0);
- add(tube([[0,.07,-.07],[0,.06,.06],[0,.02,.2],[0,-.02,.31],[0,-.024,.365]],[[.08,.09],[.112,.118],[.074,.084],[.054,.058],[.04,.042]],{n:16,ca:.22,cb:.12},H0),2,.09,headCol,null,.06);
+ add(tube([[0,.07,-.07],[0,.06,.06],[0,.02,.2],[0,-.02,.31],[0,-.024,.365]],[[.08,.09],[.112,.118],[.074,.084],[.054,.058],[.04,.042]],{n:16,ca:.22,cb:.12},H0),2,.1,headCol,null,.1);
  add(ell(0,-.016,.372,.042,.03,.026,H0),2,.012,()=>C3('#17110f'),.006);
  add(ell(0,-.058,.29,.034,.022,.045,H0),2,.02,()=>C3('#f3ead8'));
  // pernas
