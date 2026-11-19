@@ -1,5 +1,5 @@
 Small Magic — por @blendi (https://patch.gg/games/blendi/small-magic), licença MIT (ver LICENSE.txt).
 Código-fonte: https://git.patch.gg/blendi/small-magic (commit 8a096a0, 16/11/2026).
-Esta pasta é o jogo já montado (npm run build). Única mudança: voltar-atelie.js (botão de voltar ao Ateliê).
+Esta pasta é o jogo já montado (npm run build). Mudanças do Ateliê: voltar-atelie.js (botão de voltar) e controles de toque + aviso de horizontal (src/touch.js e src/input.js no código-fonte em F:Pojetos Claudesmall-magic).
 Os sons gravados da Sonniss não estão incluídos (a licença deles não permite redistribuir); o jogo usa os sons feitos em código.
 Para atualizar: na pasta do código, git pull, npm run build, e copie a pasta dist para cá (e recoloque voltar-atelie.js).
