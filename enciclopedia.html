@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Enciclopédia dos bichos · Ateliê Arcano</title>
+<style>
+:root{--bg:#f3efe4;--panel:#fffdf7;--ink:#24301f;--soft:#5d6a55;--line:#ddd5c2;--accent:#3d7a46;--accent2:#e9f2df;--chip:#f1ebdc}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden}
+#app{display:grid;grid-template-columns:300px minmax(0,1fr);height:100%}
+aside{display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--line);background:var(--panel);min-height:0}
+.top{padding:14px 14px 10px;border-bottom:1px solid var(--line)}
+.top h1{font-size:18px;margin:0 0 2px;letter-spacing:.2px}
+.top p{margin:0;color:var(--soft);font-size:12.5px}
+.top a{color:var(--accent);font-weight:600;text-decoration:none}
+#busca{margin-top:10px;width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:#fff;font:inherit;font-size:14px;color:var(--ink)}
+#grupos{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.chip{font:600 12px system-ui;border:1px solid var(--line);background:var(--chip);color:var(--ink);border-radius:999px;padding:4px 10px;cursor:pointer}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+#lista{overflow:auto;padding:8px;flex:1;min-height:0}
+.gtit{font:700 11px system-ui;text-transform:uppercase;letter-spacing:.8px;color:var(--soft);margin:10px 6px 6px}
+.card{display:flex;gap:10px;align-items:center;width:100%;padding:6px;border:1px solid transparent;border-radius:11px;background:none;cursor:pointer;text-align:left;font:inherit;color:inherit}
+.card:hover{background:#f6f2e8}
+.card.on{background:var(--accent2);border-color:#bcd4ae}
+.card img,.card .ph{width:58px;height:58px;border-radius:9px;background:#e6efe6;flex:none;object-fit:cover}
+.card b{display:block;font-size:14px}
+.card span{font-size:12px;color:var(--soft)}
+main{position:relative;min-width:0;min-height:0}
+canvas#v{position:absolute;inset:0;display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+canvas#v:active{cursor:grabbing}
+#titulo{position:absolute;left:18px;top:14px;pointer-events:none;text-shadow:0 1px 0 #fff8}
+#titulo h2{margin:0;font-size:26px}
+#titulo div{color:var(--soft);font-size:13.5px;font-weight:600}
+#info{position:absolute;right:14px;top:14px;width:300px;max-height:calc(100% - 120px);overflow:auto;background:#fffdf7ee;border:1px solid var(--line);border-radius:14px;padding:12px 14px;font-size:13.5px;line-height:1.45;box-shadow:0 6px 24px #3a33201a}
+#info h3{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--soft);margin:10px 0 3px}
+#info h3:first-child{margin-top:0}
+#info ul{margin:0;padding-left:18px}
+#info code{font-size:12px;background:var(--chip);padding:1px 5px;border-radius:5px}
+#barra{position:absolute;left:14px;right:14px;bottom:12px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;pointer-events:none}
+#barra>*{pointer-events:auto}
+.grp{max-width:100%;display:flex;flex-wrap:wrap;gap:5px;background:#fffdf7e6;border:1px solid var(--line);border-radius:999px;padding:4px}
+.grp .chip{border:none;background:none}
+.grp .chip.on{background:var(--accent);color:#fff}
+.lbl{font:700 11px system-ui;color:var(--soft);padding:4px 4px 4px 8px;align-self:center;text-transform:uppercase;letter-spacing:.6px}
+#dica{position:absolute;left:18px;top:78px;font-size:12px;color:var(--soft);pointer-events:none}
+#carregando{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--soft)}
+#infoBtn{display:none}
+body.noite #titulo{color:#eef3ff;text-shadow:none}body.noite #titulo div,body.noite #dica{color:#b9c4e0}
+@media (max-width:760px){
+ #app{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto}
+ aside{order:2;border-right:none;border-top:1px solid var(--line);max-height:44vh}
+ .top{padding:8px 10px}.top h1{font-size:15px}.top p{display:none}
+ #busca{margin-top:6px;padding:6px 9px}
+ #lista{display:flex;gap:6px;overflow-x:auto;overflow-y:hidden;padding:6px 8px}
+ .gtit{display:none}
+ .card{flex-direction:column;width:84px;flex:none;gap:4px;padding:4px;text-align:center}
+ .card b{font-size:12px}.card span{display:none}
+ #titulo h2{font-size:20px}#titulo{left:12px;top:10px}#dica{display:none}
+ #info{left:10px;right:10px;width:auto;top:auto;bottom:58px;max-height:40%;display:none}
+ #info.aberto{display:block}
+ #infoBtn{display:inline-block}
+ #barra{left:8px;right:8px;bottom:8px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+ <aside>
+  <div class="top">
+   <h1>📖 Enciclopédia dos bichos</h1>
+   <p>Os modelos e movimentos são os mesmos do jogo. <a href="./">Abrir o jogo →</a></p>
+   <input id="busca" type="search" placeholder="Procurar bicho…" autocomplete="off">
+   <div id="grupos"></div>
+  </div>
+  <div id="lista"></div>
+ </aside>
+ <main>
+  <canvas id="v"></canvas>
+  <div id="titulo"><h2 id="nome"></h2><div id="sub"></div></div>
+  <div id="dica">Arraste para girar · roda ou pinça para aproximar · ← → troca de bicho</div>
+  <div id="info"></div>
+  <div id="barra">
+   <div class="grp" id="modos"></div>
+   <div class="grp" id="variantes"></div>
+   <div class="grp" id="opcoes"></div>
+  </div>
+  <div id="carregando">Carregando os bichos…</div>
+ </main>
+</div>
+<script defer src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
+<script defer src="./fauna-margens.js?v=6"></script>
+<script defer src="./aves-floresta.js?v=4"></script>
+<script defer src="./animais-floresta.js?v=9"></script>
+<script defer src="./vida-aquatica.js?v=7"></script>
+<script defer src="./ecossistema-v1232.js?v=largo-8"></script>
+<script>
+addEventListener('DOMContentLoaded',()=>{
+'use strict';
+const T=window.THREE,$=id=>document.getElementById(id);
+if(!T){$('carregando').textContent='Não consegui carregar o Three.js (sem internet?).';return;}
+const KM=window.arcanoKitMargens,KAv=window.arcanoKitAves,KC=window.arcanoKitCervo,KAq=window.arcanoKitAgua,KF=window.arcanoKitFormiga;
+const PI=Math.PI;
+
+/* ============ kits (criados uma vez, só quando alguém pede) ============ */
+const once=f=>{let v;return()=>v||(v=f());};
+const kitAves=once(()=>KAv.kit(KM.Merger)),kitCorujas=once(()=>KAv.owlKitBuild(KM.Merger)),kitAgua=once(()=>KAq.kitAgua(KM.Merger));
+const kitSapo=once(()=>KM.frogParts()),kitBorb=once(()=>KM.butterflyKit()),kitLib=once(()=>KM.dragonflyKit()),kitMosca=once(()=>KM.flyParts());
+
+/* ============ catálogo ============ */
+// criar(variante) -> {obj, animar(dt,t,modo,ctx), agua?:altura do nível da água, noite?:true}
+const cervo=kind=>()=>{const m=KC.makeDeer(kind);const d={...m,x:0,y:0,z:0,yaw:0,pitch:0,st:'graze',speed:0,phase:0,neckPitch:0,headYaw:0,stagger:0};
+ const VEL={andar:kind==='fawn'?.8:1.05,correr:kind==='fawn'?7.4:8.6};
+ return {obj:m.root,animar(dt,t,modo,c){d.st={pastar:'graze',andar:'walk',alerta:'alert',correr:'flee'}[modo];d.speed+=((VEL[modo]||0)-d.speed)*Math.min(1,dt*3);
+  KC.animarCervo(d,dt,t*1000,-c.cam.x,-c.cam.z);}};};
+const MODOS_CERVO={pastar:'🌿 Pastar',andar:'🚶 Andar',alerta:'👀 Alerta',correr:'💨 Fugir'};
+const passaro=k=>()=>{const b=kitAves().make(k);b.inner.scale.setScalar(.235);
+ return {obj:b.g,animar(dt,t,modo){b.inner.rotation.x=0;b.g.position.y=0;
+  if(modo==='parado'){KAv.wingsFold(b);b.inner.position.y=Math.max(0,Math.sin(t*3.1))>.97?.01:0;}
+  else if(modo==='bicar'){KAv.wingsFold(b);b.inner.rotation.x=Math.max(0,Math.sin(t*7))*.95;}
+  else if(modo==='voar'){KAv.wingsFly(b,true,t*20);b.g.position.y=.25+Math.sin(t*20)*.012;}
+  else{KAv.wingsFly(b,false,t);b.g.position.y=.25;}}};};
+const MODOS_AVE={parado:'Parado',bicar:'Ciscar',voar:'Voar',planar:'Planar'};
+const coruja=k=>()=>{const o=KAv.makeOwlFrom(kitCorujas(),k);o.g.visible=true;
+ return {obj:o.g,animar(dt,t,modo){
+  if(modo==='voar'){KAv.wingsFly(o,true,t*9);o.g.position.y=.35;for(const l of o.lids)l.scale.y=.2;o.head.rotation.y*=.9;return;}
+  KAv.wingsFold(o);o.g.position.y=0;
+  if(modo==='dormir'){for(const l of o.lids)l.scale.y+=(1-l.scale.y)*Math.min(1,dt*6);o.head.rotation.y*=.95;o.head.rotation.z=Math.sin(t*.7)*.05;}
+  else{const bl=(t%3.6)<.16?1:.2;for(const l of o.lids)l.scale.y+=(bl-l.scale.y)*Math.min(1,dt*20);
+   const want=[0,1.4,1.4,0,-2.2,-2.2,0][Math.floor(t/1.7)%7];o.head.rotation.y+=(want-o.head.rotation.y)*Math.min(1,dt*5);o.head.rotation.z=Math.sin(t*.9)*.12;}}};};
+const peixe=(k,size)=>()=>{const K=kitAgua(),g=K.fishGeo(K.SP[k]).clone();const sw=new T.InstancedBufferAttribute(new Float32Array([0,9]),2);g.setAttribute('aSwim',sw);
+ const im=new T.InstancedMesh(g,K.fishMat,1);im.setMatrixAt(0,new T.Matrix4().makeScale(size,size,size));im.frustumCulled=false;
+ const o=new T.Group();o.add(im);o.position.y=-Math.max(.12,size*.6);
+ return {obj:o,agua:0,animar(dt,t,modo){K.uT.value=t;const f=modo==='arrancada'?(k==='girino'?26:20):(k==='girino'?16:8);if(sw.array[1]!==f){sw.array[1]=f;sw.needsUpdate=true;}
+  o.rotation.y=Math.sin(t*.4)*.25;o.position.y=-Math.max(.12,size*.6)+Math.sin(t*1.3)*size*.05;}};};
+const MODOS_PEIXE={nadar:'Nadar',arrancada:'Arrancada'};
+const pato=adult=>()=>{const K=kitAgua(),d=KAq.duckModel(K,adult,adult?1.1:.55);
+ return {obj:d.g,agua:0,animar(dt,t,modo){const ty=modo==='comer'?1.1:0;d.m.rotation.x+=(ty-d.m.rotation.x)*Math.min(1,dt*5);
+  d.g.position.y=-.04+Math.sin(t*2.2)*.01;d.g.rotation.z=Math.sin(t*1.7)*.03;
+  if(modo==='voar'&&adult){for(const w of d.wings){w.r.visible=true;w.r.rotation.z=w.s*(.2+.9*Math.sin(t*18));}d.g.position.y=.45;}
+  else for(const w of d.wings)w.r.visible=false;}};};
+const tartaruga=()=>{const K=kitAgua(),tt=KAq.turtleModel(K,.45);
+ return {obj:tt.g,agua:m=>m==='nadar'?0:null,animar(dt,t,modo){const a=modo==='nadar'?4:0;
+  for(const L of tt.legs)L.l.rotation.x=Math.sin(t*a+(L.z>0?0:PI)+(L.s>0?0:PI/2))*.5;
+  const breathe=modo==='nadar'&&(t*.15%1)<.12;tt.g.position.y=modo==='nadar'?(breathe?-.08:-.22):0;tt.inner.rotation.x=breathe?-.25:0;}};};
+const patinador=()=>{const K=kitAgua(),m=new T.Mesh(K.strGeo,new T.MeshStandardMaterial({vertexColors:true,roughness:.6}));m.scale.setScalar(.09);const o=new T.Group();o.add(m);
+ return {obj:o,agua:0,animar(dt,t){const p=(t%1.6)/1.6;m.position.z=(p<.25?p/.25:1)*.06-.03;o.position.y=.004;o.rotation.y=Math.floor(t/1.6)*1.3;}};};
+const sapo=()=>{const fr=KM.makeFrog(kitSapo(),.14);
+ return {obj:fr.g,animar(dt,t,modo){fr.tongue.visible=false;fr.g.position.y=0;
+  if(modo==='pular'){const p=(t%1.3)/1.3,e=p<.5?Math.sin(p/.5*PI):0;fr.pose(e);fr.g.position.y=e*.12;fr.throat.scale.setScalar(1);}
+  else if(modo==='lingua'){fr.pose(0);const p=(t%1.6)/1.6,k=p<.3?Math.sin(p/.3*PI):0;fr.tongue.visible=k>.02;fr.tongue.scale.set(1,1,Math.max(.01,1.6*k));fr.throat.scale.setScalar(1);}
+  else if(modo==='coaxar'){fr.pose(0);const p=t%1.4;fr.throat.scale.setScalar(p<.5?1+.35*Math.sin(p/.5*PI):1);}
+  else{fr.pose(0);fr.throat.scale.setScalar(1+.16*Math.max(0,Math.sin(t*5)));}}};};
+const borboleta=i=>()=>{const b=kitBorb().make(i);b.g.scale.setScalar(.12);
+ return {obj:b.g,animar(dt,t,modo){let fl;if(modo==='pousada'){fl=.25+(Math.sin(t*1.6)*.5+.5);b.g.position.y=0;}else{fl=.12+(Math.sin(t*21)*.5+.5)*1.25;b.g.position.y=.15+Math.sin(t*3)*.02;}
+  b.wR.rotation.z=fl;b.wL.rotation.z=-fl;}};};
+const libelula=i=>()=>{const d=kitLib().make(i);d.g.scale.setScalar(.3);
+ return {obj:d.g,animar(dt,t,modo){const perch=modo==='pousada',fl=perch?0:Math.sin(t*70)*.45;
+  for(const w of d.wings)w.w.rotation.z=w.s*(fl*(w.f?-1:1)+(perch?-.12:0));d.g.position.y=perch?.02:.18+Math.sin(t*2)*.01;}};};
+const mosca=()=>{const P=kitMosca(),o=new T.Group(),sc=.028,body=new T.Mesh(P.body,P.bodyMat);body.scale.setScalar(sc);o.add(body);
+ const ws=[0,1].map(s=>{const w=new T.Mesh(P.wing,P.wingMat);w.scale.setScalar(sc);w.position.y=sc*.3;o.add(w);return {w,s};});
+ return {obj:o,animar(dt,t,modo){const flap=modo==='voar'?Math.sin(t*95)*.9:.15;o.position.y=modo==='voar'?.06:.016;
+  for(const {w,s} of ws)w.rotation.set(0,s?PI:0,flap,'YXZ');}};};
+const vagalume=()=>{const g=new T.BufferGeometry();g.setAttribute('position',new T.BufferAttribute(new Float32Array([0,.05,0]),3));const ab=new T.BufferAttribute(new Float32Array([1]),1);g.setAttribute('aB',ab);
+ const p=new T.Points(g,KM.glowMat());p.frustumCulled=false;const o=new T.Group();o.add(p);o.userData.raio=.22;
+ return {obj:o,noite:true,animar(dt,t,modo,c){p.material.uniforms.uPx.value=c.px;ab.array[0]=modo==='aceso'?1:Math.pow(Math.max(0,Math.sin(t*2.2)),3);ab.needsUpdate=true;
+  p.position.set(Math.sin(t*.7)*.02,Math.sin(t*1.1)*.015,Math.cos(t*.6)*.02);}};};
+const formiga=i=>()=>{const m=new T.Mesh(KF.geo(),new T.MeshStandardMaterial({color:KF.cores[i||0],roughness:1,metalness:0,side:T.DoubleSide}));m.scale.setScalar(.011);m.rotation.y=-PI/2;
+ const o=new T.Group();o.add(m);return {obj:o,animar(dt,t,modo){if(modo==='andar'){m.position.z=((t*.03)%.04)-.02;m.rotation.z=Math.sin(t*30)*.04;}else{m.position.z=0;m.rotation.z=0;}}};};
+
+const V=(nome,criar)=>({nome,criar});
+const ESPECIES=[
+ {id:'cervo-macho',nome:'Cervo',sub:'macho, com chifres',grupo:'Mamíferos',emoji:'🦌',arquivo:'animais-floresta.js',criar:cervo('buck'),modos:MODOS_CERVO,
+  onde:'Em manadas nas clareiras e bordas da mata. Uma manada vive no prado perto do começo do jogo.',
+  faz:['Pasta abaixando o pescoço e mastigando; anda devagar atrás de capim novo.','Orelhas e cauda se mexem sozinhas.','Quando você chega perto, para, levanta a cabeça e olha para você.','Se você chega perto demais ou correndo, foge em galope, com a manada junto, e depois se acalma.']},
+ {id:'cervo-femea',nome:'Cerva',sub:'fêmea',grupo:'Mamíferos',emoji:'🦌',arquivo:'animais-floresta.js',criar:cervo('doe'),modos:MODOS_CERVO,
+  onde:'Na mesma manada dos machos.',faz:['Mesmo comportamento da manada.','De tempos em tempos nasce um filhote perto dela.']},
+ {id:'cervo-filhote',nome:'Filhote de cervo',sub:'com pintas brancas',grupo:'Mamíferos',emoji:'🦌',arquivo:'animais-floresta.js',criar:cervo('fawn'),modos:MODOS_CERVO,
+  onde:'Sempre perto da mãe.',faz:['Segue a mãe e foge junto com a manada.','Cresce aos poucos (5 minutos) e vira macho ou fêmea adulto.']},
+ {id:'passaro',nome:'Passarinho',sub:'6 espécies de cor',grupo:'Aves',emoji:'🐦',arquivo:'aves-floresta.js',modos:MODOS_AVE,
+  variantes:['Pardal','Azulão','Sabiá','Canário','Cardeal','Periquito'].map((n,k)=>V(n,passaro(k))),
+  onde:'Bandinhos de 3 a 5 ciscando em clareiras; revoadas no alto; também pousam em copas e telhados.',
+  faz:['Dá pulinhos, bica o chão e olha em volta.','Se alguém chega perto, o bando inteiro voa e se esconde na copa mais próxima.','Quando fica calmo, desce planando para o mesmo lugar.','À noite dorme nas árvores.']},
+ {id:'coruja',nome:'Coruja',sub:'3 plumagens',grupo:'Aves',emoji:'🦉',arquivo:'aves-floresta.js',modos:{acordada:'Acordada',dormir:'Dormindo',voar:'Voar'},
+  variantes:['Marrom','Cinza','Ruiva'].map((n,k)=>V(n,coruja(k))),
+  onde:'Nos galhos das árvores da mata.',faz:['Dorme de dia.','À noite acorda, pisca e gira a cabeça para olhar quem passa.','Voa de árvore em árvore.']},
+ {id:'pato',nome:'Pata',sub:'mãe da família',grupo:'Aves',emoji:'🦆',arquivo:'vida-aquatica.js',criar:pato(true),modos:{nadar:'Nadar',comer:'Mergulhar a cabeça',voar:'Voar'},
+  onde:'Nos lagos, com os filhotes em fila atrás.',faz:['Nada pelo lago e mergulha a cabeça para comer.','Se assusta e nada para longe; se você chega muito perto, voa e pousa longe — os filhotes vão atrás.']},
+ {id:'patinho',nome:'Patinho',sub:'filhote',grupo:'Aves',emoji:'🐤',arquivo:'vida-aquatica.js',criar:pato(false),modos:{nadar:'Nadar',comer:'Mergulhar a cabeça'},
+  onde:'Em fila atrás da mãe.',faz:['Segue a mãe por onde ela vai.']},
+ {id:'sapo',nome:'Sapo',sub:'',grupo:'Anfíbios',emoji:'🐸',arquivo:'fauna-margens.js',criar:sapo,modos:{sentado:'Respirar',coaxar:'Coaxar',lingua:'Língua',pular:'Pular'},
+  onde:'Na beira do rio e dos lagos, em pedras e em vitórias-régias.',faz:['Respira enchendo o papo e dá pulinhos.','Caça moscas com a língua.','Quando alguém chega perto, pula na água e fica escondido até a pessoa se afastar.']},
+ {id:'girino',nome:'Girino',sub:'',grupo:'Anfíbios',emoji:'⚫',arquivo:'vida-aquatica.js',criar:peixe('girino',.075),modos:MODOS_PEIXE,
+  onde:'No raso dos lagos e do rio.',faz:['Bolinhas pretas que se remexem em grupo.','Fogem rápido quando alguém entra na água.']},
+ {id:'tartaruga',nome:'Tartaruga',sub:'',grupo:'Répteis',emoji:'🐢',arquivo:'vida-aquatica.js',criar:tartaruga,modos:{sol:'Tomar sol',nadar:'Nadar'},
+  onde:'Nas beiras de rio e lago, perto da água funda.',faz:['Toma sol na beira.','Quando alguém chega, escorrega para a água, nada submersa e sobe para respirar.','Volta para a pedra quando o lugar fica calmo.']},
+ {id:'lambari',nome:'Lambari',sub:'',grupo:'Peixes',emoji:'🐟',arquivo:'vida-aquatica.js',criar:peixe('lambari',.21),modos:MODOS_PEIXE,
+  onde:'Em cardumes no rio e nos lagos.',faz:['Nadam juntos, se espalham e fogem quando alguém entra na água.','Às vezes um salta (mais no fim da tarde) e faz ondinha.']},
+ {id:'carpa',nome:'Carpa koi',sub:'',grupo:'Peixes',emoji:'🐠',arquivo:'vida-aquatica.js',criar:peixe('koi',.6),modos:MODOS_PEIXE,
+  onde:'Nos lagos.',faz:['Nadam devagar.','Se você fica parado na beira, elas vêm até a superfície pedir comida.']},
+ {id:'truta',nome:'Truta',sub:'',grupo:'Peixes',emoji:'🐟',arquivo:'vida-aquatica.js',criar:peixe('truta',.5),modos:MODOS_PEIXE,
+  onde:'No rio, onde há correnteza.',faz:['Fica parada contra a correnteza.','Dá arrancadas e foge rio abaixo.']},
+ {id:'borboleta',nome:'Borboleta',sub:'6 cores',grupo:'Insetos',emoji:'🦋',arquivo:'fauna-margens.js',modos:{voar:'Voar',pousada:'Pousada'},
+  variantes:['Azul','Laranja','Amarela','Branca','Rosa','Verde'].map((n,i)=>V(n,borboleta(i))),
+  onde:'Nas flores e plantas das margens.',faz:['Voa de flor em flor e pousa abrindo e fechando as asas.','Foge para as plantas quando se assusta.','Dorme escondida à noite.']},
+ {id:'libelula',nome:'Libélula',sub:'3 cores',grupo:'Insetos',emoji:'🪰',arquivo:'fauna-margens.js',modos:{pairar:'Pairar',pousada:'Pousada'},
+  variantes:['Azul','Vermelha','Verde'].map((n,i)=>V(n,libelula(i))),
+  onde:'Sobre a água do rio e dos lagos.',faz:['Paira sobre a água e dá arrancadas.','Toca a superfície (faz ondinhas) e pousa nos juncos.']},
+ {id:'mosca',nome:'Mosca',sub:'',grupo:'Insetos',emoji:'🪰',arquivo:'fauna-margens.js',criar:mosca,modos:{voar:'Voar',pousada:'Pousada'},
+  onde:'Em volta das plantas das margens.',faz:['Voa em volta das plantas e pousa.','Foge de quem chega; é o almoço dos sapos e renasce na planta.']},
+ {id:'vagalume',nome:'Vaga-lume',sub:'só à noite',grupo:'Insetos',emoji:'✨',arquivo:'fauna-margens.js',criar:vagalume,modos:{piscar:'Piscar',aceso:'Aceso'},
+  onde:'Nas plantas das margens, ao anoitecer.',faz:['Pisca e passeia.','Se alguém passa correndo, apaga, foge e se esconde na planta, voltando depois.'],
+  nota:'No jogo o vaga-lume é só um ponto de luz (não tem corpo).'},
+ {id:'patinador',nome:'Patinador',sub:'inseto da água',grupo:'Insetos',emoji:'🦟',arquivo:'vida-aquatica.js',criar:patinador,modos:{deslizar:'Deslizar'},
+  onde:'Na água parada dos lagos e remansos.',faz:['Desliza na superfície em arrancadas curtas.','Foge de quem chega perto.']},
+ {id:'formiga',nome:'Formiga',sub:'2 colônias de cor',grupo:'Insetos',emoji:'🐜',arquivo:'ecossistema-v1232.js',modos:{parado:'Parada',andar:'Andar'},
+  variantes:['Escura','Vermelha'].map((n,i)=>V(n,formiga(i))),
+  onde:'Três colônias fixas, com dez formigas coletoras cada.',faz:['Sai para reconhecer o terreno, coleta pedaços de folha e volta para a colônia carregando.'],
+  nota:'O modelo é bem simples (feito para ser minúsculo no jogo).'}
+];
+const GRUPOS=[...new Set(ESPECIES.map(e=>e.grupo))];
+
+/* ============ cena ============ */
+const cv=$('v'),r=new T.WebGLRenderer({canvas:cv,antialias:true});r.setPixelRatio(Math.min(2,devicePixelRatio));
+r.outputColorSpace=T.SRGBColorSpace;r.toneMapping=T.NoToneMapping;r.shadowMap.enabled=true;r.shadowMap.type=T.PCFSoftShadowMap;
+const sc=new T.Scene();
+const hemi=new T.HemisphereLight('#f4f8ff','#7c8a64',1.05);sc.add(hemi);
+const sun=new T.DirectionalLight('#fff1d6',2.0);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.bias=-.0004;sc.add(sun,sun.target);
+// chão com quadriculado: linha fina a cada 10 cm, forte a cada 1 m
+const gridTex=(()=>{const c=document.createElement('canvas');c.width=c.height=512;const x=c.getContext('2d');x.fillStyle='#93b77a';x.fillRect(0,0,512,512);
+ x.strokeStyle='rgba(40,70,30,.18)';x.lineWidth=2;for(let i=0;i<=10;i++){x.beginPath();x.moveTo(i*51.2,0);x.lineTo(i*51.2,512);x.stroke();x.beginPath();x.moveTo(0,i*51.2);x.lineTo(512,i*51.2);x.stroke();}
+ x.strokeStyle='rgba(40,70,30,.45)';x.lineWidth=5;x.strokeRect(0,0,512,512);
+ const t=new T.CanvasTexture(c);t.wrapS=t.wrapT=T.RepeatWrapping;t.repeat.set(40,40);t.colorSpace=T.SRGBColorSpace;t.anisotropy=8;return t;})();
+const chao=new T.Mesh(new T.CircleGeometry(20,64),new T.MeshStandardMaterial({map:gridTex,roughness:1}));chao.rotation.x=-PI/2;chao.receiveShadow=true;sc.add(chao);
+const agua=new T.Mesh(new T.CircleGeometry(20,64),new T.MeshStandardMaterial({color:'#3d8fb3',transparent:true,opacity:.28,roughness:.15,depthWrite:false}));agua.rotation.x=-PI/2;agua.renderOrder=5;sc.add(agua);
+const fundo=new T.Mesh(new T.CircleGeometry(20,64),new T.MeshStandardMaterial({color:'#4f6b55',roughness:1}));fundo.rotation.x=-PI/2;fundo.position.y=-1;fundo.receiveShadow=true;sc.add(fundo);
+const DIA={bg:'#cde3ef',hemi:1.05,sun:2.0},NOITE={bg:'#0c1430',hemi:.18,sun:.25};
+let noite=false;
+function luz(){const L=noite?NOITE:DIA;sc.background=new T.Color(L.bg);sc.fog=new T.Fog(L.bg,1,1);hemi.intensity=L.hemi;document.body.classList.toggle('noite',noite);sun.intensity=L.sun;sun.color.set(noite?'#9fb4ff':'#fff1d6');}
+
+const cam=new T.PerspectiveCamera(35,1,.001,200);
+const orb={yaw:.7,pitch:.22,dist:3,alvo:new T.Vector3()};
+function posCam(){orb.pitch=Math.max(-.25,Math.min(1.35,orb.pitch));const c=Math.cos(orb.pitch);
+ cam.position.set(orb.alvo.x+Math.sin(orb.yaw)*c*orb.dist,orb.alvo.y+Math.sin(orb.pitch)*orb.dist,orb.alvo.z+Math.cos(orb.yaw)*c*orb.dist);cam.lookAt(orb.alvo);}
+
+/* ============ estado ============ */
+const st={semAgua:false,esp:null,var:0,modo:null,girar:true,lento:false,raioBase:1};
+let cur=null,T0=performance.now()/1000,tAnim=0;
+// caixa só do que está visível (asas recolhidas e a língua do sapo ficam de fora)
+function medir(obj){obj.updateMatrixWorld(true);const b=new T.Box3(),bb=new T.Box3();
+ const vai=o=>{if(!o.visible)return;if((o.isMesh||o.isPoints)&&o.geometry){const g=o.geometry;if(!g.boundingBox)g.computeBoundingBox();
+   if(o.isInstancedMesh){const m=new T.Matrix4();o.getMatrixAt(0,m);bb.copy(g.boundingBox).applyMatrix4(m).applyMatrix4(o.matrixWorld);}else bb.copy(g.boundingBox).applyMatrix4(o.matrixWorld);b.union(bb);}
+  for(const c of o.children)vai(c);};
+ vai(obj);if(b.isEmpty())return null;const s=b.getSize(new T.Vector3());if(Math.max(s.x,s.y,s.z)<1e-4)return null;return b;}
+function fmt(m){return m<.1?(m*100).toFixed(1).replace('.',',')+' cm':m<1?Math.round(m*100)+' cm':m.toFixed(2).replace('.',',')+' m';}
+function abrir(id,vi,keepCam){
+ const e=ESPECIES.find(x=>x.id===id)||ESPECIES[0];const mudou=!st.esp||st.esp.id!==e.id;
+ st.esp=e;st.var=vi!=null?vi:(mudou?0:st.var);if(e.variantes&&st.var>=e.variantes.length)st.var=0;
+ if(mudou||!st.modo||!e.modos[st.modo])st.modo=Object.keys(e.modos)[0];
+ if(cur){sc.remove(cur.obj);}
+ const fab=e.variantes?e.variantes[st.var].criar:e.criar;
+ try{cur=fab();}catch(err){console.error(err);cur=null;$('nome').textContent=e.nome;$('sub').textContent='Erro ao montar: '+err.message;return;}
+ cur.obj.traverse(o=>{if(o.isMesh){o.castShadow=true;}});sc.add(cur.obj);
+ // primeira pose do modo para medir certo
+ cur.animar(1/60,0,Object.keys(e.modos)[0],{cam:cam.position,px:r.getPixelRatio()});
+ const b=medir(cur.obj);let raio=cur.obj.userData.raio||.1,centro=new T.Vector3();
+ if(b){const s=b.getSize(new T.Vector3());raio=Math.max(s.x,s.y,s.z)*.5;b.getCenter(centro);
+  e._tam={c:Math.max(s.x,s.z),a:s.y};}
+ st.raioBase=raio;if(!keepCam||mudou)orb.pitch=cur.agua!=null?.5:.22;
+ if(!keepCam||mudou){orb.alvo.copy(centro);orb.dist=raio/Math.sin(cam.fov*PI/360)*1.45+raio*.4;}
+ cam.near=Math.max(.0005,raio*.02);cam.far=Math.max(50,raio*200);cam.updateProjectionMatrix();
+ const sh=sun.shadow.camera,R=Math.max(raio*3,.05);sun.position.set(centro.x+R*1.2,centro.y+R*2.4,centro.z+R*1.6);sun.target.position.copy(centro);
+ Object.assign(sh,{left:-R,right:R,top:R,bottom:-R,near:R*.2,far:R*8});sh.updateProjectionMatrix();sun.shadow.bias=-.0002*Math.min(1,R);
+ gridTex.repeat.set(40,40);
+ noite=!!cur.noite||st.noiteForcada===true;luz();
+ st.esc=raio;tAnim=0;
+ desenharTexto();desenharBarra();marcarLista();
+ try{history.replaceState(null,'','#'+e.id+(e.variantes?'/'+st.var:''));}catch(_){}
+}
+function ambiente(){const a=cur&&cur.agua!=null?(typeof cur.agua==='function'?cur.agua(st.modo):cur.agua):null;
+ agua.visible=a!=null&&!st.semAgua;fundo.visible=a!=null;chao.visible=a==null;if(a!=null){agua.position.y=a;fundo.position.y=a-Math.max(.35,st.raioBase*2.2);}
+ const f=Math.max(8,orb.dist*6);sc.fog.near=orb.dist*2;sc.fog.far=orb.dist*2+f;}
+
+/* ============ textos e botões ============ */
+function desenharTexto(){const e=st.esp;$('nome').textContent=e.emoji+' '+e.nome+(e.variantes?' · '+e.variantes[st.var].nome:'');
+ $('sub').textContent=[e.grupo,e.sub].filter(Boolean).join(' · ');
+ const tm=e._tam?`≈ ${fmt(e._tam.c)} de comprimento · ${fmt(e._tam.a)} de altura`:'(ponto de luz)';
+ $('info').innerHTML=`<h3>Onde vive</h3><div>${e.onde}</div><h3>O que faz no jogo</h3><ul>${e.faz.map(f=>'<li>'+f+'</li>').join('')}</ul>`+
+  `<h3>Tamanho no jogo</h3><div>${tm}</div>`+(e.nota?`<h3>Observação</h3><div>${e.nota}</div>`:'')+`<h3>Arquivo</h3><div><code>${e.arquivo}</code></div>`;}
+function chipGrp(el,itens,ativo,fn,label){el.innerHTML='';if(!itens.length){el.style.display='none';return;}el.style.display='';
+ if(label){const l=document.createElement('span');l.className='lbl';l.textContent=label;el.appendChild(l);}
+ for(const [k,t] of itens){const b=document.createElement('button');b.className='chip'+(ativo(k)?' on':'');b.textContent=t;b.onclick=()=>fn(k);el.appendChild(b);}}
+function desenharBarra(){const e=st.esp;
+ chipGrp($('modos'),Object.entries(e.modos),k=>k===st.modo,k=>{st.modo=k;desenharBarra();},'Movimento');
+ chipGrp($('variantes'),e.variantes?e.variantes.map((v,i)=>[i,v.nome]):[],k=>k===st.var,k=>abrir(e.id,k,true),e.variantes?'Tipo':'');
+ chipGrp($('opcoes'),[...(cur&&cur.agua!=null?[['agua','💧 Água']]:[]),['girar','🔄 Girar'],['lento','🐢 Câmera lenta'],['noite','🌙 Noite'],['info','ℹ️ Info']].filter(([k])=>k!=='info'||innerWidth<=760),
+  k=>k==='agua'?!st.semAgua:k==='girar'?st.girar:k==='lento'?st.lento:k==='noite'?noite:$('info').classList.contains('aberto'),
+  k=>{if(k==='agua')st.semAgua=!st.semAgua;else if(k==='girar')st.girar=!st.girar;else if(k==='lento')st.lento=!st.lento;else if(k==='noite'){noite=!noite;st.noiteForcada=noite;luz();}else $('info').classList.toggle('aberto');desenharBarra();});}
+
+/* ============ lista lateral ============ */
+const thumbs={};let filtro='Todos';
+function desenharLista(){const q=$('busca').value.trim().toLowerCase(),L=$('lista');L.innerHTML='';
+ for(const g of GRUPOS){if(filtro!=='Todos'&&filtro!==g)continue;
+  const itens=ESPECIES.filter(e=>e.grupo===g&&(!q||(e.nome+' '+e.sub+' '+(e.variantes||[]).map(v=>v.nome).join(' ')).toLowerCase().includes(q)));if(!itens.length)continue;
+  const h=document.createElement('div');h.className='gtit';h.textContent=g;L.appendChild(h);
+  for(const e of itens){const b=document.createElement('button');b.className='card';b.dataset.id=e.id;
+   b.innerHTML=(thumbs[e.id]?`<img alt="" src="${thumbs[e.id]}">`:`<div class="ph"></div>`)+`<div><b>${e.emoji} ${e.nome}</b><span>${e.sub||e.grupo}</span></div>`;
+   b.onclick=()=>abrir(e.id);L.appendChild(b);}}
+ marcarLista();}
+function marcarLista(){for(const c of document.querySelectorAll('.card'))c.classList.toggle('on',!!st.esp&&c.dataset.id===st.esp.id);}
+function desenharGrupos(){chipGrp($('grupos'),['Todos',...GRUPOS].map(g=>[g,g]),g=>g===filtro,g=>{filtro=g;desenharGrupos();desenharLista();});}
+desenharGrupos();
+$('busca').oninput=desenharLista;
+
+/* miniaturas: cada bicho é fotografado uma vez num renderizador pequeno */
+function fotografar(){const W=120,rt=new T.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});rt.setSize(W,W);rt.outputColorSpace=T.SRGBColorSpace;
+ const s2=new T.Scene();s2.add(new T.HemisphereLight('#f4f8ff','#7c8a64',1.1));const d2=new T.DirectionalLight('#fff1d6',2);d2.position.set(2,4,3);s2.add(d2);
+ const c2=new T.PerspectiveCamera(30,1,.0005,100);let i=0;
+ const passo=()=>{if(i>=ESPECIES.length){rt.dispose();rt.forceContextLoss();return;}const e=ESPECIES[i++];
+  try{const o=(e.variantes?e.variantes[0].criar:e.criar)();
+   s2.background=new T.Color(o.noite?'#14204a':o.agua!=null&&typeof o.agua!=='function'?'#b9dcea':'#dfeedd');
+   o.animar(1/60,.35,Object.keys(e.modos)[0],{cam:new T.Vector3(1,0,1),px:2});s2.add(o.obj);
+   const b=medir(o.obj),cen=new T.Vector3();let R=.06;if(b){b.getCenter(cen);const sz=b.getSize(new T.Vector3());R=Math.max(sz.x,sz.y,sz.z)*.5;}
+   const dd=R/Math.sin(c2.fov*PI/360)*1.05;c2.position.set(cen.x+dd*.72,cen.y+dd*.38,cen.z+dd*.6);c2.near=dd*.05;c2.far=dd*10;c2.updateProjectionMatrix();c2.lookAt(cen);
+   if(o.obj.userData.raio){o.obj.traverse(p=>{if(p.isPoints)p.material.uniforms.uPx.value=6;});}
+   rt.render(s2,c2);thumbs[e.id]=rt.domElement.toDataURL('image/jpeg',.85);s2.remove(o.obj);
+   const im=document.querySelector(`.card[data-id="${e.id}"] .ph`);if(im){const g=document.createElement('img');g.src=thumbs[e.id];g.alt='';im.replaceWith(g);}}catch(err){console.warn('miniatura',e.id,err);}
+  setTimeout(passo,0);};
+ passo();}
+
+/* ============ controles da câmera ============ */
+const pts=new Map();let pinch0=0,dist0=0;
+cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);pts.set(e.pointerId,{x:e.clientX,y:e.clientY});st.mexeu=performance.now();
+ if(pts.size===2){const [a,b]=[...pts.values()];pinch0=Math.hypot(a.x-b.x,a.y-b.y);dist0=orb.dist;}});
+cv.addEventListener('pointermove',e=>{const p=pts.get(e.pointerId);if(!p)return;st.mexeu=performance.now();
+ if(pts.size===1){orb.yaw-=(e.clientX-p.x)*.008;orb.pitch+=(e.clientY-p.y)*.006;}
+ p.x=e.clientX;p.y=e.clientY;
+ if(pts.size===2){const [a,b]=[...pts.values()],d=Math.hypot(a.x-b.x,a.y-b.y);if(pinch0>0)orb.dist=Math.max(st.esc*1.2,Math.min(st.esc*40,dist0*pinch0/d));}});
+const up=e=>{pts.delete(e.pointerId);pinch0=0;};cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',up);
+cv.addEventListener('wheel',e=>{e.preventDefault();orb.dist=Math.max(st.esc*1.2,Math.min(st.esc*40,orb.dist*Math.exp(e.deltaY*.0012)));st.mexeu=performance.now();},{passive:false});
+addEventListener('keydown',e=>{if(e.target===$('busca'))return;const vis=[...document.querySelectorAll('.card')].map(c=>c.dataset.id);let i=vis.indexOf(st.esp.id);
+ if(e.key==='ArrowRight'||e.key==='ArrowDown'){abrir(vis[(i+1)%vis.length]);e.preventDefault();}
+ else if(e.key==='ArrowLeft'||e.key==='ArrowUp'){abrir(vis[(i-1+vis.length)%vis.length]);e.preventDefault();}});
+
+/* ============ laço ============ */
+function tamanho(){const w=cv.clientWidth,h=cv.clientHeight;if(!w||!h)return;if(cv.width!==Math.round(w*r.getPixelRatio())||cv.height!==Math.round(h*r.getPixelRatio())){r.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();}}
+let last=performance.now();
+function quadro(now){requestAnimationFrame(quadro);let dt=Math.min(.05,(now-last)/1000);last=now;tamanho();
+ if(st.lento)dt*=.25;tAnim+=dt;
+ if(st.girar&&(!st.mexeu||now-st.mexeu>2500))orb.yaw+=dt*(st.lento?.6:.25);
+ posCam();
+ if(cur){try{cur.animar(dt,tAnim,st.modo,{cam:cam.position,px:r.getPixelRatio()});}catch(err){console.error(err);cur.animar=()=>{};}}
+ ambiente();r.render(sc,cam);}
+
+/* ============ início ============ */
+const falta=[['fauna-margens.js',KM],['aves-floresta.js',KAv],['animais-floresta.js',KC],['vida-aquatica.js',KAq],['ecossistema-v1232.js',KF]].filter(x=>!x[1]).map(x=>x[0]);
+if(falta.length){$('carregando').textContent='Não carregou: '+falta.join(', ');return;}
+$('carregando').remove();
+desenharLista();
+const h=decodeURIComponent(location.hash.slice(1)).split('/');
+abrir(ESPECIES.some(e=>e.id===h[0])?h[0]:ESPECIES[0].id,h[1]!=null?+h[1]:null);
+requestAnimationFrame(quadro);
+setTimeout(fotografar,300);
+window.arcanoEnciclopedia={ESPECIES,abrir,st,orb};
+});
+</script>
+</body></html>

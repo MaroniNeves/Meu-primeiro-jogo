@@ -6,6 +6,8 @@
 'use strict';
 const T=window.THREE,api=window.arcanoWaterV1226,raw=window.ARCANO_ASSETS_V1232;
 const $=id=>document.getElementById(id);
+// a enciclopédia dos bichos usa o mesmo modelo da formiga (mesmo sem o resto do ecossistema carregado)
+if(T)window.arcanoKitFormiga={geo:()=>compactAntGeometry(),cores:['#49332b','#a3533b']};
 if(!T||!api||!raw){console.warn('[Arcano Ecologia] Cena ou pacote ainda não disponível.');return;}
 // Área 10x e grade adaptativa compartilhada com a hidrologia.
 const NX=innerWidth<680?174:286,NZ=innerWidth<680?138:228,W=128,L=100,dx=W/(NX-1),dz=L/(NZ-1);
@@ -1414,7 +1416,7 @@ function hideDetachedAntModels(){
  }
  if(roots.size)console.info('[Arcano V12.40] Formigas estáticas removidas:',roots.size);
 }
-let compactAntMesh=null;
+var compactAntMesh=null; // var: pode ser pedido antes desta linha rodar (enciclopédia)
 function compactAntGeometry(){
  if(compactAntMesh)return compactAntMesh;
  const bodies=[

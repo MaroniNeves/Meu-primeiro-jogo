@@ -98,7 +98,7 @@ function butterflyKit(){
  {const u=gL.attributes.uv;for(let i=0;i<u.count;i++)u.setX(i,1-u.getX(i));}
  const bm=Merger();bm.limb([0,0,.22],[0,0,-.2],.03,'#1a1626',.02);bm.ball(0,0,-.24,.045,'#1a1626');bm.limb([.012,0,-.27],[.09,.03,-.44],.006,'#1a1626');bm.limb([-.012,0,-.27],[-.09,.03,-.44],.006,'#1a1626');
  const body=bm.build(),bodyMat=new T.MeshBasicMaterial({vertexColors:true});
- return {make(){const g=new T.Group(),m=mats[(Math.random()*mats.length)|0],wR=new T.Mesh(gR,m),wL=new T.Mesh(gL,m);g.add(wR,wL,new T.Mesh(body,bodyMat));g.scale.setScalar(rr(.1,.14));return {g,wR,wL};}};
+ return {cores:pal.length,make(i){const g=new T.Group(),m=mats[i!=null?i:(Math.random()*mats.length)|0],wR=new T.Mesh(gR,m),wL=new T.Mesh(gL,m);g.add(wR,wL,new T.Mesh(body,bodyMat));g.scale.setScalar(rr(.1,.14));return {g,wR,wL};}};
 }
 /* ---------- libélula ---------- */
 function dragonflyKit(){
@@ -111,10 +111,20 @@ function dragonflyKit(){
  const bodies=['#2f9ad8','#d8412f','#3fae5a'].map(col=>{const m=Merger();m.limb([0,0,.02],[0,0,-.62],.028,col,.016);for(let k=0;k<5;k++)m.ball(0,0,-.12-k*.1,.031,'#101820',1,1,.25);
    m.ball(0,.01,.1,.075,col,1,.95,1.25);m.ball(0,.02,.24,.06,'#20303a');m.ball(.045,.03,.25,.045,'#6fe0c8');m.ball(-.045,.03,.25,.045,'#6fe0c8');return m.build();});
  const bm=new T.MeshStandardMaterial({vertexColors:true,roughness:.35});
- return {make(){const g=new T.Group();g.add(new T.Mesh(bodies[(Math.random()*3)|0],bm));const wings=[];
+ return {cores:3,make(i){const g=new T.Group();g.add(new T.Mesh(bodies[i!=null?i:(Math.random()*3)|0],bm));const wings=[];
    for(const s of [-1,1])for(const f of [0,1]){const w=new T.Mesh(wg,wingMat);w.position.set(0,.05,.1-f*.12);w.scale.set(s*(f?.52:.6),1,1);w.rotation.y=s*(f?-.18:.12);g.add(w);wings.push({w,s,f});}
    g.scale.setScalar(rr(.26,.34));return {g,wings};}};
 }
+
+/* ---------- mosca e vaga-lume (modelos fora do install para a enciclopédia dos bichos também usar) ---------- */
+function flyParts(){
+ const m=Merger();m.ball(0,0,0,.5,'#1c1f24',1,.9,1.1);m.ball(0,-.05,-.75,.42,'#2a3038',1,.9,1.5);m.ball(0,.05,.55,.36,'#14161a');m.ball(.2,.1,.68,.2,'#a02a20');m.ball(-.2,.1,.68,.2,'#a02a20');
+ return {body:m.build(),bodyMat:new T.MeshStandardMaterial({vertexColors:true,roughness:.4}),
+  wing:new T.PlaneGeometry(1.5,.6).translate(.75,0,-.2).rotateX(-PI/2),wingMat:new T.MeshBasicMaterial({color:'#e6f4ff',transparent:true,opacity:.5,depthWrite:false,side:T.DoubleSide})};}
+function glowMat(){return new T.ShaderMaterial({transparent:true,depthWrite:false,blending:T.AdditiveBlending,uniforms:{uPx:{value:1}},
+  vertexShader:'attribute float aB;varying float vB;uniform float uPx;void main(){vB=aB;vec4 mv=modelViewMatrix*vec4(position,1.);gl_PointSize=uPx*(.4+.6*aB)*260./max(-mv.z,.5);gl_Position=projectionMatrix*mv;}',
+  fragmentShader:'varying float vB;void main(){float d=length(gl_PointCoord-.5);float core=smoothstep(.12,.0,d),halo=smoothstep(.5,.0,d);vec3 c=mix(vec3(.55,1.,.2),vec3(1.,1.,.75),core);gl_FragColor=vec4(c*(core*1.6+halo*halo*.55)*vB,1.);}'});}
+window.arcanoKitMargens={Merger,frogParts,makeFrog,butterflyKit,dragonflyKit,flyParts,glowMat};
 
 function install(){
  const api=window.arcanoWaterV1226,FA=window.arcanoFundoAquatico,rv=window.arcanoAnimeRiver;
@@ -187,9 +197,9 @@ function install(){
  const pDist=(x,z)=>Math.hypot(x-state.px,z-state.pz);
 
  // ---- moscas (instanciadas: corpo + 2 asas) ----
- const flyBody=(()=>{const m=Merger();m.ball(0,0,0,.5,'#1c1f24',1,.9,1.1);m.ball(0,-.05,-.75,.42,'#2a3038',1,.9,1.5);m.ball(0,.05,.55,.36,'#14161a');m.ball(.2,.1,.68,.2,'#a02a20');m.ball(-.2,.1,.68,.2,'#a02a20');return m.build();})();
- const flyIM=new T.InstancedMesh(flyBody,new T.MeshStandardMaterial({vertexColors:true,roughness:.4}),CAP.fly);flyIM.frustumCulled=false;flyIM.name='Moscas';live.add(flyIM);
- const wingIM=new T.InstancedMesh(new T.PlaneGeometry(1.5,.6).translate(.75,0,-.2).rotateX(-PI/2),new T.MeshBasicMaterial({color:'#e6f4ff',transparent:true,opacity:.5,depthWrite:false,side:T.DoubleSide}),CAP.fly*2);wingIM.frustumCulled=false;wingIM.name='Asas das moscas';live.add(wingIM);
+ const FLY=flyParts();
+ const flyIM=new T.InstancedMesh(FLY.body,FLY.bodyMat,CAP.fly);flyIM.frustumCulled=false;flyIM.name='Moscas';live.add(flyIM);
+ const wingIM=new T.InstancedMesh(FLY.wing,FLY.wingMat,CAP.fly*2);wingIM.frustumCulled=false;wingIM.name='Asas das moscas';live.add(wingIM);
  const ZERO=new T.Matrix4().makeScale(0,0,0);
  for(let i=0;i<CAP.fly;i++){flyIM.setMatrixAt(i,ZERO);wingIM.setMatrixAt(i*2,ZERO);wingIM.setMatrixAt(i*2+1,ZERO);}
  function spawnFly(home){if(flies.length>=CAP.fly)return;flies.push({home,x:home.x,y:home.y,z:home.z,vx:0,vy:0,vz:0,tx:home.x,ty:home.y+.5,tz:home.z,st:'fly',t:rr(3,9),retarget:0,yaw:0,fear:0});}
@@ -197,9 +207,7 @@ function install(){
  // ---- vaga-lumes (pontos de luz) ----
  const gp=new Float32Array(CAP.glow*3),gb=new Float32Array(CAP.glow);
  const gGeo=new T.BufferGeometry();gGeo.setAttribute('position',new T.BufferAttribute(gp,3));gGeo.setAttribute('aB',new T.BufferAttribute(gb,1));
- const gPts=new T.Points(gGeo,new T.ShaderMaterial({transparent:true,depthWrite:false,blending:T.AdditiveBlending,uniforms:{uPx:{value:1}},
-  vertexShader:'attribute float aB;varying float vB;uniform float uPx;void main(){vB=aB;vec4 mv=modelViewMatrix*vec4(position,1.);gl_PointSize=uPx*(.4+.6*aB)*260./max(-mv.z,.5);gl_Position=projectionMatrix*mv;}',
-  fragmentShader:'varying float vB;void main(){float d=length(gl_PointCoord-.5);float core=smoothstep(.12,.0,d),halo=smoothstep(.5,.0,d);vec3 c=mix(vec3(.55,1.,.2),vec3(1.,1.,.75),core);gl_FragColor=vec4(c*(core*1.6+halo*halo*.55)*vB,1.);}'}));
+ const gPts=new T.Points(gGeo,glowMat());
  gPts.frustumCulled=false;gPts.name='Vaga-lumes';gPts.renderOrder=6;live.add(gPts);
  function spawnGlow(home){if(glows.length>=CAP.glow)return;glows.push({home,x:home.x+rr(-1,1),y:home.y+rr(.1,.9),z:home.z+rr(-1,1),ph:rr(0,TAU),f:rr(1.1,2.2),a:rr(0,TAU),b:rr(0,TAU),dark:0,flee:0,fx:0,fz:0,hid:0,lit:0});}
 

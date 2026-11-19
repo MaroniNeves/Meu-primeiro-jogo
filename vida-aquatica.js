@@ -21,18 +21,9 @@ const rr=(a,b)=>a+Math.random()*(b-a),clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),l
 const angTo=(a,b)=>((b-a+PI)%TAU+TAU)%TAU-PI;
 const pick=a=>a[(Math.random()*a.length)|0];
 
-function install(){
- const api=window.arcanoWaterV1226,FA=window.arcanoFundoAquatico,FK=window.arcanoFaunaKit,rv=window.arcanoAnimeRiver;
- if(!api||!api.scene||!FA||!FA.water||!FK||!rv){setTimeout(install,800);return;}
- const {Merger,state}=FK,water=FA.water,ground=FA.ground,scene=api.scene;
- const root=new T.Group();root.name='Peixes e bichos da água';scene.add(root);
- const ring=(x,z,str)=>{const u=rv.material.uniforms.uRings.value;let b=u[0];for(const s of u)if(s.z<b.z)b=s;b.set(x,z,performance.now()/1000,str);};
- const pDist=(x,z)=>Math.hypot(x-state.px,z-state.pz);
- const playerWet=()=>{const w=water(state.px,state.pz);return !!(w&&w.depth>.15&&state.py<w.level+.4);};
+/* ---------- modelos (fora do install para a enciclopédia dos bichos também usar) ---------- */
+function kitAgua(Merger){
  const uT={value:0};
-
- /* ================= PEIXES (instanciados, a cauda ondula no shader) ================= */
- // modelo de comprimento 1 ao longo de +z (cabeça na frente)
  function fishGeo(sp){const B=Merger(),cA=new T.Color(),cB=new T.Color(),c=new T.Color();
   {const g=new T.SphereGeometry(1,18,12).toNonIndexed(),p=g.attributes.position,col=new Float32Array(p.count*3);
    for(let i=0;i<p.count;i++){let x=p.getX(i),y=p.getY(i),z=p.getZ(i);const tp=z<0?1+z*.62:1-z*z*.18;
@@ -56,6 +47,53 @@ function install(){
   float tail=clamp(-position.z*1.6+.15,0.,1.4);
   transformed.x+=sin(uT*aSwim.y+aSwim.x-position.z*7.)*.11*tail*tail;`);};
  fishMat.customProgramCacheKey=()=>'peixe-v1';
+ const turtleGeo=(()=>{const B=Merger();
+  {const g=new T.SphereGeometry(1,22,12,0,TAU,0,PI/2).toNonIndexed(),p=g.attributes.position,col=new Float32Array(p.count*3),c=new T.Color();
+   for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),z=p.getZ(i);
+    // escudos hexagonais: células com borda clara
+    const u=Math.atan2(x,z)*2.6,v=y*3.4,cu=u-Math.round(u),cv=v-Math.round(v+(Math.round(u)%2)*.5)+(Math.round(u)%2)*.5,edge=Math.max(Math.abs(cu),Math.abs(cv)*1.15);
+    c.set('#4d5a2a').lerp(new T.Color('#6f7a38'),Math.max(0,1-edge*2));if(edge>.42)c.set('#c9b56a');if(y<.12)c.set('#3a4420');
+    p.setXYZ(i,x*.5,y*.27,z*.62);col.set([c.r,c.g,c.b],i*3);}
+   g.setAttribute('color',new T.BufferAttribute(col,3));B.add(g);}
+  {const g=new T.CircleGeometry(1,20);g.rotateX(PI/2);g.scale(.48,1,.6);g.translate(0,.005,0);B.add(g,'#d8c890');}
+  B.limb([0,.04,.55],[0,.08,.72],.09,'#6a7a3a',.08);B.ball(0,.1,.8,.11,'#6a7a3a',1,.85,1.25);
+  for(const s of [-1,1]){B.ball(s*.07,.15,.87,.022,'#0c0c0c');B.ball(s*.05,.13,.94,.012,'#e8c040');}
+  {const g=new T.ConeGeometry(.04,.14,6);g.rotateX(-PI/2);g.translate(0,.03,-.66);B.add(g,'#6a7a3a');}
+  return B.build();})();
+ const legGeo=(()=>{const g=new T.SphereGeometry(1,10,6);g.scale(.07,.035,.17);g.translate(0,0,.12);const B=Merger();B.add(g,'#6a7a3a');return B.build();})();
+ const tMat=new T.MeshStandardMaterial({vertexColors:true,roughness:.6,side:T.DoubleSide});
+ function duckGeo(adult){const B=Merger();
+  if(adult){B.ball(0,.17,0,.25,'#b9b4a8',1,.62,1.5);B.ball(0,.24,-.02,.22,'#8c8478',.95,.45,1.35);B.ball(0,.2,.25,.15,'#7a4a30',1.05,.95,.9);
+   B.ball(0,.27,-.36,.09,'#2a2a2a',.8,.55,1.3);B.ball(0,.33,-.42,.035,'#1a1a1a',1,1.4,1);
+   B.limb([0,.26,.24],[0,.44,.32],.07,'#2e6a3a',.065);B.ball(0,.33,.28,.072,'#f4f4ee',1,.35,1);
+   B.ball(0,.5,.33,.12,'#22704a',.95,.95,1.1);B.ball(0,.47,.46,.06,'#e8c03a',.85,.38,1.5);for(const s of [-1,1]){B.ball(s*.075,.53,.38,.02,'#0c0c0c');B.ball(s*.17,.24,-.08,.08,'#3a5ac8',.35,.5,1.3);}}
+  else{B.ball(0,.14,0,.17,'#f2d24a',1,.9,1.15);B.ball(0,.3,.14,.11,'#f2d24a');B.ball(0,.28,.25,.05,'#e8902a',.9,.45,1.3);for(const s of [-1,1])B.ball(s*.055,.33,.2,.017,'#0c0c0c');B.ball(0,.36,.1,.06,'#8a7032',1,.6,1.2);}
+  return B.build();}
+ const dMat=new T.MeshStandardMaterial({vertexColors:true,roughness:.8,side:T.DoubleSide}),DG=[duckGeo(true),duckGeo(false)];
+ const wingG=(()=>{const sh=new T.Shape();sh.moveTo(0,.12);sh.lineTo(.45,.1);sh.lineTo(.55,-.05);sh.lineTo(.3,-.12);sh.lineTo(0,-.1);const g=new T.ShapeGeometry(sh);g.rotateX(PI/2);const B=Merger();B.add(g,'#7a5a3a');return B.build();})();
+ const strGeo=(()=>{const B=Merger();B.ball(0,.02,0,.06,'#2a2620',.6,.5,1.6);for(const s of [-1,1]){B.limb([s*.02,.02,.06],[s*.22,0,.32],.008,'#2a2620');B.limb([s*.02,.02,0],[s*.38,0,-.05],.008,'#2a2620');B.limb([s*.02,.02,-.04],[s*.32,0,-.4],.008,'#2a2620');}return B.build();})();
+ return {uT,fishGeo,SP,fishMat,turtleGeo,legGeo,tMat,duckGeo,dMat,DG,wingG,strGeo};}
+function turtleModel(K,s){const g=new T.Group(),inner=new T.Group();g.add(inner);inner.scale.setScalar(s);inner.add(new T.Mesh(K.turtleGeo,K.tMat));
+ const legs=[];for(const [x,z,s] of [[.34,.32,1],[-.34,.32,-1],[.3,-.36,1],[-.3,-.36,-1]]){const l=new T.Mesh(K.legGeo,K.tMat);l.position.set(x,.04,z);l.rotation.y=s*(z>0?.9:2.3);inner.add(l);legs.push({l,s,z});}
+ return {g,inner,legs};}
+function duckModel(K,adult,s){const g=new T.Group(),m=new T.Mesh(adult?K.DG[0]:K.DG[1],K.dMat);g.add(m);g.scale.setScalar(s);const wings=[];
+ if(adult)for(const s of [-1,1]){const r=new T.Group();r.position.set(s*.2,.3,0);r.scale.x=s;g.add(r);r.add(new T.Mesh(K.wingG,K.dMat));r.visible=false;wings.push({r,s});}
+ return {g,m,wings};}
+
+window.arcanoKitAgua={kitAgua,turtleModel,duckModel};
+
+function install(){
+ const api=window.arcanoWaterV1226,FA=window.arcanoFundoAquatico,FK=window.arcanoFaunaKit,rv=window.arcanoAnimeRiver;
+ if(!api||!api.scene||!FA||!FA.water||!FK||!rv){setTimeout(install,800);return;}
+ const {Merger,state}=FK,water=FA.water,ground=FA.ground,scene=api.scene;
+ const root=new T.Group();root.name='Peixes e bichos da água';scene.add(root);
+ const ring=(x,z,str)=>{const u=rv.material.uniforms.uRings.value;let b=u[0];for(const s of u)if(s.z<b.z)b=s;b.set(x,z,performance.now()/1000,str);};
+ const pDist=(x,z)=>Math.hypot(x-state.px,z-state.pz);
+ const playerWet=()=>{const w=water(state.px,state.pz);return !!(w&&w.depth>.15&&state.py<w.level+.4);};
+ const KA=kitAgua(Merger),{uT,fishGeo,SP,fishMat,turtleGeo,legGeo,tMat,duckGeo,dMat,DG,wingG,strGeo}=KA;
+
+ /* ================= PEIXES (instanciados, a cauda ondula no shader) ================= */
+ // modelo de comprimento 1 ao longo de +z (cabeça na frente)
  const CAP=mobile?{lambari:40,koi:8,truta:8,girino:30}:{lambari:96,koi:16,truta:16,girino:70};
  const IM={},SW={};
  for(const k in SP){const g=fishGeo(SP[k]),n=CAP[k];const sw=new T.InstancedBufferAttribute(new Float32Array(n*2),2);sw.setUsage(T.DynamicDrawUsage);g.setAttribute('aSwim',sw);
@@ -112,26 +150,10 @@ function install(){
  }
 
  /* ================= TARTARUGAS ================= */
- const turtleGeo=(()=>{const B=Merger();
-  {const g=new T.SphereGeometry(1,22,12,0,TAU,0,PI/2).toNonIndexed(),p=g.attributes.position,col=new Float32Array(p.count*3),c=new T.Color();
-   for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),z=p.getZ(i);
-    // escudos hexagonais: células com borda clara
-    const u=Math.atan2(x,z)*2.6,v=y*3.4,cu=u-Math.round(u),cv=v-Math.round(v+(Math.round(u)%2)*.5)+(Math.round(u)%2)*.5,edge=Math.max(Math.abs(cu),Math.abs(cv)*1.15);
-    c.set('#4d5a2a').lerp(new T.Color('#6f7a38'),Math.max(0,1-edge*2));if(edge>.42)c.set('#c9b56a');if(y<.12)c.set('#3a4420');
-    p.setXYZ(i,x*.5,y*.27,z*.62);col.set([c.r,c.g,c.b],i*3);}
-   g.setAttribute('color',new T.BufferAttribute(col,3));B.add(g);}
-  {const g=new T.CircleGeometry(1,20);g.rotateX(PI/2);g.scale(.48,1,.6);g.translate(0,.005,0);B.add(g,'#d8c890');}
-  B.limb([0,.04,.55],[0,.08,.72],.09,'#6a7a3a',.08);B.ball(0,.1,.8,.11,'#6a7a3a',1,.85,1.25);
-  for(const s of [-1,1]){B.ball(s*.07,.15,.87,.022,'#0c0c0c');B.ball(s*.05,.13,.94,.012,'#e8c040');}
-  {const g=new T.ConeGeometry(.04,.14,6);g.rotateX(-PI/2);g.translate(0,.03,-.66);B.add(g,'#6a7a3a');}
-  return B.build();})();
- const legGeo=(()=>{const g=new T.SphereGeometry(1,10,6);g.scale(.07,.035,.17);g.translate(0,0,.12);const B=Merger();B.add(g,'#6a7a3a');return B.build();})();
- const tMat=new T.MeshStandardMaterial({vertexColors:true,roughness:.6,side:T.DoubleSide});
  const turtles=[],TUR=mobile?2:4;
  function bankSpot(cx,cz){for(let i=0;i<60;i++){const a=rr(0,TAU),d=rr(8,38),x=cx+Math.cos(a)*d,z=cz+Math.sin(a)*d;if(water(x,z))continue;
    for(const b of [0,.8,1.6,2.4,3.2,4,4.8,5.6])for(const rd of [.9,1.6]){const wx=x+Math.cos(b)*rd,wz=z+Math.sin(b)*rd,w=water(wx,wz);if(w&&w.depth>.22&&Math.abs(ground(x,z)-w.level)<.9)return {x,z,y:ground(x,z),wx,wz,w,face:Math.atan2(wx-x,wz-z)};}}return null;}
- function makeTurtle(sp){const g=new T.Group(),inner=new T.Group();g.add(inner);inner.scale.setScalar(rr(.38,.5));inner.add(new T.Mesh(turtleGeo,tMat));
-  const legs=[];for(const [x,z,s] of [[.34,.32,1],[-.34,.32,-1],[.3,-.36,1],[-.3,-.36,-1]]){const l=new T.Mesh(legGeo,tMat);l.position.set(x,.04,z);l.rotation.y=s*(z>0?.9:2.3);inner.add(l);legs.push({l,s,z});}
+ function makeTurtle(sp){const {g,inner,legs}=turtleModel(KA,rr(.38,.5));
   const t={g,inner,legs,sp,x:sp.x,y:sp.y,z:sp.z,yaw:sp.face+rr(-.5,.5),st:'bask',t:rr(4,9)};g.position.set(t.x,t.y,t.z);g.rotation.y=t.yaw;root.add(g);return t;}
  function updTurtle(t,dt){const dp=pDist(t.x,t.z),sp=t.sp;t.t-=dt;
   const paddle=a=>{for(const L of t.legs)L.l.rotation.x=Math.sin(state.t*a+(L.z>0?0:PI)+(L.s>0?0:PI/2))*.5;};
@@ -155,18 +177,8 @@ function install(){
   t.g.position.set(t.x,t.y,t.z);t.g.rotation.y=t.yaw;}
 
  /* ================= PATOS (mãe e filhotes) ================= */
- function duckGeo(adult){const B=Merger();
-  if(adult){B.ball(0,.17,0,.25,'#b9b4a8',1,.62,1.5);B.ball(0,.24,-.02,.22,'#8c8478',.95,.45,1.35);B.ball(0,.2,.25,.15,'#7a4a30',1.05,.95,.9);
-   B.ball(0,.27,-.36,.09,'#2a2a2a',.8,.55,1.3);B.ball(0,.33,-.42,.035,'#1a1a1a',1,1.4,1);
-   B.limb([0,.26,.24],[0,.44,.32],.07,'#2e6a3a',.065);B.ball(0,.33,.28,.072,'#f4f4ee',1,.35,1);
-   B.ball(0,.5,.33,.12,'#22704a',.95,.95,1.1);B.ball(0,.47,.46,.06,'#e8c03a',.85,.38,1.5);for(const s of [-1,1]){B.ball(s*.075,.53,.38,.02,'#0c0c0c');B.ball(s*.17,.24,-.08,.08,'#3a5ac8',.35,.5,1.3);}}
-  else{B.ball(0,.14,0,.17,'#f2d24a',1,.9,1.15);B.ball(0,.3,.14,.11,'#f2d24a');B.ball(0,.28,.25,.05,'#e8902a',.9,.45,1.3);for(const s of [-1,1])B.ball(s*.055,.33,.2,.017,'#0c0c0c');B.ball(0,.36,.1,.06,'#8a7032',1,.6,1.2);}
-  return B.build();}
- const dMat=new T.MeshStandardMaterial({vertexColors:true,roughness:.8,side:T.DoubleSide}),DG=[duckGeo(true),duckGeo(false)];
- const wingG=(()=>{const sh=new T.Shape();sh.moveTo(0,.12);sh.lineTo(.45,.1);sh.lineTo(.55,-.05);sh.lineTo(.3,-.12);sh.lineTo(0,-.1);const g=new T.ShapeGeometry(sh);g.rotateX(PI/2);const B=Merger();B.add(g,'#7a5a3a');return B.build();})();
  const families=[],FAM=mobile?1:2;
- function makeDuck(adult,x,z,w){const g=new T.Group(),m=new T.Mesh(adult?DG[0]:DG[1],dMat);g.add(m);g.scale.setScalar(adult?rr(1.05,1.2):rr(.5,.6));const wings=[];
-  if(adult)for(const s of [-1,1]){const r=new T.Group();r.position.set(s*.2,.3,0);r.scale.x=s;g.add(r);r.add(new T.Mesh(wingG,dMat));r.visible=false;wings.push({r,s});}
+ function makeDuck(adult,x,z,w){const {g,m,wings}=duckModel(KA,adult,adult?rr(1.05,1.2):rr(.5,.6));
   g.position.set(x,w.level-.04,z);root.add(g);return {g,m,wings,x,z,y:w.level-.04,yaw:rr(0,TAU),ph:rr(0,TAU)};}
  function spawnFamily(){const s=spot('koi',state.px,state.pz,10,40);if(!s||s.w.depth<.5)return;
   const F={mom:makeDuck(true,s.x,s.z,s.w),kids:[],st:'swim',tx:s.x,tz:s.z,t:0,home:{x:s.x,z:s.z}};const n=3+((Math.random()*3)|0);
@@ -198,7 +210,6 @@ function install(){
   m.g.position.set(m.x,m.y,m.z);m.g.rotation.y=m.yaw;}
 
  /* ================= PATINADORES ================= */
- const strGeo=(()=>{const B=Merger();B.ball(0,.02,0,.06,'#2a2620',.6,.5,1.6);for(const s of [-1,1]){B.limb([s*.02,.02,.06],[s*.22,0,.32],.008,'#2a2620');B.limb([s*.02,.02,0],[s*.38,0,-.05],.008,'#2a2620');B.limb([s*.02,.02,-.04],[s*.32,0,-.4],.008,'#2a2620');}return B.build();})();
  const STR=mobile?14:36,strIM=new T.InstancedMesh(strGeo,new T.MeshStandardMaterial({vertexColors:true,roughness:.6}),STR);strIM.count=0;strIM.frustumCulled=false;strIM.name='Patinadores';root.add(strIM);
  const striders=[];
  function updStriders(dt){
@@ -225,7 +236,7 @@ function install(){
   popT-=dt;if(popT<=0){popT=1.5;populate();}
   updSchools(dt);for(const t of turtles)updTurtle(t,dt);for(const F of families)updFamily(F,dt);updStriders(dt);
  })(last);
- window.arcanoVidaAquatica={schools,turtles,families,striders,IM};
+ window.arcanoVidaAquatica={KA,schools,turtles,families,striders,IM};
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(install,5500));else setTimeout(install,5500);
 })();

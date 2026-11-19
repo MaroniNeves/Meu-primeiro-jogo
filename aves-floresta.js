@@ -54,11 +54,43 @@ function kit(Merger){
   const W2=Merger();W2.add(shapeGeo([[0,.24],[.3,.25],[.56,.14],[.66,-.02],[.56,-.12],[.5,-.05],[.42,-.2],[.34,-.11],[.24,-.27],[.14,-.18],[.06,-.28],[0,-.2]]),sp.wing);
   W2.add(shapeGeo([[0,.24],[.3,.25],[.5,.17],[.3,.12],[0,.1]]).translate(0,.004,0),sp.back);
   return {body,w1:W1.build(),w2:W2.build()};});
- return {make(){const k=(Math.random()*SPECIES.length)|0,P=made[k],g=new T.Group(),inner=new T.Group();g.add(inner);const size=rr(.2,.27);inner.scale.setScalar(size);
+ return {make(k0){const k=k0!=null?k0:(Math.random()*SPECIES.length)|0,P=made[k],g=new T.Group(),inner=new T.Group();g.add(inner);const size=rr(.2,.27);inner.scale.setScalar(size);
    inner.add(new T.Mesh(P.body,mat));const wings=[];
    for(const s of [-1,1]){const root=new T.Group();root.position.set(s*.25,.53,.04);root.scale.x=s;inner.add(root);root.add(new T.Mesh(P.w1,mat));const tip=new T.Group();tip.position.x=.5;root.add(tip);tip.add(new T.Mesh(P.w2,mat));root.visible=false;wings.push({s,root,tip});}
    return {g,inner,wings,size,ph:rr(0,TAU),sp:SPECIES[k].n};}};
 }
+
+/* ---------- asas e corujas (fora do install para a enciclopédia dos bichos também usar) ---------- */
+function wingsFly(b,flap,t){for(const w of b.wings){w.root.visible=true;const a=flap?.12+.8*Math.sin(t):.14+.05*Math.sin(t*.2),c=flap?.55*Math.sin(t-1.0):-.1;w.root.rotation.z=w.s*a;w.tip.rotation.z=c;}}
+function wingsFold(b){for(const w of b.wings)w.root.visible=false;}
+function owlKitBuild(Merger){const mat=new T.MeshStandardMaterial({vertexColors:true,roughness:.85,side:T.DoubleSide});
+  const sg=(pts)=>{const sh=new T.Shape();pts.forEach(([x,y],i)=>i?sh.lineTo(x,y):sh.moveTo(x,y));const g=new T.ShapeGeometry(sh);g.rotateX(PI/2);return g;};
+  const cols=[['#8a6a4a','#e8d6b8','#6a4e34'],['#9a9488','#efe9dc','#6e6a62'],['#b0763a','#f2dcb4','#7a4e22']];
+  return cols.map(([back,face,wing])=>{
+   const B=Merger();
+   {const g=new T.SphereGeometry(1,16,12).toNonIndexed(),p=g.attributes.position,col=new Float32Array(p.count*3),a=new T.Color(back),c2=new T.Color(face),c=new T.Color();
+    for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),z=p.getZ(i),k=Math.max(0,Math.min(1,(z-.2)/.5))*Math.max(0,Math.min(1,(.6-y)/.6));c.copy(a).lerp(c2,k);
+     const st=Math.sin(y*22+x*3)>.6&&k>.3?.82:1;c.multiplyScalar(st);p.setXYZ(i,x*.36,.5+y*.46,z*.34);col.set([c.r,c.g,c.b],i*3);}
+    g.setAttribute('color',new T.BufferAttribute(col,3));B.add(g);}
+   for(const s of [-1,1]){B.ball(s*.3,.48,-.02,.2,wing,.45,1.1,1.5);B.limb([s*.1,.08,.05],[s*.1,-.02,.12],.03,'#d8b04a',.02);for(const a2 of [-.4,.1,.6])B.limb([s*.1,-.02,.12],[s*.1+Math.sin(a2)*.1,-.03,.12+Math.cos(a2)*.1],.015,'#2a2420',.008);}
+   const body=B.build();
+   const Hh=Merger();
+   {const g=new T.SphereGeometry(.3,16,12);g.scale(1.1,.92,.95);Hh.add(g,back);
+    const disc=new T.CircleGeometry(.27,20);disc.scale(1.25,1,1);disc.translate(0,0,.255);Hh.add(disc,face);
+    for(const s of [-1,1]){Hh.ball(s*.12,.03,.27,.095,'#f0c030');Hh.ball(s*.12,.03,.335,.05,'#0c0c0c');Hh.ball(s*.105,.055,.37,.015,'#ffffff');
+     const tuft=new T.ConeGeometry(.06,.2,5);tuft.rotateZ(-s*.35);tuft.translate(s*.22,.28,.02);Hh.add(tuft,back);}
+    const bk=new T.ConeGeometry(.04,.11,6);bk.rotateX(PI/2+.6);bk.translate(0,-.06,.31);Hh.add(bk,'#3a3028');}
+   const head=Hh.build();
+   const W1=Merger();W1.add(sg([[0,.22],[.55,.26],[.6,-.18],[.5,-.26],[.4,-.2],[.3,-.28],[.2,-.21],[.1,-.27],[0,-.2]]),wing);
+   const W2=Merger();W2.add(sg([[0,.26],[.4,.26],[.72,.12],[.78,-.06],[.68,-.16],[.58,-.08],[.48,-.22],[.36,-.12],[.24,-.26],[.12,-.16],[0,-.22]]),wing);
+   const lid=new T.SphereGeometry(.1,10,6,0,TAU,0,PI/2);
+   return {body,head,w1:W1.build(),w2:W2.build(),lid,lidMat:new T.MeshStandardMaterial({color:back,roughness:.9}),mat};});}
+function makeOwlFrom(owlKit,k){const P=owlKit[k!=null?k:(Math.random()*owlKit.length)|0],g=new T.Group(),inner=new T.Group();g.add(inner);inner.scale.setScalar(rr(.42,.5));
+  inner.add(new T.Mesh(P.body,P.mat));const head=new T.Group();head.position.set(0,.98,.05);inner.add(head);head.add(new T.Mesh(P.head,P.mat));
+  const lids=[];for(const s of [-1,1]){const l=new T.Mesh(P.lid,P.lidMat);l.position.set(s*.12,.03,.33);l.rotation.x=-PI/2;l.scale.set(1,.2,1);head.add(l);lids.push(l);}
+  const wings=[];for(const s of [-1,1]){const r0=new T.Group();r0.position.set(s*.28,.66,.0);r0.scale.x=s;inner.add(r0);r0.add(new T.Mesh(P.w1,P.mat));const tip=new T.Group();tip.position.x=.58;r0.add(tip);tip.add(new T.Mesh(P.w2,P.mat));r0.visible=false;wings.push({s,root:r0,tip});}
+  g.visible=false;return {g,inner,head,lids,wings,ph:rr(0,TAU),vx:0,vy:0,vz:0,x:0,y:0,z:0,st:'sleep',t:0};}
+window.arcanoKitAves={SPECIES,kit,owlKitBuild,makeOwlFrom,wingsFly,wingsFold};
 
 function install(){
  const api=window.arcanoWaterV1226,FK=window.arcanoFaunaKit,I=window.arcanoIsland;
@@ -82,8 +114,6 @@ function install(){
    roofPerches.push({x:h.point.x,y:h.point.y+.02,z:h.point.z,face:Math.random()*TAU,roof:true});}}
  function perchesNear(x,z,r){const out=treePerches(x,z,r,[]);for(const p of roofPerches)if(Math.hypot(p.x-x,p.z-z)<r)out.push(p);return out;}
  // asas: batendo (f>0) ou planando; aberta só em voo
- function wingsFly(b,flap,t){for(const w of b.wings){w.root.visible=true;const a=flap?.12+.8*Math.sin(t):.14+.05*Math.sin(t*.2),c=flap?.55*Math.sin(t-1.0):-.1;w.root.rotation.z=w.s*a;w.tip.rotation.z=c;}}
- function wingsFold(b){for(const w of b.wings)w.root.visible=false;}
  function place(b){b.g.position.set(b.x,b.y,b.z);}
  // voa até (tx,ty,tz) com velocidade sp; devolve a distância que falta
  function flyTo(b,tx,ty,tz,sp,dt){const dx=tx-b.x,dy=ty-b.y,dz=tz-b.z,d=Math.hypot(dx,dy,dz)||1;
@@ -153,33 +183,7 @@ function install(){
 
  /* ---------- CORUJAS (noturnas): dormem escondidas de dia; à noite pousam nos galhos, giram a cabeça,
     piscam, voam em silêncio de árvore em árvore e às vezes mergulham até o chão para caçar ---------- */
- const owlKit=(()=>{const mat=new T.MeshStandardMaterial({vertexColors:true,roughness:.85,side:T.DoubleSide});
-  const sg=(pts)=>{const sh=new T.Shape();pts.forEach(([x,y],i)=>i?sh.lineTo(x,y):sh.moveTo(x,y));const g=new T.ShapeGeometry(sh);g.rotateX(PI/2);return g;};
-  const cols=[['#8a6a4a','#e8d6b8','#6a4e34'],['#9a9488','#efe9dc','#6e6a62'],['#b0763a','#f2dcb4','#7a4e22']];
-  return cols.map(([back,face,wing])=>{
-   const B=Merger();
-   {const g=new T.SphereGeometry(1,16,12).toNonIndexed(),p=g.attributes.position,col=new Float32Array(p.count*3),a=new T.Color(back),c2=new T.Color(face),c=new T.Color();
-    for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),z=p.getZ(i),k=Math.max(0,Math.min(1,(z-.2)/.5))*Math.max(0,Math.min(1,(.6-y)/.6));c.copy(a).lerp(c2,k);
-     const st=Math.sin(y*22+x*3)>.6&&k>.3?.82:1;c.multiplyScalar(st);p.setXYZ(i,x*.36,.5+y*.46,z*.34);col.set([c.r,c.g,c.b],i*3);}
-    g.setAttribute('color',new T.BufferAttribute(col,3));B.add(g);}
-   for(const s of [-1,1]){B.ball(s*.3,.48,-.02,.2,wing,.45,1.1,1.5);B.limb([s*.1,.08,.05],[s*.1,-.02,.12],.03,'#d8b04a',.02);for(const a2 of [-.4,.1,.6])B.limb([s*.1,-.02,.12],[s*.1+Math.sin(a2)*.1,-.03,.12+Math.cos(a2)*.1],.015,'#2a2420',.008);}
-   const body=B.build();
-   const Hh=Merger();
-   {const g=new T.SphereGeometry(.3,16,12);g.scale(1.1,.92,.95);Hh.add(g,back);
-    const disc=new T.CircleGeometry(.27,20);disc.scale(1.25,1,1);disc.translate(0,0,.255);Hh.add(disc,face);
-    for(const s of [-1,1]){Hh.ball(s*.12,.03,.27,.095,'#f0c030');Hh.ball(s*.12,.03,.335,.05,'#0c0c0c');Hh.ball(s*.105,.055,.37,.015,'#ffffff');
-     const tuft=new T.ConeGeometry(.06,.2,5);tuft.rotateZ(-s*.35);tuft.translate(s*.22,.28,.02);Hh.add(tuft,back);}
-    const bk=new T.ConeGeometry(.04,.11,6);bk.rotateX(PI/2+.6);bk.translate(0,-.06,.31);Hh.add(bk,'#3a3028');}
-   const head=Hh.build();
-   const W1=Merger();W1.add(sg([[0,.22],[.55,.26],[.6,-.18],[.5,-.26],[.4,-.2],[.3,-.28],[.2,-.21],[.1,-.27],[0,-.2]]),wing);
-   const W2=Merger();W2.add(sg([[0,.26],[.4,.26],[.72,.12],[.78,-.06],[.68,-.16],[.58,-.08],[.48,-.22],[.36,-.12],[.24,-.26],[.12,-.16],[0,-.22]]),wing);
-   const lid=new T.SphereGeometry(.1,10,6,0,TAU,0,PI/2);
-   return {body,head,w1:W1.build(),w2:W2.build(),lid,lidMat:new T.MeshStandardMaterial({color:back,roughness:.9}),mat};});})();
- function makeOwl(){const P=owlKit[(Math.random()*owlKit.length)|0],g=new T.Group(),inner=new T.Group();g.add(inner);inner.scale.setScalar(rr(.42,.5));
-  inner.add(new T.Mesh(P.body,P.mat));const head=new T.Group();head.position.set(0,.98,.05);inner.add(head);head.add(new T.Mesh(P.head,P.mat));
-  const lids=[];for(const s of [-1,1]){const l=new T.Mesh(P.lid,P.lidMat);l.position.set(s*.12,.03,.33);l.rotation.x=-PI/2;l.scale.set(1,.2,1);head.add(l);lids.push(l);}
-  const wings=[];for(const s of [-1,1]){const r0=new T.Group();r0.position.set(s*.28,.66,.0);r0.scale.x=s;inner.add(r0);r0.add(new T.Mesh(P.w1,P.mat));const tip=new T.Group();tip.position.x=.58;r0.add(tip);tip.add(new T.Mesh(P.w2,P.mat));r0.visible=false;wings.push({s,root:r0,tip});}
-  g.visible=false;return {g,inner,head,lids,wings,ph:rr(0,TAU),vx:0,vy:0,vz:0,x:0,y:0,z:0,st:'sleep',t:0};}
+ const owlKit=owlKitBuild(Merger),makeOwl=()=>makeOwlFrom(owlKit);
  const owls=[],OWLS=mobile?2:4;
  function owlPerchNear(x,z){const per=treePerches(x,z,30,[]);return per.length?pick(per):null;}
  function updOwl(o,dt){
