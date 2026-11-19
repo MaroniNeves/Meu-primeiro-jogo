@@ -41,6 +41,7 @@ const panel=document.createElement('div');panel.id='arcPause';panel.innerHTML=`<
   <button data-a="ajustes">⚙ Ajustes</button>
   <a href="./magias/index.html" data-a="link">✨ Magias</a>
   <a href="./orbes.html" data-a="link">🔮 Esferas</a>
+  <a href="./small-magic/index.html" data-a="link">🪄 Small Magic</a>
   <div class="info" data-l="status"></div>
   <button class="wide exit" data-a="sair">← Sair do jogo</button>
  </div></div>`;

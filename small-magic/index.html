@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Small Magic</title>
+    <link rel="icon" href="data:," />
+    <style>html,body{background:#0d0919;height:100%;margin:0;overflow:hidden}#view,#view canvas{width:100%;height:100%;display:block;position:fixed;inset:0}#title{z-index:5;color:#f1d9a4;text-transform:uppercase;background:radial-gradient(80% 75% at 50% 44%,#1d1436 0,#130d26 46%,#0a0714 100%);flex-direction:column;justify-content:center;align-items:center;gap:4.2vh;font-family:Palatino Linotype,Book Antiqua,Palatino,Georgia,serif;transition:opacity .9s;animation:1.2s both arrive;display:flex;position:fixed;inset:0;overflow:hidden}#title.gone{opacity:0;pointer-events:none}#sigil{aspect-ratio:1;--p:.02;width:min(44vh,66vw);transition:transform 1.2s cubic-bezier(.2,.6,.2,1),opacity .9s;position:relative}#title.gone #sigil{opacity:0;transform:scale(1.7)}#sigil svg{fill:none;stroke:#f1d9a4;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 .7vh #ffbe6e8c);will-change:transform;width:100%;height:100%;position:absolute;inset:0;overflow:visible}#outer{animation:90s linear infinite turn}#inner{animation:140s linear infinite reverse turn}#sigil [pathLength]{stroke-dasharray:1;stroke-dashoffset:calc(1 - clamp(0, (var(--p) - var(--from,0)) / var(--over,1), 1));transition:stroke-dashoffset .9s}#sigil .mark{opacity:clamp(0, (var(--p) - var(--from,0)) / var(--over,1), 1);transition:opacity .9s}#heart{background:#fff3d0;width:1.5vh;height:1.5vh;margin:-.75vh;animation:2.8s ease-in-out infinite glint;position:absolute;top:50%;left:50%;transform:rotate(45deg);box-shadow:0 0 2.2vh .5vh #ffc478cc}#name{letter-spacing:.52em;text-shadow:0 0 2.2vh #ffbe6e59;margin-right:-.52em;font-size:3.5vh;font-weight:400}#said{place-items:center;height:2.6vh;display:grid}#loading{letter-spacing:.36em;opacity:.6;margin-right:-.36em;font-size:1.45vh}#loading.failed{opacity:.95}#note{text-align:center;letter-spacing:.3em;opacity:.5;font-size:1.3vh;position:absolute;bottom:5vh;left:0;right:0}#begin{letter-spacing:.36em;margin-right:-.36em;font-size:1.9vh;animation:2.6s ease-in-out infinite breathe}@keyframes arrive{0%{opacity:0}}@keyframes turn{to{transform:rotate(360deg)}}@keyframes glint{50%{box-shadow:0 0 3vh .9vh #ffd28cf2}}@keyframes breathe{50%{opacity:.45}}[hidden]{display:none!important}.sheet{z-index:4;color:#f1d9a4;text-align:center;text-transform:uppercase;background:radial-gradient(#0e091e9e,#080514db);place-items:center;font-family:Palatino Linotype,Book Antiqua,Palatino,Georgia,serif;display:grid;position:fixed;inset:0}.sheet h1{letter-spacing:.34em;text-shadow:0 0 2vh #ffbe6e80;margin:0 -.34em 2vh 0;font-size:4.4vh;font-weight:400}.sheet p{letter-spacing:.26em;margin:.9vh 0;font-size:1.9vh}.sheet em{opacity:.55;font-size:1.4vh;font-style:normal}#hint{color:#f6ead0;letter-spacing:.16em;text-transform:uppercase;text-align:center;text-shadow:0 0 .7vh #080514f2,0 0 .3vh #080514e6,0 .1vh .2vh #080514e6;pointer-events:none;width:max-content;max-width:86vw;font:1.5vh/1.4 Palatino Linotype,Book Antiqua,Palatino,Georgia,serif;transition:opacity 2s;position:fixed;bottom:3.6vh;left:50%;transform:translate(-50%)}#hint.faded{opacity:0}#aim{pointer-events:none;background:#fffc;border-radius:50%;width:5px;height:5px;margin:-2.5px;position:fixed;top:50%;left:50%;box-shadow:0 0 4px #00143c99}#spells{pointer-events:none;--s:clamp(46px, 7.4vh, 96px);position:fixed;top:2.8vh;left:3vh}#spells .row{gap:calc(var(--s) * .12);align-items:center;display:flex}#spells .spell{width:var(--s);height:var(--s);opacity:.74;transition:transform .28s cubic-bezier(.2,.7,.2,1.3),opacity .25s;position:relative;transform:scale(.9)}#spells .spell.on{opacity:1;transform:scale(1.14)}#spells svg{fill:none;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 .2vh .5vh #0604108c);width:100%;height:100%;position:absolute;inset:0;overflow:visible}#spells .disc{fill:#110c22bd}#spells .on .disc{fill:color-mix(in srgb, var(--c) 16%, #110c22db)}#spells .rim{stroke:#f1d9a4;stroke-width:.8px;opacity:.62}#spells .rim.in{stroke-width:.35px;opacity:.36}#spells .tick{stroke:#f1d9a4;stroke-width:.6px;opacity:.5}#spells .on .rim{opacity:.95}#spells .gathered{stroke:var(--c);stroke-width:2px;stroke-dasharray:1;stroke-dashoffset:calc(1 - var(--g,0));opacity:0}#spells .on .gathered{opacity:1;filter:drop-shadow(0 0 .5vh var(--c))}#spells .emblem path{stroke:var(--c);stroke-width:1.5px}#spells .emblem .thin{stroke-width:1px;opacity:.7}#spells .emblem .full{fill:var(--c);stroke:none}#spells .emblem .dark{fill:#0c0818;stroke-width:1.2px}#spells .on .emblem{filter:drop-shadow(0 0 .55vh var(--c))}#spells .on .emblem path{stroke-width:1.7px}#spells img{filter:saturate(.9)brightness(.93)drop-shadow(0 .25vh .5vh #06041099);width:108%;height:108%;transition:filter .25s;position:absolute;inset:-4%}#spells .painted{opacity:1}#spells .painted .disc,#spells .painted .rim,#spells .painted .tick,#spells .painted .emblem{display:none}#spells .painted svg{filter:none}#spells .painted.on img{filter:drop-shadow(0 0 .9vh var(--c)) drop-shadow(0 .25vh .5vh #06041099)}#spells .painted .gathered{stroke:#fff6dc;stroke-width:1.5px}#spells i{left:50%;bottom:calc(var(--s) * -.14);width:calc(var(--s) * .3);height:calc(var(--s) * .3);margin-left:calc(var(--s) * -.15);color:#f1d9a4;font:normal calc(var(--s) * .19) / calc(var(--s) * .3) Georgia, "Times New Roman", serif;text-align:center;background:#110c22;border-radius:50%;position:absolute;box-shadow:inset 0 0 0 1px #f1d9a48c}#spells .on i{box-shadow:inset 0 0 0 1px var(--c);color:#fff6dc}#spells .name{margin:calc(var(--s) * .34) 0 0 calc(var(--s) * .08);color:#f6ead0;font:calc(var(--s) * .3) / 1 "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;letter-spacing:.34em;text-transform:uppercase;text-shadow:0 0 .9vh var(--c), 0 0 .5vh #080514e6, 0 .1vh .2vh #080514e6}#spells .name.in{animation:.5s both named}@keyframes named{0%{opacity:0;transform:translate(-.8vh)}}#hint.off,.shot #spells,.shot #aim,.shot #hint{display:none}</style>
+    <script type="module" crossorigin src="./assets/index-qmPU2q0i.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/voxel-BcC6z-Mk.js">
+    <link rel="modulepreload" crossorigin href="./assets/raycast-upVBO-W-.js">
+  <script src="./voltar-atelie.js"></script></head>
+  <body>
+    <div id="view"></div>
+    <div id="title">
+      <div id="sigil">
+        <svg id="outer" viewBox="-100 -100 200 200"></svg>
+        <svg id="inner" viewBox="-100 -100 200 200"></svg>
+        <div id="heart"></div>
+      </div>
+      <h1 id="name">Small Magic</h1>
+      <div id="said"><span id="loading">Waking the meadow</span><span id="begin" hidden>Click to begin</span></div>
+      <div id="note" hidden></div>
+    </div>
+    <script>
+      // The rune circle, drawn here once (and afterwards moved and written by CSS alone). Outside: a rim, a ring of
+      // ticks, a band of runes, a ring. Inside: a star of seven points, one for each spell, a mark at each point, a ring.
+      (() => {
+        const NS = 'http://www.w3.org/2000/svg', outer = document.getElementById('outer'), inner = document.getElementById('inner');
+        if (!outer) return;
+        const add = (to, tag, at, from, over, mark) => { const e = document.createElementNS(NS, tag); for (const k in at) e.setAttribute(k, at[k]); if (!mark) e.setAttribute('pathLength', 1); else e.setAttribute('class', 'mark'); e.style.setProperty('--from', from); e.style.setProperty('--over', over); to.appendChild(e); return e; };
+        const ring = (to, r, w, from, over) => add(to, 'circle', { r, 'stroke-width': w, transform: 'rotate(-90)' }, from, over);
+        const P = (r, a) => [(r * Math.cos(a)).toFixed(2), (r * Math.sin(a)).toFixed(2)].join(' ');
+        ring(outer, 96, 1.1, 0, 0.3); ring(outer, 91, 0.45, 0.06, 0.3);
+        // ticks: every sixth one longer
+        for (let i = 0; i < 72; i++) { const a = (i / 72) * 6.2832 - 1.5708; add(outer, 'path', { d: `M${P(i % 6 ? 87.5 : 86, a)}L${P(90, a)}`, 'stroke-width': i % 6 ? 0.4 : 0.8 }, 0.1 + 0.25 * (i / 72), 0.05, true); }
+        // runes: each a few straight strokes, no two alike, written one after another
+        const strokes = [[[0, -5, 0, 5], [0, -5, 3.5, -2], [0, 0, 3.5, 3]], [[-3, 5, 0, -5], [0, -5, 3, 5]], [[0, -5, 0, 5], [0, -2, 3.5, -5], [0, 1, 3.5, -2]], [[-3, -5, 3, 5], [3, -5, -3, 5]], [[0, -5, 0, 5], [-3, -2, 0, -5], [3, -2, 0, -5]], [[-3, -5, -3, 5], [-3, -5, 3, 0], [3, 0, -3, 5]], [[0, -5, 0, 5], [-3.5, 0, 3.5, 0]], [[-3, -5, 3, -5], [0, -5, 0, 5]], [[-3, 5, -3, -5], [-3, -5, 3, 5], [3, 5, 3, -5]], [[0, -5, 3, 0], [3, 0, 0, 5], [0, 5, -3, 0], [-3, 0, 0, -5]], [[0, -5, 0, 5], [0, -5, 3.5, -1], [3.5, -1, 0, 1]], [[-3, -5, 0, 0], [3, -5, 0, 0], [0, 0, 0, 5]]];
+        for (let i = 0; i < 24; i++) { const s = strokes[(i * 5) % strokes.length], deg = (i / 24) * 360; add(outer, 'path', { d: s.map(([a, b, c, d]) => `M${a} ${b}L${c} ${d}`).join(''), 'stroke-width': 0.75, transform: `rotate(${deg}) translate(0 -79.5) scale(0.82)` }, 0.24 + 0.3 * (i / 24), 0.06, true); }
+        ring(outer, 68, 0.9, 0.3, 0.3);
+        // the star: every third point of seven joined in one line
+        const star = Array.from({ length: 8 }, (_, k) => P(61, ((k * 3) % 7) / 7 * 6.2832 - 1.5708)).join('L');
+        add(inner, 'path', { d: `M${star}`, 'stroke-width': 0.8 }, 0.5, 0.35);
+        for (let k = 0; k < 7; k++) { const a = (k / 7) * 6.2832 - 1.5708, [x, y] = P(61, a).split(' '); add(inner, 'circle', { cx: x, cy: y, r: 4.6, 'stroke-width': 0.7, fill: '#150e2a' }, 0.6 + 0.04 * k, 0.08, true); add(inner, 'circle', { cx: x, cy: y, r: 1.1, fill: '#f1d9a4', stroke: 'none' }, 0.64 + 0.04 * k, 0.08, true); }
+        ring(inner, 27, 0.8, 0.8, 0.18); ring(inner, 23.5, 0.35, 0.86, 0.14);
+      })();
+    </script>
+    <div id="pause" class="sheet" hidden><div><h1>Paused</h1><p id="resume">Click to carry on</p><p><em>M: sound on or off &middot; H: the controls</em></p></div></div>
+    <div id="aim"></div>
+    <div id="spells"></div>
+    <div id="hint">WASD move &middot; Shift sprint &middot; Space jump &middot; Left button casts, hold for more<br>1 to 8 or the wheel changes spell &middot; P pauses &middot; H hides this</div>
+  </body>
+</html>
