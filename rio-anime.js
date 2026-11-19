@@ -397,10 +397,13 @@ function install(){
  let sceneTex=null,grabbed=false,rockTick=0;const gsz=new T.Vector2(),gzero=new T.Vector2(0,0);
  (function tick(){grabbed=false;requestAnimationFrame(tick);})();
  function grab(r){
-  if(grabbed||r.getRenderTarget()||!T.FramebufferTexture)return;grabbed=true;
+  if(grabbed)return;const rtNow=r.getRenderTarget();
+  // efeitos de imagem (FSR/SSAO): a cena está sendo desenhada numa imagem interna; a cópia sai dela
+  if(rtNow){if(rtNow===window.arcanoMainRT&&window.arcanoEfeitos){grabbed=true;try{const g=window.arcanoEfeitos.grab();if(g){u.uScene.value=g.texture;u.uRes.value.set(g.width,g.height);u.uSceneReady.value=1;}else u.uSceneReady.value=0;}catch(e){u.uSceneReady.value=0;}}return;}
+  if(!T.FramebufferTexture)return;grabbed=true;
   try{r.getDrawingBufferSize(gsz);
    if(!sceneTex||sceneTex.image.width!==gsz.x||sceneTex.image.height!==gsz.y){if(sceneTex)sceneTex.dispose();sceneTex=new T.FramebufferTexture(gsz.x,gsz.y,T.RGBAFormat);sceneTex.minFilter=sceneTex.magFilter=T.LinearFilter;u.uScene.value=sceneTex;}
-   u.uRes.value.copy(gsz);r.copyFramebufferToTexture(gzero,sceneTex);u.uSceneReady.value=1;
+   u.uScene.value=sceneTex;u.uRes.value.copy(gsz);r.copyFramebufferToTexture(gzero,sceneTex);u.uSceneReady.value=1;
   }catch(e){u.uSceneReady.value=0;}
  }
  // As outras águas (lagos, afluentes, rio até a borda) usam o mesmo material: também pedem a cópia.

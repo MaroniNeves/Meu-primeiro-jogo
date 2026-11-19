@@ -24,7 +24,7 @@ function install(){
  const sigs=new WeakMap();let frame=0,sinceUpdate=0,lastPlayer=null,updates=0,reused=0;
  const orig=r.render;
  r.render=function(s,c){
-  if(s===scene&&r.getRenderTarget()===null){
+  if(s===scene&&(r.getRenderTarget()===null||r.getRenderTarget()===window.arcanoMainRT)){
    frame++;sinceUpdate++;let dirty=false,playerOnly=false;
    for(const l of lights){
     const p=l.position,t=l.target?l.target.position:p,sg=[p.x,p.y,p.z,t.x,t.y,t.z,l.intensity];
