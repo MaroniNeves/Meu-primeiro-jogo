@@ -141,9 +141,9 @@ function skinGeometry(prims,h){
  for(let v=0;v<nV;v++){const x=pa.getX(v),y=pa.getY(v),z=pa.getZ(v),nx=na.getX(v),ny=na.getY(v),nz=na.getZ(v);const ds=[];let dm=1e9;
   for(const p of prims){const b=p.box,m=.08;if(x<b[0]-m||y<b[1]-m||z<b[2]-m||x>b[3]+m||y>b[4]+m||z>b[5]+m)continue;const d=p.sdf(x,y,z);ds.push([p,d]);if(d<dm)dm=d;}
   let cr=0,cg=0,cbb=0,cw=0;const bw=new Map();
-  for(const [p,d] of ds){const wc=Math.exp(-(d-dm)/(p.sc||.012)),wb=Math.exp(-(d-dm)/(p.sb||.03));
+  for(const [p,d] of ds){const wc=Math.exp(-(d-dm)/(p.sc||.012)),wb=Math.exp(-(d-dm)/(p.sb||.03))*sstep(1-(d-dm)/(p.reach||.1));
    if(wc>1e-3){const c=p.col(x,y,z,nx,ny,nz);cr+=c[0]*wc;cg+=c[1]*wc;cbb+=c[2]*wc;cw+=wc;}
-   bw.set(p.bone,(bw.get(p.bone)||0)+wb);}
+   if(wb<=0)continue;if(p.boneFn){for(const [b,w] of p.boneFn(x,y,z))bw.set(b,(bw.get(b)||0)+wb*w);}else bw.set(p.bone,(bw.get(p.bone)||0)+wb);}
   col[v*3]=cr/cw;col[v*3+1]=cg/cw;col[v*3+2]=cbb/cw;
   const top=[...bw].sort((a,b)=>b[1]-a[1]).slice(0,4),tw=top.reduce((s,e)=>s+e[1],0);
   top.forEach(([b,w],q)=>{si[v*4+q]=b;sw[v*4+q]=w/tw;});}
@@ -153,11 +153,12 @@ function skinGeometry(prims,h){
 /* ---------- um cervo ---------- */
 const PELE={};   // uma malha por tipo (macho, fêmea, filhote), compartilhada por todos os cervos daquele tipo
 // ossos: 0 corpo, 1 pescoço, 2 cabeça, 3 cauda, 4.. quadril/joelho de cada perna
+const NECK2=[0,.3,.11];   // meio do pescoço: segunda articulação, para o pescoço dobrar em curva
 const NECK=[0,1.14,.47],HEAD=[0,.56,.25],TAIL=[0,1.13,-.63],LEGS=[[-1,true],[1,true],[-1,false],[1,false]];
 const hipAt=(fx,front)=>[fx*.15,front?1.0:1.04,front?.4:-.42],kneeOf=front=>front?[0,-.45,.02]:[0,-.42,-.1];
 function deerPrims(kind){
  const buck=kind==='buck',fur=coat(kind),brown=C3(buck?'#8c522b':'#a0653b'),tan=C3('#97663f'),cream=C3('#efe3c9'),hoofC=C3('#2a1a12'),P=[];
- const add=(prim,bone,k,col,sc,sb)=>P.push({...prim,bone,k,col,sc,sb});
+ const add=(prim,bone,k,col,sc,sb,extra)=>P.push({...prim,bone,k,col,sc,sb,...(extra||{})});
  const tube=(path,prof,o,ofs)=>tubePrim(path.map(p=>[p[0]+ofs[0],p[1]+ofs[1],p[2]+ofs[2]]),prof,o);
  const ell=(x,y,z,rx,ry,rz,ofs)=>ellPrim(x+ofs[0],y+ofs[1],z+ofs[2],rx,ry,rz);
  const Z=[0,0,0],N0=NECK,H0=[NECK[0]+HEAD[0],NECK[1]+HEAD[1],NECK[2]+HEAD[2]];
@@ -172,7 +173,7 @@ function deerPrims(kind){
    em((x,y,z,nx,ny,nz)=>{let c=brown;c=mixC(c,cream,.3*sstep((nz-.3)/.4));
     c=mixC(c,C3('#fbf6ea'),sstep((y-.36)/.08)*sstep((nz-.2)/.25)*sstep((.15-ny)/.3));              // mancha branca da garganta
     if(buck)c=mixC(c,C3('#6f4a30'),.5*sstep((ny-.2)/.3)*sstep((.32-y)/.1));
-    return shade(c,x,y,z);},...N0),null,.1);}
+    return shade(c,x,y,z);},...N0),null,.1,{reach:.09,boneFn:(x,y)=>{const t=sstep((y-NECK[1]-.1)/.34);return [[1,1-t],[12,t]];}});}
  // volume de transição garganta → peito (sem dobra na frente do pescoço)
  add(ell(0,.1,.1,.115*(buck?1.1:1),.17,.12,N0),1,.09,em((x,y,z,nx,ny,nz)=>shade(mixC(brown,cream,.2*sstep((nz-.3)/.4)),x,y,z),...N0),null,.08);
  // cabeça: crânio em cunha + ponta do nariz + queixo (emenda larga com o pescoço; cores com bordas suaves)
@@ -181,7 +182,7 @@ function deerPrims(kind){
   c=mixC(c,C3('#efe6d4'),sstep(1-Math.abs(z-.29)/.035)*sstep((ny+.4)/.3));                            // faixa clara atrás do nariz
   c=mixC(c,C3('#5e3820'),.45*sstep((ny-.45)/.25)*sstep((.17-z)/.06)*sstep((z+.02)/.06));              // testa mais escura
   return shade(c,x,y,z);},...H0);
- add(tube([[0,.07,-.07],[0,.06,.06],[0,.02,.2],[0,-.02,.31],[0,-.024,.365]],[[.08,.09],[.112,.118],[.074,.084],[.054,.058],[.04,.042]],{n:16,ca:.22,cb:.12},H0),2,.1,headCol,null,.1);
+ add(tube([[0,.07,-.07],[0,.06,.06],[0,.02,.2],[0,-.02,.31],[0,-.024,.365]],[[.08,.09],[.112,.118],[.074,.084],[.054,.058],[.04,.042]],{n:16,ca:.22,cb:.12},H0),2,.1,headCol,null,.07,{reach:.1});
  add(ell(0,-.016,.372,.042,.03,.026,H0),2,.012,()=>C3('#17110f'),.006);
  add(ell(0,-.058,.29,.034,.022,.045,H0),2,.02,()=>C3('#f3ead8'));
  // pernas
@@ -206,9 +207,10 @@ function makeDeer(kind){
  const brown=C3(buck?'#8c522b':'#a0653b');
  // esqueleto (mesmos pontos de articulação de antes)
  const body=new T.Bone(),neck=new T.Bone(),head=new T.Bone(),tail=new T.Bone();
- neck.position.set(...NECK);head.position.set(...HEAD);tail.position.set(...TAIL);body.add(neck,tail);neck.add(head);
+ const neck2=new T.Bone();neck.position.set(...NECK);neck2.position.set(...NECK2);head.position.set(HEAD[0]-NECK2[0],HEAD[1]-NECK2[1],HEAD[2]-NECK2[2]);tail.position.set(...TAIL);body.add(neck,tail);neck.add(neck2);neck2.add(head);
  const bones=[body,neck,head,tail],legs=[];
  for(const [fx,front] of LEGS){const hip=new T.Bone(),knee=new T.Bone();hip.position.set(...hipAt(fx,front));knee.position.set(...kneeOf(front));body.add(hip);hip.add(knee);bones.push(hip,knee);legs.push({hip,knee,front,side:fx});}
+ bones.push(neck2);   // osso 12 (meio do pescoço)
  root.add(body);
  const geo=deerSkin(kind),skin=new T.SkinnedMesh(geo,furMat),ink=new T.SkinnedMesh(geo,inkMat);
  skin.castShadow=true;ink.userData.ink=true;root.add(skin,ink);root.updateMatrixWorld(true);
@@ -240,7 +242,7 @@ function makeDeer(kind){
    tine([s*.16,.37,-.03],[s*.17,.47,0],[s*.16,.55,.04],.012);
    tine([s*.205,.48,-.01],[s*.25,.58,-.02],[s*.28,.66,-.02],.011);}
   head.add(meshWithInk(B.build(),true));}
- return {root,body,neck,head,tail,ears,legs,S,kind,skin};
+ return {root,body,neck,neck2,head,tail,ears,legs,S,kind,skin};
 }
 
 /* ---------- animação (pernas, pescoço, orelhas, cauda) — usada no jogo e na enciclopédia dos bichos ---------- */
@@ -262,6 +264,7 @@ function animarCervo(d,dt,now,dxp,dzp){
   d.neckPitch+=(wantNeck-d.neckPitch)*Math.min(1,dt*3.5);d.headYaw+=(wantHeadYaw-d.headYaw)*Math.min(1,dt*4);
   const flinch=d.stagger>0?Math.sin(d.stagger*30)*.08:0;
   d.body.position.y=bob*d.S;d.body.rotation.set(bodyPitch,0,flinch);d.neck.rotation.x=d.neckPitch;d.neck.rotation.y=d.headYaw*.5;d.head.rotation.x=-d.neckPitch*.45+chew;d.head.rotation.y=d.headYaw*.5;
+  if(d.neck2){d.neck.rotation.x=d.neckPitch*.95;d.neck2.rotation.x=d.neckPitch*.2;d.neck.rotation.y=d.neck2.rotation.y=d.headYaw*.25;d.head.rotation.x=-d.neckPitch*.6+chew;}   // pescoço em curva
   for(const e of d.ears){const tw=Math.max(0,Math.sin(now*.0013+e.ph*3))>.985?Math.sin(now*.05)*.5:0;
    e.g.rotation.x=-.2+(d.st==='alert'?-.35:0)+tw*.6;e.g.rotation.z=e.s*(d.st==='alert'?-.55:-.9)+tw*.3;}
   d.tail.rotation.x=(d.st==='flee'?-1.3:-.2)+Math.sin(now*.02+d.phase)*(d.st==='flee'?.25:.12);
