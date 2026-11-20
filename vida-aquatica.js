@@ -189,9 +189,6 @@ function kitAgua(Merger){
    elR(0,.21,-.03,.2,.15,.31,-.12,corpo,56);
    elR(0,.24,.15,.17,.17,.17,0,corpo,44);
    elR(0,.26,-.32,.075,.04,.1,-.45,(x,y,z,nx,ny,nz,cc)=>cc.copy(c('#e9e3d6')),14);
-   for(const k of [-1,1]){
-    elR(k*.155,.275,-.09,.05,.095,.24,.12,(x,y,z,nx,ny,nz,cc)=>{cc.copy(c('#86694c'));cc.lerp(c('#a4896b'),Math.max(0,ny)*.5);if(pintas(x,y,z)&&ny>-.3)cc.copy(c('#5a4431'));
-     const t=y-.24+(z+.2)*.35;if(z<-.1&&z>-.3&&Math.abs(nx)>.3){if(Math.abs(t)<.022)cc.copy(c('#35326e'));else if(Math.abs(t)<.034)cc.copy(c('#f6f4ee'));}},40);}
    B.tubo([0,.3,.2],[0,.47,.26],.09,.07,null,(x,y,z,nx,ny,nz,cc)=>{cc.copy(c('#9c8268'));if(Math.abs(y-.4)<.02)cc.lerp(c('#d8ccb8'),.6);},20);
    elR(0,.53,.28,.1,.1,.12,0,(x,y,z,nx,ny,nz,cc)=>{cc.copy(c('#a68e72'));if(ny>.6)cc.copy(c('#6a523c'));
      {const d=Math.abs(y-.558-(z-.31)*.1+(z-.31)*(z-.31)*.6);if(Math.abs(x)>.035&&z<.41&&z>.17&&d<.022)cc.lerp(c('#4a3626'),d<.014?1:.5);}if(ny<-.3)cc.lerp(c('#d5c6ae'),.5);if(ny<.6&&ny>-.1&&z>.3)cc.lerp(c('#c3b096'),.35);},64);
@@ -300,9 +297,40 @@ function turtleModel(K,s){const P=tartarugaKit(K),g=new T.Group(),inner=new T.Gr
   const l=new T.Group();l.position.set(x,TART.HIP,z);inner.add(l);
   const m=ink(z>0?P.pataF:P.pataT);m.rotation.z=s*.34;m.rotation.x=z>0?-.14:.12;l.add(m);legs.push({l,s,z});}
  return {g,inner,legs};}
+/* asa da pata com volume: a MESMA asa fica dobrada rente ao corpo (arredondada até a cauda, com o espelho azul embaixo
+   e as primárias por cima) e abre no voo. Superfície em lente (u = da raiz até a ponta, cv = da borda da frente até as
+   pontas das penas). As penas apontam sempre para trás; ao abrir, as raízes se espalham para fora e a ponta gira para o lado. */
+function asaPatoGeo(px,py,pz){
+ // largura do corpo da pata (mesmas elipses do duckGeo) para a asa dobrada encostar nele
+ const cr=Math.cos(.12),sr=Math.sin(.12),hug=(y,z)=>{const dy=y-.21,dz=z+.03,yl=dy*cr-dz*sr,zl=dy*sr+dz*cr,a=.2*Math.sqrt(Math.max(0,1-(yl/.15)**2-(zl/.31)**2)),b=Math.sqrt(Math.max(0,.0289-(y-.24)**2-(z-.15)**2));return Math.max(a,b,.05);};const NU=26,NT=44,P=new Float32Array((NU+1)*NT*3),C=new Float32Array((NU+1)*NT*3),I=[],cc=new T.Color(),c=h=>new T.Color(h);
+ for(let i=0;i<=NU;i++)for(let j=0;j<NT;j++){const u=i/NU,th=j/NT*TAU,cv=.5-.5*Math.cos(th),o=(i*NT+j)*3;
+  cc.copy(c('#86694c'));if(cv<.32)cc.lerp(c('#a4896b'),.45);
+  {const q=Math.floor(u*9),r=Math.floor(cv*6),h=Math.abs(Math.sin(q*12.9+r*78.2)*437.5)%1,a=u*9-q-.5,b=cv*6-r-.5+(h-.5)*.3;if(cv<.5&&Math.abs(b+Math.abs(a)*.7)<.16&&Math.abs(a)<.36)cc.copy(c('#5a4431'));}
+  if(u>.6&&cv>.3)cc.lerp(c('#5a4838'),.8);
+  if(u>.06&&u<.55){if(cv>.56&&cv<.84)cc.copy(c('#35326e'));else if((cv>.45&&cv<=.56)||(cv>=.84&&cv<.94))cc.copy(c('#f6f4ee'));}
+  if(cv>.45&&((u*9)%1)<.1)cc.multiplyScalar(.78);
+  C[o]=cc.r;C[o+1]=cc.g;C[o+2]=cc.b;}
+ for(let i=0;i<NU;i++)for(let j=0;j<NT;j++){const a=i*NT+j,b=i*NT+(j+1)%NT,d=(i+1)*NT+j,e=(i+1)*NT+(j+1)%NT;I.push(a,d,b,b,d,e);}
+ const g=new T.BufferGeometry();g.setAttribute('position',new T.BufferAttribute(P,3));g.setAttribute('color',new T.BufferAttribute(C,3));g.setIndex(I);
+ const ss=x=>x*x*(3-2*x),O=new T.Vector3(),Cv=new T.Vector3(),N=new T.Vector3(),A=new T.Vector3(),B2=new T.Vector3();
+ g.userData.k=-1;
+ // k=0 dobrada, k=1 aberta
+ g.pose=k=>{if(Math.abs(k-g.userData.k)<.002)return;g.userData.k=k;const s=ss(Math.max(0,Math.min(1,k))),f=1-s;
+  for(let i=0;i<=NU;i++){const u=i/NU,su=Math.sin(PI*u);
+   // dobrada: raízes descem do alto (primárias, u=1) para baixo (secundárias, u=0); frente arredondada; penas para trás
+   A.set(.014*u,-.15+.15*u,-.01+.05*su);B2.set(.26*u,.012*su,.03-.07*u*u);O.copy(A).multiplyScalar(f).addScaledVector(B2,s);
+   const an=1.2*Math.pow(u,1.6);A.set(0,-.12+.1*u,-1).normalize();B2.set(Math.sin(an),-.03,-Math.cos(an));Cv.copy(A).multiplyScalar(f).addScaledVector(B2,s).normalize();
+   A.set(1,0,0);B2.set(0,1,0);N.copy(A).multiplyScalar(f).addScaledVector(B2,s);N.addScaledVector(Cv,-N.dot(Cv)).normalize();
+   const L=(.23+.2*u)*(.78+.22*Math.min(1,u*4))*(1+.05*Math.abs(Math.sin(u*PI*4.5))),T0=.034*Math.pow(su,.45);
+   for(let j=0;j<NT;j++){const th=j/NT*TAU,cv=.5-.5*Math.cos(th),side=Math.sin(th),o=(i*NT+j)*3,t=T0*(1-.8*cv)*side;
+    // dobrada: a ponta das penas acompanha o corpo (fecha para dentro e sobe um pouco até a cauda)
+    const mx=O.x+Cv.x*L*cv,my=O.y+Cv.y*L*cv,mz=O.z+Cv.z*L*cv,x=mx+N.x*t+f*(hug(my+py,mz+pz)+.03-px-mx),y=my+N.y*t,z=mz+N.z*t;
+    P[o]=x;P[o+1]=y;P[o+2]=z;}}
+  g.attributes.position.needsUpdate=true;g.computeVertexNormals();g.computeBoundingSphere();};
+ g.pose(0);return g;}
 function duckModel(K,adult,s){const g=new T.Group(),m=new T.Mesh(adult?K.DG[0]:K.DG[1],K.dMat);g.add(m);if(K.patoInk){const k=new T.Mesh(m.geometry,adult?K.patoInk:(K.patoInkF||K.patoInk));k.userData.ink=true;m.add(k);}g.scale.setScalar(s);const wings=[];
- if(adult)for(const s of [-1,1]){const r=new T.Group();r.position.set(s*.2,.3,0);r.scale.x=s;g.add(r);r.add(new T.Mesh(K.wingG,K.dMat));r.visible=false;wings.push({r,s});}
- return {g,m,wings};}
+ let asa=null;if(adult){const ag=asaPatoGeo(.15,.33,.1);asa=k=>ag.pose(k);for(const s of [-1,1]){const r=new T.Group();r.position.set(s*.15,.33,.1);r.scale.x=s;m.add(r);const w=new T.Mesh(ag,K.dMat);if(K.patoInk){const k=new T.Mesh(ag,K.patoInk);k.userData.ink=true;w.add(k);}r.add(w);wings.push({r,s});}}
+ return {g,m,wings,asa:k=>{if(asa)asa(k);}};}
 
 window.arcanoKitAgua={kitAgua,turtleModel,duckModel};
 
@@ -403,8 +431,8 @@ function install(){
 
  /* ================= PATOS (mãe e filhotes) ================= */
  const families=[],FAM=mobile?1:2;
- function makeDuck(adult,x,z,w){const {g,m,wings}=duckModel(KA,adult,adult?rr(1.05,1.2):rr(.5,.6));
-  g.position.set(x,w.level-.04,z);root.add(g);return {g,m,wings,x,z,y:w.level-.04,yaw:rr(0,TAU),ph:rr(0,TAU)};}
+ function makeDuck(adult,x,z,w){const {g,m,wings,asa}=duckModel(KA,adult,adult?rr(1.05,1.2):rr(.5,.6));
+  g.position.set(x,w.level-.04,z);root.add(g);return {g,m,wings,asa,wk:0,x,z,y:w.level-.04,yaw:rr(0,TAU),ph:rr(0,TAU)};}
  function spawnFamily(){const s=spot('koi',state.px,state.pz,10,40);if(!s||s.w.depth<.5)return;
   const F={mom:makeDuck(true,s.x,s.z,s.w),kids:[],st:'swim',tx:s.x,tz:s.z,t:0,home:{x:s.x,z:s.z}};const n=3+((Math.random()*3)|0);
   for(let i=0;i<n;i++)F.kids.push(makeDuck(false,s.x-i*.4-.4,s.z,s.w));families.push(F);}
@@ -415,14 +443,15 @@ function install(){
   const P=window.arcanoFundoAquatico&&window.arcanoFundoAquatico.pads;if(P)for(let i=0;i<P.length;i+=5){const dx=x-P[i],dz=z-P[i+2];if(Math.abs(dx)<1&&Math.abs(dz)<1&&dx*dx+dz*dz<(P[i+3]*.9+.12)**2)return false;}
   return true;}
  function updFamily(F,dt){const m=F.mom,dp=pDist(m.x,m.z),wet=playerWet();F.t-=dt;
+  {const alvo=F.st==='fly'?1:0;if(m.wk!==alvo||alvo){m.wk+=(alvo-m.wk)*Math.min(1,dt*(alvo?5:3));if(Math.abs(alvo-m.wk)<.003)m.wk=alvo;m.asa(m.wk);const e=m.wk*m.wk*(3-2*m.wk);for(const w of m.wings)w.r.rotation.z=w.s*(.2+.9*Math.sin(state.t*18))*e;}}
   const swimTo=(d,tx,tz,sp,lead)=>{const a=Math.atan2(tx-d.x,tz-d.z),dd=Math.hypot(tx-d.x,tz-d.z);if(dd<.05)return true;const st=Math.min(dd,sp*dt),w0=water(d.x,d.z),lv=w0?w0.level:d.y;
    if(lead&&dd>3.5){d.x+=(tx-d.x)*Math.min(1,dt*1.5);d.z+=(tz-d.z)*Math.min(1,dt*1.5);d.yaw+=angTo(d.yaw,a)*Math.min(1,dt*4);return true;}
    for(const o of [0,.45,-.45,.95,-.95,1.6,-1.6]){const yy=a+o,nx=d.x+Math.sin(yy)*Math.max(st,.12),nz=d.z+Math.cos(yy)*Math.max(st,.12),w=water(nx,nz);
     if(w&&w.depth>.15&&freeAt(d.x,d.z,nx,nz,lv)){d.yaw+=angTo(d.yaw,yy)*Math.min(1,dt*3);const mx=d.x+Math.sin(yy)*st,mz=d.z+Math.cos(yy)*st;d.x=mx;d.z=mz;return true;}}
    d.yaw+=angTo(d.yaw,a+1.2)*Math.min(1,dt*2);return false;};
-  if(F.st==='fly'){F.k+=dt;for(const w of m.wings){w.r.visible=true;w.r.rotation.z=w.s*(.2+.9*Math.sin(state.t*18));}
+  if(F.st==='fly'){F.k+=dt;
    const k=Math.min(1,F.k/4);m.x=lerp(F.x0,F.tx,k);m.z=lerp(F.z0,F.tz,k);m.y=lerp(F.y0,F.ly,k)+Math.sin(k*PI)*4;m.yaw=Math.atan2(F.tx-F.x0,F.tz-F.z0);
-   if(k>=1){for(const w of m.wings)w.r.visible=false;F.st='swim';F.t=rr(3,6);ring(m.x,m.z,.35);}}
+   if(k>=1){F.st='swim';F.t=rr(3,6);ring(m.x,m.z,.35);}}
   else{
    if(dp<2.8||(wet&&dp<3.5)){const a=Math.atan2(m.z-state.pz,m.x-state.px),s=spot('koi',m.x+Math.cos(a)*16,m.z+Math.sin(a)*16,0,6);if(s){F.st='fly';F.k=0;F.x0=m.x;F.z0=m.z;F.y0=m.y;F.tx=s.x;F.tz=s.z;F.ly=s.w.level-.04;ring(m.x,m.z,.4);}}
    else if(dp<7&&F.st!=='flee'){const a=Math.atan2(m.z-state.pz,m.x-state.px),s=spot('koi',m.x+Math.cos(a)*8,m.z+Math.sin(a)*8,0,3);if(s){F.tx=s.x;F.tz=s.z;F.st='flee';F.t=3;}}
