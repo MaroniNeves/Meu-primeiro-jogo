@@ -220,9 +220,9 @@ function kitAgua(Merger){
   for(let i=0;i<p.count;i++){const u=p.getX(i)+.5,v=.5-p.getY(i),fr=.11-.07*u*u,ch=.24-.06*u+.05*Math.sin(Math.min(1,u*1.3)*PI)+.035*Math.abs(Math.sin(u*PI*7)),z=fr-v*ch,x=u*.6;p.setXYZ(i,x,-.01*Math.sin(u*PI)+.02*v,z);}
   g.computeVertexNormals();const B=window.arcanoIB();B.add(g,null,(x,y,z,nx,ny,nz,cc)=>{const u=x/.6;cc.copy(c('#8a6f52'));if(u>.62)cc.lerp(c('#4e3c2c'),.75);if(Math.sin(u*PI*7)>.82&&u>.15)cc.lerp(c('#5e4a36'),.5);
    const t=z+.1+.06*u;if(u>.1&&u<.5){if(Math.abs(t)<.025)cc.copy(c('#35326e'));else if(Math.abs(t)<.04)cc.copy(c('#f6f4ee'));}if(z>.06-.07*u*u)cc.lerp(c('#a68e72'),.5);});return B.build();})();
- const patoInk=new T.MeshBasicMaterial({color:'#1e1a16',side:T.BackSide});patoInk.onBeforeCompile=sh=>{sh.vertexShader=sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\n transformed+=normal*.012;');};patoInk.customProgramCacheKey=()=>'pato-ink-v1';
- const patoInkP=patoInk.clone();patoInkP.onBeforeCompile=sh=>{sh.vertexShader=sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>'+String.fromCharCode(10)+' transformed+=normal*.0045;');};patoInkP.customProgramCacheKey=()=>'pato-ink-p1';
- const patoInkF=patoInk.clone();patoInkF.onBeforeCompile=sh=>{sh.vertexShader=sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>'+String.fromCharCode(10)+' transformed+=normal*.008;');};patoInkF.customProgramCacheKey=()=>'pato-ink-f1';
+ const patoInk=new T.MeshBasicMaterial({color:'#1e1a16',side:T.BackSide});patoInk.onBeforeCompile=sh=>{sh.vertexShader=sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\n transformed+=normal*.0065;');};patoInk.customProgramCacheKey=()=>'pato-ink-v2';
+ const patoInkP=patoInk.clone();patoInkP.onBeforeCompile=sh=>{sh.vertexShader=sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>'+String.fromCharCode(10)+' transformed+=normal*.003;');};patoInkP.customProgramCacheKey=()=>'pato-ink-p2';
+ const patoInkF=patoInk.clone();patoInkF.onBeforeCompile=sh=>{sh.vertexShader=sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>'+String.fromCharCode(10)+' transformed+=normal*.0055;');};patoInkF.customProgramCacheKey=()=>'pato-ink-f2';
  // patinador: corpo fino e comprido marrom, cabeça com olhos e antenas, patas da frente curtas,
  // patas do meio e de trás muito longas, com o "joelho" alto e a ponta apoiada na água
  const strGeo=(()=>{const B=window.arcanoIB(),c=h=>new T.Color(h),pata='#5a4a38';
