@@ -73,56 +73,78 @@ function kitAgua(Merger){
  const wingG=(()=>{const sh=new T.Shape();sh.moveTo(0,.12);sh.lineTo(.45,.1);sh.lineTo(.55,-.05);sh.lineTo(.3,-.12);sh.lineTo(0,-.1);const g=new T.ShapeGeometry(sh);g.rotateX(PI/2);const B=Merger();B.add(g,'#7a5a3a');return B.build();})();
  const strGeo=(()=>{const B=Merger();B.ball(0,.02,0,.06,'#2a2620',.6,.5,1.6);for(const s of [-1,1]){B.limb([s*.02,.02,.06],[s*.22,0,.32],.008,'#2a2620');B.limb([s*.02,.02,0],[s*.38,0,-.05],.008,'#2a2620');B.limb([s*.02,.02,-.04],[s*.32,0,-.4],.008,'#2a2620');}return B.build();})();
  return {uT,fishGeo,SP,fishMat,turtleGeo,legGeo,tMat,duckGeo,dMat,DG,wingG,strGeo};}
-/* ---------- tartaruga (casco alto com placas, patas grossas, pescoço e cabeça) ----------
-   Medidas em "unidades de tartaruga": pés em y=0, de frente para +z. Peças com contorno escuro (estilo do jogo).
+/* ---------- tartaruga (estilo da referência) ----------
+   Casco abaulado com placas hexagonais (borda marrom larga, anel amarelo, centro claro com contorno fino) e uma
+   fileira de placas marginais retangulares; plastrão amarelo aparecendo sob a borda. Corpo dentro do casco: patas
+   grossas e o pescoço saem de baixo da borda. Medidas em "unidades de tartaruga" (pés em y=0, frente para +z).
    As patas ficam em grupos no "quadril": a animação continua girando L.l.rotation.x (andar/nadar). */
 const tartInk=new T.MeshBasicMaterial({color:'#1e1a16',side:T.BackSide});
-tartInk.onBeforeCompile=sh=>{sh.vertexShader=sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\n transformed+=normal*.016;');};
-tartInk.customProgramCacheKey=()=>'tart-ink-v1';
+tartInk.onBeforeCompile=sh=>{sh.vertexShader=sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\n transformed+=normal*.012;');};
+tartInk.customProgramCacheKey=()=>'tart-ink-v3';
+const TART={SX:.5,SY:.51,SZ:.64,Y0:.48,HIP:.46};
 function tartarugaKit(K){if(K._tart)return K._tart;
- const Bl=window.arcanoPele.Builder,mat=new T.MeshStandardMaterial({vertexColors:true,roughness:.75});
- const C=h=>{const c=new T.Color(h);return [c.r,c.g,c.b];},mix=(a,b,t)=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t];
- const sst=(a,b,t)=>{t=clamp((t-a)/(b-a),0,1);return t*t*(3-2*t);},fr=v=>v-Math.floor(v);
- // ---- casco: domo com placas (vertebrais no meio, costais dos lados, marginais na borda) ----
- const SX=.48,SY=.4,SZ=.64,Y0=.21;
- const placa=(x,y,z)=>{   // ponto na esfera unitária -> distância ao centro da placa (0 centro .. 1 borda)
+ const Bl=window.arcanoPele.Builder,mat=new T.MeshStandardMaterial({vertexColors:true,roughness:.92});
+ const C=h=>{const c=new T.Color(h);return [c.r,c.g,c.b];};
+ const mix=(a,b,t)=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t];
+ const sst=(a,b,t)=>{t=clamp((t-a)/(b-a),0,1);return t*t*(3-2*t);};
+ const fr=v=>v-Math.floor(v);
+ const {SX,SY,SZ,Y0}=TART;
+ const hexd=(fx,fy)=>Math.max(Math.abs(fy),Math.abs(fx)*.87+Math.abs(fy)*.5);
+ // placa: devolve [distância ao centro (0..1), é marginal?]
+ const placa=(x,y,z)=>{
   const v=Math.asin(clamp(y,-1,1))/(PI/2);
-  if(v<.2){const u=(Math.atan2(x,z)+PI)/TAU*26,fx=fr(u),fy=clamp((v+.12)/.32,0,1);return Math.max(Math.abs(2*fx-1),Math.abs(2*fy-1)*.9);}
+  if(v<.24){const u=(Math.atan2(x,z)+PI)/TAU*26,fx=2*fr(u)-1,fy=2*clamp((v+.14)/.38,0,1)-1;return [Math.max(Math.abs(fx)*1.05,Math.abs(fy)),1];}
   const ax=Math.abs(x);
-  if(ax<.22){const fy=fr((z+.92)/1.84*5),fx=(x+.22)/.44;return Math.max(Math.abs(2*fx-1),Math.abs(2*fy-1));}
-  const fx=clamp((ax-.22)/(.95-.22),0,1),fy=fr((z+.95)/1.9*4);return Math.max(Math.abs(2*fx-1),Math.abs(2*fy-1));};
- const borda=C('#4a2c17'),marrom=C('#8b5a2f'),laranja=C('#cf8f30'),claro=C('#eec36a');
+  if(ax<.26){const fy=2*fr((z+.95)/1.9*5)-1,fx=x/.26;return [hexd(fx,fy*1.05),0];}
+  const fx=2*clamp((ax-.26)/(.93-.26),0,1)-1,fy=2*fr((z+.97)/1.94*4)-1;return [hexd(fx*.95,fy),0];};
+ const groove=C('#3a2414'),brown=C('#77492a'),brown2=C('#8e5c35'),yellow=C('#c8973c'),pale=C('#e8cc8a'),line=C('#a8743a');
+ const corPlaca=(d,marg)=>{
+  if(marg){let c=mix(yellow,brown2,sst(.42,.48,d));c=mix(c,brown,sst(.62,.7,d));return mix(c,groove,sst(.9,.96,d));}
+  let c=mix(pale,line,sst(.26,.29,d));c=mix(c,yellow,sst(.3,.33,d));c=mix(c,brown2,sst(.48,.52,d));c=mix(c,brown,sst(.6,.64,d));return mix(c,groove,sst(.9,.96,d));};
  const shell=(()=>{const g=new T.SphereGeometry(1,240,120,0,TAU,0,PI*.57),p=g.attributes.position;
-  for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),z=p.getZ(i),d=placa(x,y,z),sulco=sst(.86,1,d)*.016;
+  for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),z=p.getZ(i),d=placa(x,y,z)[0],sulco=sst(.88,1,d)*.014;
    p.setXYZ(i,x*SX-x*sulco,Y0+y*SY-Math.max(0,y)*sulco,z*SZ-z*sulco);}
-  const B=Bl();B.add(g,null,null,(X,Y,Z)=>{const x=X/SX,y=(Y-Y0)/SY,z=Z/SZ,d=placa(x,y,z);
-   let c=mix(claro,laranja,sst(.26,.34,d));c=mix(c,marrom,sst(.46,.54,d));c=mix(c,borda,sst(.8,.87,d));const v=.95+.06*Math.sin(X*61+Z*47+Y*29);return [c[0]*v,c[1]*v,c[2]*v];});return B.build();})();
- // ---- barriga (plastrão) e pele por baixo do casco ----
- const pele=C('#6f6a50'),peleClara=C('#8f8a6c'),escama=C('#5a5641');
- const under=Bl();under.ell(0,.17,0,.4,.06,.55,'#d4ad55',null,24);under.ell(0,.22,0,.4,.12,.52,null,()=>pele,20);
- // ---- pata (coluna grossa, sola e 4 unhas) ----
- const pata=(front)=>{const B=Bl(),r=front?.1:.11;
-  B.sweep([[0,.08,0],[0,-.05,.012],[0,-.17,.025]],[[r*1.15,r*1.1],[r*.9,r*.86],[r*.95,r*.9]],{n:12,m:14,ca:.2,cb:0},null,(x,y,z,nx,ny,nz)=>{
-   let c=pele;if(Math.sin(y*70+Math.atan2(x,z)*5)>.55&&nz>-.2)c=escama;if(nz>.3)c=mix(c,peleClara,.25);return c;});
-  B.ell(0,-.18,.03,r*1.08,.035,r*1.18,null,()=>pele,14);
-  for(let k=0;k<4;k++){const a=(k-1.5)*.42;B.ell(Math.sin(a)*r*.9,-.192,.03+Math.cos(a)*r*1.0,.018,.014,.024,'#d8cfb2',null,8);}
+  const B=Bl();B.add(g,null,null,(X,Y,Z)=>{const q=placa(X/SX,(Y-Y0)/SY,Z/SZ),c=corPlaca(q[0],q[1]),v=.96+.04*Math.sin(X*61+Z*47+Y*29);return [c[0]*v,c[1]*v,c[2]*v];});
+  return B.build();})();
+ // plastrão (faixa amarela sob a borda) e o corpo por dentro
+ const pele=C('#77705a'),peleClara=C('#968f74'),escura=C('#5a5442');
+ const under=Bl();
+ under.ell(0,Y0-.15,0,SX*.94,.1,SZ*.98,null,(x,y,z)=>{const s=Math.abs(Math.sin(z*9))<.1||Math.abs(x)<.012;return s?C('#9a7636'):C('#c9a24e');},28);
+ under.ell(0,Y0-.06,0,SX*.86,.13,SZ*.86,null,()=>pele,20);
+ // pata: coluna grossa (mais larga em cima), cotovelo leve, pé largo com unhas; escamas em "U" na frente, dobras atrás
+ const pata=(front)=>{const B=Bl(),r=front?.135:.14,L=TART.HIP+.02;
+  const col=(x,y,z,nx,ny,nz)=>{let c=pele;
+   if(front&&nz>.15&&Math.sin(y*46)>.35&&Math.sin(x*60+y*20)>-.2)c=escura;
+   if(!front&&Math.abs(Math.sin(y*38))>.93)c=escura;
+   if(nz<-.4)c=mix(c,peleClara,.2);return c;};
+  B.sweep([[0,.02,0],[0,-L*.35,front?.03:0],[0,-L*.7,front?.02:.01],[0,-L+.04,front?.04:.02]],[[r*1.25,r*1.2],[r*1.05,r],[r*.88,r*.85],[r*.92,r*.9]],{n:16,m:16,ca:.15,cb:0},null,col);
+  B.ell(0,-L+.035,front?.05:.03,r*1.12,.04,r*1.25,null,()=>pele,16);
+  for(let k=0;k<5;k++){const a=(k-2)*.36;B.ell(Math.sin(a)*r*.95,-L+.022,(front?.05:.03)+Math.cos(a)*r*1.12,.02,.016,.026,'#ddd3b4',null,8);}
   return B.build();};
- // ---- pescoço e cabeça ----
+ // pescoço grosso subindo em diagonal + cabeça grande arredondada
  const head=Bl();
- const cabCol=(x,y,z,nx,ny,nz)=>{let c=ny<-.3?peleClara:pele;if(ny>.2&&Math.sin(x*55)*Math.sin(z*48+y*20)>.55)c=escama;return c;};
- head.sweep([[0,-.06,-.1],[0,.12,.1],[0,.27,.3]],[[.12,.11],[.088,.084],[.072,.07]],{n:14,m:14,ca:.15,cb:.2},null,cabCol);
- head.ell(0,.27,.4,.09,.085,.13,null,cabCol,18);head.ell(0,.25,.5,.066,.06,.062,null,cabCol,14);
+ const cab=(x,y,z,nx,ny,nz)=>{let c=ny<-.35?peleClara:pele;
+  if(y>.62&&ny>.25&&Math.sin(x*48+z*13)*Math.sin(z*41-x*9)>.45)c=escura;
+  if(z<.86&&Math.abs(Math.sin((z*1.2+y)*30))>.94&&nx*nx>.3)c=mix(c,escura,.7);
+  return c;};
+ head.sweep([[0,.3,.36],[0,.46,.66],[0,.57,.86]],[[.18,.165],[.145,.135],[.12,.115]],{n:16,m:16,ca:.1,cb:.15},null,cab);
+ head.ell(0,.63,.99,.14,.125,.19,null,cab,22);
+ head.ell(0,.605,1.12,.1,.09,.08,null,cab,18);
  for(const s of [-1,1]){
-  head.ell(s*.066,.3,.44,.03,.033,.028,'#d9d3b8',null,12);head.ell(s*.075,.3,.445,.023,.026,.021,'#0d0b0a',null,12);head.ell(s*.086,.311,.452,.007,.007,.005,'#ffffff',null,6);
-  head.sweep([[s*.05,.226,.552],[s*.072,.23,.49],[s*.08,.24,.42]],[[.006,.006],[.006,.006],[.004,.004]],{n:8,m:6,ca:0,cb:.2},'#2a241c');   // boca
-  head.ell(s*.017,.265,.56,.006,.005,.004,'#1a1712',null,6);}                                                                            // narinas
- const tail=Bl();tail.sweep([[0,.18,-.5],[0,.14,-.6],[0,.1,-.66]],[[.04,.035],[.025,.022],[.006,.006]],{n:8,m:10,ca:0,cb:.2},null,()=>pele);
- return K._tart={mat,shell,under:under.build(),pataF:pata(true),pataT:pata(false),head:head.build().translate(0,.2,.38),tail:tail.build()};}
+  head.ell(s*.098,.675,1.04,.052,.056,.046,'#e2dcc2',null,14);
+  head.ell(s*.112,.675,1.046,.041,.045,.035,'#0d0b0a',null,14);
+  head.ell(s*.132,.692,1.058,.012,.012,.009,'#ffffff',null,8);
+  head.sweep([[s*.05,.56,1.19],[s*.095,.565,1.12],[s*.126,.585,.99],[s*.135,.605,.92]],[[.006,.006],[.006,.006],[.006,.006],[.004,.004]],{n:12,m:6,ca:0,cb:.2},'#2a241c');
+  head.ell(s*.022,.63,1.196,.008,.007,.005,'#1a1712',null,6);}
+ const tail=Bl();tail.sweep([[0,Y0-.08,-.56],[0,Y0-.13,-.66],[0,Y0-.18,-.72]],[[.045,.04],[.028,.025],[.006,.006]],{n:8,m:10,ca:0,cb:.2},null,()=>pele);
+ return K._tart={mat,shell,under:under.build(),pataF:pata(true),pataT:pata(false),head:head.build().translate(0,.08,0),tail:tail.build()};}
 function turtleModel(K,s){const P=tartarugaKit(K),g=new T.Group(),inner=new T.Group();g.add(inner);inner.scale.setScalar(s);
  const ink=(geo)=>{const m=new T.Mesh(geo,P.mat);m.castShadow=true;m.add(new T.Mesh(geo,tartInk));return m;};
- inner.add(ink(P.shell),new T.Mesh(P.under,P.mat),ink(P.head),ink(P.tail));
- const legs=[];for(const [x,z,s] of [[.31,.3,1],[-.31,.3,-1],[.29,-.32,1],[-.29,-.32,-1]]){const l=new T.Group();l.position.set(x*.95,.2,z*.95);inner.add(l);
-  const m=ink(z>0?P.pataF:P.pataT);m.rotation.z=s*.36;m.rotation.x=z>0?-.15:.15;l.add(m);legs.push({l,s,z});}
+ inner.add(ink(P.shell),ink(P.under),ink(P.head),ink(P.tail));
+ const legs=[];
+ for(const [x,z,s] of [[.22,.3,1],[-.22,.3,-1],[.22,-.3,1],[-.22,-.3,-1]]){
+  const l=new T.Group();l.position.set(x,TART.HIP,z);inner.add(l);
+  const m=ink(z>0?P.pataF:P.pataT);m.rotation.z=s*.34;m.rotation.x=z>0?-.14:.12;l.add(m);legs.push({l,s,z});}
  return {g,inner,legs};}
 function duckModel(K,adult,s){const g=new T.Group(),m=new T.Mesh(adult?K.DG[0]:K.DG[1],K.dMat);g.add(m);g.scale.setScalar(s);const wings=[];
  if(adult)for(const s of [-1,1]){const r=new T.Group();r.position.set(s*.2,.3,0);r.scale.x=s;g.add(r);r.add(new T.Mesh(K.wingG,K.dMat));r.visible=false;wings.push({r,s});}
