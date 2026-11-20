@@ -97,19 +97,19 @@ function owlKitBuild(Merger){
    return gr(c,x,y,z);};
   const prims=[],K=window.arcanoPele;
   const add=(p,k,col,sc)=>prims.push({...p,bone:0,k,col,sc,sb:.05,reach:.12,boneFn:chain});
-  add(K.tubePrim([[0,.2,-.02],[0,.42,0],[0,.62,.01],[0,.8,0],[0,.92,-.01]],[[.2,.19],[.33,.31],[.37,.34],[.33,.3],[.27,.25]],{n:20,ca:.3,cb:.2}),.02,bodyCol);
-  add(K.ellPrim(0,.5,.08,.3,.3,.3),.1,bodyCol);                  // barriga cheia
-  add(K.ellPrim(0,.45,-.17,.24,.26,.22),.1,bodyCol);             // garupa
-  add(K.ellPrim(0,1.03,.03,.33,.29,.3),.14,headCol);             // cabeça redonda (une com o corpo sem pescoço visível)
-  for(const s of [-1,1])add(K.tubePrim([[s*.1,.26,.03],[s*.11,.13,.06],[s*.11,.03,.08]],[[.075,.075],[.062,.062],[.046,.046]],{n:8,ca:0,cb:.25}),.05,(x,y,z)=>gr(leg,x,y,z));   // pernas emplumadas
+  add(K.tubePrim([[0,.2,-.02],[0,.42,0],[0,.62,.01],[0,.8,0],[0,.92,-.01]],[[.17,.17],[.27,.26],[.3,.28],[.28,.26],[.245,.225]],{n:20,ca:.3,cb:.2}),.02,bodyCol);
+  add(K.ellPrim(0,.5,.05,.24,.29,.24),.08,bodyCol);              // barriga
+  add(K.ellPrim(0,.45,-.14,.2,.24,.18),.08,bodyCol);             // garupa
+  add(K.ellPrim(0,1.03,.03,.3,.28,.28),.12,headCol);             // cabeça redonda (une com o corpo sem pescoço visível)
+  for(const s of [-1,1])add(K.tubePrim([[s*.09,.26,.03],[s*.11,.13,.06],[s*.11,.03,.08]],[[.075,.075],[.062,.062],[.046,.046]],{n:8,ca:0,cb:.25}),.05,(x,y,z)=>gr(leg,x,y,z));   // pernas emplumadas
   const skin=K.skinGeometry(prims,(/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)||innerWidth<680)?.026:.018);
   // ---- peças da cabeça (coordenadas do osso da cabeça: corpo menos a base do pescoço) ----
   const hy=-OWL_NECK,B=K.Builder,ink=[];
   const eyes=B();for(const s of [-1,1]){
-   eyes.ell(s*.11,1.02+hy,.262,.081,.083,.06,'#2a1d16',null,18);                                 // contorno do olho
-   eyes.ell(s*.11,1.02+hy,.27,.074,.076,.06,'#0c0a0b',null,18);                               // olho grande
-   eyes.ell(s*.135,1.05+hy,.322,.017,.017,.01,'#ffffff',null,8);eyes.ell(s*.095,.99+hy,.326,.008,.008,.006,'#ffffff',null,6);}   // brilhos
-  const beak=B();beak.sweep([[0,.99+hy,.318],[0,.955+hy,.36],[0,.905+hy,.35]],[[.036,.03],[.026,.022],[.004,.004]],{n:10,m:10,ca:0,cb:.1},'#4a3b30');
+   eyes.ell(s*.105,1.02+hy,.242,.078,.08,.06,'#2a1d16',null,18);                                 // contorno do olho
+   eyes.ell(s*.105,1.02+hy,.25,.071,.073,.06,'#0c0a0b',null,18);                               // olho grande
+   eyes.ell(s*.128,1.05+hy,.302,.016,.016,.01,'#ffffff',null,8);eyes.ell(s*.09,.99+hy,.306,.008,.008,.006,'#ffffff',null,6);}   // brilhos
+  const beak=B();beak.sweep([[0,.99+hy,.298],[0,.955+hy,.34],[0,.905+hy,.33]],[[.036,.03],[.026,.022],[.004,.004]],{n:10,m:10,ca:0,cb:.1},'#4a3b30');
   const tufts=B();for(const s of [-1,1])for(const [ox,oy,oz,tx,ty,tz,w] of [[.16,1.19,.04,.24,1.42,.02,.07],[.21,1.16,-.01,.31,1.35,-.04,.06],[.11,1.21,.01,.15,1.38,-.01,.055]])
    tufts.sweep([[s*ox,oy+hy,oz],[s*(ox+tx)/2,(oy+ty)/2+hy,(oz+tz)/2+.01],[s*tx,ty+hy,tz]],[[w,.02],[w*.6,.016],[.004,.004]],{n:10,m:10,ca:0,cb:.12},null,(x,y)=>y>1.32+hy?C(P.dark):back);
   const lid=B();lid.ell(0,-.113,0,.083,.113,.072,null,()=>mix(face,rim,.45),16);lid.ell(0,-.224,.006,.07,.005,.06,'#2a1d16',null,10);   // pálpebra + cílios
@@ -117,9 +117,9 @@ function owlKitBuild(Merger){
   const wingsF=B();for(const s of [-1,1]){
    const wc=(x,y,z)=>{let c=wing;if(y>.5){const row=(y-.5)/.11+.25*Math.sin(z*28),f=row-Math.floor(row);c=f<.3?mix(cov,belly,.25):mix(cov,wing,.35*(f-.3));}   // fileiras de coberteiras, borda clara
     else if(Math.sin(y*34+z*6)>.55)c=mix(wing,cov,.55);return gr(c,x,y,z);};
-   wingsF.sweep([[s*.3,.85,.08],[s*.355,.64,-.01],[s*.33,.43,-.15],[s*.23,.25,-.38]],[[.045,.16],[.05,.23],[.04,.19],[.012,.07]],{n:22,m:14,ca:.25,cb:.15},null,wc);
+   wingsF.sweep([[s*.25,.85,.07],[s*.295,.64,-.01],[s*.28,.43,-.14],[s*.2,.25,-.37]],[[.045,.16],[.05,.23],[.04,.19],[.012,.07]],{n:22,m:14,ca:.25,cb:.15},null,wc);
    for(const [dy,dz,len] of [[0,0,.0],[-.03,-.03,.04],[-.06,-.06,.08]])                           // pontas das penas primárias
-    wingsF.sweep([[s*.29,.4+dy,-.16+dz],[s*.25,.27+dy,-.33+dz],[s*.2,.16+dy-len*.5,-.46+dz-len]],[[.03,.035],[.018,.03],[.004,.01]],{n:8,m:8,ca:0,cb:.2},null,(x,y,z)=>gr(mix(wing,dark,.4),x,y,z));}
+    wingsF.sweep([[s*.25,.4+dy,-.15+dz],[s*.22,.27+dy,-.32+dz],[s*.18,.16+dy-len*.5,-.45+dz-len]],[[.03,.035],[.018,.03],[.004,.01]],{n:8,m:8,ca:0,cb:.2},null,(x,y,z)=>gr(mix(wing,dark,.4),x,y,z));}
   // ---- cauda ----
   const tail=B();for(let i=-2;i<=2;i++)tail.sweep([[i*.04,.36,-.2],[i*.05,.24,-.36],[i*.065,.13,-.5]],[[.045,.012],[.05,.012],[.02,.008]],{n:10,m:8,ca:0,cb:.25},null,(x,y,z)=>gr(Math.sin(y*45)>.55?mix(wing,cov,.6):mix(wing,dark,.3),x,y,z));
   // ---- dedos com garras ----
@@ -129,8 +129,24 @@ function owlKitBuild(Merger){
    feet.sweep([[bx,.03,.07],[bx,.025,0],[bx,.02,-.05]],[[.024,.02],[.02,.017],[.016,.014]],{n:6,m:10,ca:.2,cb:.2},null,()=>leg);
    feet.sweep([[bx,.02,-.05],[bx,.01,-.08],[bx,-.005,-.085]],[[.011,.009],[.007,.006],[.002,.002]],{n:6,m:8,ca:0,cb:.2},'#1c1716');}
   // ---- asas abertas (voo) ----
-  const W1=Merger();W1.add(sg([[0,.22],[.55,.26],[.6,-.18],[.5,-.26],[.4,-.2],[.3,-.28],[.2,-.21],[.1,-.27],[0,-.2]]),P.wing);W1.add(sg([[0,.22],[.55,.26],[.55,.08],[0,.04]]).translate(0,.004,0),P.cov);
-  const W2=Merger();W2.add(sg([[0,.26],[.4,.26],[.72,.12],[.78,-.06],[.68,-.16],[.58,-.08],[.48,-.22],[.36,-.12],[.24,-.26],[.12,-.16],[0,-.22]]),P.wing);
+  // ---- asas abertas (voo): penas de verdade em camadas ----
+  // pena: forma alongada (base estreita, ponta arredondada) deitada no plano da asa; ang = direção (0 = para trás, -z)
+  let barra='#888';const pena=(M,x,z,L,w,ang,cor,yo,barras)=>{const sh=new T.Shape(),N=10;sh.moveTo(0,0);
+    for(let i=1;i<=N;i++){const t=i/N;sh.lineTo(w*.5*Math.pow(Math.sin(Math.min(1,t*1.15)*PI*.5),.7)*(t>.85?Math.cos((t-.85)/.15*PI*.5):1),-L*t);}
+    for(let i=N;i>=0;i--){const t=i/N;sh.lineTo(-w*.5*Math.pow(Math.sin(Math.min(1,t*1.15)*PI*.5),.7)*(t>.85?Math.cos((t-.85)/.15*PI*.5):1),-L*t);}
+    const g=new T.ShapeGeometry(sh);g.rotateX(PI/2);g.rotateY(ang);g.translate(x,yo,z);M.add(g,cor);
+    if(barras)for(let k=1;k<=barras;k++){const t=k/(barras+1),b=new T.PlaneGeometry(w*.8,L*.05);b.rotateX(-PI/2);b.translate(0,yo+.002,-L*t);const bb=b.clone();bb.rotateY(ang);bb.translate(x,0,z);M.add(bb,barra);}};
+  const W1=Merger(),W2=Merger(),hx=(c1,c2,t)=>'#'+new T.Color(c1).lerp(new T.Color(c2),t).getHexString();
+  barra=hx(P.wing,P.belly,.4);const _b=0,cov1=P.cov,cov2=hx(P.cov,P.belly,.3),cov3=hx(P.cov,P.belly,.55);
+  // braço (0 → .5): secundárias longas no bordo de trás; por cima 3 fileiras de coberteiras cada vez menores e mais claras
+  for(let i=0;i<9;i++){const x=.02+i*.058;pena(W1,x,.04,.4-i*.004,.1,-.04+i*.012,i%2?P.wing:P.dark,0,2);}
+  for(let i=0;i<9;i++){const x=.01+i*.058;pena(W1,x,.13,.21,.095,-.06+i*.015,cov1,.008,0);}
+  for(let i=0;i<10;i++){const x=i*.052;pena(W1,x,.19,.13,.085,-.03+i*.01,cov2,.014,0);}
+  for(let i=0;i<11;i++){const x=i*.047;pena(W1,x,.235,.075,.075,0,cov3,.02,0);}
+  // mão: primárias em leque, as de fora mais longas, pontas separadas como dedos
+  for(let i=0;i<7;i++){pena(W2,.02+i*.045,.08-i*.012,.44+i*.035,.085,-.22-i*.19,i%2?P.dark:P.wing,-.004,3);}
+  for(let i=0;i<6;i++){pena(W2,.0+i*.05,.15-i*.008,.2,.09,-.25-i*.2,cov1,.008,0);}
+  for(let i=0;i<6;i++){pena(W2,.0+i*.045,.21-i*.01,.11,.08,-.2-i*.18,cov3,.016,0);}
   return {P,mat,skin,eyes:eyes.build(),beak:beak.build(),tufts:tufts.build(),lid:lid.build(),wingsF:wingsF.build(),tail:tail.build(),feet:feet.build(),w1:W1.build(),w2:W2.build(),
    wmat:new T.MeshStandardMaterial({vertexColors:true,roughness:.85,side:T.DoubleSide})};});
 }
@@ -140,10 +156,10 @@ function makeOwlFrom(owlKit,k){const P=owlKit[k!=null?k:(Math.random()*owlKit.le
  const body=new T.Bone(),n1=new T.Bone(),n2=new T.Bone(),n3=new T.Bone(),hb=new T.Bone();n1.position.set(0,OWL_NECK,0);body.add(n1);n1.add(n2);n2.add(n3);n3.add(hb);inner.add(body);
  const skin=new T.SkinnedMesh(P.skin,P.mat),ink=new T.SkinnedMesh(P.skin,owlInk);skin.castShadow=true;inner.add(skin,ink);inner.updateMatrixWorld(true);
  const sk=new T.Skeleton([body,n1,n2,n3,hb]);skin.bind(sk);ink.bind(sk,skin.bindMatrix);
- hb.add(new T.Mesh(P.eyes,P.mat),withInk(P.beak),withInk(P.tufts));
- const lids=[];for(const s of [-1,1]){const l=new T.Group();l.position.set(s*.11,1.02-OWL_NECK+.124,.27);l.scale.y=.2;l.visible=false;const lm=new T.Mesh(P.lid,P.mat);l.add(lm);hb.add(l);lids.push(l);}
+ hb.add(new T.Mesh(P.eyes,P.mat),withInk(P.beak));
+ const lids=[];for(const s of [-1,1]){const l=new T.Group();l.position.set(s*.105,1.02-OWL_NECK+.124,.25);l.scale.y=.2;l.visible=false;const lm=new T.Mesh(P.lid,P.mat);l.add(lm);hb.add(l);lids.push(l);}
  const folded=withInk(P.wingsF);body.add(folded,withInk(P.tail),withInk(P.feet));
- const wings=[];for(const s of [-1,1]){const r0=new T.Group();r0.position.set(s*.3,.78,.0);r0.scale.x=s;inner.add(r0);r0.add(new T.Mesh(P.w1,P.wmat));const tip=new T.Group();tip.position.x=.58;r0.add(tip);tip.add(new T.Mesh(P.w2,P.wmat));r0.visible=false;wings.push({s,root:r0,tip});}
+ const wings=[];for(const s of [-1,1]){const r0=new T.Group();r0.position.set(s*.3,.78,.0);r0.scale.x=s;inner.add(r0);r0.add(new T.Mesh(P.w1,P.wmat));const tip=new T.Group();tip.position.x=.5;r0.add(tip);tip.add(new T.Mesh(P.w2,P.wmat));r0.visible=false;wings.push({s,root:r0,tip});}
  // "head" é quem o jogo gira (y = virar, z = inclinar); sync() reparte o giro pelos ossos do pescoço
  const head=new T.Object3D();
  const sync=()=>{const y=head.rotation.y/4;n1.rotation.y=n2.rotation.y=n3.rotation.y=hb.rotation.y=y;hb.rotation.z=head.rotation.z;folded.visible=!wings[0].root.visible;for(const l of lids)l.visible=l.scale.y>.3;};
