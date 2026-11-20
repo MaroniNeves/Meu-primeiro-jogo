@@ -185,6 +185,12 @@ function kitAgua(Merger){
  function duckGeo(adult){const B=window.arcanoIB(),BL=window.arcanoIB(),c=h=>new T.Color(h);
   const elR=(x,y,z,rx,ry,rz,rot,fn,seg)=>{const g=new T.SphereGeometry(1,seg||22,Math.max(10,((seg||22)*.7)|0));g.scale(rx,ry,rz);g.rotateX(rot||0);g.translate(x,y,z);B.add(g,null,fn);};
   const laranja='#e9862c';
+  const forma=(zc,Lz,W,H,cy,fn,seg,cima)=>{const g=new T.SphereGeometry(1,seg,Math.round(seg*.62)),p=g.attributes.position;
+   for(let i=0;i<p.count;i++){const X=p.getX(i),Y=p.getY(i),Z=p.getZ(i);p.setXYZ(i,X*W(Z),cy(Z)+Y*H(Z)*(Y>0?(cima||1):1),zc+Z*Lz);}B.add(g,null,fn);};
+  // bico de pato: chato e largo, um pouco mais largo na ponta (espátula), descendo da testa; unha escura na ponta, narinas e linha da boca
+  const bico=(zc,Lz,w,h,y0,dy,k)=>forma(zc,Lz,Z=>w*(1+.16*Z)*(Z>.75?Math.sqrt(Math.max(0,1-((Z-.75)/.25)**2))*.4+.6:1),Z=>h*(1-.18*Z)*(Z>.7?Math.sqrt(Math.max(0,1-((Z-.7)/.3)**2))*.55+.45:1),Z=>y0-dy*Z+(Z>.7?h*.25*(Z-.7)/.3:0),
+   (x,y,z,nx,ny,nz,cc)=>{const Z=(z-zc)/Lz;cc.copy(c(laranja));if(ny<-.2)cc.lerp(c('#f2a35a'),.35);if(Math.abs(ny)<.3&&y<y0-dy*Z)cc.copy(c('#b5601f'));
+    if(Z>.82&&ny>.2)cc.copy(c('#6a3d1c'));if(Z>-.45&&Z<-.2&&ny>.4&&Math.abs(Math.abs(x)-w*.35)<w*.13)cc.copy(c('#7a4420'));},28,k||.75);
   const pe=(k,x0,z0,y1,r,y0)=>{y1=y1||-.12;r=r||1;y0=y0==null?.1:y0;BL.perna([[k*x0,y0,z0-.01],[k*(x0+.008),(y0+y1)/2+.01,z0-.015],[k*(x0+.01),y1+.012,z0+.0],[k*(x0+.01),y1,z0+.02]],.017*r,.012*r,laranja);
    for(const a of [-.45,0,.45])BL.perna([[k*(x0+.01),y1-.003,z0+.02],[k*(x0+.01)+Math.sin(a)*.085*r,y1-.008,z0+.02+Math.cos(a)*.085*r]],.0085*r,.0065*r,laranja);
    const sh=new T.Shape();sh.moveTo(0,0);for(const a of [-.45,-.2,0,.2,.45])sh.lineTo(Math.sin(a)*.085,Math.cos(a)*.085);sh.lineTo(0,0);const w=new T.ShapeGeometry(sh);w.scale(r,r,1);w.rotateX(PI/2);w.translate(k*(x0+.01),y1-.008,z0+.02);BL.add(w,'#ef9440');};
@@ -194,18 +200,17 @@ function kitAgua(Merger){
    {const g=new T.SphereGeometry(1,72,44),p=g.attributes.position;for(let i=0;i<p.count;i++){const X=p.getX(i),Y=p.getY(i),t=p.getZ(i);p.setXYZ(i,X*PC.W(t),PC.cy(t)+Y*PC.H(t)*(Y<0?.9:1),PC.zc+t*PC.L);}B.add(g,null,corpo);}
    elR(0,.285,-.36,.07,.04,.1,-.5,(x,y,z,nx,ny,nz,cc)=>cc.copy(c('#e9e3d6')),14);
    {const pc=(x,y,z,nx,ny,nz,cc)=>{cc.copy(c('#9c8268'));if(Math.abs(y-.4)<.02)cc.lerp(c('#d8ccb8'),.6);};B.tubo([0,.27,.2],[0,.37,.245],.088,.068,null,pc,24);B.tubo([0,.37,.245],[0,.47,.262],.068,.064,null,pc,24);}
-   elR(0,.53,.28,.1,.1,.12,0,(x,y,z,nx,ny,nz,cc)=>{cc.copy(c('#a68e72'));if(ny>.6)cc.copy(c('#6a523c'));
-     {const d=Math.abs(y-.558-(z-.31)*.1+(z-.31)*(z-.31)*.6);if(Math.abs(x)>.035&&z<.41&&z>.17&&d<.022)cc.lerp(c('#4a3626'),d<.014?1:.5);}if(ny<-.3)cc.lerp(c('#d5c6ae'),.5);if(ny<.6&&ny>-.1&&z>.3)cc.lerp(c('#c3b096'),.35);},64);
-   elR(0,.495,.42,.045,.024,.1,.3,(x,y,z,nx,ny,nz,cc)=>{cc.copy(c(laranja));if(z>.49)cc.lerp(c('#7a4a22'),.35);},16);
-   B.perna([[-.035,.488,.4],[0,.47,.5],[.035,.488,.4]],.004,.004,'#7a4a22');
-   for(const k of [-1,1]){B.ell(k*.086,.56,.31,.014,.024,.024,'#f0ece2',null,14);B.ell(k*.091,.56,.315,.012,.02,.02,'#0b0b0c',null,14);B.ell(k*.1,.567,.322,.004,.006,.006,'#ffffff',null,6);
+   forma(.28,.13,Z=>.083*(1-.45*Math.max(0,Z)**2),Z=>.088*(1-.5*Math.max(0,Z)**1.6),Z=>.53-.022*Math.max(0,Z)**2+.004*Math.min(0,Z),(x,y,z,nx,ny,nz,cc)=>{cc.copy(c('#a68e72'));if(ny>.6)cc.copy(c('#6a523c'));
+     {const d=Math.abs(y-.558-(z-.31)*.1+(z-.31)*(z-.31)*.6);if(Math.abs(x)>.035&&z<.41&&z>.17&&d<.022)cc.lerp(c('#4a3626'),d<.014?1:.5);}if(ny<-.3)cc.lerp(c('#d5c6ae'),.5);if(ny<.6&&ny>-.1&&z>.3)cc.lerp(c('#c3b096'),.35);},64,.88);
+   bico(.442,.076,.039,.026,.507,.024);
+   for(const k of [-1,1]){B.ell(k*.071,.553,.31,.013,.022,.022,'#f0ece2',null,14);B.ell(k*.076,.553,.315,.011,.018,.018,'#0b0b0c',null,14);B.ell(k*.084,.56,.322,.004,.006,.006,'#ffffff',null,6);
     pe(k,.075,.02,-.07,1,.09);}}
   else{
    const am=(x,y,z,nx,ny,nz,cc)=>{cc.copy(c('#f4d65a'));cc.lerp(c('#d9b23a'),Math.max(0,-ny)*.35);cc.lerp(c('#fff1a8'),Math.max(0,ny-.4)*.4);};
    elR(0,.15,-.01,.14,.13,.17,-.1,am,22);
    elR(0,.31,.06,.105,.1,.1,0,am,22);
    elR(0,.17,-.17,.05,.04,.05,-.5,am,12);
-   elR(0,.29,.165,.04,.02,.05,.25,(x,y,z,nx,ny,nz,cc)=>cc.copy(c(laranja)),12);
+   bico(.172,.048,.031,.02,.295,.012);
    for(const k of [-1,1]){B.ell(k*.075,.33,.12,.016,.022,.022,'#0b0b0c',null,10);B.ell(k*.085,.338,.13,.006,.007,.007,'#ffffff',null,6);pe(k,.05,.02,-.05,.75,.06);}}
   const g=B.build();g.pernas=BL.build();return g;}
  const dMat=new T.MeshStandardMaterial({vertexColors:true,roughness:.8,side:T.DoubleSide}),DG=[duckGeo(true),duckGeo(false)];
