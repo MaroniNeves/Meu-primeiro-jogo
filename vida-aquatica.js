@@ -208,19 +208,20 @@ function kitAgua(Merger){
     leque([0,.282,-.32],7,.19,.05,.014,.17,.4,branca,-.05);leque([0,.3,-.31],5,.13,.045,.013,.13,.48,branca,-.03);
     elR(0,.29,-.33,.08,.045,.08,.35,(x,y,z,nx,ny,nz,cc)=>{cc.copy(c('#8f7458'));cc.lerp(c('#d8ccb8'),Math.max(0,-ny)*.6);},18);}
    // pescoço e cabeça numa peça só: um tubo que sobe do peito, curva para a frente e engrossa na cabeça (sem “bolinha em cima do pescoço”)
-   {const cur=new T.CatmullRomCurve3([[0,.2,.14],[0,.32,.205],[0,.42,.238],[0,.485,.252],[0,.525,.292],[0,.52,.352],[0,.505,.405]].map(k=>new T.Vector3(...k)));
-    const PR=[[.1,.1],[.084,.084],[.069,.071],[.077,.083],[.083,.088],[.067,.064],[.04,.033]],n=60,m=40,X=new T.Vector3(1,0,0),up=new T.Vector3(),pos=[],idx=[];
-    for(let i=0;i<=n;i++){const s=i/n,P=cur.getPointAt(s),tg=cur.getTangentAt(s);up.crossVectors(X,tg).normalize();
+   {const KEY=[[0,.2,.14],[0,.32,.205],[0,.42,.238],[0,.485,.252],[0,.525,.292],[0,.523,.338],[0,.507,.385],[0,.49,.435],[0,.479,.49],[0,.474,.53]],cur=new T.CatmullRomCurve3(KEY.map(k=>new T.Vector3(...k)));
+    const PR=[[.1,.1],[.084,.084],[.069,.071],[.077,.083],[.083,.088],[.072,.07],[.054,.045],[.043,.028],[.046,.021],[.044,.018]],n=110,m=40,X=new T.Vector3(1,0,0),up=new T.Vector3(),pos=[],idx=[];
+    for(let i=0;i<=n;i++){const s=i/n,P=cur.getPoint(s),tg=cur.getTangent(s);up.crossVectors(X,tg).normalize();
      const fp=s*(PR.length-1),k=Math.min(PR.length-2,Math.floor(fp)),t=fp-k,e=t*t*(3-2*t),w=PR[k][0]+(PR[k+1][0]-PR[k][0])*e,d=PR[k][1]+(PR[k+1][1]-PR[k][1])*e;
-     let cap=1;if(s<.04)cap=Math.sqrt(Math.max(0,1-(1-s/.04)**2));if(s>.8)cap=Math.min(cap,Math.sqrt(Math.max(0,1-(1-(1-s)/.2)**2)));
+     let cap=1;if(s<.04)cap=Math.sqrt(Math.max(0,1-(1-s/.04)**2));if(s>.94)cap=Math.min(cap,Math.sqrt(Math.max(0,1-(1-(1-s)/.06)**2)));
      for(let j=0;j<m;j++){const a=j/m*TAU;pos.push(P.x+Math.cos(a)*w*cap,P.y+up.y*Math.sin(a)*d*cap,P.z+up.z*Math.sin(a)*d*cap);}}
     for(let i=0;i<n;i++)for(let j=0;j<m;j++){const a=i*m+j,b=i*m+(j+1)%m,cq=(i+1)*m+j,dq=(i+1)*m+(j+1)%m;idx.push(a,cq,b,b,cq,dq);}
     const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(pos,3));g.setIndex(idx);
     B.add(g,null,(x,y,z,nx,ny,nz,cc)=>{cc.copy(c('#9c8268'));if(Math.abs(y-.4)<.025)cc.lerp(c('#c9bba4'),.3*(1-Math.abs(y-.4)/.025));
      const hd=Math.min(1,Math.max(0,(y-.44)/.06));if(hd>0){const h=new T.Color('#a68e72');if(ny>.6&&z>.21)h.copy(c('#6a523c'));
       {const dd=Math.abs(y-.558-(z-.31)*.1+(z-.31)*(z-.31)*.6);if(Math.abs(x)>.03&&z<.41&&z>.18&&dd<.03)h.lerp(c('#4a3626'),dd<.017?1:.55);}
-      if(ny<-.3&&z>.27)h.lerp(c('#d5c6ae'),.5);if(ny<.6&&ny>-.1&&z>.3)h.lerp(c('#c3b096'),.35);cc.lerp(h,hd);}});}
-   bico(.442,.076,.039,.026,.507,.024);
+      if(ny<-.3&&z>.27)h.lerp(c('#d5c6ae'),.5);if(ny<.6&&ny>-.1&&z>.3)h.lerp(c('#c3b096'),.35);cc.lerp(h,hd);}
+     const bz=Math.min(1,Math.max(0,(z-.378+(y-.5)*.12)/.006));if(bz>0){const b=new T.Color(laranja);const yc=.507-(z-.385)*.31;if(ny<-.25)b.lerp(c('#f2a35a'),.35);if(Math.abs(nx)>.8&&y<yc+.002)b.copy(c('#b5601f'));
+      if(z>.519&&ny>.1)b.lerp(c('#6a3d1c'),.8);if(z>.395&&z<.415&&ny>.45&&Math.abs(Math.abs(x)-.016)<.007)b.copy(c('#7a4420'));cc.lerp(b,bz);}});}
    for(const k of [-1,1]){B.ell(k*.064,.553,.31,.013,.022,.022,'#f0ece2',null,14);B.ell(k*.069,.553,.315,.011,.018,.018,'#0b0b0c',null,14);B.ell(k*.077,.56,.322,.004,.006,.006,'#ffffff',null,6);
     pe(k,.075,.02,-.07,1,.09);}}
   else{
