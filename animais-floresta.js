@@ -207,7 +207,7 @@ function makeDeer(kind){
  const brown=C3(buck?'#8c522b':'#a0653b');
  // esqueleto (mesmos pontos de articulação de antes)
  const body=new T.Bone(),neck=new T.Bone(),head=new T.Bone(),tail=new T.Bone();
- const neck2=new T.Bone();neck.position.set(...NECK);neck2.position.set(...NECK2);head.position.set(HEAD[0]-NECK2[0],HEAD[1]-NECK2[1],HEAD[2]-NECK2[2]);tail.position.set(...TAIL);body.add(neck,tail);neck.add(neck2);neck2.add(head);
+ const neck2=new T.Bone();neck.position.set(...NECK);neck2.position.set(...NECK2);neck2.userData.p0=neck2.position.clone();head.position.set(HEAD[0]-NECK2[0],HEAD[1]-NECK2[1],HEAD[2]-NECK2[2]);tail.position.set(...TAIL);body.add(neck,tail);neck.add(neck2);neck2.add(head);
  const bones=[body,neck,head,tail],legs=[];
  for(const [fx,front] of LEGS){const hip=new T.Bone(),knee=new T.Bone();hip.position.set(...hipAt(fx,front));knee.position.set(...kneeOf(front));body.add(hip);hip.add(knee);bones.push(hip,knee);legs.push({hip,knee,front,side:fx});}
  bones.push(neck2);   // osso 12 (meio do pescoço)
@@ -258,19 +258,26 @@ function animarCervo(d,dt,now,dxp,dzp){
    L.hip.rotation.x=swing;L.knee.rotation.x=(L.front?bend:-Math.abs(bend)*.4+(running?Math.sin(ph+2)*.4:0));}
   if(running){bob=Math.abs(Math.sin(ph))*.22;bodyPitch=Math.sin(ph+.6)*.12;}else if(walking){bob=Math.abs(Math.sin(ph*2))*.025;}
   let wantNeck=0,wantHeadYaw=0,chew=0;
-  if(d.st==='graze'&&!walking){wantNeck=2.2;chew=Math.sin(now*.011)*.06;if(!d.neck2)bodyPitch=.08;}
+  if(d.st==='graze'&&!walking){
+   if(!d.neck2){wantNeck=2.2;chew=Math.sin(now*.011)*.06;bodyPitch=.08;}
+   else{ // como nos vídeos: cabeça baixa beliscando o capim, depois levanta mastigando e olhando em volta, e abaixa de novo
+    d.gT=(d.gT==null?Math.random()*3:d.gT)-dt;if(d.gT<=0){d.gUp=!d.gUp;d.gT=d.gUp?2+Math.random()*2:3+Math.random()*4;}
+    if(d.gUp){wantNeck=.4;chew=Math.sin(now*.018)*.05;wantHeadYaw=Math.sin(now*.0007+d.phase)*.55;}
+    else{wantNeck=2.13;chew=Math.max(0,Math.sin(now*.009))*.09;}}}
   else if(d.st==='alert'){wantNeck=-.25;wantHeadYaw=clamp(angDiff(d.yaw,Math.atan2(-dxp,-dzp)),-1.1,1.1);}
   else if(running)wantNeck=-.1+Math.sin(ph)*.12;else if(walking)wantNeck=.15+Math.sin(ph*2)*.04;
   d.neckPitch+=(wantNeck-d.neckPitch)*Math.min(1,dt*3.5);d.headYaw+=(wantHeadYaw-d.headYaw)*Math.min(1,dt*4);
   // pastar como um cervo de verdade: a frente do corpo abaixa, as patas da frente vão para a frente (e abrem um pouco),
   // o pescoço desce em diagonal saindo da cernelha e a cabeça aponta para o capim — cascos sempre no chão.
-  d.gz=(d.gz||0)+(((d.st==='graze'&&!walking&&d.neck2)?1:0)-(d.gz||0))*Math.min(1,dt*2.2);const gz=d.gz*d.gz*(3-2*d.gz);
-  if(gz>.001){bodyPitch+=.18*gz;bob-=.066*gz;
-   for(const L of d.legs){if(L.front){L.hip.rotation.x+=-.639*gz;L.hip.rotation.z=L.side*.15*gz;}else{L.hip.rotation.x+=.08*gz;L.hip.rotation.z=L.side*.06*gz;L.knee.rotation.x+=-.12*gz;}}}
+  d.gz=(d.gz||0)+(((d.st==='graze'&&!walking&&d.neck2&&!d.gUp)?1:0)-(d.gz||0))*Math.min(1,dt*2.2);const gz=d.gz*d.gz*(3-2*d.gz);
+  // patas quase retas: só as da frente avançam um pouco; o corpo inclina pouco; o pescoço estica (como o pescoço real, que deixa de ficar em curva)
+  if(gz>.001){bodyPitch+=.1*gz;bob-=.016*gz;
+   for(const L of d.legs){if(L.front){L.hip.rotation.x+=-.36*gz;L.hip.rotation.z=L.side*.06*gz;}else L.hip.rotation.z=0;}}
   else for(const L of d.legs)L.hip.rotation.z=0;
   const flinch=d.stagger>0?Math.sin(d.stagger*30)*.08:0;
   d.body.position.y=bob*d.S;d.body.rotation.set(bodyPitch,0,flinch);d.neck.rotation.x=d.neckPitch;d.neck.rotation.y=d.headYaw*.5;d.head.rotation.x=-d.neckPitch*.45+chew;d.head.rotation.y=d.headYaw*.5;
-  if(d.neck2){d.neck.rotation.x=d.neckPitch*.841;d.neck2.rotation.x=d.neckPitch*.055;d.neck.rotation.y=d.neck2.rotation.y=d.headYaw*.25;d.head.rotation.x=-d.neckPitch*.386+chew;}   // pescoço desce em diagonal (o corpo ajuda a abaixar)
+  if(d.neck2){const p0=d.neck2.userData.p0;d.neck2.position.set(p0.x,p0.y+.16*gz,p0.z+.064*gz);d.neck.rotation.x=d.neckPitch;d.neck2.rotation.x=-.15*gz;d.neck.rotation.y=d.neck2.rotation.y=d.headYaw*.25;
+   d.head.rotation.x=lerp(-d.neckPitch*.45,-(bodyPitch+d.neckPitch-.15*gz-1.45),gz)+chew;}   // cabeça quase vertical com o focinho no capim   // pescoço desce em diagonal (o corpo ajuda a abaixar)
   for(const e of d.ears){const tw=Math.max(0,Math.sin(now*.0013+e.ph*3))>.985?Math.sin(now*.05)*.5:0;
    e.g.rotation.x=-.2+(d.st==='alert'?-.35:0)+tw*.6;e.g.rotation.z=e.s*(d.st==='alert'?-.55:-.9)+tw*.3;}
   d.tail.rotation.x=(d.st==='flee'?-1.3:-.2)+Math.sin(now*.02+d.phase)*(d.st==='flee'?.25:.12);
