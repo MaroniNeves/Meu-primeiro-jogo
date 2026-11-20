@@ -73,8 +73,56 @@ function kitAgua(Merger){
  const wingG=(()=>{const sh=new T.Shape();sh.moveTo(0,.12);sh.lineTo(.45,.1);sh.lineTo(.55,-.05);sh.lineTo(.3,-.12);sh.lineTo(0,-.1);const g=new T.ShapeGeometry(sh);g.rotateX(PI/2);const B=Merger();B.add(g,'#7a5a3a');return B.build();})();
  const strGeo=(()=>{const B=Merger();B.ball(0,.02,0,.06,'#2a2620',.6,.5,1.6);for(const s of [-1,1]){B.limb([s*.02,.02,.06],[s*.22,0,.32],.008,'#2a2620');B.limb([s*.02,.02,0],[s*.38,0,-.05],.008,'#2a2620');B.limb([s*.02,.02,-.04],[s*.32,0,-.4],.008,'#2a2620');}return B.build();})();
  return {uT,fishGeo,SP,fishMat,turtleGeo,legGeo,tMat,duckGeo,dMat,DG,wingG,strGeo};}
-function turtleModel(K,s){const g=new T.Group(),inner=new T.Group();g.add(inner);inner.scale.setScalar(s);inner.add(new T.Mesh(K.turtleGeo,K.tMat));
- const legs=[];for(const [x,z,s] of [[.34,.32,1],[-.34,.32,-1],[.3,-.36,1],[-.3,-.36,-1]]){const l=new T.Mesh(K.legGeo,K.tMat);l.position.set(x,.04,z);l.rotation.y=s*(z>0?.9:2.3);inner.add(l);legs.push({l,s,z});}
+/* ---------- tartaruga (casco alto com placas, patas grossas, pescoço e cabeça) ----------
+   Medidas em "unidades de tartaruga": pés em y=0, de frente para +z. Peças com contorno escuro (estilo do jogo).
+   As patas ficam em grupos no "quadril": a animação continua girando L.l.rotation.x (andar/nadar). */
+const tartInk=new T.MeshBasicMaterial({color:'#1e1a16',side:T.BackSide});
+tartInk.onBeforeCompile=sh=>{sh.vertexShader=sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\n transformed+=normal*.016;');};
+tartInk.customProgramCacheKey=()=>'tart-ink-v1';
+function tartarugaKit(K){if(K._tart)return K._tart;
+ const Bl=window.arcanoPele.Builder,mat=new T.MeshStandardMaterial({vertexColors:true,roughness:.75});
+ const C=h=>{const c=new T.Color(h);return [c.r,c.g,c.b];},mix=(a,b,t)=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t];
+ const sst=(a,b,t)=>{t=clamp((t-a)/(b-a),0,1);return t*t*(3-2*t);},fr=v=>v-Math.floor(v);
+ // ---- casco: domo com placas (vertebrais no meio, costais dos lados, marginais na borda) ----
+ const SX=.47,SY=.5,SZ=.64,Y0=.3;
+ const placa=(x,y,z)=>{   // ponto na esfera unitária -> distância ao centro da placa (0 centro .. 1 borda)
+  const v=Math.asin(clamp(y,-1,1))/(PI/2);
+  if(v<.2){const u=(Math.atan2(x,z)+PI)/TAU*26,fx=fr(u),fy=clamp((v+.12)/.32,0,1);return Math.max(Math.abs(2*fx-1),Math.abs(2*fy-1)*.9);}
+  const ax=Math.abs(x);
+  if(ax<.22){const fy=fr((z+.92)/1.84*5),fx=(x+.22)/.44;return Math.max(Math.abs(2*fx-1),Math.abs(2*fy-1));}
+  const fx=clamp((ax-.22)/(.95-.22),0,1),fy=fr((z+.95)/1.9*4);return Math.max(Math.abs(2*fx-1),Math.abs(2*fy-1));};
+ const borda=C('#4a2c17'),marrom=C('#8b5a2f'),laranja=C('#cf8f30'),claro=C('#eec36a');
+ const shell=(()=>{const g=new T.SphereGeometry(1,240,120,0,TAU,0,PI*.57),p=g.attributes.position;
+  for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),z=p.getZ(i),d=placa(x,y,z),sulco=sst(.86,1,d)*.016;
+   p.setXYZ(i,x*SX-x*sulco,Y0+y*SY-Math.max(0,y)*sulco,z*SZ-z*sulco);}
+  const B=Bl();B.add(g,null,null,(X,Y,Z)=>{const x=X/SX,y=(Y-Y0)/SY,z=Z/SZ,d=placa(x,y,z);
+   let c=mix(claro,laranja,sst(.26,.34,d));c=mix(c,marrom,sst(.46,.54,d));c=mix(c,borda,sst(.8,.87,d));const v=.95+.06*Math.sin(X*61+Z*47+Y*29);return [c[0]*v,c[1]*v,c[2]*v];});return B.build();})();
+ // ---- barriga (plastrão) e pele por baixo do casco ----
+ const pele=C('#6f6a50'),peleClara=C('#8f8a6c'),escama=C('#5a5641');
+ const under=Bl();under.ell(0,.28,0,.4,.075,.55,'#d4ad55',null,24);under.ell(0,.32,0,.36,.13,.48,null,()=>pele,20);
+ // ---- pata (coluna grossa, sola e 4 unhas) ----
+ const pata=(front)=>{const B=Bl(),r=front?.095:.105;
+  B.sweep([[0,.06,0],[0,-.1,.012],[0,-.27,.025]],[[r,r*.95],[r*.88,r*.84],[r*.95,r*.9]],{n:12,m:14,ca:.2,cb:0},null,(x,y,z,nx,ny,nz)=>{
+   let c=pele;if(Math.sin(y*70+Math.atan2(x,z)*5)>.55&&nz>-.2)c=escama;if(nz>.3)c=mix(c,peleClara,.25);return c;});
+  B.ell(0,-.28,.03,r*1.08,.035,r*1.18,null,()=>pele,14);
+  for(let k=0;k<4;k++){const a=(k-1.5)*.42;B.ell(Math.sin(a)*r*.9,-.292,.03+Math.cos(a)*r*1.0,.018,.014,.024,'#d8cfb2',null,8);}
+  return B.build();};
+ // ---- pescoço e cabeça ----
+ const head=Bl();
+ const cabCol=(x,y,z,nx,ny,nz)=>{let c=ny<-.3?peleClara:pele;if(ny>.2&&Math.sin(x*55)*Math.sin(z*48+y*20)>.55)c=escama;return c;};
+ head.sweep([[0,-.06,-.1],[0,.12,.1],[0,.27,.3]],[[.12,.11],[.088,.084],[.072,.07]],{n:14,m:14,ca:.15,cb:.2},null,cabCol);
+ head.ell(0,.27,.4,.09,.085,.13,null,cabCol,18);head.ell(0,.25,.5,.066,.06,.062,null,cabCol,14);
+ for(const s of [-1,1]){
+  head.ell(s*.066,.3,.44,.03,.033,.028,'#d9d3b8',null,12);head.ell(s*.075,.3,.445,.023,.026,.021,'#0d0b0a',null,12);head.ell(s*.086,.311,.452,.007,.007,.005,'#ffffff',null,6);
+  head.sweep([[s*.05,.226,.552],[s*.072,.23,.49],[s*.08,.24,.42]],[[.006,.006],[.006,.006],[.004,.004]],{n:8,m:6,ca:0,cb:.2},'#2a241c');   // boca
+  head.ell(s*.017,.265,.56,.006,.005,.004,'#1a1712',null,6);}                                                                            // narinas
+ const tail=Bl();tail.sweep([[0,.28,-.52],[0,.24,-.62],[0,.2,-.68]],[[.04,.035],[.025,.022],[.006,.006]],{n:8,m:10,ca:0,cb:.2},null,()=>pele);
+ return K._tart={mat,shell,under:under.build(),pataF:pata(true),pataT:pata(false),head:head.build().translate(0,.42,.44),tail:tail.build()};}
+function turtleModel(K,s){const P=tartarugaKit(K),g=new T.Group(),inner=new T.Group();g.add(inner);inner.scale.setScalar(s);
+ const ink=(geo)=>{const m=new T.Mesh(geo,P.mat);m.castShadow=true;m.add(new T.Mesh(geo,tartInk));return m;};
+ inner.add(ink(P.shell),new T.Mesh(P.under,P.mat),ink(P.head),ink(P.tail));
+ const legs=[];for(const [x,z,s] of [[.31,.3,1],[-.31,.3,-1],[.29,-.32,1],[-.29,-.32,-1]]){const l=new T.Group();l.position.set(x,.29,z);inner.add(l);
+  const m=ink(z>0?P.pataF:P.pataT);m.rotation.z=s*.22;l.add(m);legs.push({l,s,z});}
  return {g,inner,legs};}
 function duckModel(K,adult,s){const g=new T.Group(),m=new T.Mesh(adult?K.DG[0]:K.DG[1],K.dMat);g.add(m);g.scale.setScalar(s);const wings=[];
  if(adult)for(const s of [-1,1]){const r=new T.Group();r.position.set(s*.2,.3,0);r.scale.x=s;g.add(r);r.add(new T.Mesh(K.wingG,K.dMat));r.visible=false;wings.push({r,s});}
