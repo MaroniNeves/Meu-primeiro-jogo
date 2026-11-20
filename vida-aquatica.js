@@ -208,8 +208,8 @@ function kitAgua(Merger){
     leque([0,.282,-.32],7,.19,.05,.014,.17,.4,branca,-.05);leque([0,.3,-.31],5,.13,.045,.013,.13,.48,branca,-.03);
     elR(0,.29,-.33,.08,.045,.08,.35,(x,y,z,nx,ny,nz,cc)=>{cc.copy(c('#8f7458'));cc.lerp(c('#d8ccb8'),Math.max(0,-ny)*.6);},18);}
    // pescoço e cabeça numa peça só: um tubo que sobe do peito, curva para a frente e engrossa na cabeça (sem “bolinha em cima do pescoço”)
-   {const KEY=[[0,.2,.14],[0,.32,.205],[0,.42,.238],[0,.485,.252],[0,.525,.292],[0,.523,.338],[0,.507,.385],[0,.49,.435],[0,.479,.49],[0,.474,.53]],cur=new T.CatmullRomCurve3(KEY.map(k=>new T.Vector3(...k)));
-    const PR=[[.1,.1],[.084,.084],[.069,.071],[.077,.083],[.083,.088],[.072,.07],[.054,.045],[.043,.028],[.046,.021],[.044,.018]],n=110,m=40,X=new T.Vector3(1,0,0),up=new T.Vector3(),pos=[],idx=[];
+   {const KEY=[[0,.19,.16],[0,.3,.215],[0,.41,.245],[0,.485,.252],[0,.525,.292],[0,.523,.338],[0,.507,.385],[0,.49,.435],[0,.479,.49],[0,.474,.53]],cur=new T.CatmullRomCurve3(KEY.map(k=>new T.Vector3(...k)));
+    const PR=[[.14,.15],[.1,.108],[.071,.077],[.077,.083],[.083,.088],[.072,.07],[.054,.045],[.043,.028],[.046,.021],[.044,.018]],n=110,m=40,X=new T.Vector3(1,0,0),up=new T.Vector3(),pos=[],idx=[];
     const PHI=[.25,.3,.36,.72,1.28,1.6,1.8,1.82,1.76,1.72],cPh=new T.CatmullRomCurve3(PHI.map(p=>new T.Vector3(p,0,0))),cPr=new T.CatmullRomCurve3(PR.map(p=>new T.Vector3(p[0],p[1],0)));
     for(let i=0;i<=n;i++){const s=i/n,P=cur.getPoint(s),ph=cPh.getPoint(s).x,wd=cPr.getPoint(s);up.set(0,-Math.sin(ph),Math.cos(ph));
      const w=wd.x,d=wd.y;
