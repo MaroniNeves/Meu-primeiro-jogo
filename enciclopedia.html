@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR"><head><meta charset="utf-8"><script>/* sempre a versão mais nova: o site deixa o navegador guardar a página por 10 min; se esta cópia for antiga, recarrega a nova. Confere ao abrir, ao voltar para a aba e quando o navegador restaura a página da memória. (mude B e versao.txt juntos a cada envio) */(function(){var B='18';window.arcanoVersao=B;if(location.protocol==='file:')return;var t0=0;function chk(){var n=Date.now();if(n-t0<4000)return;t0=n;fetch('versao.txt?'+n,{cache:'no-store'}).then(function(r){return r.ok?r.text():null}).then(function(v){v=v&&v.trim();if(v&&v!==B){var u=new URL(location.href);if(u.searchParams.get('b')===v)return;u.searchParams.set('b',v);location.replace(u.href);}}).catch(function(){});}chk();addEventListener('pageshow',function(e){if(e.persisted){t0=0;chk();}});document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<html lang="pt-BR"><head><meta charset="utf-8"><script>/* sempre a versão mais nova: o site deixa o navegador guardar a página por 10 min; se esta cópia for antiga, recarrega a nova. Confere ao abrir, ao voltar para a aba e quando o navegador restaura a página da memória. (mude B e versao.txt juntos a cada envio) */(function(){var B='19';window.arcanoVersao=B;if(location.protocol==='file:')return;var t0=0;function chk(){var n=Date.now();if(n-t0<4000)return;t0=n;fetch('versao.txt?'+n,{cache:'no-store'}).then(function(r){return r.ok?r.text():null}).then(function(v){v=v&&v.trim();if(v&&v!==B){var u=new URL(location.href);if(u.searchParams.get('b')===v)return;u.searchParams.set('b',v);location.replace(u.href);}}).catch(function(){});}chk();addEventListener('pageshow',function(e){if(e.persisted){t0=0;chk();}});document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title>Enciclopédia dos bichos · Ateliê Arcano</title>
 <style>
 :root{--bg:#f3efe4;--panel:#fffdf7;--ink:#24301f;--soft:#5d6a55;--line:#ddd5c2;--accent:#3d7a46;--accent2:#e9f2df;--chip:#f1ebdc}
@@ -88,10 +88,11 @@ body.noite #titulo{color:#eef3ff;text-shadow:none}body.noite #titulo div,body.no
 <script defer src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 <script defer src="./fauna-margens.js?v=6"></script>
 <script defer src="./aves-floresta.js?v=4"></script>
-<script defer src="./animais-floresta.js?v=16"></script>
+<script defer src="./animais-floresta.js?v=17"></script>
 <script defer src="./vida-aquatica.js?v=7"></script>
 <script defer src="./ecossistema-v1232.js?v=largo-8"></script>
 <script>
+if(new URLSearchParams(location.search).get('raf')==='1')window.requestAnimationFrame=f=>setTimeout(()=>f(performance.now()),16);   // teste: anima mesmo com a aba escondida
 addEventListener('DOMContentLoaded',()=>{
 'use strict';
 const T=window.THREE,$=id=>document.getElementById(id);
@@ -108,7 +109,11 @@ const kitSapo=once(()=>KM.frogParts()),kitBorb=once(()=>KM.butterflyKit()),kitLi
 // criar(variante) -> {obj, animar(dt,t,modo,ctx), agua?:altura do nível da água, noite?:true}
 const cervo=kind=>()=>{const m=KC.makeDeer(kind);const d={...m,x:0,y:0,z:0,yaw:0,pitch:0,st:'graze',speed:0,phase:0,neckPitch:0,headYaw:0,stagger:0};
  const VEL={andar:kind==='fawn'?.8:1.05,correr:kind==='fawn'?7.4:8.6};
- return {obj:m.root,animar(dt,t,modo,c){d.st={pastar:'graze',andar:'walk',alerta:'alert',correr:'flee'}[modo];d.speed+=((VEL[modo]||0)-d.speed)*Math.min(1,dt*3);
+ return {obj:m.root,animar(dt,t,modo,c){d.st={pastar:'graze',andar:'walk',alerta:'alert',correr:'flee'}[modo];let v=VEL[modo]||0;
+  if(modo==='pastar'){if(d.gw>0){d.gw-=dt;v=.2;}else if(!d.gUp&&Math.random()<dt*.18)d.gw=1.2+Math.random()*1.6;}   // caminhada de pastagem (como no jogo)
+  d.speed+=(v-d.speed)*Math.min(1,dt*3);
+  // anda de verdade (a câmera e o chão acompanham): assim dá para ver que os cascos apoiados não escorregam
+  const pz=d.speed*dt,ax=Math.sin(d.yaw)*pz,az=Math.cos(d.yaw)*pz;d.x+=ax;d.z+=az;d.yaw+=pz*.12;orb.alvo.x+=ax;orb.alvo.z+=az;
   KC.animarCervo(d,dt,t*1000,-c.cam.x,-c.cam.z);}};};
 const MODOS_CERVO={pastar:'🌿 Pastar',andar:'🚶 Andar',alerta:'👀 Alerta',correr:'💨 Fugir'};
 const passaro=k=>()=>{const b=kitAves().make(k);b.inner.scale.setScalar(.235);
@@ -269,7 +274,7 @@ function abrir(id,vi,keepCam){
  st.raioBase=raio;if(!keepCam||mudou)orb.pitch=cur.agua!=null?.5:.22;
  if(!keepCam||mudou){orb.alvo.copy(centro);orb.dist=raio/Math.sin(cam.fov*PI/360)*1.45+raio*.4;}
  cam.near=Math.max(.0005,raio*.02);cam.far=Math.max(50,raio*200);cam.updateProjectionMatrix();
- const sh=sun.shadow.camera,R=Math.max(raio*3,.05);sun.position.set(centro.x+R*1.2,centro.y+R*2.4,centro.z+R*1.6);sun.target.position.copy(centro);
+ const sh=sun.shadow.camera,R=Math.max(raio*3,.05);sun.position.set(centro.x+R*1.2,centro.y+R*2.4,centro.z+R*1.6);sun.target.position.copy(centro);st.sol0=sun.position.clone();st.alvo0=orb.alvo.clone();st.cen0=centro.clone();
  Object.assign(sh,{left:-R,right:R,top:R,bottom:-R,near:R*.2,far:R*8});sh.updateProjectionMatrix();sun.shadow.bias=-.0002*Math.min(1,R);
  gridTex.repeat.set(40,40);
  noite=!!cur.noite||st.noiteForcada===true;luz();
@@ -279,7 +284,10 @@ function abrir(id,vi,keepCam){
 }
 function ambiente(){const a=cur&&cur.agua!=null?(typeof cur.agua==='function'?cur.agua(st.modo):cur.agua):null;
  agua.visible=a!=null&&!st.semAgua;fundo.visible=a!=null;chao.visible=a==null;if(a!=null){agua.position.y=a;fundo.position.y=a-Math.max(.35,st.raioBase*2.2);}
- const f=Math.max(8,orb.dist*6);sc.fog.near=orb.dist*2;sc.fog.far=orb.dist*2+f;}
+ const f=Math.max(8,orb.dist*6);sc.fog.near=orb.dist*2;sc.fog.far=orb.dist*2+f;
+ // chão, água e sol acompanham o bicho quando ele anda (o quadriculado continua parado no mundo)
+ if(st.alvo0){const dx=orb.alvo.x-st.alvo0.x,dz=orb.alvo.z-st.alvo0.z;for(const m of [chao,agua,fundo]){m.position.x=orb.alvo.x;m.position.z=orb.alvo.z;}gridTex.offset.set(orb.alvo.x,-orb.alvo.z);
+  sun.position.set(st.sol0.x+dx,st.sol0.y,st.sol0.z+dz);sun.target.position.set(st.cen0.x+dx,st.cen0.y,st.cen0.z+dz);}}
 
 /* ============ textos e botões ============ */
 function desenharTexto(){const e=st.esp;$('nome').textContent=e.emoji+' '+e.nome+(e.variantes?' · '+e.variantes[st.var].nome:'');

@@ -246,19 +246,60 @@ function makeDeer(kind){
 }
 
 /* ---------- animação (pernas, pescoço, orelhas, cauda) — usada no jogo e na enciclopédia dos bichos ---------- */
+/* Passos individuais. Cada casco apoiado guarda o ponto do chão onde pisou (L.F) e o quadril é recalculado a cada quadro
+   para a pata continuar chegando nele: se o corpo inclina ou anda, o casco NÃO escorrega. Quando uma pata está longe de
+   onde deveria, só ela sai do chão: primeiro levanta (dobra o joelho), depois avança, depois desce e grava o novo ponto. */
+const PATA={f:{vy:-.996,vz:.083,hy:-.546,hz:.063},t:{vy:-1.066,vz:.003,hy:-.646,hz:.103}},_pv=new T.Vector3();
+const angWrap=a=>{while(a>PI)a-=TAU;while(a<-PI)a+=TAU;return a;};
+// perna de dois ossos: dobra o joelho/jarrete o quanto precisa para o casco chegar no ponto t (espaço do corpo, a partir do quadril)
+const OSSO={f:{uy:-.45,uz:.02,wy:-.546,wz:.063},t:{uy:-.42,uz:-.1,wy:-.646,wz:.103}};
+function ikPata(L,t){const G=L.front?OSSO.f:OSSO.t,a=Math.hypot(G.uy,G.uz),b=Math.hypot(G.wy,G.wz);
+ const D=clamp(Math.hypot(t.y,t.z),.25,a+b-1e-4),g0=Math.acos(clamp(-(G.uy*G.wy+G.uz*G.wz)/(a*b),-1,1)),g=Math.acos(clamp((a*a+b*b-D*D)/(2*a*b),-1,1));
+ const k=(L.front?1:-1)*Math.max(0,g0-g),c=Math.cos(k),sn=Math.sin(k),sy=G.uy+G.wy*c-G.wz*sn,sz=G.uz+G.wy*sn+G.wz*c;
+ L.knee.rotation.x=k;L.hip.rotation.x=angWrap(Math.atan2(t.z,t.y)-Math.atan2(sz,sy));
+ L.hip.rotation.z=Math.asin(clamp(t.x/Math.max(.25,Math.hypot(t.x,t.y,t.z)),-.4,.4));
+ L.ang=angWrap(Math.atan2(t.z,t.y)-Math.atan2(G.uz+G.wz,G.uy+G.wy));}   // ângulo da linha quadril→casco (para decidir o passo)
+function passosCervo(d,dt,bp,bob){
+ d.root.position.set(d.x,d.y,d.z);d.root.rotation.set(d.pitch,d.yaw,0,'YXZ');d.body.position.y=bob*d.S;d.body.rotation.set(bp,0,0);d.root.updateMatrixWorld(true);
+ const baixo=!d.gUp,andando=d.speed>.03,alvoF=baixo?-.26:0,alvoT=0;
+ const casco=L=>{const P=L.front?PATA.f:PATA.t;L.hip.updateMatrixWorld(true);return L.knee.localToWorld(new T.Vector3(0,P.hy,P.hz));};
+ let noAr=0;for(const L of d.legs)if(L.sp)noAr++;
+ for(const L of d.legs){const P=L.front?PATA.f:PATA.t,a0=Math.atan2(P.vz,P.vy);
+  if(!L.F&&!L.sp){L.knee.rotation.x=0;L.F=casco(L);L.F.y=d.y;L.lift=0;}
+  if(L.sp){L.sp.t+=dt/L.sp.dur;const p=Math.min(1,L.sp.t),e=sstep((p-.2)/.6);   // primeiro levanta, depois avança, depois desce
+   _pv.copy(L.sp.A).lerp(L.sp.B,e);_pv.y+=Math.sin(p*PI)*(L.front?.13:.1)*d.S;d.body.worldToLocal(_pv).sub(L.hip.position);ikPata(L,_pv);
+   if(p>=1){L.sp=null;L.F=L.sp0B;L.sp0B=null;noAr--;}}
+  else{_pv.copy(L.F);d.body.worldToLocal(_pv).sub(L.hip.position);ikPata(L,_pv);}   // apoiada: quadril e joelho fazem o casco ficar no ponto gravado
+ }
+ if(noAr<1){let melhor=null,mv=0;
+  for(const L of d.legs){if(L.sp)continue;const alvo=(L.front?alvoF:alvoT)-bp,dv=andando?L.ang-alvo:Math.abs(L.ang-alvo),lim=andando?.13:.05;if(dv>lim&&dv>mv){mv=dv;melhor=L;}}
+  if(melhor){const alvo=(melhor.front?alvoF:alvoT)-bp,to=andando?alvo-.13:alvo;
+   // ponto de pouso: onde o casco fica com a perna reta nesse ângulo, encostado no chão
+   const hx=melhor.hip.rotation.x,hz=melhor.hip.rotation.z,kx=melhor.knee.rotation.x;melhor.hip.rotation.set(to,0,melhor.front?melhor.side*.06*(d.gz||0):0);melhor.knee.rotation.x=0;
+   const B=casco(melhor);B.y=d.y;melhor.hip.rotation.set(hx,0,hz);melhor.knee.rotation.x=kx;melhor.hip.updateMatrixWorld(true);
+   melhor.sp={t:0,A:melhor.F.clone(),B,dur:andando?.36:.44};melhor.sp0B=B;melhor.F=null;}}
+ for(const L of d.legs){const lf=L.lift||0;if(!lf)continue;
+  }
+}
 function animarCervo(d,dt,now,dxp,dzp){
   const running=d.speed>3,walking=d.speed>.15;
   d.phase+=dt*(running?d.speed*.95:d.speed*2.6+.0001)/Math.max(.6,d.S);
   const ph=d.phase;
   let bob=0,bodyPitch=0;
+  const passo=!!d.neck2&&d.st==='graze'&&!running;   // pastando: cada pata dá o seu passo (cascos plantados não escorregam)
+  if(!passo&&d.passoAntes){d.saida=.35;for(const L of d.legs){L.F=null;L.sp=null;L.lift=0;}}
+  d.passoAntes=passo;if(d.saida>0)d.saida-=dt;
   for(const L of d.legs){
+   if(passo)continue;
    let swing=0,bend=0;
    if(running){const p=ph+(L.front?0:PI*.9)+(L.side>0?.18:0);swing=Math.sin(p)*.95;bend=Math.max(0,Math.sin(p+1.2))*1.25*(L.front?1:-1);}
    else if(walking){const off=L.front?(L.side<0?0:PI):(L.side<0?PI*1.5:PI*.5),p=ph+off;swing=Math.sin(p)*.42;bend=Math.max(0,Math.sin(p+1.3))*.7*(L.front?1:-1);}
-   L.hip.rotation.x=swing;L.knee.rotation.x=(L.front?bend:-Math.abs(bend)*.4+(running?Math.sin(ph+2)*.4:0));}
-  if(running){bob=Math.abs(Math.sin(ph))*.22;bodyPitch=Math.sin(ph+.6)*.12;}else if(walking){bob=Math.abs(Math.sin(ph*2))*.025;}
+   const kx=(L.front?bend:-Math.abs(bend)*.4+(running?Math.sin(ph+2)*.4:0));
+   if(d.saida>0){const k=Math.min(1,dt*10);L.hip.rotation.x+=(swing-L.hip.rotation.x)*k;L.knee.rotation.x+=(kx-L.knee.rotation.x)*k;}
+   else{L.hip.rotation.x=swing;L.knee.rotation.x=kx;}}
+  if(running){bob=Math.abs(Math.sin(ph))*.22;bodyPitch=Math.sin(ph+.6)*.12;}else if(walking&&!passo){bob=Math.abs(Math.sin(ph*2))*.025;}
   let wantNeck=0,wantHeadYaw=0,chew=0;
-  if(d.st==='graze'&&!walking){
+  if(d.st==='graze'&&(!walking||d.neck2)){
    if(!d.neck2){wantNeck=2.2;chew=Math.sin(now*.011)*.06;bodyPitch=.08;}
    else{ // como nos vídeos: cabeça baixa beliscando o capim, depois levanta mastigando e olhando em volta, e abaixa de novo
     d.gT=(d.gT==null?Math.random()*3:d.gT)-dt;if(d.gT<=0){d.gUp=!d.gUp;d.gT=d.gUp?2+Math.random()*2:3+Math.random()*4;}
@@ -269,11 +310,13 @@ function animarCervo(d,dt,now,dxp,dzp){
   d.neckPitch+=(wantNeck-d.neckPitch)*Math.min(1,dt*3.5);d.headYaw+=(wantHeadYaw-d.headYaw)*Math.min(1,dt*4);
   // pastar como um cervo de verdade: a frente do corpo abaixa, as patas da frente vão para a frente (e abrem um pouco),
   // o pescoço desce em diagonal saindo da cernelha e a cabeça aponta para o capim — cascos sempre no chão.
-  d.gz=(d.gz||0)+(((d.st==='graze'&&!walking&&d.neck2&&!d.gUp)?1:0)-(d.gz||0))*Math.min(1,dt*2.2);const gz=d.gz*d.gz*(3-2*d.gz);
+  let gzAlvo=(d.st==='graze'&&d.neck2&&!d.gUp)?1:0;if(gzAlvo===0&&d.st==='graze'&&d.legs.some(L=>L.front&&(L.sp||(L.ang!=null&&L.ang+d.body.rotation.x< -.1))))gzAlvo=d.gz||0;   // levanta só com as patas da frente embaixo do corpo
+  d.gz=(d.gz||0)+(gzAlvo-(d.gz||0))*Math.min(1,dt*2.2);const gz=d.gz*d.gz*(3-2*d.gz);
   // patas quase retas: só as da frente avançam um pouco; o corpo inclina pouco; o pescoço estica (como o pescoço real, que deixa de ficar em curva)
   if(gz>.001){bodyPitch+=.1*gz;bob-=.016*gz;
-   for(const L of d.legs){if(L.front){L.hip.rotation.x+=-.36*gz;L.hip.rotation.z=L.side*.06*gz;}else L.hip.rotation.z=0;}}
+   for(const L of d.legs)L.hip.rotation.z=L.front?L.side*.06*gz:0;}
   else for(const L of d.legs)L.hip.rotation.z=0;
+  if(passo)passosCervo(d,dt,bodyPitch,bob);
   const flinch=d.stagger>0?Math.sin(d.stagger*30)*.08:0;
   d.body.position.y=bob*d.S;d.body.rotation.set(bodyPitch,0,flinch);d.neck.rotation.x=d.neckPitch;d.neck.rotation.y=d.headYaw*.5;d.head.rotation.x=-d.neckPitch*.45+chew;d.head.rotation.y=d.headYaw*.5;
   if(d.neck2){const p0=d.neck2.userData.p0;d.neck2.position.set(p0.x,p0.y+.16*gz,p0.z+.064*gz);d.neck.rotation.x=d.neckPitch;d.neck2.rotation.x=-.15*gz;d.neck.rotation.y=d.neck2.rotation.y=d.headYaw*.25;
@@ -399,7 +442,8 @@ function install(){
    targetSpeed=d.runSpeed;if(d.t<=0&&dp>22){d.st='alert';d.t=rr(1.5,3);d.notice=Math.min(d.notice,1.2);herd.home={x:d.x,z:d.z};}
    if(d.t<=0&&dp<=22)d.t=1;}
   else if(d.st==='alert'){if(d.t<=0){d.st='graze';d.t=rr(3,7);d.notice*=.5;}}
-  else if(d.st==='graze'){if(d.t<=0){if(Math.random()<.6){d.st='walk';choose(d);d.t=rr(4,9);}else d.t=rr(2,6);}}
+  else if(d.st==='graze'){if(d.t<=0){if(Math.random()<.6){d.st='walk';choose(d);d.t=rr(4,9);}else d.t=rr(2,6);}
+   if(d.gw>0){d.gw-=dt;targetSpeed=.2;wantYaw=d.yaw+Math.sin(now*.0005+d.phase)*.25;}else if(!d.gUp&&Math.random()<dt*.15)d.gw=rr(1.2,2.8);}   // caminhada de pastagem
   else if(d.st==='walk'){const dx=d.tx-d.x,dz=d.tz-d.z,L=Math.hypot(dx,dz);
    if(L<.4||d.t<=0){d.st='graze';d.t=rr(3,9);}else{wantYaw=Math.atan2(dx,dz);targetSpeed=d.walkSpeed*(L<1.5?.6:1);
     const nx=d.x+Math.sin(d.yaw)*.8,nz=d.z+Math.cos(d.yaw)*.8;if(!canGo(d.x,d.z,nx,nz)){choose(d);}}}
