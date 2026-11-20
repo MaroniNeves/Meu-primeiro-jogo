@@ -194,10 +194,10 @@ function kitAgua(Merger){
      const t=y-.24+(z+.2)*.35;if(z<-.1&&z>-.3&&Math.abs(nx)>.3){if(Math.abs(t)<.022)cc.copy(c('#35326e'));else if(Math.abs(t)<.034)cc.copy(c('#f6f4ee'));}},40);}
    B.tubo([0,.3,.2],[0,.47,.26],.09,.07,null,(x,y,z,nx,ny,nz,cc)=>{cc.copy(c('#9c8268'));if(Math.abs(y-.4)<.02)cc.lerp(c('#d8ccb8'),.6);},20);
    elR(0,.53,.28,.1,.1,.12,0,(x,y,z,nx,ny,nz,cc)=>{cc.copy(c('#a68e72'));if(ny>.6)cc.copy(c('#6a523c'));
-     if(Math.abs(y-.56+(z-.31)*.3)<.013&&Math.abs(x)>.05&&z<.4)cc.copy(c('#4e3a28'));if(ny<-.3)cc.lerp(c('#d5c6ae'),.5);},40);
+     {const d=Math.abs(y-.558-(z-.31)*.1+(z-.31)*(z-.31)*.6);if(Math.abs(x)>.035&&z<.41&&z>.17&&d<.022)cc.lerp(c('#4a3626'),d<.014?1:.5);}if(ny<-.3)cc.lerp(c('#d5c6ae'),.5);if(ny<.6&&ny>-.1&&z>.3)cc.lerp(c('#c3b096'),.35);},64);
    elR(0,.495,.42,.045,.024,.1,.3,(x,y,z,nx,ny,nz,cc)=>{cc.copy(c(laranja));if(z>.49)cc.lerp(c('#7a4a22'),.35);},16);
    B.perna([[-.035,.488,.4],[0,.47,.5],[.035,.488,.4]],.004,.004,'#7a4a22');
-   for(const k of [-1,1]){B.ell(k*.088,.56,.31,.02,.024,.024,'#f0ece2',null,10);B.ell(k*.095,.56,.315,.016,.02,.02,'#0b0b0c',null,10);B.ell(k*.103,.567,.322,.005,.006,.006,'#ffffff',null,6);
+   for(const k of [-1,1]){B.ell(k*.086,.56,.31,.014,.024,.024,'#f0ece2',null,14);B.ell(k*.091,.56,.315,.012,.02,.02,'#0b0b0c',null,14);B.ell(k*.1,.567,.322,.004,.006,.006,'#ffffff',null,6);
     pe(k,.07,.03,-.06);}}
   else{
    const am=(x,y,z,nx,ny,nz,cc)=>{cc.copy(c('#f4d65a'));cc.lerp(c('#d9b23a'),Math.max(0,-ny)*.35);cc.lerp(c('#fff1a8'),Math.max(0,ny-.4)*.4);};
@@ -206,11 +206,15 @@ function kitAgua(Merger){
    elR(0,.17,-.17,.05,.04,.05,-.5,am,12);
    for(const k of [-1,1])elR(k*.12,.18,-.03,.04,.06,.1,.15,(x,y,z,nx,ny,nz,cc)=>{am(x,y,z,nx,ny,nz,cc);cc.lerp(c('#d9b23a'),.25);},14);
    elR(0,.29,.165,.04,.02,.05,.25,(x,y,z,nx,ny,nz,cc)=>cc.copy(c(laranja)),12);
-   for(const k of [-1,1]){B.ell(k*.075,.33,.12,.016,.022,.022,'#0b0b0c',null,10);B.ell(k*.085,.338,.13,.006,.007,.007,'#ffffff',null,6);pe(k,.05,.02,-.05,.7);}}
+   for(const k of [-1,1]){B.ell(k*.075,.33,.12,.016,.022,.022,'#0b0b0c',null,10);B.ell(k*.085,.338,.13,.006,.007,.007,'#ffffff',null,6);pe(k,.05,.02,-.05,.5);}}
   return B.build();}
  const dMat=new T.MeshStandardMaterial({vertexColors:true,roughness:.8,side:T.DoubleSide}),DG=[duckGeo(true),duckGeo(false)];
- const wingG=(()=>{const sh=new T.Shape();sh.moveTo(0,.12);sh.lineTo(.45,.1);sh.lineTo(.55,-.05);sh.lineTo(.3,-.12);sh.lineTo(0,-.1);const g=new T.ShapeGeometry(sh);g.rotateX(PI/2);const B=Merger();B.add(g,'#8a6f52');return B.build();})();
+ const wingG=(()=>{const g=new T.PlaneGeometry(1,1,42,22),p=g.attributes.position,c=h=>new T.Color(h);
+  for(let i=0;i<p.count;i++){const u=p.getX(i)+.5,v=.5-p.getY(i),fr=.11-.07*u*u,ch=.24-.06*u+.05*Math.sin(Math.min(1,u*1.3)*PI)+.035*Math.abs(Math.sin(u*PI*7)),z=fr-v*ch,x=u*.6;p.setXYZ(i,x,-.01*Math.sin(u*PI)+.02*v,z);}
+  g.computeVertexNormals();const B=window.arcanoIB();B.add(g,null,(x,y,z,nx,ny,nz,cc)=>{const u=x/.6;cc.copy(c('#8a6f52'));if(u>.62)cc.lerp(c('#4e3c2c'),.75);if(Math.sin(u*PI*7)>.82&&u>.15)cc.lerp(c('#5e4a36'),.5);
+   const t=z+.1+.06*u;if(u>.1&&u<.5){if(Math.abs(t)<.025)cc.copy(c('#35326e'));else if(Math.abs(t)<.04)cc.copy(c('#f6f4ee'));}if(z>.06-.07*u*u)cc.lerp(c('#a68e72'),.5);});return B.build();})();
  const patoInk=new T.MeshBasicMaterial({color:'#1e1a16',side:T.BackSide});patoInk.onBeforeCompile=sh=>{sh.vertexShader=sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\n transformed+=normal*.012;');};patoInk.customProgramCacheKey=()=>'pato-ink-v1';
+ const patoInkF=patoInk.clone();patoInkF.onBeforeCompile=sh=>{sh.vertexShader=sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>'+String.fromCharCode(10)+' transformed+=normal*.008;');};patoInkF.customProgramCacheKey=()=>'pato-ink-f1';
  // patinador: corpo fino e comprido marrom, cabeça com olhos e antenas, patas da frente curtas,
  // patas do meio e de trás muito longas, com o "joelho" alto e a ponta apoiada na água
  const strGeo=(()=>{const B=window.arcanoIB(),c=h=>new T.Color(h),pata='#5a4a38';
@@ -222,7 +226,7 @@ function kitAgua(Merger){
    B.perna([[k*.05,.13,.08],[k*.3,.3,.22],[k*.62,.12,.48],[k*.78,0,.62]],.013,.006,pata);
    B.perna([[k*.05,.13,-.04],[k*.28,.28,-.2],[k*.55,.1,-.62],[k*.66,0,-.8]],.013,.006,pata);}
   return B.build();})();
- return {uT,fishGeo,SP,fishMat,fishInk,turtleGeo,legGeo,tMat,duckGeo,dMat,DG,wingG,strGeo,patoInk};}
+ return {uT,fishGeo,SP,fishMat,fishInk,turtleGeo,legGeo,tMat,duckGeo,dMat,DG,wingG,strGeo,patoInk,patoInkF};}
 /* ---------- tartaruga (estilo da referência) ----------
    Casco abaulado com placas hexagonais (borda marrom larga, anel amarelo, centro claro com contorno fino) e uma
    fileira de placas marginais retangulares; plastrão amarelo aparecendo sob a borda. Corpo dentro do casco: patas
@@ -296,7 +300,7 @@ function turtleModel(K,s){const P=tartarugaKit(K),g=new T.Group(),inner=new T.Gr
   const l=new T.Group();l.position.set(x,TART.HIP,z);inner.add(l);
   const m=ink(z>0?P.pataF:P.pataT);m.rotation.z=s*.34;m.rotation.x=z>0?-.14:.12;l.add(m);legs.push({l,s,z});}
  return {g,inner,legs};}
-function duckModel(K,adult,s){const g=new T.Group(),m=new T.Mesh(adult?K.DG[0]:K.DG[1],K.dMat);g.add(m);if(K.patoInk){const k=new T.Mesh(m.geometry,K.patoInk);k.userData.ink=true;m.add(k);}g.scale.setScalar(s);const wings=[];
+function duckModel(K,adult,s){const g=new T.Group(),m=new T.Mesh(adult?K.DG[0]:K.DG[1],K.dMat);g.add(m);if(K.patoInk){const k=new T.Mesh(m.geometry,adult?K.patoInk:(K.patoInkF||K.patoInk));k.userData.ink=true;m.add(k);}g.scale.setScalar(s);const wings=[];
  if(adult)for(const s of [-1,1]){const r=new T.Group();r.position.set(s*.2,.3,0);r.scale.x=s;g.add(r);r.add(new T.Mesh(K.wingG,K.dMat));r.visible=false;wings.push({r,s});}
  return {g,m,wings};}
 
