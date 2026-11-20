@@ -182,7 +182,7 @@ function kitAgua(Merger){
   // meia-largura do corpo na altura y e posição z (a asa dobrada usa para encostar)
   larg(y,z){const t=Math.max(-1,Math.min(1,(z-this.zc)/this.L)),yn=(y-this.cy(t))/(this.H(t)*(y<this.cy(t)?.9:1));return this.W(t)*Math.sqrt(Math.max(0,1-t*t-yn*yn));}};
  window.arcanoPatoCorpo=PC;
- function duckGeo(adult){const B=window.arcanoIB(),BL=window.arcanoIB(),c=h=>new T.Color(h);
+ function duckGeo(adult){const B=window.arcanoIB(),PERNAS=[],c=h=>new T.Color(h);let BL=null;
   const elR=(x,y,z,rx,ry,rz,rot,fn,seg)=>{const g=new T.SphereGeometry(1,seg||22,Math.max(10,((seg||22)*.7)|0));g.scale(rx,ry,rz);g.rotateX(rot||0);g.translate(x,y,z);B.add(g,null,fn);};
   const laranja='#e9862c';
   const forma=(zc,Lz,W,H,cy,fn,seg,cima)=>{const g=new T.SphereGeometry(1,seg,Math.round(seg*.62)),p=g.attributes.position;
@@ -197,9 +197,10 @@ function kitAgua(Merger){
   const bico=(zc,Lz,w,h,y0,dy,k)=>forma(zc,Lz,Z=>w*(1+.16*Z)*(Z>.75?Math.sqrt(Math.max(0,1-((Z-.75)/.25)**2))*.4+.6:1),Z=>h*(1-.18*Z)*(Z>.7?Math.sqrt(Math.max(0,1-((Z-.7)/.3)**2))*.55+.45:1),Z=>y0-dy*Z+(Z>.7?h*.25*(Z-.7)/.3:0),
    (x,y,z,nx,ny,nz,cc)=>{const Z=(z-zc)/Lz;cc.copy(c(laranja));if(ny<-.2)cc.lerp(c('#f2a35a'),.35);if(Math.abs(ny)<.3&&y<y0-dy*Z)cc.copy(c('#b5601f'));
     if(Z>.82&&ny>.2)cc.copy(c('#6a3d1c'));if(Z>-.45&&Z<-.2&&ny>.4&&Math.abs(Math.abs(x)-w*.35)<w*.13)cc.copy(c('#7a4420'));},28,k||.75);
-  const pe=(k,x0,z0,y1,r,y0)=>{y1=y1||-.12;r=r||1;y0=y0==null?.1:y0;BL.perna([[k*x0,y0,z0-.01],[k*(x0+.008),(y0+y1)/2+.01,z0-.015],[k*(x0+.01),y1+.012,z0+.0],[k*(x0+.01),y1,z0+.02]],.017*r,.012*r,laranja);
+  const pe=(k,x0,z0,y1,r,y0)=>{y1=y1||-.12;r=r||1;y0=y0==null?.1:y0;BL=window.arcanoIB();BL.perna([[k*x0,y0,z0-.01],[k*(x0+.008),(y0+y1)/2+.01,z0-.015],[k*(x0+.01),y1+.012,z0+.0],[k*(x0+.01),y1,z0+.02]],.017*r,.012*r,laranja);
    for(const a of [-.45,0,.45])BL.perna([[k*(x0+.01),y1-.003,z0+.02],[k*(x0+.01)+Math.sin(a)*.085*r,y1-.008,z0+.02+Math.cos(a)*.085*r]],.0085*r,.0065*r,laranja);
-   const sh=new T.Shape();sh.moveTo(0,0);for(const a of [-.45,-.2,0,.2,.45])sh.lineTo(Math.sin(a)*.085,Math.cos(a)*.085);sh.lineTo(0,0);const w=new T.ShapeGeometry(sh);w.scale(r,r,1);w.rotateX(PI/2);w.translate(k*(x0+.01),y1-.008,z0+.02);BL.add(w,'#ef9440');};
+   const sh=new T.Shape();sh.moveTo(0,0);for(const a of [-.45,-.2,0,.2,.45])sh.lineTo(Math.sin(a)*.085,Math.cos(a)*.085);sh.lineTo(0,0);const w=new T.ShapeGeometry(sh);w.scale(r,r,1);w.rotateX(PI/2);w.translate(k*(x0+.01),y1-.008,z0+.02);BL.add(w,'#ef9440');
+   const h=[k*x0,y0,z0-.01],lg=BL.build();lg.translate(-h[0],-h[1],-h[2]);PERNAS.push({g:lg,h,k});};
   if(adult){
    const pintas=(x,y,z)=>{const q=.055,i=Math.floor(z/q),j=Math.floor(y/q),h=Math.abs(Math.sin(i*12.9+j*78.2+Math.sign(x)*3.1)*437.5)%1,u=z/q-i-.5,v=y/q-j-.5+(h-.5)*.3;return (Math.abs(v+Math.abs(u)*.8)<.17&&Math.abs(u)<.38)?1:0;};
    const corpo=(x,y,z,nx,ny,nz,cc)=>{cc.copy(c('#8f7458'));cc.lerp(c('#c9b69c'),Math.max(0,-ny-.05)*.9);if(pintas(x,y,z)&&ny>-.45)cc.copy(c('#5a4431'));};
@@ -232,7 +233,7 @@ function kitAgua(Merger){
    leque([0,.175,-.15],5,.07,.022,.014,.35,.75,am,.1);
    bico(.172,.048,.031,.02,.295,.012);
    for(const k of [-1,1]){B.ell(k*.075,.33,.12,.016,.022,.022,'#0b0b0c',null,10);B.ell(k*.085,.338,.13,.006,.007,.007,'#ffffff',null,6);pe(k,.05,.02,-.05,.75,.06);}}
-  const g=B.build();g.pernas=BL.build();return g;}
+  const g=B.build();g.pernas=PERNAS;return g;}
  const dMat=new T.MeshStandardMaterial({vertexColors:true,roughness:.8,side:T.DoubleSide}),DG=[duckGeo(true),duckGeo(false)];
  const nubG=(()=>{const B=window.arcanoIB(),g=new T.SphereGeometry(1,16,11);g.scale(.04,.06,.1);g.rotateX(.15);g.translate(0,-.05,-.06);
   B.add(g,null,(x,y,z,nx,ny,nz,cc)=>{cc.set('#f4d65a');cc.lerp(new T.Color('#d9b23a'),.25+Math.max(0,-ny)*.2);});return B.build();})();
@@ -360,14 +361,17 @@ function asaPatoGeo(px,py,pz){
   g.attributes.position.needsUpdate=true;g.computeVertexNormals();g.computeBoundingSphere();};
  g.pose(0);return g;}
 function duckModel(K,adult,s){const g=new T.Group(),m=new T.Mesh(adult?K.DG[0]:K.DG[1],K.dMat);g.add(m);if(K.patoInk){const k=new T.Mesh(m.geometry,adult?K.patoInk:(K.patoInkF||K.patoInk));k.userData.ink=true;m.add(k);}
- if(m.geometry.pernas){const p=new T.Mesh(m.geometry.pernas,K.dMat);m.add(p);if(K.patoInkP){const k=new T.Mesh(m.geometry.pernas,K.patoInkP);k.userData.ink=true;p.add(k);}}g.scale.setScalar(s);const wings=[];
+ const pernas=[];if(m.geometry.pernas)for(const L of m.geometry.pernas){const q=new T.Group();q.position.set(...L.h);m.add(q);const p=new T.Mesh(L.g,K.dMat);q.add(p);if(K.patoInkP){const k=new T.Mesh(L.g,K.patoInkP);k.userData.ink=true;p.add(k);}pernas.push({q,k:L.k});}
+ // remar: cada pata empurra para trás (pé aberto) e volta para a frente encolhida, alternando; vo = patas recolhidas para trás no voo
+ const remar=(ph,amp,vo)=>{for(const P of pernas){const a=Math.sin(ph+(P.k>0?0:PI)),rec=Math.max(0,Math.cos(ph+(P.k>0?0:PI)));
+  P.q.rotation.x=(.12+.62*a)*amp+(vo||0)*1.25;P.q.scale.x=1-.35*rec*amp;P.q.position.y=P.q.userData.y0==null?(P.q.userData.y0=P.q.position.y):P.q.userData.y0;P.q.position.y+=.012*rec*amp;}};g.scale.setScalar(s);const wings=[];
  let asa=null,ag2=null;if(adult){const ag=asaPatoGeo(.15,.33,.1);ag2=ag;asa=k=>ag.pose(k);for(const s of [-1,1]){const r=new T.Group();r.position.set(s*.15,.33,.1);r.scale.x=s;m.add(r);const w=new T.Mesh(ag,K.dMat);if(K.patoInk){const k=new T.Mesh(ag,K.patoInk);k.userData.ink=true;w.add(k);}r.add(w);wings.push({r,s});}}
  const voo=(wk,ph)=>{if(!asa)return;const e=wk*wk*(3-2*wk),c=Math.cos(ph),sn=Math.sin(ph);ag2.pose(wk*(1-.2*Math.max(0,c)*e),-.75*c*e);
   for(const w of wings)w.r.rotation.z=w.s*(.12+.85*sn)*e;};
  const tocos=[];if(!adult&&K.nubG)for(const s of [-1,1]){const r=new T.Group();r.position.set(s*.12,.23,.03);r.scale.x=s;m.add(r);const w=new T.Mesh(K.nubG,K.dMat);if(K.patoInkF){const k=new T.Mesh(K.nubG,K.patoInkF);k.userData.ink=true;w.add(k);}r.add(w);tocos.push({r,s});}
  // a = 0 recolhido … 1 aberto para o lado
  const bater=a=>{for(const t of tocos){t.r.rotation.y=-t.s*a*.95;t.r.rotation.z=t.s*a*.7;}};
- return {g,m,wings,asa:k=>{if(asa)asa(k);},voo,bater};}
+ return {g,m,wings,asa:k=>{if(asa)asa(k);},voo,bater,remar};}
 
 window.arcanoKitAgua={kitAgua,turtleModel,duckModel};
 
@@ -468,8 +472,8 @@ function install(){
 
  /* ================= PATOS (mãe e filhotes) ================= */
  const families=[],FAM=mobile?1:2;
- function makeDuck(adult,x,z,w){const {g,m,wings,asa,voo,bater}=duckModel(KA,adult,adult?rr(1.05,1.2):rr(.5,.6));
-  g.position.set(x,w.level-.04,z);root.add(g);return {g,m,wings,asa,voo,bater,fl:0,wk:0,x,z,y:w.level-.04,yaw:rr(0,TAU),ph:rr(0,TAU)};}
+ function makeDuck(adult,x,z,w){const {g,m,wings,asa,voo,bater,remar}=duckModel(KA,adult,adult?rr(1.05,1.2):rr(.5,.6));
+  g.position.set(x,w.level-.04,z);root.add(g);return {g,m,wings,asa,voo,bater,remar,rp:0,px0:x,pz0:z,fl:0,wk:0,x,z,y:w.level-.04,yaw:rr(0,TAU),ph:rr(0,TAU)};}
  function spawnFamily(){const s=spot('koi',state.px,state.pz,10,40);if(!s||s.w.depth<.5)return;
   const F={mom:makeDuck(true,s.x,s.z,s.w),kids:[],st:'swim',tx:s.x,tz:s.z,t:0,home:{x:s.x,z:s.z}};const n=3+((Math.random()*3)|0);
   for(let i=0;i<n;i++)F.kids.push(makeDuck(false,s.x-i*.4-.4,s.z,s.w));families.push(F);}
@@ -499,6 +503,8 @@ function install(){
   let lead=m;for(const k of F.kids){const gap=lead===m?.55:.28,bx=lead.x-Math.sin(lead.yaw)*gap,bz=lead.z-Math.cos(lead.yaw)*gap;swimTo(k,bx,bz,F.st==='fly'?1.8:F.st==='flee'?1.4:.6,true);
    if((F.st!=='swim'&&Math.random()<dt*2)||Math.random()<dt*.04)k.fl=Math.max(k.fl,rr(.5,1.1));k.fl=Math.max(0,k.fl-dt);k.bater(k.fl>0?(.55+.45*Math.sin(state.t*32+k.ph*5))*Math.min(1,k.fl*4):0);
    const w=water(k.x,k.z);if(w)k.y=w.level-.03+Math.sin(state.t*3+k.ph)*.012;k.g.position.set(k.x,k.y,k.z);k.g.rotation.y=k.yaw;lead=k;}
+  for(const d of [m,...F.kids]){const v=Math.hypot(d.x-d.px0,d.z-d.pz0)/Math.max(dt,1e-3);d.px0=d.x;d.pz0=d.z;const voa=d===m&&F.st==='fly';
+   d.va=(d.va||0)+((voa?0:Math.min(1,v/.5))-(d.va||0))*Math.min(1,dt*4);d.rp+=dt*(4+d.va*7)*(d===m?1:1.5);d.remar(d.rp,.25+.75*d.va,voa?m.wk:0);}
   m.g.position.set(m.x,m.y,m.z);m.g.rotation.y=m.yaw;}
 
  /* ================= PATINADORES ================= */

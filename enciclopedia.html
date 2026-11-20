@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR"><head><meta charset="utf-8"><script>/* sempre a versão mais nova: o site deixa o navegador guardar a página por 10 min; se esta cópia for antiga, recarrega a nova. Confere ao abrir, ao voltar para a aba e quando o navegador restaura a página da memória. (mude B e versao.txt juntos a cada envio) */(function(){var B='44';window.arcanoVersao=B;if(location.protocol==='file:')return;var t0=0;function chk(){var n=Date.now();if(n-t0<4000)return;t0=n;fetch('versao.txt?'+n,{cache:'no-store'}).then(function(r){return r.ok?r.text():null}).then(function(v){v=v&&v.trim();if(v&&v!==B){var u=new URL(location.href);if(u.searchParams.get('b')===v)return;u.searchParams.set('b',v);location.replace(u.href);}}).catch(function(){});}chk();addEventListener('pageshow',function(e){if(e.persisted){t0=0;chk();}});document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<html lang="pt-BR"><head><meta charset="utf-8"><script>/* sempre a versão mais nova: o site deixa o navegador guardar a página por 10 min; se esta cópia for antiga, recarrega a nova. Confere ao abrir, ao voltar para a aba e quando o navegador restaura a página da memória. (mude B e versao.txt juntos a cada envio) */(function(){var B='45';window.arcanoVersao=B;if(location.protocol==='file:')return;var t0=0;function chk(){var n=Date.now();if(n-t0<4000)return;t0=n;fetch('versao.txt?'+n,{cache:'no-store'}).then(function(r){return r.ok?r.text():null}).then(function(v){v=v&&v.trim();if(v&&v!==B){var u=new URL(location.href);if(u.searchParams.get('b')===v)return;u.searchParams.set('b',v);location.replace(u.href);}}).catch(function(){});}chk();addEventListener('pageshow',function(e){if(e.persisted){t0=0;chk();}});document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title>Enciclopédia dos bichos · Ateliê Arcano</title>
 <style>
 :root{--bg:#f3efe4;--panel:#fffdf7;--ink:#24301f;--soft:#5d6a55;--line:#ddd5c2;--accent:#3d7a46;--accent2:#e9f2df;--chip:#f1ebdc}
@@ -89,7 +89,7 @@ body.noite #titulo{color:#eef3ff;text-shadow:none}body.noite #titulo div,body.no
 <script defer src="./fauna-margens.js?v=8"></script>
 <script defer src="./aves-floresta.js?v=8"></script>
 <script defer src="./animais-floresta.js?v=20"></script>
-<script defer src="./vida-aquatica.js?v=26"></script>
+<script defer src="./vida-aquatica.js?v=27"></script>
 <script defer src="./ecossistema-v1232.js?v=largo-9"></script>
 <script>
 if(new URLSearchParams(location.search).get('raf')==='1')window.requestAnimationFrame=f=>setTimeout(()=>f(performance.now()),16);   // teste: anima mesmo com a aba escondida
@@ -140,7 +140,7 @@ const peixe=(k,size)=>()=>{const K=kitAgua(),g=K.fishGeo(K.SP[k],true);const sw=
 const MODOS_PEIXE={nadar:'Nadar',arrancada:'Arrancada'};
 const pato=adult=>()=>{const K=kitAgua(),d=KAq.duckModel(K,adult,adult?1.1:.55);
  return {obj:d.g,agua:0,animar(dt,t,modo){const ty=modo==='comer'?1.1:0;d.m.rotation.x+=(ty-d.m.rotation.x)*Math.min(1,dt*5);
-  d.g.position.y=-.04+Math.sin(t*2.2)*.01;d.g.rotation.z=Math.sin(t*1.7)*.03;
+  d.g.position.y=-.04+Math.sin(t*2.2)*.01;d.remar(t*(adult?6:9),modo==='nadar'?1:modo==='comer'?.5:0,adult&&modo==='voar'?(d.wk||0):0);d.g.rotation.z=Math.sin(t*1.7)*.03;
   if(adult){const alvo=modo==='voar'?1:0;d.wk=(d.wk||0)+(alvo-(d.wk||0))*Math.min(1,dt*(alvo?5:3));d.voo(d.wk,t*15);const e=d.wk*d.wk*(3-2*d.wk);d.g.position.y+=.49*e;}
   else{const c=t%3.4,on=c<.8;d.bater(on?(.55+.45*Math.sin(t*32))*Math.min(1,c*5,(.8-c)*5):0);}}};};
 const tartaruga=()=>{const K=kitAgua(),tt=KAq.turtleModel(K,.45);
