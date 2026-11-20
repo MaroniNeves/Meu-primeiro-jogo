@@ -227,6 +227,9 @@ function makeDeer(kind){
    B.ell(s*.092,.104,.112,.03,.008,.021,'#4a2a18',null,8);                             // sobrancelha
    B.ell(s*.085,.03,.185,.015,.01,.026,'#3a2416',null,8);}                             // glândula lacrimal
   const m=new T.Mesh(B.build(),furMat);head.add(m);}
+ // pálpebras: presas no alto de cada olho; crescem para baixo e cobrem o olho ao piscar
+ const lids=[];{const lc=buck?'#7a4a2a':'#8a5634',B=Builder();B.ell(0,-.041,0,.041,.041,.044,lc,null,16);B.ell(0,-.081,.004,.03,.004,.034,'#3a2418',null,10);const g=B.build();   // pálpebra + cílios na borda
+  for(const s of [-1,1]){const p=new T.Group();p.position.set(s*.1,.107,.12);p.scale.y=.03;p.visible=false;head.add(p);const lm=new T.Mesh(g,furMat);p.add(lm);lids.push(p);}}
  const ears=[];
  for(const s of [-1,1]){const e=new T.Group();e.position.set(s*.08,.13,.0);e.rotation.set(-.2,s*.35,s*-.9);head.add(e);
   const g=sweepGeo([[0,-.02,0],[0,.08,0],[0,.16,0],[0,.215,0]],[[.03,.016],[.06,.015],[.058,.014],[.012,.006]],{n:14,m:14,ca:.08,cb:.25});
@@ -242,7 +245,7 @@ function makeDeer(kind){
    tine([s*.16,.37,-.03],[s*.17,.47,0],[s*.16,.55,.04],.012);
    tine([s*.205,.48,-.01],[s*.25,.58,-.02],[s*.28,.66,-.02],.011);}
   head.add(meshWithInk(B.build(),true));}
- return {root,body,neck,neck2,head,tail,ears,legs,S,kind,skin};
+ return {root,body,neck,neck2,head,tail,ears,legs,lids,S,kind,skin};
 }
 
 /* ---------- animação (pernas, pescoço, orelhas, cauda) — usada no jogo e na enciclopédia dos bichos ---------- */
@@ -261,7 +264,7 @@ function ikPata(L,t){const G=L.front?OSSO.f:OSSO.t,a=Math.hypot(G.uy,G.uz),b=Mat
  L.ang=angWrap(Math.atan2(t.z,t.y)-Math.atan2(G.uz+G.wz,G.uy+G.wy));}   // ângulo da linha quadril→casco (para decidir o passo)
 function passosCervo(d,dt,bp,bob){
  d.root.position.set(d.x,d.y,d.z);d.root.rotation.set(d.pitch,d.yaw,0,'YXZ');d.body.position.y=bob*d.S;d.body.rotation.set(bp,0,0);d.root.updateMatrixWorld(true);
- const andando=d.speed>.03,alvoF=-.26,alvoT=0;   // pastando, as patas da frente ficam um pouco à frente o tempo todo
+ const andando=d.speed>.03,alvoF=-.05,alvoT=0;   // pastando, as patas da frente ficam um pouco à frente o tempo todo
  const casco=L=>{const P=L.front?PATA.f:PATA.t;L.hip.updateMatrixWorld(true);return L.knee.localToWorld(new T.Vector3(0,P.hy,P.hz));};
  let noAr=0;for(const L of d.legs)if(L.sp)noAr++;
  for(const L of d.legs){const P=L.front?PATA.f:PATA.t,a0=Math.atan2(P.vz,P.vy);
@@ -313,14 +316,19 @@ function animarCervo(d,dt,now,dxp,dzp){
   let gzAlvo=(d.st==='graze'&&d.neck2)?1:0;if(gzAlvo===0&&d.st==='graze'&&d.legs.some(L=>L.front&&(L.sp||(L.ang!=null&&L.ang+d.body.rotation.x< -.1))))gzAlvo=d.gz||0;   // levanta só com as patas da frente embaixo do corpo
   d.gz=(d.gz||0)+(gzAlvo-(d.gz||0))*Math.min(1,dt*2.2);const gz=d.gz*d.gz*(3-2*d.gz);
   // patas quase retas: só as da frente avançam um pouco; o corpo inclina pouco; o pescoço estica (como o pescoço real, que deixa de ficar em curva)
-  if(gz>.001){bodyPitch+=.1*gz;bob-=.016*gz;
+  if(gz>.001){bodyPitch+=.02*gz;
    for(const L of d.legs)L.hip.rotation.z=L.front?L.side*.06*gz:0;}
   else for(const L of d.legs)L.hip.rotation.z=0;
   if(passo)passosCervo(d,dt,bodyPitch,bob);
   const flinch=d.stagger>0?Math.sin(d.stagger*30)*.08:0;
   d.body.position.y=bob*d.S;d.body.rotation.set(bodyPitch,0,flinch);d.neck.rotation.x=d.neckPitch;d.neck.rotation.y=d.headYaw*.5;d.head.rotation.x=-d.neckPitch*.45+chew;d.head.rotation.y=d.headYaw*.5;
-  if(d.neck2){const gn=sstep(d.neckPitch/2.13),p0=d.neck2.userData.p0;d.neck2.position.set(p0.x,p0.y+.16*gn,p0.z+.064*gn);d.neck.rotation.x=d.neckPitch;d.neck2.rotation.x=-.15*gn;d.neck.rotation.y=d.neck2.rotation.y=d.headYaw*.25;
+  if(d.neck2){const gn=sstep(d.neckPitch/2.13),p0=d.neck2.userData.p0;d.neck2.position.set(p0.x,p0.y+.2*gn,p0.z+.08*gn);d.neck.rotation.x=d.neckPitch;d.neck2.rotation.x=-.15*gn;d.neck.rotation.y=d.neck2.rotation.y=d.headYaw*.25;
    d.head.rotation.x=lerp(-d.neckPitch*.45,-(bodyPitch+d.neckPitch-.15*gn-1.45),gn)+chew;}   // cabeça quase vertical com o focinho no capim   // pescoço desce em diagonal (o corpo ajuda a abaixar)
+  // piscar: a cada 2 a 6 s fecha e abre em ~0,2 s (às vezes duas vezes seguidas)
+  if(d.lids){d.bT=(d.bT==null?1+Math.random()*3:d.bT)-dt;if(d.bT<=0){d.bk=0;d.bT=Math.random()<.2?.35:2+Math.random()*4;}
+   let fe=0;if(d.bk!=null){d.bk+=dt/.2;fe=d.bk<1?Math.sin(d.bk*PI):0;if(d.bk>=1)d.bk=null;}
+   if(d.st==='graze'&&d.gUp)fe=Math.max(fe,.18);                     // mastigando relaxado: olhos um pouco fechados
+   for(const l of d.lids){l.visible=fe>.03;l.scale.y=Math.max(.03,fe);}}
   for(const e of d.ears){const tw=Math.max(0,Math.sin(now*.0013+e.ph*3))>.985?Math.sin(now*.05)*.5:0;
    e.g.rotation.x=-.2+(d.st==='alert'?-.35:0)+tw*.6;e.g.rotation.z=e.s*(d.st==='alert'?-.55:-.9)+tw*.3;}
   d.tail.rotation.x=(d.st==='flee'?-1.3:-.2)+Math.sin(now*.02+d.phase)*(d.st==='flee'?.25:.12);
