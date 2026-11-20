@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR"><head><meta charset="utf-8"><script>/* sempre a versão mais nova: o site deixa o navegador guardar a página por 10 min; se esta cópia for antiga, recarrega a nova. Confere ao abrir, ao voltar para a aba e quando o navegador restaura a página da memória. (mude B e versao.txt juntos a cada envio) */(function(){var B='24';window.arcanoVersao=B;if(location.protocol==='file:')return;var t0=0;function chk(){var n=Date.now();if(n-t0<4000)return;t0=n;fetch('versao.txt?'+n,{cache:'no-store'}).then(function(r){return r.ok?r.text():null}).then(function(v){v=v&&v.trim();if(v&&v!==B){var u=new URL(location.href);if(u.searchParams.get('b')===v)return;u.searchParams.set('b',v);location.replace(u.href);}}).catch(function(){});}chk();addEventListener('pageshow',function(e){if(e.persisted){t0=0;chk();}});document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<html lang="pt-BR"><head><meta charset="utf-8"><script>/* sempre a versão mais nova: o site deixa o navegador guardar a página por 10 min; se esta cópia for antiga, recarrega a nova. Confere ao abrir, ao voltar para a aba e quando o navegador restaura a página da memória. (mude B e versao.txt juntos a cada envio) */(function(){var B='25';window.arcanoVersao=B;if(location.protocol==='file:')return;var t0=0;function chk(){var n=Date.now();if(n-t0<4000)return;t0=n;fetch('versao.txt?'+n,{cache:'no-store'}).then(function(r){return r.ok?r.text():null}).then(function(v){v=v&&v.trim();if(v&&v!==B){var u=new URL(location.href);if(u.searchParams.get('b')===v)return;u.searchParams.set('b',v);location.replace(u.href);}}).catch(function(){});}chk();addEventListener('pageshow',function(e){if(e.persisted){t0=0;chk();}});document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title>Enciclopédia dos bichos · Ateliê Arcano</title>
 <style>
 :root{--bg:#f3efe4;--panel:#fffdf7;--ink:#24301f;--soft:#5d6a55;--line:#ddd5c2;--accent:#3d7a46;--accent2:#e9f2df;--chip:#f1ebdc}
@@ -87,7 +87,7 @@ body.noite #titulo{color:#eef3ff;text-shadow:none}body.noite #titulo div,body.no
 </div>
 <script defer src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 <script defer src="./fauna-margens.js?v=6"></script>
-<script defer src="./aves-floresta.js?v=7"></script>
+<script defer src="./aves-floresta.js?v=8"></script>
 <script defer src="./animais-floresta.js?v=20"></script>
 <script defer src="./vida-aquatica.js?v=7"></script>
 <script defer src="./ecossistema-v1232.js?v=largo-8"></script>

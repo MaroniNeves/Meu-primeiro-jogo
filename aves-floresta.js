@@ -131,16 +131,18 @@ function owlKitBuild(Merger){
    const ponta=c3(hx(cor,P.dark,.55));Bd.add(g,null,null,barras?(px,py,pz)=>{const t=((px-x)*dx+(pz-z)*dz)/len;return Math.sin(t*PI*2*barras)>.82&&t>.12?bar:base;}:(px,py,pz)=>{const t=((px-x)*dx+(pz-z)*dz)/len;return t>.8?ponta:base;});};
   const arm=B(),armCov=B(),hand=B(),dk=P.dark,wg=P.wing,cv1=hx(P.cov,P.wing,.35),cv2=P.cov,cv3=hx(P.cov,P.wing,.2);
   arm.sweep([[0,0,.18],[ARM*.5,.008,.195],[ARM,0,.185]],[[.035,.04],[.032,.036],[.03,.032]],{n:10,m:12,ca:.3,cb:.2},cv3);          // bordo de ataque grosso (o "braço")
-  for(let i=0;i<7;i++)pena(arm,.01+i*.052,-.004,.06,.44-i*.03,.11,.016,.16+i*.02,i%2?wg:dk,2);                               // secundárias
-  for(let i=0;i<7;i++)pena(armCov,i*.053,.022,.13,.22-i*.008,.1,.012,.1+i*.02,cv1,0);                                                 // coberteiras grandes
-  for(let i=0;i<8;i++)pena(armCov,i*.047,.034,.18,.13,.085,.01,.06+i*.01,cv2,0);                                                   // coberteiras médias
-  hand.sweep([[0,0,.18],[.12,.005,.17],[.22,0,.14]],[[.032,.032],[.028,.028],[.018,.018]],{n:8,m:12,ca:.2,cb:.3},cv3);
+  // penas do braço também giram: abertas = bordo de trás da asa de voo; dobradas = apontam para trás e para baixo (asa em gota até a cauda)
+  const lequeArm=[];
+  for(let i=0;i<7;i++)lequeArm.push({geo:penaGeo(.5-i*.033,.115,.016,i%2?wg:dk,2),x:.01+i*.052,y:-.004-i*.002,z:.06,aberta:-.05+i*.015,fechada:.8-i*.045,tinta:1});                               // secundárias
+  for(let i=0;i<7;i++)lequeArm.push({geo:penaGeo(.24-i*.012,.105,.012,cv1,0),x:i*.053,y:.022,z:.13,aberta:-.06+i*.015,fechada:.75-i*.04});                                                 // coberteiras grandes
+  for(let i=0;i<8;i++)lequeArm.push({geo:penaGeo(.14,.09,.01,cv2,0),x:i*.047,y:.034,z:.18,aberta:-.02+i*.01,fechada:.7-i*.03});                                                   // coberteiras médias
+  hand.sweep([[0,0,.18],[.12,.005,.17],[.22,0,.14]],[[.022,.022],[.019,.019],[.013,.013]],{n:8,m:12,ca:.2,cb:.3},cv3);
   const leque=[];   // {geo,x,y,z,aberta,fechada}: aberta = leque da asa de voo; fechada = quase paralelas (asa dobrada)
   for(let i=0;i<7;i++)leque.push({geo:penaGeo(.44+i*.035,.085,.014,i%2?dk:wg,3),x:.02+i*.032,y:-.006-i*.003,z:.1-i*.01,aberta:-.25-i*.19,fechada:-1.38-i*.02});   // primárias
-  for(let i=0;i<6;i++)leque.push({geo:penaGeo(.16,.085,.012,cv1,0),x:i*.04,y:.02,z:.15-i*.008,aberta:-.3-i*.2,fechada:-1.42-i*.015});
-  for(let i=0;i<5;i++)leque.push({geo:penaGeo(.11,.075,.011,cv2,0),x:i*.04,y:.034,z:.18-i*.01,aberta:-.2-i*.18,fechada:-1.42-i*.015});
+  for(let i=0;i<6;i++)leque.push({geo:penaGeo(.12,.07,.01,cv1,0),x:i*.04,y:.02,z:.15-i*.008,aberta:-.3-i*.2,fechada:-1.42-i*.015,some:1});
+  for(let i=0;i<5;i++)leque.push({geo:penaGeo(.08,.06,.009,cv2,0),x:i*.04,y:.034,z:.18-i*.01,aberta:-.2-i*.18,fechada:-1.42-i*.015,some:1});
 
-  return {P,mat,skin,eyes:eyes.build(),beak:beak.build(),tufts:tufts.build(),lid:lid.build(),arm:arm.build(),armCov:armCov.build(),hand:hand.build(),leque,tail:tail.build(),feet:feet.build()};});
+  return {P,mat,skin,eyes:eyes.build(),beak:beak.build(),tufts:tufts.build(),lid:lid.build(),arm:arm.build(),hand:hand.build(),leque,lequeArm,tail:tail.build(),feet:feet.build()};});
 }
 function makeOwlFrom(owlKit,k){const P=owlKit[k!=null?k:(Math.random()*owlKit.length)|0],g=new T.Group(),inner=new T.Group();g.add(inner);inner.scale.setScalar(rr(.42,.5));
  const withInk=(geo,m)=>{const me=new T.Mesh(geo,m||P.mat);me.castShadow=true;me.add(new T.Mesh(geo,owlInk));return me;};
@@ -153,19 +155,20 @@ function makeOwlFrom(owlKit,k){const P=owlKit[k!=null?k:(Math.random()*owlKit.le
  body.add(withInk(P.tail),withInk(P.feet));
  // asas: o jogo mexe em "root"/"tip" (visível = voando, rotation.z = batida); a asa de verdade segue isso dobrando/abrindo
  const wings=[],asas=[],qF=new T.Quaternion(),qO=new T.Quaternion(),qT=new T.Quaternion(),eu=new T.Euler();
- {const a=new T.Vector3(0,-.25,.97).normalize(),X=new T.Vector3(1,0,0),z=new T.Vector3().crossVectors(a,X);qF.setFromRotationMatrix(new T.Matrix4().makeBasis(a,X,z));qF.premultiply(new T.Quaternion().setFromEuler(new T.Euler(0,.22,0)));}   // e acompanha a curva do corpo (traseira para dentro)   // dobrada (lado direito): braço p/ frente, penas p/ baixo
+ {const a=new T.Vector3(0,-.25,.97).normalize(),X=new T.Vector3(1,0,0),z=new T.Vector3().crossVectors(a,X);qF.setFromRotationMatrix(new T.Matrix4().makeBasis(a,X,z));qF.premultiply(new T.Quaternion().setFromEuler(new T.Euler(-.55,.12,0,'YXZ')));}   // inclina para baixo atrás (pontas na cauda) e acompanha a curva do corpo   // e acompanha a curva do corpo (traseira para dentro)   // dobrada (lado direito): braço p/ frente, penas p/ baixo
  const qTF=new T.Quaternion().setFromEuler(new T.Euler(0,2.69,0));                                                            // punho dobrado: mão volta por cima do braço
  for(const s of [-1,1]){const sh=new T.Group();sh.position.set(s*.235,.8,-.16);body.add(sh);const mir=new T.Group();mir.scale.x=s;sh.add(mir);
-  mir.add(withInk(P.arm),new T.Mesh(P.armCov,P.mat));const wr=new T.Group();wr.position.x=.34;mir.add(wr);wr.add(withInk(P.hand));
+  mir.add(withInk(P.arm));
+  const penasB=P.lequeArm.map(p=>{const m=p.tinta?withInk(p.geo):new T.Mesh(p.geo,P.mat);m.position.set(p.x,p.y,p.z);m.rotation.y=p.fechada;mir.add(m);return {m,p};});const wr=new T.Group();wr.position.x=.34;mir.add(wr);const mao=withInk(P.hand);wr.add(mao);
   const penas=P.leque.map(p=>{const m=withInk(p.geo);m.position.set(p.x,p.y,p.z);m.rotation.y=p.fechada;wr.add(m);return {m,p};});
   const root=new T.Group(),tip=new T.Group();root.add(tip);root.visible=false;wings.push({s,root,tip});
-  const f=s>0?qF.clone():new T.Quaternion(qF.x,-qF.y,-qF.z,qF.w);asas.push({s,sh,wr,root,tip,qF:f,k:0,penas});}
+  const f=s>0?qF.clone():new T.Quaternion(qF.x,-qF.y,-qF.z,qF.w);asas.push({s,sh,wr,root,tip,qF:f,k:0,mao,penas:penas.concat(penasB)});}
  // "head" é quem o jogo gira (y = virar, z = inclinar); sync() reparte o giro pelos ossos do pescoço
  const head=new T.Object3D();
  const sync=()=>{const y=head.rotation.y/4;n1.rotation.y=n2.rotation.y=n3.rotation.y=hb.rotation.y=y;hb.rotation.z=head.rotation.z;for(const l of lids)l.visible=l.scale.y>.3;
   for(const A of asas){A.k+=((A.root.visible?1:0)-A.k)*.14;const k=A.k*A.k*(3-2*A.k);
    qO.setFromEuler(eu.set(0,0,A.root.rotation.z*k));A.sh.quaternion.copy(A.qF).slerp(qO,k);
-   qT.setFromEuler(eu.set(0,0,A.tip.rotation.z*k));A.wr.quaternion.copy(qTF).slerp(qT,k);A.wr.position.y=.03*(1-k);A.sh.position.x=A.s*(.235+.125*(1-k));A.sh.position.y=.8-.03*(1-k);for(const q of A.penas)q.m.rotation.y=q.p.fechada+(q.p.aberta-q.p.fechada)*k;}};
+   qT.setFromEuler(eu.set(0,0,A.tip.rotation.z*k));A.wr.quaternion.copy(qTF).slerp(qT,k);A.wr.position.y=.012*(1-k);A.sh.position.x=A.s*(.235+.06*(1-k));A.sh.position.y=.8-.1*(1-k);A.sh.position.z=-.16+.04*(1-k);for(const q of A.penas){q.m.rotation.y=q.p.fechada+(q.p.aberta-q.p.fechada)*k;if(q.p.some){q.m.visible=k>.12;q.m.scale.setScalar(.15+.85*k);}}A.mao.scale.setScalar(.5+.5*k);}};   // dobrada: as penas pequenas da mão se escondem
  g.visible=false;return {g,inner,head,lids,wings,sync,ph:rr(0,TAU),vx:0,vy:0,vz:0,x:0,y:0,z:0,st:'sleep',t:0};}
 window.arcanoKitAves={SPECIES,kit,owlKitBuild,makeOwlFrom,wingsFly,wingsFold};
 
