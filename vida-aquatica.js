@@ -210,8 +210,9 @@ function kitAgua(Merger){
    // pescoço e cabeça numa peça só: um tubo que sobe do peito, curva para a frente e engrossa na cabeça (sem “bolinha em cima do pescoço”)
    {const KEY=[[0,.2,.14],[0,.32,.205],[0,.42,.238],[0,.485,.252],[0,.525,.292],[0,.523,.338],[0,.507,.385],[0,.49,.435],[0,.479,.49],[0,.474,.53]],cur=new T.CatmullRomCurve3(KEY.map(k=>new T.Vector3(...k)));
     const PR=[[.1,.1],[.084,.084],[.069,.071],[.077,.083],[.083,.088],[.072,.07],[.054,.045],[.043,.028],[.046,.021],[.044,.018]],n=110,m=40,X=new T.Vector3(1,0,0),up=new T.Vector3(),pos=[],idx=[];
-    for(let i=0;i<=n;i++){const s=i/n,P=cur.getPoint(s),tg=cur.getTangent(s);up.crossVectors(X,tg).normalize();
-     const fp=s*(PR.length-1),k=Math.min(PR.length-2,Math.floor(fp)),t=fp-k,e=t*t*(3-2*t),w=PR[k][0]+(PR[k+1][0]-PR[k][0])*e,d=PR[k][1]+(PR[k+1][1]-PR[k][1])*e;
+    const PHI=[.25,.3,.36,.72,1.28,1.6,1.8,1.82,1.76,1.72],cPh=new T.CatmullRomCurve3(PHI.map(p=>new T.Vector3(p,0,0))),cPr=new T.CatmullRomCurve3(PR.map(p=>new T.Vector3(p[0],p[1],0)));
+    for(let i=0;i<=n;i++){const s=i/n,P=cur.getPoint(s),ph=cPh.getPoint(s).x,wd=cPr.getPoint(s);up.set(0,-Math.sin(ph),Math.cos(ph));
+     const w=wd.x,d=wd.y;
      let cap=1;if(s<.04)cap=Math.sqrt(Math.max(0,1-(1-s/.04)**2));if(s>.94)cap=Math.min(cap,Math.sqrt(Math.max(0,1-(1-(1-s)/.06)**2)));
      for(let j=0;j<m;j++){const a=j/m*TAU;pos.push(P.x+Math.cos(a)*w*cap,P.y+up.y*Math.sin(a)*d*cap,P.z+up.z*Math.sin(a)*d*cap);}}
     for(let i=0;i<n;i++)for(let j=0;j<m;j++){const a=i*m+j,b=i*m+(j+1)%m,cq=(i+1)*m+j,dq=(i+1)*m+(j+1)%m;idx.push(a,cq,b,b,cq,dq);}
