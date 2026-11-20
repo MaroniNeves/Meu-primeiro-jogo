@@ -201,11 +201,12 @@ function kitAgua(Merger){
    elR(0,.15,-.01,.14,.13,.17,-.1,am,22);
    elR(0,.31,.06,.105,.1,.1,0,am,22);
    elR(0,.17,-.17,.05,.04,.05,-.5,am,12);
-   for(const k of [-1,1])elR(k*.12,.18,-.03,.04,.06,.1,.15,(x,y,z,nx,ny,nz,cc)=>{am(x,y,z,nx,ny,nz,cc);cc.lerp(c('#d9b23a'),.25);},14);
    elR(0,.29,.165,.04,.02,.05,.25,(x,y,z,nx,ny,nz,cc)=>cc.copy(c(laranja)),12);
    for(const k of [-1,1]){B.ell(k*.075,.33,.12,.016,.022,.022,'#0b0b0c',null,10);B.ell(k*.085,.338,.13,.006,.007,.007,'#ffffff',null,6);pe(k,.05,.02,-.05,.5);}}
   return B.build();}
  const dMat=new T.MeshStandardMaterial({vertexColors:true,roughness:.8,side:T.DoubleSide}),DG=[duckGeo(true),duckGeo(false)];
+ const nubG=(()=>{const B=window.arcanoIB(),g=new T.SphereGeometry(1,16,11);g.scale(.04,.06,.1);g.rotateX(.15);g.translate(0,-.05,-.06);
+  B.add(g,null,(x,y,z,nx,ny,nz,cc)=>{cc.set('#f4d65a');cc.lerp(new T.Color('#d9b23a'),.25+Math.max(0,-ny)*.2);});return B.build();})();
  const wingG=(()=>{const g=new T.PlaneGeometry(1,1,42,22),p=g.attributes.position,c=h=>new T.Color(h);
   for(let i=0;i<p.count;i++){const u=p.getX(i)+.5,v=.5-p.getY(i),fr=.11-.07*u*u,ch=.24-.06*u+.05*Math.sin(Math.min(1,u*1.3)*PI)+.035*Math.abs(Math.sin(u*PI*7)),z=fr-v*ch,x=u*.6;p.setXYZ(i,x,-.01*Math.sin(u*PI)+.02*v,z);}
   g.computeVertexNormals();const B=window.arcanoIB();B.add(g,null,(x,y,z,nx,ny,nz,cc)=>{const u=x/.6;cc.copy(c('#8a6f52'));if(u>.62)cc.lerp(c('#4e3c2c'),.75);if(Math.sin(u*PI*7)>.82&&u>.15)cc.lerp(c('#5e4a36'),.5);
@@ -223,7 +224,7 @@ function kitAgua(Merger){
    B.perna([[k*.05,.13,.08],[k*.3,.3,.22],[k*.62,.12,.48],[k*.78,0,.62]],.013,.006,pata);
    B.perna([[k*.05,.13,-.04],[k*.28,.28,-.2],[k*.55,.1,-.62],[k*.66,0,-.8]],.013,.006,pata);}
   return B.build();})();
- return {uT,fishGeo,SP,fishMat,fishInk,turtleGeo,legGeo,tMat,duckGeo,dMat,DG,wingG,strGeo,patoInk,patoInkF};}
+ return {uT,fishGeo,SP,fishMat,fishInk,turtleGeo,legGeo,tMat,duckGeo,dMat,DG,wingG,strGeo,patoInk,patoInkF,nubG};}
 /* ---------- tartaruga (estilo da referência) ----------
    Casco abaulado com placas hexagonais (borda marrom larga, anel amarelo, centro claro com contorno fino) e uma
    fileira de placas marginais retangulares; plastrão amarelo aparecendo sob a borda. Corpo dentro do casco: patas
@@ -321,7 +322,7 @@ function asaPatoGeo(px,py,pz){
    A.set(.014*u,-.15+.15*u,-.01+.05*su);B2.set(.26*u,.012*su,.03-.07*u*u);O.copy(A).multiplyScalar(f).addScaledVector(B2,s);
    const an=1.2*Math.pow(u,1.6);A.set(0,-.12+.1*u,-1).normalize();B2.set(Math.sin(an),-.03,-Math.cos(an));Cv.copy(A).multiplyScalar(f).addScaledVector(B2,s).normalize();
    A.set(1,0,0);B2.set(0,1,0);N.copy(A).multiplyScalar(f).addScaledVector(B2,s);N.addScaledVector(Cv,-N.dot(Cv)).normalize();
-   const L=(.23+.2*u)*(.78+.22*Math.min(1,u*4))*(1+.075*Math.sqrt(Math.abs(Math.sin(u*PI*(u>.55?6:9))))-.03),T0=.034*Math.pow(su,.45);
+   const L=(.23+.2*u)*(.78+.22*Math.min(1,u*4))*(1+.075*Math.sqrt(Math.abs(Math.sin(u*PI*(u>.55?6:9))))-.03)*(1-s*.3*ss(Math.max(0,Math.min(1,(u-.74)/.14)))*Math.pow(1-Math.abs(Math.sin(u*PI*9)),2.5)),T0=.034*Math.pow(su,.45);
    for(let j=0;j<NT;j++){const th=j/NT*TAU,cv=.5-.5*Math.cos(th),side=Math.sin(th),o=(i*NT+j)*3,t=T0*(1-.8*cv)*side;
     // dobrada: a ponta das penas acompanha o corpo (fecha para dentro e sobe um pouco até a cauda)
     const mx=O.x+Cv.x*L*cv,my=O.y+Cv.y*L*cv,mz=O.z+Cv.z*L*cv,x=mx+N.x*t+f*(hug(my+py,mz+pz)+.03-px-mx),y=my+N.y*t,z=mz+N.z*t;
@@ -332,7 +333,10 @@ function duckModel(K,adult,s){const g=new T.Group(),m=new T.Mesh(adult?K.DG[0]:K
  let asa=null,ag2=null;if(adult){const ag=asaPatoGeo(.15,.33,.1);ag2=ag;asa=k=>ag.pose(k);for(const s of [-1,1]){const r=new T.Group();r.position.set(s*.15,.33,.1);r.scale.x=s;m.add(r);const w=new T.Mesh(ag,K.dMat);if(K.patoInk){const k=new T.Mesh(ag,K.patoInk);k.userData.ink=true;w.add(k);}r.add(w);wings.push({r,s});}}
  const voo=(wk,ph)=>{if(!asa)return;const e=wk*wk*(3-2*wk),c=Math.cos(ph),sn=Math.sin(ph);ag2.pose(wk*(1-.2*Math.max(0,c)*e),-.75*c*e);
   for(const w of wings)w.r.rotation.z=w.s*(.12+.85*sn)*e;};
- return {g,m,wings,asa:k=>{if(asa)asa(k);},voo};}
+ const tocos=[];if(!adult&&K.nubG)for(const s of [-1,1]){const r=new T.Group();r.position.set(s*.12,.23,.03);r.scale.x=s;m.add(r);const w=new T.Mesh(K.nubG,K.dMat);if(K.patoInkF){const k=new T.Mesh(K.nubG,K.patoInkF);k.userData.ink=true;w.add(k);}r.add(w);tocos.push({r,s});}
+ // a = 0 recolhido … 1 aberto para o lado
+ const bater=a=>{for(const t of tocos){t.r.rotation.y=-t.s*a*.95;t.r.rotation.z=t.s*a*.7;}};
+ return {g,m,wings,asa:k=>{if(asa)asa(k);},voo,bater};}
 
 window.arcanoKitAgua={kitAgua,turtleModel,duckModel};
 
@@ -433,8 +437,8 @@ function install(){
 
  /* ================= PATOS (mãe e filhotes) ================= */
  const families=[],FAM=mobile?1:2;
- function makeDuck(adult,x,z,w){const {g,m,wings,asa,voo}=duckModel(KA,adult,adult?rr(1.05,1.2):rr(.5,.6));
-  g.position.set(x,w.level-.04,z);root.add(g);return {g,m,wings,asa,voo,wk:0,x,z,y:w.level-.04,yaw:rr(0,TAU),ph:rr(0,TAU)};}
+ function makeDuck(adult,x,z,w){const {g,m,wings,asa,voo,bater}=duckModel(KA,adult,adult?rr(1.05,1.2):rr(.5,.6));
+  g.position.set(x,w.level-.04,z);root.add(g);return {g,m,wings,asa,voo,bater,fl:0,wk:0,x,z,y:w.level-.04,yaw:rr(0,TAU),ph:rr(0,TAU)};}
  function spawnFamily(){const s=spot('koi',state.px,state.pz,10,40);if(!s||s.w.depth<.5)return;
   const F={mom:makeDuck(true,s.x,s.z,s.w),kids:[],st:'swim',tx:s.x,tz:s.z,t:0,home:{x:s.x,z:s.z}};const n=3+((Math.random()*3)|0);
   for(let i=0;i<n;i++)F.kids.push(makeDuck(false,s.x-i*.4-.4,s.z,s.w));families.push(F);}
@@ -462,6 +466,7 @@ function install(){
    const w=water(m.x,m.z);if(w)m.y=w.level-.04+Math.sin(state.t*2+m.ph)*.01;}
   // filhotes em fila atrás da mãe
   let lead=m;for(const k of F.kids){const gap=lead===m?.55:.28,bx=lead.x-Math.sin(lead.yaw)*gap,bz=lead.z-Math.cos(lead.yaw)*gap;swimTo(k,bx,bz,F.st==='fly'?1.8:F.st==='flee'?1.4:.6,true);
+   if((F.st!=='swim'&&Math.random()<dt*2)||Math.random()<dt*.04)k.fl=Math.max(k.fl,rr(.5,1.1));k.fl=Math.max(0,k.fl-dt);k.bater(k.fl>0?(.55+.45*Math.sin(state.t*32+k.ph*5))*Math.min(1,k.fl*4):0);
    const w=water(k.x,k.z);if(w)k.y=w.level-.03+Math.sin(state.t*3+k.ph)*.012;k.g.position.set(k.x,k.y,k.z);k.g.rotation.y=k.yaw;lead=k;}
   m.g.position.set(m.x,m.y,m.z);m.g.rotation.y=m.yaw;}
 
