@@ -30,53 +30,62 @@ function Merger(){const P=[],N=[],C=[],tmp=new T.Color();
   ball(x,y,z,r,color,sx,sy,sz){const g=new T.SphereGeometry(r,12,9);g.scale(sx||1,sy||1,sz||1);g.translate(x,y,z);this.add(g,color);},
   build(){const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(P,3));g.setAttribute('normal',new T.Float32BufferAttribute(N,3));g.setAttribute('color',new T.Float32BufferAttribute(C,3));return g;}};}
 
-/* ---------- SAPO: corpo pintado, olhos, patas da frente; patas de trás articuladas ---------- */
+/* ---------- SAPO (desenho de referência): sentado com o corpo inclinado e a cabeça erguida, verde com manchas
+   escuras, garganta e barriga amarelo-claras, olhos grandes no alto (branco, pupila preta, pálpebra verde),
+   braços retos com 4 dedos de ponta redonda, pernas de trás grandes dobradas com dedos longos. Contorno escuro.
+   Mesmas peças de antes (corpo, coxa, canela, pé, papo, língua) para a animação continuar igual. ---------- */
+const sapoInk=new T.MeshBasicMaterial({color:'#1e1a16',side:T.BackSide});
+sapoInk.onBeforeCompile=sh=>{sh.vertexShader=sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\n transformed+=normal*.03;');};
+sapoInk.customProgramCacheKey=()=>'sapo-ink-v1';
 function frogParts(){
- const skin=new T.MeshStandardMaterial({vertexColors:true,roughness:.55});
- const B=Merger();
- {const g=new T.SphereGeometry(1,22,16).toNonIndexed(),p=g.attributes.position,col=new Float32Array(p.count*3),c=new T.Color();
-  for(let i=0;i<p.count;i++){let x=p.getX(i),y=p.getY(i),z=p.getZ(i);const ny=y;
-   const top=[.26,.58,.18],dark=[.12,.34,.12],belly=[.93,.9,.68],stripe=[.78,.76,.3];
-   const spot=Math.sin(x*9+z*7)*Math.sin(z*11-x*5)+.5*Math.sin(x*17+z*13);
-   let cc=spot>.55?dark:top;
-   if(ny>.25&&Math.abs(Math.abs(x)-.62)<.1&&z<.6)cc=stripe;       // dobras claras nas costas
-   const k=sstep((-ny+.05)/.4);c.setRGB(lerp(cc[0],belly[0],k),lerp(cc[1],belly[1],k),lerp(cc[2],belly[2],k));
-   if(z>.25&&Math.abs(ny+.06)<.035)c.setRGB(.1,.2,.1);              // risco da boca
-   x*=.62*(1-.22*sstep((-z+.1)/1.1));y*=.46*(1-.2*sstep((-z)/1))*(1-.28*sstep((z-.35)/.65));z*=.92;
-   if(ny>0)y+=.09*Math.exp(-Math.pow((z+.1)/.45,2));                // corcunda
-   p.setXYZ(i,x,y,z);col.set([c.r,c.g,c.b],i*3);}
-  g.setAttribute('color',new T.BufferAttribute(col,3));B.add(g);}
+ const skin=new T.MeshStandardMaterial({vertexColors:true,roughness:.6});
+ const c=h=>new T.Color(h),verde=c('#5b8f37'),escuro=c('#36602a'),claro=c('#e6cd78'),lado=c('#6a9a42');
+ const manchas=(x,y,z)=>Math.sin(x*7.1+z*5.3)*Math.sin(z*8.7-x*3.1+y*4)+.6*Math.sin(x*13+z*11+y*6);
+ const pele=(barriga)=>(x,y,z,nx,ny,nz,cc)=>{cc.copy(verde);cc.lerp(lado,Math.max(0,-ny)*.4);
+  if(ny>-.1&&manchas(x,y,z)>.5)cc.copy(escuro);
+  if(barriga&&(ny<-.5||(nz>.5&&y<.17&&y>-.45&&Math.abs(x)<.3)))cc.copy(claro);};
+ const elR=(B,x,y,z,rx,ry,rz,rot,fn,seg)=>{const g=new T.SphereGeometry(1,seg||22,Math.max(10,((seg||22)*.7)|0));g.scale(rx,ry,rz);g.rotateX(rot||0);g.translate(x,y,z);B.add(g,null,fn);};
+ const B=IB();
+ // tronco inclinado (frente para cima) + cabeça larga e achatada
+ elR(B,0,-.08,-.1,.55,.42,.62,-.68,pele(true),26);
+ elR(B,0,.2,.42,.5,.29,.44,-.12,pele(true),26);
+ elR(B,0,.13,.72,.34,.17,.18,.1,pele(true),18);
+ // olhos: bolsa verde no alto, branco grande, pupila preta, brilho
  for(const s of [-1,1]){
-  B.ball(s*.3,.3,.5,.21,'#3f8f2a');                                   // calombo do olho
-  B.ball(s*.33,.36,.55,.165,'#e9b93a');                               // olho dourado
-  B.ball(s*.42,.385,.63,.09,'#0b0b0b',.55,.5,1);                      // pupila
-  B.ball(s*.405,.44,.6,.03,'#ffffff');                                // brilho
-  B.ball(s*.11,.17,.87,.025,'#12240f');                               // narina
-  // pata da frente: braço, antebraço e mão com 4 dedos
-  B.limb([s*.4,-.12,.36],[s*.62,-.36,.42],.11,'#3f8f2a',.08);
-  B.limb([s*.62,-.36,.42],[s*.54,-.5,.64],.08,'#4a9a30',.06);
-  for(let k=0;k<4;k++){const a=(k-1.5)*.42*s;B.limb([s*.54,-.5,.64],[s*.54+Math.sin(a)*.24,-.52,.64+Math.cos(a)*.24],.035,'#6fb845',.028);B.ball(s*.54+Math.sin(a)*.25,-.52,.64+Math.cos(a)*.25,.042,'#c9d67a');}
- }
+  elR(B,s*.28,.42,.46,.19,.17,.18,0,pele(false),18);
+  B.ell(s*.31,.43,.52,.15,.15,.14,'#f4f3ee',null,18);
+  B.ell(s*.35,.44,.58,.11,.115,.1,'#0b0b0c',null,16);
+  B.ell(s*.37,.49,.65,.03,.03,.025,'#ffffff',null,8);
+  B.ell(s*.27,.55,.47,.17,.07,.15,null,pele(false),16);
+  B.ell(s*.09,.27,.86,.022,.016,.014,'#1e2a16',null,8);
+  B.perna([[s*.07,.1,.88],[s*.24,.09,.77],[s*.4,.12,.55],[s*.46,.16,.38]],.012,.01,'#2a3a1e');
+  // braço reto até o chão e mão com 4 dedos de ponta redonda
+  B.perna([[s*.36,-.02,.36],[s*.44,-.3,.48],[s*.46,-.5,.56]],.085,.06,'#5f9a3a');
+  for(let k=0;k<4;k++){const a=(k-1.6)*.42,ex=s*.46+Math.sin(a)*s*.24,ez=.56+Math.cos(a)*.24;B.perna([[s*.46,-.52,.56],[ (s*.46+ex)/2,-.54,(.56+ez)/2],[ex,-.545,ez]],.03,.024,'#5f9a3a');B.ell(ex,-.545,ez,.038,.026,.038,'#6aa544',null,8);}}
  const body=B.build();
- // pata de trás (lado direito; a esquerda é espelhada): coxa, canela e pé com membranas — cada parte ao longo de +z
- const seg=(r0,r1,L,color,extra)=>{const m=Merger();m.limb([0,0,0],[0,0,L],r0,color,r1);if(extra)extra(m);return m.build();};
- const thigh=seg(.17,.13,.7,'#3f8f2a'),shin=seg(.12,.085,.72,'#4a9a30');
- const foot=seg(.075,.05,.5,'#5aa838',m=>{for(let k=0;k<4;k++){const a=(k-1.5)*.34;m.limb([0,0,.45],[Math.sin(a)*.42,0,.45+Math.cos(a)*.42],.035,'#6fb845',.025);m.ball(Math.sin(a)*.43,0,.45+Math.cos(a)*.43,.04,'#c9d67a');}
-  const sh=new T.Shape();sh.moveTo(0,.4);for(let k=0;k<4;k++){const a=(k-1.5)*.34;sh.lineTo(Math.sin(a)*.36,.45+Math.cos(a)*.36);}sh.lineTo(0,.4);const w=new T.ShapeGeometry(sh);w.rotateX(PI/2);m.add(w,'#9cc45a');const w2=w.clone();w2.scale(1,-1,1);w2.translate(0,-.004,0);m.add(w2,'#9cc45a');});
- const throat=new T.SphereGeometry(.27,12,9),tongue=new T.CylinderGeometry(.035,.05,1,6);tongue.translate(0,.5,0);tongue.rotateX(PI/2);
+ // pata de trás (lado direito; a esquerda é espelhada): coxa, canela e pé com dedos longos — cada parte ao longo de +z
+ const seg=(r0,r1,L,extra)=>{const S=IB();S.perna([[0,0,0],[0,0,L*.5],[0,0,L]],r0,r1,'#5f9a3a');if(extra)extra(S);const g=S.build();
+  const p=g.attributes.position,n=g.attributes.normal,col=g.attributes.color,cc=new T.Color(),f=pele(false);
+  for(let i=0;i<p.count;i++){if(col.getX(i)>.9&&col.getY(i)>.9)continue;f(p.getX(i)*2,p.getY(i)*2,p.getZ(i)*2+1,n.getX(i),n.getY(i),n.getZ(i),cc);col.setXYZ(i,cc.r,cc.g,cc.b);}return g;};
+ const thigh=seg(.2,.14,.7),shin=seg(.13,.09,.72);
+ const foot=seg(.08,.055,.42,S=>{for(let k=0;k<5;k++){const a=(k-2)*.3,ex=Math.sin(a)*.5,ez=.4+Math.cos(a)*.5;S.perna([[0,0,.4],[ex*.5,0,(.4+ez)/2],[ex,0,ez]],.032,.024,'#5f9a3a');S.ell(ex,0,ez,.042,.03,.042,'#ffffff',null,8);}
+  const sh=new T.Shape();sh.moveTo(0,.4);for(let k=0;k<5;k++){const a=(k-2)*.3;sh.lineTo(Math.sin(a)*.38,.4+Math.cos(a)*.38);}sh.lineTo(0,.4);const w=new T.ShapeGeometry(sh);w.rotateX(PI/2);S.add(w,'#86ba5a');});
+ {const col=foot.attributes.color;for(let i=0;i<col.count;i++)if(col.getX(i)>.99&&col.getY(i)>.99&&col.getZ(i)>.99)col.setXYZ(i,.42,.66,.29);}
+ const throat=new T.SphereGeometry(.24,16,12),tongue=new T.CylinderGeometry(.035,.05,1,6);tongue.translate(0,.5,0);tongue.rotateX(PI/2);
  return {skin,body,thigh,shin,foot,throat,tongue,
-  throatMat:new T.MeshStandardMaterial({color:'#efe9b8',roughness:.5}),tongueMat:new T.MeshStandardMaterial({color:'#e8748a',roughness:.4})};
+  throatMat:new T.MeshStandardMaterial({color:'#ecd37e',roughness:.55}),tongueMat:new T.MeshStandardMaterial({color:'#e8748a',roughness:.4})};
 }
 function makeFrog(FP,size){
  const g=new T.Group(),inner=new T.Group();g.add(inner);inner.scale.setScalar(size);inner.position.y=.56*size;
- const body=new T.Mesh(FP.body,FP.skin);inner.add(body);
- const throat=new T.Mesh(FP.throat,FP.throatMat);throat.position.set(0,-.24,.5);inner.add(throat);
- const tongue=new T.Mesh(FP.tongue,FP.tongueMat);tongue.position.set(0,-.04,.8);tongue.visible=false;inner.add(tongue);
+ const ink=m=>{m.add(new T.Mesh(m.geometry,sapoInk));return m;};
+ const body=ink(new T.Mesh(FP.body,FP.skin));inner.add(body);
+ const throat=new T.Mesh(FP.throat,FP.throatMat);throat.position.set(0,-.02,.6);inner.add(throat);
+ const tongue=new T.Mesh(FP.tongue,FP.tongueMat);tongue.position.set(0,.1,.82);tongue.visible=false;inner.add(tongue);
  const legs=[];
- for(const s of [-1,1]){const hip=new T.Group();hip.position.set(s*.38,-.18,-.42);inner.add(hip);
-  const th=new T.Mesh(FP.thigh,FP.skin);hip.add(th);const knee=new T.Group();knee.position.z=.7;hip.add(knee);
-  const sh=new T.Mesh(FP.shin,FP.skin);knee.add(sh);const ank=new T.Group();ank.position.z=.72;knee.add(ank);
-  const ft=new T.Mesh(FP.foot,FP.skin);ank.add(ft);legs.push({s,hip,knee,ank});}
+ for(const s of [-1,1]){const hip=new T.Group();hip.position.set(s*.4,-.3,-.45);inner.add(hip);
+  const th=ink(new T.Mesh(FP.thigh,FP.skin));hip.add(th);const knee=new T.Group();knee.position.z=.7;hip.add(knee);
+  const sh=ink(new T.Mesh(FP.shin,FP.skin));knee.add(sh);const ank=new T.Group();ank.position.z=.72;knee.add(ank);
+  const ft=ink(new T.Mesh(FP.foot,FP.skin));ank.add(ft);legs.push({s,hip,knee,ank});}
  g.traverse(o=>{if(o.isMesh){o.castShadow=false;o.receiveShadow=false;}});
  // e=0 sentado (pernas dobradas), e=1 esticado no pulo
  const pose=e=>{for(const L of legs){L.hip.rotation.order='YXZ';L.hip.rotation.y=L.s*lerp(.75,.22,e);L.hip.rotation.x=lerp(.12,2.55,e);L.knee.rotation.x=lerp(2.72,.35,e);L.ank.rotation.x=lerp(-2.78,.35,e);}};

@@ -96,6 +96,16 @@ function peixeNovo(tipo,alta){
    nadadeira([k*.1,-.1,.25],[k*.085,-.115,.13],[[k*.13,-.25,.18],[k*.145,-.33,.06],[k*.14,-.31,-.05],[k*.11,-.2,.05]],9,(u,v,cc)=>{cc.set('#c9def0');mix(cc,'#f1f6fb',sst(.3,1,v)*.5);},'#5a6d86');
    nadadeira([k*.07,-.125,.03],[k*.06,-.12,-.07],[[k*.09,-.24,-.01],[k*.1,-.29,-.1],[k*.09,-.25,-.15],[k*.07,-.17,-.09]],7,(u,v,cc)=>{cc.set('#cfe1f0');},'#5a6d86');}
   nadadeira([0,-.09,-.14],[0,-.06,-.22],[[0,-.17,-.18],[0,-.15,-.25],[0,-.08,-.25]],6,(u,v,cc)=>{cc.set('#f08a3a');});}
+ else if(tipo==='girino'){
+  // girino: cabeça-corpo oval cinza-escuro, olhinhos pretos com brilho, boca pequena; cauda com músculo e membrana clara
+  const B=corpo(.04,.5,[.04,.1,.14,.16,.165,.16,.145,.11,.07],[.04,.09,.125,.14,.145,.14,.125,.095,.06],[.04,.11,.15,.17,.175,.17,.155,.12,.07],
+   (s,cx,cy,cc)=>{cc.set('#4b4540');mix(cc,'#6a625a',sst(.3,.9,cy)*.35*Math.max(0,Math.sin(s*23+cx*9)));mix(cc,'#5a544c',sst(-.2,-.7,cy)*.6);});
+  for(const k of [-1,1]){const a=B.at(.8),xs=a.w*.86;bola(k*xs,a.ht*.28,a.z,.014,.034,.034,'#0b0b0c',12);bola(k*(xs+.01),a.ht*.28+.014,a.z+.014,.007,.011,.011,'#ffffff',6);
+   const q=B.at(.45);bola(k*q.w*.93,-q.hb*.2,q.z,.03,.05,.07,'#4f4943',10);}
+  bola(0,-.01,.5,.02,.008,.012,'#1e1a18',8);
+  corpo(-.5,.08,[.003,.012,.022,.032,.04,.046,.05,.052,.05],[.003,.01,.02,.03,.038,.044,.048,.05,.048],[.002,.007,.011,.015,.018,.021,.024,.026,.028],(s,cx,cy,cc)=>{cc.set('#5a534c');});
+  nadadeira([0,.04,.06],[0,0,-.5],[[0,.1,.04],[0,.15,-.08],[0,.16,-.22],[0,.12,-.36],[0,.06,-.46],[0,.01,-.5]],0,(u,v,cc)=>{cc.set('#a9a39a');mix(cc,'#cfcac1',v);},'#6d665e');
+  nadadeira([0,-.04,.06],[0,0,-.5],[[0,-.09,.04],[0,-.13,-.08],[0,-.14,-.22],[0,-.1,-.36],[0,-.05,-.46],[0,-.01,-.5]],0,(u,v,cc)=>{cc.set('#a9a39a');mix(cc,'#cfcac1',v);},'#6d665e');}
  else{
   const pele=(s,cx,cy,cc)=>{
    cc.set('#7a8a50');mix(cc,'#b4bc96',sst(.55,.1,cy));mix(cc,'#e89aa6',sst(.3,.05,Math.abs(cy+.02))*sst(.1,.3,s)*sst(.98,.85,s)*.85);mix(cc,'#eef0e8',sst(-.3,-.6,cy));
@@ -134,7 +144,7 @@ function kitAgua(Merger){
   koi:{w:.2,h:.21,eye:.03,fin:'#f6efe6',paint(x,y,z,c){const n=Math.sin(x*7+z*5)+Math.sin(z*9-x*3)+Math.sin(y*6+z*4);c.set('#f6f0e6');if(n>.4)c.set('#f07422');if(n>1.9)c.set('#18161a');if(y<-.4)c.set('#f6f0e6');}},
   truta:{w:.14,h:.19,eye:.03,fin:'#8a8a60',paint(x,y,z,c){const k=clamp((-y+.1)/.5,0,1);c.set('#5e6a3c').lerp(new T.Color('#eadfc4'),k);if(Math.abs(y+.02)<.12)c.lerp(new T.Color('#e88a8a'),.55);if(y>0&&Math.sin(x*41+z*37)*Math.sin(z*29)>.55)c.set('#2a2a1e');}},
   girino:{w:.36,h:.3,eye:.05,fin:'#3a3a30',paint(x,y,z,c){c.set(y>0?'#2a2a20':'#4a4a3a');}}};
- SP.lambari.novo='lambari';SP.koi.novo='koi';SP.truta.novo='truta';
+ SP.lambari.novo='lambari';SP.koi.novo='koi';SP.truta.novo='truta';SP.girino.novo='girino';
  const fishGeo=(sp,alta)=>sp.novo?peixeNovo(sp.novo,alta):fishGeoVelho(sp);
  const fishMat=new T.MeshStandardMaterial({vertexColors:true,roughness:.45,side:T.DoubleSide});
  fishMat.onBeforeCompile=sh=>{sh.uniforms.uT=uT;sh.vertexShader='attribute vec2 aSwim;uniform float uT;\n'+sh.vertexShader.replace('#include <begin_vertex>',
