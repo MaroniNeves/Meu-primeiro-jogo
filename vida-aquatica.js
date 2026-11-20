@@ -302,7 +302,7 @@ function turtleModel(K,s){const P=tartarugaKit(K),g=new T.Group(),inner=new T.Gr
    pontas das penas). As penas apontam sempre para trás; ao abrir, as raízes se espalham para fora e a ponta gira para o lado. */
 function asaPatoGeo(px,py,pz){
  // largura do corpo da pata (mesmas elipses do duckGeo) para a asa dobrada encostar nele
- const cr=Math.cos(.12),sr=Math.sin(.12),hug=(y,z)=>{const dy=y-.21,dz=z+.03,yl=dy*cr-dz*sr,zl=dy*sr+dz*cr,a=.2*Math.sqrt(Math.max(0,1-(yl/.15)**2-(zl/.31)**2)),b=Math.sqrt(Math.max(0,.0289-(y-.24)**2-(z-.15)**2));return Math.max(a,b,.05);};const NU=26,NT=44,P=new Float32Array((NU+1)*NT*3),C=new Float32Array((NU+1)*NT*3),I=[],cc=new T.Color(),c=h=>new T.Color(h);
+ const cr=Math.cos(.12),sr=Math.sin(.12),hug=(y,z)=>{const dy=y-.21,dz=z+.03,yl=dy*cr-dz*sr,zl=dy*sr+dz*cr,a=.2*Math.sqrt(Math.max(0,1-(yl/.15)**2-(zl/.31)**2)),b=Math.sqrt(Math.max(0,.0289-(y-.24)**2-(z-.15)**2));return Math.max(a,b,.05);};const NU=60,NT=44,P=new Float32Array((NU+1)*NT*3),C=new Float32Array((NU+1)*NT*3),I=[],cc=new T.Color(),c=h=>new T.Color(h);
  for(let i=0;i<=NU;i++)for(let j=0;j<NT;j++){const u=i/NU,th=j/NT*TAU,cv=.5-.5*Math.cos(th),o=(i*NT+j)*3;
   cc.copy(c('#86694c'));if(cv<.32)cc.lerp(c('#a4896b'),.45);
   {const q=Math.floor(u*9),r=Math.floor(cv*6),h=Math.abs(Math.sin(q*12.9+r*78.2)*437.5)%1,a=u*9-q-.5,b=cv*6-r-.5+(h-.5)*.3;if(cv<.5&&Math.abs(b+Math.abs(a)*.7)<.16&&Math.abs(a)<.36)cc.copy(c('#5a4431'));}
@@ -315,22 +315,24 @@ function asaPatoGeo(px,py,pz){
  const ss=x=>x*x*(3-2*x),O=new T.Vector3(),Cv=new T.Vector3(),N=new T.Vector3(),A=new T.Vector3(),B2=new T.Vector3();
  g.userData.k=-1;
  // k=0 dobrada, k=1 aberta
- g.pose=k=>{if(Math.abs(k-g.userData.k)<.002)return;g.userData.k=k;const s=ss(Math.max(0,Math.min(1,k))),f=1-s;
+ g.pose=(k,bd)=>{bd=bd||0;if(Math.abs(k-g.userData.k)<.002&&Math.abs(bd-(g.userData.bd||0))<.004)return;g.userData.k=k;g.userData.bd=bd;const s=ss(Math.max(0,Math.min(1,k))),f=1-s;
   for(let i=0;i<=NU;i++){const u=i/NU,su=Math.sin(PI*u);
    // dobrada: raízes descem do alto (primárias, u=1) para baixo (secundárias, u=0); frente arredondada; penas para trás
    A.set(.014*u,-.15+.15*u,-.01+.05*su);B2.set(.26*u,.012*su,.03-.07*u*u);O.copy(A).multiplyScalar(f).addScaledVector(B2,s);
    const an=1.2*Math.pow(u,1.6);A.set(0,-.12+.1*u,-1).normalize();B2.set(Math.sin(an),-.03,-Math.cos(an));Cv.copy(A).multiplyScalar(f).addScaledVector(B2,s).normalize();
    A.set(1,0,0);B2.set(0,1,0);N.copy(A).multiplyScalar(f).addScaledVector(B2,s);N.addScaledVector(Cv,-N.dot(Cv)).normalize();
-   const L=(.23+.2*u)*(.78+.22*Math.min(1,u*4))*(1+.05*Math.abs(Math.sin(u*PI*4.5))),T0=.034*Math.pow(su,.45);
+   const L=(.23+.2*u)*(.78+.22*Math.min(1,u*4))*(1+.075*Math.sqrt(Math.abs(Math.sin(u*PI*(u>.55?6:9))))-.03),T0=.034*Math.pow(su,.45);
    for(let j=0;j<NT;j++){const th=j/NT*TAU,cv=.5-.5*Math.cos(th),side=Math.sin(th),o=(i*NT+j)*3,t=T0*(1-.8*cv)*side;
     // dobrada: a ponta das penas acompanha o corpo (fecha para dentro e sobe um pouco até a cauda)
     const mx=O.x+Cv.x*L*cv,my=O.y+Cv.y*L*cv,mz=O.z+Cv.z*L*cv,x=mx+N.x*t+f*(hug(my+py,mz+pz)+.03-px-mx),y=my+N.y*t,z=mz+N.z*t;
-    P[o]=x;P[o+1]=y;P[o+2]=z;}}
+    if(bd&&u>.3){const wv=ss(Math.min(1,(u-.3)/.45))*bd*s,ca=Math.cos(wv),sa=Math.sin(wv),xw=.11,dx=x-xw;P[o]=xw+dx*ca-y*sa;P[o+1]=dx*sa+y*ca;}else{P[o]=x;P[o+1]=y;}P[o+2]=z;}}
   g.attributes.position.needsUpdate=true;g.computeVertexNormals();g.computeBoundingSphere();};
  g.pose(0);return g;}
 function duckModel(K,adult,s){const g=new T.Group(),m=new T.Mesh(adult?K.DG[0]:K.DG[1],K.dMat);g.add(m);if(K.patoInk){const k=new T.Mesh(m.geometry,adult?K.patoInk:(K.patoInkF||K.patoInk));k.userData.ink=true;m.add(k);}g.scale.setScalar(s);const wings=[];
- let asa=null;if(adult){const ag=asaPatoGeo(.15,.33,.1);asa=k=>ag.pose(k);for(const s of [-1,1]){const r=new T.Group();r.position.set(s*.15,.33,.1);r.scale.x=s;m.add(r);const w=new T.Mesh(ag,K.dMat);if(K.patoInk){const k=new T.Mesh(ag,K.patoInk);k.userData.ink=true;w.add(k);}r.add(w);wings.push({r,s});}}
- return {g,m,wings,asa:k=>{if(asa)asa(k);}};}
+ let asa=null,ag2=null;if(adult){const ag=asaPatoGeo(.15,.33,.1);ag2=ag;asa=k=>ag.pose(k);for(const s of [-1,1]){const r=new T.Group();r.position.set(s*.15,.33,.1);r.scale.x=s;m.add(r);const w=new T.Mesh(ag,K.dMat);if(K.patoInk){const k=new T.Mesh(ag,K.patoInk);k.userData.ink=true;w.add(k);}r.add(w);wings.push({r,s});}}
+ const voo=(wk,ph)=>{if(!asa)return;const e=wk*wk*(3-2*wk),c=Math.cos(ph),sn=Math.sin(ph);ag2.pose(wk*(1-.2*Math.max(0,c)*e),-.75*c*e);
+  for(const w of wings)w.r.rotation.z=w.s*(.12+.85*sn)*e;};
+ return {g,m,wings,asa:k=>{if(asa)asa(k);},voo};}
 
 window.arcanoKitAgua={kitAgua,turtleModel,duckModel};
 
@@ -431,8 +433,8 @@ function install(){
 
  /* ================= PATOS (mãe e filhotes) ================= */
  const families=[],FAM=mobile?1:2;
- function makeDuck(adult,x,z,w){const {g,m,wings,asa}=duckModel(KA,adult,adult?rr(1.05,1.2):rr(.5,.6));
-  g.position.set(x,w.level-.04,z);root.add(g);return {g,m,wings,asa,wk:0,x,z,y:w.level-.04,yaw:rr(0,TAU),ph:rr(0,TAU)};}
+ function makeDuck(adult,x,z,w){const {g,m,wings,asa,voo}=duckModel(KA,adult,adult?rr(1.05,1.2):rr(.5,.6));
+  g.position.set(x,w.level-.04,z);root.add(g);return {g,m,wings,asa,voo,wk:0,x,z,y:w.level-.04,yaw:rr(0,TAU),ph:rr(0,TAU)};}
  function spawnFamily(){const s=spot('koi',state.px,state.pz,10,40);if(!s||s.w.depth<.5)return;
   const F={mom:makeDuck(true,s.x,s.z,s.w),kids:[],st:'swim',tx:s.x,tz:s.z,t:0,home:{x:s.x,z:s.z}};const n=3+((Math.random()*3)|0);
   for(let i=0;i<n;i++)F.kids.push(makeDuck(false,s.x-i*.4-.4,s.z,s.w));families.push(F);}
@@ -443,7 +445,7 @@ function install(){
   const P=window.arcanoFundoAquatico&&window.arcanoFundoAquatico.pads;if(P)for(let i=0;i<P.length;i+=5){const dx=x-P[i],dz=z-P[i+2];if(Math.abs(dx)<1&&Math.abs(dz)<1&&dx*dx+dz*dz<(P[i+3]*.9+.12)**2)return false;}
   return true;}
  function updFamily(F,dt){const m=F.mom,dp=pDist(m.x,m.z),wet=playerWet();F.t-=dt;
-  {const alvo=F.st==='fly'?1:0;if(m.wk!==alvo||alvo){m.wk+=(alvo-m.wk)*Math.min(1,dt*(alvo?5:3));if(Math.abs(alvo-m.wk)<.003)m.wk=alvo;m.asa(m.wk);const e=m.wk*m.wk*(3-2*m.wk);for(const w of m.wings)w.r.rotation.z=w.s*(.2+.9*Math.sin(state.t*18))*e;}}
+  {const alvo=F.st==='fly'?1:0;if(m.wk!==alvo||alvo){m.wk+=(alvo-m.wk)*Math.min(1,dt*(alvo?5:3));if(Math.abs(alvo-m.wk)<.003)m.wk=alvo;m.voo(m.wk,state.t*15);}}
   const swimTo=(d,tx,tz,sp,lead)=>{const a=Math.atan2(tx-d.x,tz-d.z),dd=Math.hypot(tx-d.x,tz-d.z);if(dd<.05)return true;const st=Math.min(dd,sp*dt),w0=water(d.x,d.z),lv=w0?w0.level:d.y;
    if(lead&&dd>3.5){d.x+=(tx-d.x)*Math.min(1,dt*1.5);d.z+=(tz-d.z)*Math.min(1,dt*1.5);d.yaw+=angTo(d.yaw,a)*Math.min(1,dt*4);return true;}
    for(const o of [0,.45,-.45,.95,-.95,1.6,-1.6]){const yy=a+o,nx=d.x+Math.sin(yy)*Math.max(st,.12),nz=d.z+Math.cos(yy)*Math.max(st,.12),w=water(nx,nz);
