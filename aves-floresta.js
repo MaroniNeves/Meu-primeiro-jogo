@@ -97,10 +97,12 @@ function owlKitBuild(Merger){
    return gr(c,x,y,z);};
   const prims=[],K=window.arcanoPele;
   const add=(p,k,col,sc)=>prims.push({...p,bone:0,k,col,sc,sb:.05,reach:.12,boneFn:chain});
-  add(K.tubePrim([[0,.2,-.02],[0,.42,0],[0,.62,.01],[0,.8,0],[0,.92,-.01]],[[.17,.17],[.27,.26],[.3,.28],[.28,.26],[.245,.225]],{n:20,ca:.3,cb:.2}),.02,bodyCol);
-  add(K.ellPrim(0,.5,.05,.24,.29,.24),.08,bodyCol);              // barriga
-  add(K.ellPrim(0,.45,-.14,.2,.24,.18),.08,bodyCol);             // garupa
-  add(K.ellPrim(0,1.03,.03,.3,.28,.28),.12,headCol);             // cabeça redonda (une com o corpo sem pescoço visível)
+  const corpoP=[K.tubePrim([[0,.15,-.1],[0,.36,-.06],[0,.6,.02],[0,.78,.06],[0,.92,.05]],[[.14,.16],[.21,.27],[.225,.28],[.215,.25],[.21,.215]],{n:20,ca:.3,cb:.2}),K.ellPrim(0,.42,.07,.18,.27,.23),K.ellPrim(0,.4,-.2,.15,.21,.21)];
+  add(corpoP[0],.02,bodyCol);add(corpoP[1],.08,bodyCol);add(corpoP[2],.08,bodyCol);   // tronco, barriga, garupa
+  // meia-largura do corpo na altura y / posição z (a asa dobrada encosta aqui)
+  const sdfC=(x,y,z)=>K.smin(K.smin(corpoP[0].sdf(x,y,z),corpoP[1].sdf(x,y,z),.08),corpoP[2].sdf(x,y,z),.08);
+  const largura=(y,z)=>{if(sdfC(0,y,z)>0)return 0;let a=0,b=.5;for(let i=0;i<18;i++){const m=(a+b)/2;if(sdfC(m,y,z)<0)a=m;else b=m;}return a;};
+  add(K.ellPrim(0,1.03,.08,.3,.28,.28),.12,headCol);             // cabeça redonda (une com o corpo sem pescoço visível)
   for(const s of [-1,1])add(K.tubePrim([[s*.09,.26,.03],[s*.11,.13,.06],[s*.11,.03,.08]],[[.075,.075],[.062,.062],[.046,.046]],{n:8,ca:0,cb:.25}),.05,(x,y,z)=>gr(leg,x,y,z));   // pernas emplumadas
   const skin=K.skinGeometry(prims,(/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)||innerWidth<680)?.026:.018);
   // ---- peças da cabeça (coordenadas do osso da cabeça: corpo menos a base do pescoço) ----
@@ -142,12 +144,33 @@ function owlKitBuild(Merger){
   for(let i=0;i<6;i++)leque.push({geo:penaGeo(.12,.07,.01,cv1,0),x:i*.04,y:.02,z:.15-i*.008,aberta:-.3-i*.2,fechada:-1.42-i*.015,some:1});
   for(let i=0;i<5;i++)leque.push({geo:penaGeo(.08,.06,.009,cv2,0),x:i*.04,y:.034,z:.18-i*.01,aberta:-.2-i*.18,fechada:-1.42-i*.015,some:1});
 
-  return {P,mat,skin,eyes:eyes.build(),beak:beak.build(),tufts:tufts.build(),lid:lid.build(),arm:arm.build(),hand:hand.build(),leque,lequeArm,tail:tail.build(),feet:feet.build()};});
+  const SH=[.2,.8,.1],TIP=[.0,.17,-.66];
+  const asaNova=()=>{const NU=40,NT=36,Pp=new Float32Array((NU+1)*NT*3),Cc=new Float32Array((NU+1)*NT*3),PF=new Float32Array((NU+1)*NT*3),I=[],cc=new T.Color();
+   const W=new T.Color(P.wing).lerp(new T.Color(P.cov),.22),CV=new T.Color(P.cov),DK=new T.Color(P.dark),BL=new T.Color(P.belly),ss=x=>x*x*(3-2*x);
+   for(let i=0;i<=NU;i++)for(let j=0;j<NT;j++){const u=i/NU,cv=.5-.5*Math.cos(j/NT*TAU),o=(i*NT+j)*3;
+    if(cv<.5){const row=Math.floor(cv/.165),lc=(cv%.165)/.165;cc.copy(CV).lerp(W,Math.min(1,row*.3));if(lc>.74+.14*Math.abs(Math.sin(u*PI*7+row*1.3)))cc.lerp(DK,.45);}
+    else{cc.copy(W);if(u>.35&&Math.sin(cv*58)>.78)cc.lerp(BL,.3);if(((u*9)%1)<.09)cc.multiplyScalar(.8);if(cv>.86)cc.lerp(DK,.45);}
+    Cc[o]=cc.r;Cc[o+1]=cc.g;Cc[o+2]=cc.b;}
+   for(let i=0;i<NU;i++)for(let j=0;j<NT;j++){const a=i*NT+j,b=i*NT+(j+1)%NT,d=(i+1)*NT+j,e=(i+1)*NT+(j+1)%NT;I.push(a,b,d,b,e,d);}
+   // dobrada: folha arredondada que sai do ombro e desce até a ponta da cauda, encostada no corpo
+   for(let i=0;i<=NU;i++){const u=i/NU,su=Math.sin(PI*u),Oy=-.05*u,Oz=-.32*u,Dy=TIP[1]-SH[1]-Oy,Dz=TIP[2]-SH[2]-Oz,DL=Math.hypot(Dy,Dz),ny=-Dz/DL,nz=Dy/DL,Lf=.93+.07*u;
+    for(let j=0;j<NT;j++){const th=j/NT*TAU,cv=.5-.5*Math.cos(th),side=Math.sin(th),o=(i*NT+j)*3,bo=(.08*(1-u)-.03*u)*Math.pow(Math.sin(PI*Math.min(1,cv*1.05)),.8);
+     const my=Oy+Dy*cv*Lf-ny*bo,mz=Oz+Dz*cv*Lf-nz*bo,hx=largura(my+SH[1],mz+SH[2]),t=.03*Math.pow(su,.45)*(1-.7*cv)*side;
+     PF[o]=Math.max(hx,.05)+.03-SH[0]+t;PF[o+1]=my;PF[o+2]=mz;}}
+   const g=new T.BufferGeometry();g.setAttribute('position',new T.BufferAttribute(Pp,3));g.setAttribute('color',new T.BufferAttribute(Cc,3));g.setIndex(I);g.userData.k=-1;
+   g.pose=(k,bd)=>{bd=bd||0;if(Math.abs(k-g.userData.k)<.002&&Math.abs(bd-(g.userData.bd||0))<.004)return;g.userData.k=k;g.userData.bd=bd;const sk=ss(Math.max(0,Math.min(1,k))),f=1-sk;
+    for(let i=0;i<=NU;i++){const u=i/NU,su=Math.sin(PI*u),an=1.1*Math.pow(u,1.6),cx=Math.sin(an),cz=-Math.cos(an),Ox=.46*u,Oz=.03-.06*u*u,L=(.3+.13*u)*(.8+.2*Math.min(1,u*4))*(1+.07*Math.sqrt(Math.abs(Math.sin(u*PI*8))))*(1-sk*.25*ss(Math.max(0,Math.min(1,(u-.74)/.14)))*Math.pow(1-Math.abs(Math.sin(u*PI*9)),2.5));
+     for(let j=0;j<NT;j++){const th=j/NT*TAU,cv=.5-.5*Math.cos(th),side=Math.sin(th),o=(i*NT+j)*3,t=.034*Math.pow(su,.45)*(1-.75*cv)*side;
+      let x=Ox+cx*L*cv,y=.012*su+t,z=Oz+cz*L*cv;if(bd&&u>.3){const w=ss(Math.min(1,(u-.3)/.45))*bd,ca=Math.cos(w),sa=Math.sin(w),dx=x-.2;x=.2+dx*ca-y*sa;y=dx*sa+y*ca;}
+      Pp[o]=PF[o]*f+x*sk+Math.sin(PI*sk)*.05;Pp[o+1]=PF[o+1]*f+y*sk;Pp[o+2]=PF[o+2]*f+z*sk;}}
+    g.attributes.position.needsUpdate=true;g.computeVertexNormals();g.computeBoundingSphere();};
+   g.pose(0);return g;};
+  return {P,mat,skin,asaNova,SH,eyes:eyes.build(),beak:beak.build(),tufts:tufts.build(),lid:lid.build(),arm:arm.build(),hand:hand.build(),leque,lequeArm,tail:tail.build(),feet:feet.build()};});
 }
 function makeOwlFrom(owlKit,k){const P=owlKit[k!=null?k:(Math.random()*owlKit.length)|0],g=new T.Group(),inner=new T.Group();g.add(inner);inner.scale.setScalar(rr(.42,.5));
  const withInk=(geo,m)=>{const me=new T.Mesh(geo,m||P.mat);me.castShadow=true;me.add(new T.Mesh(geo,owlInk));return me;};
  // esqueleto: corpo → 3 ossos de torção do pescoço → cabeça
- const body=new T.Bone(),n1=new T.Bone(),n2=new T.Bone(),n3=new T.Bone(),hb=new T.Bone();n1.position.set(0,OWL_NECK,0);body.add(n1);n1.add(n2);n2.add(n3);n3.add(hb);inner.add(body);
+ const body=new T.Bone(),n1=new T.Bone(),n2=new T.Bone(),n3=new T.Bone(),hb=new T.Bone();n1.position.set(0,OWL_NECK,.05);body.add(n1);n1.add(n2);n2.add(n3);n3.add(hb);inner.add(body);
  const skin=new T.SkinnedMesh(P.skin,P.mat),ink=new T.SkinnedMesh(P.skin,owlInk);skin.castShadow=true;inner.add(skin,ink);inner.updateMatrixWorld(true);
  const sk=new T.Skeleton([body,n1,n2,n3,hb]);skin.bind(sk);ink.bind(sk,skin.bindMatrix);
  hb.add(new T.Mesh(P.eyes,P.mat),withInk(P.beak));
@@ -157,18 +180,13 @@ function makeOwlFrom(owlKit,k){const P=owlKit[k!=null?k:(Math.random()*owlKit.le
  const wings=[],asas=[],qF=new T.Quaternion(),qO=new T.Quaternion(),qT=new T.Quaternion(),eu=new T.Euler();
  {const a=new T.Vector3(0,-.25,.97).normalize(),X=new T.Vector3(1,0,0),z=new T.Vector3().crossVectors(a,X);qF.setFromRotationMatrix(new T.Matrix4().makeBasis(a,X,z));qF.premultiply(new T.Quaternion().setFromEuler(new T.Euler(-.55,.12,0,'YXZ')));}   // inclina para baixo atrás (pontas na cauda) e acompanha a curva do corpo   // e acompanha a curva do corpo (traseira para dentro)   // dobrada (lado direito): braço p/ frente, penas p/ baixo
  const qTF=new T.Quaternion().setFromEuler(new T.Euler(0,2.69,0));                                                            // punho dobrado: mão volta por cima do braço
- for(const s of [-1,1]){const sh=new T.Group();sh.position.set(s*.235,.8,-.16);body.add(sh);const mir=new T.Group();mir.scale.x=s;sh.add(mir);
-  mir.add(withInk(P.arm));
-  const penasB=P.lequeArm.map(p=>{const m=p.tinta?withInk(p.geo):new T.Mesh(p.geo,P.mat);m.position.set(p.x,p.y,p.z);m.rotation.y=p.fechada;mir.add(m);return {m,p};});const wr=new T.Group();wr.position.x=.34;mir.add(wr);const mao=withInk(P.hand);wr.add(mao);
-  const penas=P.leque.map(p=>{const m=withInk(p.geo);m.position.set(p.x,p.y,p.z);m.rotation.y=p.fechada;wr.add(m);return {m,p};});
-  const root=new T.Group(),tip=new T.Group();root.add(tip);root.visible=false;wings.push({s,root,tip});
-  const f=s>0?qF.clone():new T.Quaternion(qF.x,-qF.y,-qF.z,qF.w);asas.push({s,sh,wr,root,tip,qF:f,k:0,mao,penas:penas.concat(penasB)});}
+ const ag=P.asaNova();for(const s of [-1,1]){const sh=new T.Group();sh.position.set(s*P.SH[0],P.SH[1],P.SH[2]);body.add(sh);const mir=new T.Group();mir.scale.x=s;sh.add(mir);mir.add(withInk(ag));
+  const root=new T.Group(),tip=new T.Group();root.add(tip);root.visible=false;wings.push({s,root,tip});asas.push({s,sh,root,tip,k:0});}
  // "head" é quem o jogo gira (y = virar, z = inclinar); sync() reparte o giro pelos ossos do pescoço
  const head=new T.Object3D();
  const sync=()=>{const y=head.rotation.y/4;n1.rotation.y=n2.rotation.y=n3.rotation.y=hb.rotation.y=y;hb.rotation.z=head.rotation.z;for(const l of lids)l.visible=l.scale.y>.3;
-  for(const A of asas){A.k+=((A.root.visible?1:0)-A.k)*.14;const k=A.k*A.k*(3-2*A.k);
-   qO.setFromEuler(eu.set(0,0,A.root.rotation.z*k));A.sh.quaternion.copy(A.qF).slerp(qO,k);
-   qT.setFromEuler(eu.set(0,0,A.tip.rotation.z*k));A.wr.quaternion.copy(qTF).slerp(qT,k);A.wr.position.y=.012*(1-k);A.sh.position.x=A.s*(.235+.06*(1-k));A.sh.position.y=.8-.1*(1-k);A.sh.position.z=-.16+.04*(1-k);for(const q of A.penas){q.m.rotation.y=q.p.fechada+(q.p.aberta-q.p.fechada)*k;if(q.p.some){q.m.visible=k>.12;q.m.scale.setScalar(.15+.85*k);}}A.mao.scale.setScalar(.5+.5*k);}};   // dobrada: as penas pequenas da mão se escondem
+  for(const A of asas){A.k+=((A.root.visible?1:0)-A.k)*.14;if(A.k<.002)A.k=0;const k=A.k*A.k*(3-2*A.k);A.sh.rotation.z=A.root.rotation.z*k;}
+  if(asas.length){const A=asas[0];ag.pose(A.k,-A.tip.rotation.z*1.1*(A.k*A.k*(3-2*A.k)));}};   // dobrada: as penas pequenas da mão se escondem
  g.visible=false;return {g,inner,head,lids,wings,sync,ph:rr(0,TAU),vx:0,vy:0,vz:0,x:0,y:0,z:0,st:'sleep',t:0};}
 window.arcanoKitAves={SPECIES,kit,owlKitBuild,makeOwlFrom,wingsFly,wingsFold};
 
