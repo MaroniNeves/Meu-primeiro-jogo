@@ -101,30 +101,84 @@ function butterflyKit(){
  return {cores:pal.length,make(i){const g=new T.Group(),m=mats[i!=null?i:(Math.random()*mats.length)|0],wR=new T.Mesh(gR,m),wL=new T.Mesh(gL,m);g.add(wR,wL,new T.Mesh(body,bodyMat));g.scale.setScalar(rr(.1,.14));return {g,wR,wL};}};
 }
 /* ---------- libélula ---------- */
+/* ---------- construtor de malha suave com cor por vértice (insetos) ---------- */
+function IB(){const P=[],N=[],C=[],I=[],cc=new T.Color();
+ const add=(g,cor,fn)=>{if(!g.index){const a=[];for(let i=0;i<g.attributes.position.count;i++)a.push(i);g.setIndex(a);}g.computeVertexNormals();
+  const p=g.attributes.position,n=g.attributes.normal,b=P.length/3;if(cor)cc.set(cor);
+  for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),z=p.getZ(i);P.push(x,y,z);N.push(n.getX(i),n.getY(i),n.getZ(i));if(fn)fn(x,y,z,n.getX(i),n.getY(i),n.getZ(i),cc);C.push(cc.r,cc.g,cc.b);}
+  const ix=g.index;for(let i=0;i<ix.count;i++)I.push(b+ix.getX(i));};
+ const o={add,
+  ell(x,y,z,rx,ry,rz,cor,fn,seg){const g=new T.SphereGeometry(1,seg||16,Math.max(6,((seg||16)*.65)|0));g.scale(rx,ry,rz);g.translate(x,y,z);add(g,cor,fn);return o;},
+  tubo(a,b,r1,r2,cor,fn,seg){const A=new T.Vector3(...a),Bv=new T.Vector3(...b),d=Bv.clone().sub(A),L=d.length();if(L<1e-6)return o;
+   const g=new T.CylinderGeometry(r2,r1,L,seg||8,Math.max(2,Math.round(L*80)),true);g.translate(0,L/2,0);g.applyQuaternion(new T.Quaternion().setFromUnitVectors(new T.Vector3(0,1,0),d.normalize()));g.translate(A.x,A.y,A.z);add(g,cor,fn);
+   o.ell(a[0],a[1],a[2],r1,r1,r1,cor,fn,8);o.ell(b[0],b[1],b[2],r2,r2,r2,cor,fn,8);return o;},
+  perna(pts,r0,r1,cor){const n=pts.length-1;for(let i=0;i<n;i++)o.tubo(pts[i],pts[i+1],r0+(r1-r0)*i/n,r0+(r1-r0)*(i+1)/n,cor,null,6);return o;},
+  build(){const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(P,3));g.setAttribute('normal',new T.Float32BufferAttribute(N,3));g.setAttribute('color',new T.Float32BufferAttribute(C,3));
+   g.setIndex(P.length/3>65535?new T.Uint32BufferAttribute(I,1):new T.Uint16BufferAttribute(I,1));g.computeBoundingSphere();return g;}};
+ return o;}
+window.arcanoIB=IB;
+// asa transparente com nervuras e contorno escuro (desenhada num canvas)
+function asaTex(w,h,forma){const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');
+ x.save();forma(x);x.clip();x.fillStyle='rgba(225,236,244,.38)';x.fillRect(0,0,w,h);
+ x.strokeStyle='rgba(60,60,80,.45)';x.lineWidth=1;
+ for(let i=0;i<7;i++){x.beginPath();x.moveTo(0,h*(.2+i*.1));x.bezierCurveTo(w*.35,h*(.18+i*.1),w*.7,h*(.22+i*.09),w,h*(.3+i*.06));x.stroke();}
+ x.lineWidth=.7;for(let i=0;i<44;i++){const px=w*(i/44);for(let j=0;j<6;j++){const py=h*(.15+j*.12+((i+j)%2)*.04);x.beginPath();x.moveTo(px,py);x.lineTo(px+w*.02,py+h*.1);x.stroke();}}
+ x.restore();x.lineWidth=2.6;x.strokeStyle='rgba(28,24,34,.92)';forma(x);x.stroke();
+ const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;return t;}
+
+/* ---------- libélula: abdômen comprido em anéis, olhos grandes, 6 patas, 4 asas com nervuras ---------- */
 function dragonflyKit(){
- const wc=document.createElement('canvas');wc.width=128;wc.height=32;const x=wc.getContext('2d');
- x.fillStyle='rgba(215,240,255,.5)';x.beginPath();x.ellipse(64,16,62,13,0,0,7);x.fill();x.strokeStyle='rgba(40,60,90,.75)';x.lineWidth=1.2;x.stroke();
- for(let i=1;i<9;i++){x.beginPath();x.moveTo(i*14,4);x.lineTo(i*14-4,28);x.stroke();}x.beginPath();x.moveTo(2,16);x.lineTo(126,14);x.stroke();x.fillStyle='rgba(30,40,60,.8)';x.fillRect(104,7,12,5);
- const wt=new T.CanvasTexture(wc);wt.colorSpace=T.SRGBColorSpace;
+ const wt=asaTex(512,96,x=>{x.beginPath();x.moveTo(4,48);x.bezierCurveTo(60,16,300,8,470,20);x.bezierCurveTo(510,26,512,64,470,74);x.bezierCurveTo(300,90,60,82,4,48);x.closePath();});
  const wingMat=new T.MeshBasicMaterial({map:wt,transparent:true,depthWrite:false,side:T.DoubleSide});
- const wg=new T.PlaneGeometry(1,.24).translate(.5,0,0).rotateX(-PI/2);
- const bodies=['#2f9ad8','#d8412f','#3fae5a'].map(col=>{const m=Merger();m.limb([0,0,.02],[0,0,-.62],.028,col,.016);for(let k=0;k<5;k++)m.ball(0,0,-.12-k*.1,.031,'#101820',1,1,.25);
-   m.ball(0,.01,.1,.075,col,1,.95,1.25);m.ball(0,.02,.24,.06,'#20303a');m.ball(.045,.03,.25,.045,'#6fe0c8');m.ball(-.045,.03,.25,.045,'#6fe0c8');return m.build();});
- const bm=new T.MeshStandardMaterial({vertexColors:true,roughness:.35});
+ const wg=new T.PlaneGeometry(1,.2).translate(.5,0,0).rotateX(-PI/2);
+ const PAL=[{t:'#1d7d86',a:'#2a8fa3',b:'#123e46',e:'#2f9a72',f:'#c8d870'},{t:'#a8322a',a:'#c9432f',b:'#4a1712',e:'#9a3a2a',f:'#e2b070'},{t:'#2f8a42',a:'#3fa555',b:'#173d1f',e:'#3f9a50',f:'#d0e080'}];
+ const bodies=PAL.map(p=>{const B=IB(),c=h=>new T.Color(h);
+  B.tubo([0,0,.02],[0,-.005,-.66],.032,.017,null,(x,y,z,nx,ny,nz,cc)=>{const f=((-z-.02)/.07)%1;cc.copy(c(p.a));if(f>.82)cc.copy(c(p.b));if(ny>.6)cc.lerp(c('#ffffff'),.12);},12);
+  B.ell(0,-.005,-.665,.02,.02,.03,p.b,null,10);
+  B.ell(0,.01,.09,.07,.075,.105,null,(x,y,z,nx,ny,nz,cc)=>{cc.copy(c(p.t));if(Math.abs(Math.sin(z*60+x*20))>.93)cc.lerp(c(p.b),.7);if(ny>.5)cc.lerp(c('#ffffff'),.1);},18);
+  for(const s of [-1,1]){B.ell(s*.046,.035,.215,.058,.06,.056,null,(x,y,z,nx,ny,nz,cc)=>{cc.copy(c(p.e));cc.lerp(c('#ffffff'),Math.max(0,ny*.5+nz*.2)*.35);},18);
+   B.ell(s*.062,.06,.24,.012,.012,.008,'#ffffff',null,8);}
+  B.ell(0,-.01,.255,.045,.035,.03,p.f,null,12);
+  for(let k=0;k<3;k++)for(const s of [-1,1]){const z0=.13-k*.04;B.perna([[s*.025,-.04,z0],[s*.07,-.11,z0+.04-k*.02],[s*.06,-.2,z0+.06-k*.05],[s*.055,-.24,z0+.09-k*.06]],.009,.005,'#1a1c22');}
+  return B.build();});
+ const bm=new T.MeshStandardMaterial({vertexColors:true,roughness:.32});
  return {cores:3,make(i){const g=new T.Group();g.add(new T.Mesh(bodies[i!=null?i:(Math.random()*3)|0],bm));const wings=[];
-   for(const s of [-1,1])for(const f of [0,1]){const w=new T.Mesh(wg,wingMat);w.position.set(0,.05,.1-f*.12);w.scale.set(s*(f?.52:.6),1,1);w.rotation.y=s*(f?-.18:.12);g.add(w);wings.push({w,s,f});}
+   for(const s of [-1,1])for(const f of [0,1]){const w=new T.Mesh(wg,wingMat);w.position.set(0,.06,.11-f*.07);w.scale.set(s*(f?.6:.66),1,1);w.rotation.y=s*(f?-.22:.14);g.add(w);wings.push({w,s,f});}
    g.scale.setScalar(rr(.26,.34));return {g,wings};}};
 }
 
 /* ---------- mosca e vaga-lume (modelos fora do install para a enciclopédia dos bichos também usar) ---------- */
+// mosca: tórax e abdômen redondos cinza-azulados brilhantes, olhos grandes vinho, 6 patas pretas, 2 asas com nervuras
 function flyParts(){
- const m=Merger();m.ball(0,0,0,.5,'#1c1f24',1,.9,1.1);m.ball(0,-.05,-.75,.42,'#2a3038',1,.9,1.5);m.ball(0,.05,.55,.36,'#14161a');m.ball(.2,.1,.68,.2,'#a02a20');m.ball(-.2,.1,.68,.2,'#a02a20');
- return {body:m.build(),bodyMat:new T.MeshStandardMaterial({vertexColors:true,roughness:.4}),
-  wing:new T.PlaneGeometry(1.5,.6).translate(.75,0,-.2).rotateX(-PI/2),wingMat:new T.MeshBasicMaterial({color:'#e6f4ff',transparent:true,opacity:.5,depthWrite:false,side:T.DoubleSide})};}
+ const B=IB(),c=h=>new T.Color(h);
+ const brilho=(base)=>(x,y,z,nx,ny,nz,cc)=>{cc.copy(c(base));cc.lerp(c('#9ec4e2'),Math.max(0,ny*.6+nz*.15-.1)*.7);};
+ B.ell(0,.12,.05,.5,.46,.52,null,brilho('#3a434d'),24);
+ B.ell(0,.05,-.72,.5,.44,.6,null,(x,y,z,nx,ny,nz,cc)=>{brilho('#353e47')(x,y,z,nx,ny,nz,cc);if(Math.abs(Math.sin(z*7))<.08)cc.lerp(c('#1c2228'),.6);},24);
+ B.ell(0,.02,.62,.33,.34,.28,'#24282c',null,18);
+ for(const s of [-1,1]){B.ell(s*.22,.1,.72,.24,.3,.22,null,(x,y,z,nx,ny,nz,cc)=>{cc.copy(c('#4a2826'));cc.lerp(c('#c08070'),Math.max(0,ny*.4+nz*.3-.2)*.6);},18);}
+ B.ell(0,-.2,.86,.07,.12,.05,'#1d2024',null,10);
+ for(let k=0;k<3;k++)for(const s of [-1,1]){const z0=.35-k*.32;B.perna([[s*.25,-.22,z0],[s*.55,-.1,z0+.08-k*.1],[s*.68,-.55,z0+.14-k*.16],[s*.76,-.74,z0+.2-k*.22]],.03,.016,'#101214');}
+ const wt=asaTex(256,128,x=>{x.beginPath();x.moveTo(6,70);x.bezierCurveTo(40,20,190,12,240,50);x.bezierCurveTo(258,72,230,112,170,110);x.bezierCurveTo(100,108,30,100,6,70);x.closePath();});
+ return {body:B.build(),bodyMat:new T.MeshStandardMaterial({vertexColors:true,roughness:.28,metalness:.05}),
+  wing:new T.PlaneGeometry(2,.8).translate(1,0,-.3).rotateX(-PI/2),wingMat:new T.MeshBasicMaterial({map:wt,transparent:true,depthWrite:false,side:T.DoubleSide})};}
+// vaga-lume: corpo preto alongado, escudo laranja com mancha, élitros pretos de borda laranja, antenas, lanterna amarela que brilha
+function vagalumeParts(){
+ const B=IB(),c=h=>new T.Color(h);
+ B.ell(0,0,-.18,.2,.15,.42,'#18161a',null,20);
+ for(const s of [-1,1])B.ell(s*.12,.09,-.12,.12,.06,.5,null,(x,y,z,nx,ny,nz,cc)=>{cc.copy(c('#1a181c'));if(Math.abs(x)>.19||ny<-.2)cc.copy(c('#e06a1e'));if(ny>.6)cc.lerp(c('#ffffff'),.12);},18);
+ B.ell(0,.08,.3,.21,.1,.17,null,(x,y,z,nx,ny,nz,cc)=>{cc.copy(c('#e8661c'));if(Math.abs(x)<.06&&ny>.3)cc.copy(c('#2a1a14'));},18);
+ B.ell(0,.03,.45,.11,.1,.1,'#141214',null,14);
+ for(const s of [-1,1]){B.ell(s*.07,.06,.5,.045,.05,.04,'#050505',null,10);B.ell(s*.085,.08,.52,.012,.012,.01,'#ffffff',null,6);
+  B.perna([[s*.04,.1,.52],[s*.09,.22,.6],[s*.14,.34,.64],[s*.19,.45,.62],[s*.24,.53,.56],[s*.28,.58,.49]],.011,.006,'#141214');}
+ for(let k=0;k<3;k++)for(const s of [-1,1]){const z0=.25-k*.17;B.perna([[s*.08,-.08,z0],[s*.2,-.12,z0+.04-k*.03],[s*.22,-.28,z0+.06-k*.05],[s*.24,-.32,z0+.1-k*.06]],.014,.008,'#141214');}
+ const corpo=B.build();
+ const L=IB();L.ell(0,-.03,-.52,.205,.16,.27,'#f6f46a',null,20);
+ return {corpo,lanterna:L.build(),corpoMat:new T.MeshStandardMaterial({vertexColors:true,roughness:.35}),lanternaMat:new T.MeshBasicMaterial({vertexColors:true})};}
+
 function glowMat(){return new T.ShaderMaterial({transparent:true,depthWrite:false,blending:T.AdditiveBlending,uniforms:{uPx:{value:1}},
   vertexShader:'attribute float aB;varying float vB;uniform float uPx;void main(){vB=aB;vec4 mv=modelViewMatrix*vec4(position,1.);gl_PointSize=uPx*(.4+.6*aB)*260./max(-mv.z,.5);gl_Position=projectionMatrix*mv;}',
   fragmentShader:'varying float vB;void main(){float d=length(gl_PointCoord-.5);float core=smoothstep(.12,.0,d),halo=smoothstep(.5,.0,d);vec3 c=mix(vec3(.55,1.,.2),vec3(1.,1.,.75),core);gl_FragColor=vec4(c*(core*1.6+halo*halo*.55)*vB,1.);}'});}
-window.arcanoKitMargens={Merger,frogParts,makeFrog,butterflyKit,dragonflyKit,flyParts,glowMat};
+window.arcanoKitMargens={Merger,frogParts,makeFrog,butterflyKit,dragonflyKit,flyParts,vagalumeParts,glowMat};
 
 function install(){
  const api=window.arcanoWaterV1226,FA=window.arcanoFundoAquatico,rv=window.arcanoAnimeRiver;
@@ -209,6 +263,10 @@ function install(){
  const gGeo=new T.BufferGeometry();gGeo.setAttribute('position',new T.BufferAttribute(gp,3));gGeo.setAttribute('aB',new T.BufferAttribute(gb,1));
  const gPts=new T.Points(gGeo,glowMat());
  gPts.frustumCulled=false;gPts.name='Vaga-lumes';gPts.renderOrder=6;live.add(gPts);
+ // corpo de cada vaga-lume (instanciado) seguindo a luz; a lanterna usa as mesmas matrizes
+ const VG=vagalumeParts(),vgB=new T.InstancedMesh(VG.corpo,VG.corpoMat,CAP.glow),vgL=new T.InstancedMesh(VG.lanterna,VG.lanternaMat,CAP.glow);vgL.instanceMatrix=vgB.instanceMatrix;
+ for(const m of [vgB,vgL]){m.frustumCulled=false;m.count=0;live.add(m);}vgB.name='Vaga-lumes (corpo)';
+ const _vq=new T.Quaternion(),_ve=new T.Euler(),_vm=new T.Matrix4(),_vv=new T.Vector3(),_vs=new T.Vector3();
  function spawnGlow(home){if(glows.length>=CAP.glow)return;glows.push({home,x:home.x+rr(-1,1),y:home.y+rr(.1,.9),z:home.z+rr(-1,1),ph:rr(0,TAU),f:rr(1.1,2.2),a:rr(0,TAU),b:rr(0,TAU),dark:0,flee:0,fx:0,fz:0,hid:0,lit:0});}
 
  function spawnFrog(spot){if(frogs.length>=CAP.frog)return;const fr=makeFrog(FP,rr(.11,.16));fr.spot=spot;spot.used=true;
@@ -354,6 +412,9 @@ function install(){
   for(const b of bflies)updBfly(b,dt);
   for(const d of dflies)updDfly(d,dt);
   for(let i=0;i<CAP.glow;i++){if(i<glows.length)updGlow(glows[i],i,dt);else gb[i]=0;}
+  for(let i=0;i<glows.length;i++){const g=glows[i],dx=g.x-(g._px==null?g.x:g._px),dz=g.z-(g._pz==null?g.z:g._pz);if(dx*dx+dz*dz>1e-7)g._yaw=Math.atan2(dx,dz);g._px=g.x;g._pz=g.z;
+   _vq.setFromEuler(_ve.set(0,g._yaw||0,0));_vm.compose(_vv.set(g.x,g.y,g.z),_vq,_vs.setScalar(g.hid>0?0:.022));vgB.setMatrixAt(i,_vm);}
+  vgB.count=vgL.count=glows.length;vgB.instanceMatrix.needsUpdate=true;
   gGeo.attributes.position.needsUpdate=true;gGeo.attributes.aB.needsUpdate=true;gPts.material.uniforms.uPx.value=api.renderer.getPixelRatio();
  })(last);
  window.arcanoFaunaKit={Merger,state,ground,water,blocked};

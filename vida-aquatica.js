@@ -173,7 +173,17 @@ function kitAgua(Merger){
   return B.build();}
  const dMat=new T.MeshStandardMaterial({vertexColors:true,roughness:.8,side:T.DoubleSide}),DG=[duckGeo(true),duckGeo(false)];
  const wingG=(()=>{const sh=new T.Shape();sh.moveTo(0,.12);sh.lineTo(.45,.1);sh.lineTo(.55,-.05);sh.lineTo(.3,-.12);sh.lineTo(0,-.1);const g=new T.ShapeGeometry(sh);g.rotateX(PI/2);const B=Merger();B.add(g,'#7a5a3a');return B.build();})();
- const strGeo=(()=>{const B=Merger();B.ball(0,.02,0,.06,'#2a2620',.6,.5,1.6);for(const s of [-1,1]){B.limb([s*.02,.02,.06],[s*.22,0,.32],.008,'#2a2620');B.limb([s*.02,.02,0],[s*.38,0,-.05],.008,'#2a2620');B.limb([s*.02,.02,-.04],[s*.32,0,-.4],.008,'#2a2620');}return B.build();})();
+ // patinador: corpo fino e comprido marrom, cabeça com olhos e antenas, patas da frente curtas,
+ // patas do meio e de trás muito longas, com o "joelho" alto e a ponta apoiada na água
+ const strGeo=(()=>{const B=window.arcanoIB(),c=h=>new T.Color(h),pata='#5a4a38';
+  B.ell(0,.16,0,.055,.04,.34,null,(x,y,z,nx,ny,nz,cc)=>{cc.copy(c('#5e4a36'));if(ny>.6&&Math.abs(x)<.018)cc.copy(c('#8a7458'));if(ny<-.4)cc.lerp(c('#3a2e22'),.5);},16);
+  B.ell(0,.17,.36,.05,.045,.06,'#4e3e2e',null,12);
+  for(const k of [-1,1]){B.ell(k*.04,.19,.38,.018,.018,.016,'#120e0a',null,8);
+   B.perna([[k*.02,.2,.41],[k*.05,.26,.52],[k*.09,.3,.62]],.009,.005,pata);
+   B.perna([[k*.04,.13,.26],[k*.12,.18,.36],[k*.16,.06,.46],[k*.18,0,.5]],.013,.008,pata);
+   B.perna([[k*.05,.13,.08],[k*.3,.3,.22],[k*.62,.12,.48],[k*.78,0,.62]],.013,.006,pata);
+   B.perna([[k*.05,.13,-.04],[k*.28,.28,-.2],[k*.55,.1,-.62],[k*.66,0,-.8]],.013,.006,pata);}
+  return B.build();})();
  return {uT,fishGeo,SP,fishMat,fishInk,turtleGeo,legGeo,tMat,duckGeo,dMat,DG,wingG,strGeo};}
 /* ---------- tartaruga (estilo da referência) ----------
    Casco abaulado com placas hexagonais (borda marrom larga, anel amarelo, centro claro com contorno fino) e uma

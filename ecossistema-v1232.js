@@ -1417,44 +1417,29 @@ function hideDetachedAntModels(){
  if(roots.size)console.info('[Arcano V12.40] Formigas estáticas removidas:',roots.size);
 }
 var compactAntMesh=null; // var: pode ser pedido antes desta linha rodar (enciclopédia)
+// formiga (desenho de referência): gáster grande com anéis, cintura com nó, tórax em dois volumes, cabeça redonda
+// com olho brilhante, mandíbulas, antenas dobradas e 6 patas longas articuladas. Frente em +x, pés em y=0.
+// O corpo é branco na cor de vértice: a cor da colônia (material) tinge; olhos ficam escuros.
 function compactAntGeometry(){
  if(compactAntMesh)return compactAntMesh;
- const bodies=[
-  {x:-.43,r:.32},{x:.07,r:.23},{x:.43,r:.22}
- ];
- const vertices=[],indices=[];
- const sphere=new T.SphereGeometry(1,7,5);
- const pos=sphere.getAttribute('position');
- const face=sphere.getIndex();
- for(const b of bodies){
-  const offset=vertices.length/3;
-  for(let i=0;i<pos.count;i++){
-   vertices.push(pos.getX(i)*b.r+b.x,
-    pos.getY(i)*b.r*.75+.28,pos.getZ(i)*b.r*.75);
-  }
-  for(let j=0;j<face.count;j++)indices.push(offset+face.getX(j));
- }
- const limb=(ax,ay,az,bx,by,bz,r=.022)=>{
-  const a=new T.Vector3(ax,ay,az),b=new T.Vector3(bx,by,bz);
-  const d=b.clone().sub(a),length=d.length();
-  const g=new T.CylinderGeometry(r,r*.8,length,4);
-  g.rotateZ(Math.PI/2);g.translate(length/2,0,0);
-  const q=new T.Quaternion().setFromUnitVectors(new T.Vector3(1,0,0),d.normalize());
-  g.applyQuaternion(q);g.translate(...a.toArray());
-  const gp=g.getAttribute('position'),ix=g.getIndex(),base=vertices.length/3;
-  for(let i=0;i<gp.count;i++)vertices.push(gp.getX(i),gp.getY(i),gp.getZ(i));
-  for(let i=0;i<ix.count;i++)indices.push(base+ix.getX(i));
-  g.dispose();
- };
- for(const x of [-.3,0,.28])for(const sign of [-1,1]){
-  limb(x,.3,sign*.10,x+.08,.12,sign*.45);
-  limb(x+.08,.12,sign*.45,x+.14,.015,sign*.58);
- }
- for(const sign of [-1,1])limb(.49,.44,sign*.07,.68,.65,sign*.28,.016);
- sphere.dispose();
- const g=new T.BufferGeometry();
- g.setAttribute('position',new T.Float32BufferAttribute(vertices,3));
- g.setIndex(indices);g.computeVertexNormals();g.computeBoundingSphere();
+ const P=[],N=[],C=[],I=[],cc=new T.Color();
+ const add=(g,cor,fn)=>{g.computeVertexNormals();const p=g.attributes.position,n=g.attributes.normal,b=P.length/3;cc.set(cor);
+  for(let i=0;i<p.count;i++){P.push(p.getX(i),p.getY(i),p.getZ(i));N.push(n.getX(i),n.getY(i),n.getZ(i));if(fn)fn(p.getX(i),p.getY(i),p.getZ(i),cc);C.push(cc.r,cc.g,cc.b);}
+  const ix=g.index;for(let i=0;i<ix.count;i++)I.push(b+ix.getX(i));};
+ const ell=(x,y,z,rx,ry,rz,cor,fn,seg)=>{const g=new T.SphereGeometry(1,seg||14,Math.max(6,((seg||14)*.65)|0));g.scale(rx,ry,rz);g.translate(x,y,z);add(g,cor,fn);};
+ const tubo=(a,b,r1,r2,cor)=>{const A=new T.Vector3(...a),Bv=new T.Vector3(...b),d=Bv.clone().sub(A),L=d.length();const g=new T.CylinderGeometry(r2,r1,L,7,1,true);g.translate(0,L/2,0);
+  g.applyQuaternion(new T.Quaternion().setFromUnitVectors(new T.Vector3(0,1,0),d.normalize()));g.translate(A.x,A.y,A.z);add(g,cor);ell(a[0],a[1],a[2],r1,r1,r1,cor,null,7);ell(b[0],b[1],b[2],r2,r2,r2,cor,null,7);};
+ const perna=(pts,r0,r1)=>{const n=pts.length-1;for(let i=0;i<n;i++)tubo(pts[i],pts[i+1],r0+(r1-r0)*i/n,r0+(r1-r0)*(i+1)/n,'#ffffff');};
+ ell(-.42,.3,0,.3,.24,.23,'#ffffff',(x,y,z,c)=>{if(Math.abs(Math.sin((x+.42)*16))<.12)c.set('#bdbdbd');},20);
+ ell(-.11,.31,0,.05,.075,.045,'#ffffff',null,10);tubo([-.17,.3,0],[.0,.32,0],.032,.03,'#ffffff');
+ ell(.04,.34,0,.12,.09,.08,'#ffffff',null,14);ell(.17,.38,0,.08,.09,.075,'#ffffff',null,12);tubo([.2,.38,0],[.3,.38,0],.04,.045,'#ffffff');
+ ell(.4,.38,0,.14,.13,.12,'#ffffff',null,16);
+ for(const k of [-1,1]){ell(.46,.43,k*.095,.035,.04,.03,'#0b0909',null,10);ell(.48,.45,k*.115,.01,.01,.008,'#ffffff',null,6);
+  tubo([.52,.31,k*.045],[.6,.28,k*.005],.022,.012,'#e0e0e0');
+  perna([[.48,.48,k*.05],[.52,.72,k*.16],[.78,.66,k*.3]],.015,.008);
+  [-.02,.08,.18].forEach((x0,j)=>perna([[x0,.3,k*.06],[x0+(j-1)*.12,.45,k*.28],[x0+(j-1)*.28,.02,k*.52],[x0+(j-1)*.32,0,k*.56]],.024,.012));}
+ const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(P,3));g.setAttribute('normal',new T.Float32BufferAttribute(N,3));g.setAttribute('color',new T.Float32BufferAttribute(C,3));
+ g.setIndex(new T.Uint32BufferAttribute(I,1));g.computeBoundingSphere();
  compactAntMesh=g;return g;
 }
 function visualizeAnimals(){
@@ -1472,7 +1457,7 @@ function visualizeAnimals(){
   const geo=compactAntGeometry();if(!geo)continue;
   const max=10;
   const mesh=new T.InstancedMesh(geo,new T.MeshStandardMaterial({
-   color:c.id%2?'#a3533b':'#49332b',roughness:1,metalness:0,side:T.DoubleSide}),max);
+   color:c.id%2?'#a3533b':'#49332b',vertexColors:true,roughness:.45,metalness:0,side:T.DoubleSide}),max);
   mesh.name='Operárias · reconhecimento, coleta, retorno · colônia '+(c.id+1);
   mesh.count=0;
   mesh.frustumCulled=false;mesh.castShadow=false;

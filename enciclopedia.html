@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR"><head><meta charset="utf-8"><script>/* sempre a versão mais nova: o site deixa o navegador guardar a página por 10 min; se esta cópia for antiga, recarrega a nova. Confere ao abrir, ao voltar para a aba e quando o navegador restaura a página da memória. (mude B e versao.txt juntos a cada envio) */(function(){var B='29';window.arcanoVersao=B;if(location.protocol==='file:')return;var t0=0;function chk(){var n=Date.now();if(n-t0<4000)return;t0=n;fetch('versao.txt?'+n,{cache:'no-store'}).then(function(r){return r.ok?r.text():null}).then(function(v){v=v&&v.trim();if(v&&v!==B){var u=new URL(location.href);if(u.searchParams.get('b')===v)return;u.searchParams.set('b',v);location.replace(u.href);}}).catch(function(){});}chk();addEventListener('pageshow',function(e){if(e.persisted){t0=0;chk();}});document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<html lang="pt-BR"><head><meta charset="utf-8"><script>/* sempre a versão mais nova: o site deixa o navegador guardar a página por 10 min; se esta cópia for antiga, recarrega a nova. Confere ao abrir, ao voltar para a aba e quando o navegador restaura a página da memória. (mude B e versao.txt juntos a cada envio) */(function(){var B='30';window.arcanoVersao=B;if(location.protocol==='file:')return;var t0=0;function chk(){var n=Date.now();if(n-t0<4000)return;t0=n;fetch('versao.txt?'+n,{cache:'no-store'}).then(function(r){return r.ok?r.text():null}).then(function(v){v=v&&v.trim();if(v&&v!==B){var u=new URL(location.href);if(u.searchParams.get('b')===v)return;u.searchParams.set('b',v);location.replace(u.href);}}).catch(function(){});}chk();addEventListener('pageshow',function(e){if(e.persisted){t0=0;chk();}});document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title>Enciclopédia dos bichos · Ateliê Arcano</title>
 <style>
 :root{--bg:#f3efe4;--panel:#fffdf7;--ink:#24301f;--soft:#5d6a55;--line:#ddd5c2;--accent:#3d7a46;--accent2:#e9f2df;--chip:#f1ebdc}
@@ -86,11 +86,11 @@ body.noite #titulo{color:#eef3ff;text-shadow:none}body.noite #titulo div,body.no
  </main>
 </div>
 <script defer src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
-<script defer src="./fauna-margens.js?v=6"></script>
+<script defer src="./fauna-margens.js?v=7"></script>
 <script defer src="./aves-floresta.js?v=8"></script>
 <script defer src="./animais-floresta.js?v=20"></script>
-<script defer src="./vida-aquatica.js?v=11"></script>
-<script defer src="./ecossistema-v1232.js?v=largo-8"></script>
+<script defer src="./vida-aquatica.js?v=12"></script>
+<script defer src="./ecossistema-v1232.js?v=largo-9"></script>
 <script>
 if(new URLSearchParams(location.search).get('raf')==='1')window.requestAnimationFrame=f=>setTimeout(()=>f(performance.now()),16);   // teste: anima mesmo com a aba escondida
 addEventListener('DOMContentLoaded',()=>{
@@ -147,7 +147,11 @@ const tartaruga=()=>{const K=kitAgua(),tt=KAq.turtleModel(K,.45);
  return {obj:tt.g,agua:m=>m==='nadar'?0:null,animar(dt,t,modo){const a=modo==='nadar'?4:0;
   for(const L of tt.legs)L.l.rotation.x=Math.sin(t*a+(L.z>0?0:PI)+(L.s>0?0:PI/2))*.5;
   const breathe=modo==='nadar'&&(t*.15%1)<.12;tt.g.position.y=modo==='nadar'?(breathe?-.08:-.22):0;tt.inner.rotation.x=breathe?-.25:0;}};};
-const patinador=()=>{const K=kitAgua(),m=new T.Mesh(K.strGeo,new T.MeshStandardMaterial({vertexColors:true,roughness:.6}));m.scale.setScalar(.09);const o=new T.Group();o.add(m);
+const _tintas={};
+const tinta=(mesh,off)=>{const k=String(off);if(!_tintas[k]){const m=new T.MeshBasicMaterial({color:'#1c1820',side:T.BackSide});
+  m.onBeforeCompile=sh=>{sh.vertexShader=sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\n transformed+=normal*'+off.toFixed(4)+';');};m.customProgramCacheKey=()=>'tinta-'+k;_tintas[k]=m;}
+ const i=new T.Mesh(mesh.geometry,_tintas[k]);i.userData.ink=true;mesh.add(i);return mesh;};
+const patinador=()=>{const K=kitAgua(),m=tinta(new T.Mesh(K.strGeo,new T.MeshStandardMaterial({vertexColors:true,roughness:.5})),.006);m.scale.setScalar(.09);const o=new T.Group();o.add(m);
  return {obj:o,agua:0,animar(dt,t){const p=(t%1.6)/1.6;m.position.z=(p<.25?p/.25:1)*.06-.03;o.position.y=.004;o.rotation.y=Math.floor(t/1.6)*1.3;}};};
 const sapo=()=>{const fr=KM.makeFrog(kitSapo(),.14);
  return {obj:fr.g,animar(dt,t,modo){fr.tongue.visible=false;fr.g.position.y=0;
@@ -158,18 +162,19 @@ const sapo=()=>{const fr=KM.makeFrog(kitSapo(),.14);
 const borboleta=i=>()=>{const b=kitBorb().make(i);b.g.scale.setScalar(.12);
  return {obj:b.g,animar(dt,t,modo){let fl;if(modo==='pousada'){fl=.25+(Math.sin(t*1.6)*.5+.5);b.g.position.y=0;}else{fl=.12+(Math.sin(t*21)*.5+.5)*1.25;b.g.position.y=.15+Math.sin(t*3)*.02;}
   b.wR.rotation.z=fl;b.wL.rotation.z=-fl;}};};
-const libelula=i=>()=>{const d=kitLib().make(i);d.g.scale.setScalar(.3);
+const libelula=i=>()=>{const d=kitLib().make(i);d.g.scale.setScalar(.3);tinta(d.g.children[0],.004);
  return {obj:d.g,animar(dt,t,modo){const perch=modo==='pousada',fl=perch?0:Math.sin(t*70)*.45;
   for(const w of d.wings)w.w.rotation.z=w.s*(fl*(w.f?-1:1)+(perch?-.12:0));d.g.position.y=perch?.02:.18+Math.sin(t*2)*.01;}};};
-const mosca=()=>{const P=kitMosca(),o=new T.Group(),sc=.028,body=new T.Mesh(P.body,P.bodyMat);body.scale.setScalar(sc);o.add(body);
+const mosca=()=>{const P=kitMosca(),o=new T.Group(),sc=.028,body=tinta(new T.Mesh(P.body,P.bodyMat),.02);body.scale.setScalar(sc);o.add(body);
  const ws=[0,1].map(s=>{const w=new T.Mesh(P.wing,P.wingMat);w.scale.setScalar(sc);w.position.y=sc*.3;o.add(w);return {w,s};});
  return {obj:o,animar(dt,t,modo){const flap=modo==='voar'?Math.sin(t*95)*.9:.15;o.position.y=modo==='voar'?.06:.016;
   for(const {w,s} of ws)w.rotation.set(0,s?PI:0,flap,'YXZ');}};};
 const vagalume=()=>{const g=new T.BufferGeometry();g.setAttribute('position',new T.BufferAttribute(new Float32Array([0,.05,0]),3));const ab=new T.BufferAttribute(new Float32Array([1]),1);g.setAttribute('aB',ab);
  const p=new T.Points(g,KM.glowMat());p.frustumCulled=false;const o=new T.Group();o.add(p);o.userData.raio=.22;
- return {obj:o,noite:true,animar(dt,t,modo,c){p.material.uniforms.uPx.value=c.px;ab.array[0]=modo==='aceso'?1:Math.pow(Math.max(0,Math.sin(t*2.2)),3);ab.needsUpdate=true;
-  p.position.set(Math.sin(t*.7)*.02,Math.sin(t*1.1)*.015,Math.cos(t*.6)*.02);}};};
-const formiga=i=>()=>{const m=new T.Mesh(KF.geo(),new T.MeshStandardMaterial({color:KF.cores[i||0],roughness:1,metalness:0,side:T.DoubleSide}));m.scale.setScalar(.011);m.rotation.y=-PI/2;
+ const VG=KM.vagalumeParts(),corpo=tinta(new T.Mesh(VG.corpo,VG.corpoMat),.008),lant=new T.Mesh(VG.lanterna,VG.lanternaMat),bicho=new T.Group();bicho.add(corpo,lant);bicho.scale.setScalar(.1);o.add(bicho);g.attributes.position.array.set([0,-.004,-.055]);
+ return {obj:o,animar(dt,t,modo,c){p.material.uniforms.uPx.value=c.px;ab.array[0]=modo==='aceso'?1:Math.pow(Math.max(0,Math.sin(t*2.2)),3);ab.needsUpdate=true;
+  o.position.set(Math.sin(t*.7)*.02,.06+Math.sin(t*1.1)*.015,Math.cos(t*.6)*.02);o.rotation.y=Math.sin(t*.4)*.6;lant.material.color.setScalar(modo==='aceso'?1:.45+.55*ab.array[0]);}};};
+const formiga=i=>()=>{const m=tinta(new T.Mesh(KF.geo(),new T.MeshStandardMaterial({color:KF.cores[i||0],vertexColors:true,roughness:.45,metalness:0})),.008);m.scale.setScalar(.011);m.rotation.y=-PI/2;
  const o=new T.Group();o.add(m);return {obj:o,animar(dt,t,modo){if(modo==='andar'){m.position.z=((t*.03)%.04)-.02;m.rotation.z=Math.sin(t*30)*.04;}else{m.position.z=0;m.rotation.z=0;}}};};
 
 const V=(nome,criar)=>({nome,criar});
@@ -214,13 +219,13 @@ const ESPECIES=[
   onde:'Em volta das plantas das margens.',faz:['Voa em volta das plantas e pousa.','Foge de quem chega; é o almoço dos sapos e renasce na planta.']},
  {id:'vagalume',nome:'Vaga-lume',sub:'só à noite',grupo:'Insetos',emoji:'✨',arquivo:'fauna-margens.js',criar:vagalume,modos:{piscar:'Piscar',aceso:'Aceso'},
   onde:'Nas plantas das margens, ao anoitecer.',faz:['Pisca e passeia.','Se alguém passa correndo, apaga, foge e se esconde na planta, voltando depois.'],
-  nota:'No jogo o vaga-lume é só um ponto de luz (não tem corpo).'},
+  nota:'À noite a lanterna da barriga acende e pisca.'},
  {id:'patinador',nome:'Patinador',sub:'inseto da água',grupo:'Insetos',emoji:'🦟',arquivo:'vida-aquatica.js',criar:patinador,modos:{deslizar:'Deslizar'},
   onde:'Na água parada dos lagos e remansos.',faz:['Desliza na superfície em arrancadas curtas.','Foge de quem chega perto.']},
  {id:'formiga',nome:'Formiga',sub:'2 colônias de cor',grupo:'Insetos',emoji:'🐜',arquivo:'ecossistema-v1232.js',modos:{parado:'Parada',andar:'Andar'},
   variantes:['Escura','Vermelha'].map((n,i)=>V(n,formiga(i))),
   onde:'Três colônias fixas, com dez formigas coletoras cada.',faz:['Sai para reconhecer o terreno, coleta pedaços de folha e volta para a colônia carregando.'],
-  nota:'O modelo é bem simples (feito para ser minúsculo no jogo).'}
+  nota:'No jogo ela é minúscula (cerca de 1,5 cm).'}
 ];
 const GRUPOS=[...new Set(ESPECIES.map(e=>e.grupo))];
 
