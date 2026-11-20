@@ -187,6 +187,12 @@ function kitAgua(Merger){
   const laranja='#e9862c';
   const forma=(zc,Lz,W,H,cy,fn,seg,cima)=>{const g=new T.SphereGeometry(1,seg,Math.round(seg*.62)),p=g.attributes.position;
    for(let i=0;i<p.count;i++){const X=p.getX(i),Y=p.getY(i),Z=p.getZ(i);p.setXYZ(i,X*W(Z),cy(Z)+Y*H(Z)*(Y>0?(cima||1):1),zc+Z*Lz);}B.add(g,null,fn);};
+  // pena da cauda: lâmina achatada que afina até a ponta; ab = abertura para o lado, sob = inclinação para cima
+  const pena=(o,L,w,h,ab,sob,fn)=>{const g=new T.SphereGeometry(1,14,9),p=g.attributes.position;
+   for(let i=0;i<p.count;i++){const X=p.getX(i),Y=p.getY(i),Z=p.getZ(i),t=(1-Z)/2,af=Math.pow(Math.max(0,1-t),.55)*(t<.15?.75+t*1.6:1);p.setXYZ(i,X*w*af,Y*h*af+.006*t*t*0,-t*L);}
+   g.rotateX(sob);g.rotateY(ab);g.translate(o[0],o[1],o[2]);B.add(g,null,fn);};
+  const leque=(o,n,L0,w,h,abre,sob,fn,curva)=>{for(let i=0;i<n;i++){const k=n>1?i/(n-1)*2-1:0,camada=1-Math.abs(k);
+   pena([o[0]+k*w*.9,o[1]+camada*h*1.5,o[2]],L0*(.78+.22*camada),w,h,-k*abre,sob+(curva||0)*Math.abs(k),fn);}};
   // bico de pato: chato e largo, um pouco mais largo na ponta (espátula), descendo da testa; unha escura na ponta, narinas e linha da boca
   const bico=(zc,Lz,w,h,y0,dy,k)=>forma(zc,Lz,Z=>w*(1+.16*Z)*(Z>.75?Math.sqrt(Math.max(0,1-((Z-.75)/.25)**2))*.4+.6:1),Z=>h*(1-.18*Z)*(Z>.7?Math.sqrt(Math.max(0,1-((Z-.7)/.3)**2))*.55+.45:1),Z=>y0-dy*Z+(Z>.7?h*.25*(Z-.7)/.3:0),
    (x,y,z,nx,ny,nz,cc)=>{const Z=(z-zc)/Lz;cc.copy(c(laranja));if(ny<-.2)cc.lerp(c('#f2a35a'),.35);if(Math.abs(ny)<.3&&y<y0-dy*Z)cc.copy(c('#b5601f'));
@@ -198,7 +204,9 @@ function kitAgua(Merger){
    const pintas=(x,y,z)=>{const q=.055,i=Math.floor(z/q),j=Math.floor(y/q),h=Math.abs(Math.sin(i*12.9+j*78.2+Math.sign(x)*3.1)*437.5)%1,u=z/q-i-.5,v=y/q-j-.5+(h-.5)*.3;return (Math.abs(v+Math.abs(u)*.8)<.17&&Math.abs(u)<.38)?1:0;};
    const corpo=(x,y,z,nx,ny,nz,cc)=>{cc.copy(c('#8f7458'));cc.lerp(c('#c9b69c'),Math.max(0,-ny-.05)*.9);if(pintas(x,y,z)&&ny>-.45)cc.copy(c('#5a4431'));};
    {const g=new T.SphereGeometry(1,72,44),p=g.attributes.position;for(let i=0;i<p.count;i++){const X=p.getX(i),Y=p.getY(i),t=p.getZ(i);p.setXYZ(i,X*PC.W(t),PC.cy(t)+Y*PC.H(t)*(Y<0?.9:1),PC.zc+t*PC.L);}B.add(g,null,corpo);}
-   elR(0,.285,-.36,.07,.04,.1,-.5,(x,y,z,nx,ny,nz,cc)=>cc.copy(c('#e9e3d6')),14);
+   {const branca=(x,y,z,nx,ny,nz,cc)=>{cc.copy(c('#ebe5d7'));const r=Math.abs(Math.sin(x*60));if(r<.1&&z>-.44)cc.lerp(c('#b39c80'),.4);if(ny>.5&&z>-.4)cc.lerp(c('#a68b6c'),.35);};
+    leque([0,.282,-.32],7,.19,.05,.014,.17,.4,branca,-.05);leque([0,.3,-.31],5,.13,.045,.013,.13,.48,branca,-.03);
+    elR(0,.29,-.33,.08,.045,.08,.35,(x,y,z,nx,ny,nz,cc)=>{cc.copy(c('#8f7458'));cc.lerp(c('#d8ccb8'),Math.max(0,-ny)*.6);},18);}
    {const pc=(x,y,z,nx,ny,nz,cc)=>{cc.copy(c('#9c8268'));if(Math.abs(y-.4)<.02)cc.lerp(c('#d8ccb8'),.6);};B.tubo([0,.27,.2],[0,.37,.245],.088,.068,null,pc,24);B.tubo([0,.37,.245],[0,.47,.262],.068,.064,null,pc,24);}
    forma(.28,.13,Z=>.083*(1-.45*Math.max(0,Z)**2),Z=>.088*(1-.5*Math.max(0,Z)**1.6),Z=>.53-.022*Math.max(0,Z)**2+.004*Math.min(0,Z),(x,y,z,nx,ny,nz,cc)=>{cc.copy(c('#a68e72'));if(ny>.6)cc.copy(c('#6a523c'));
      {const d=Math.abs(y-.558-(z-.31)*.1+(z-.31)*(z-.31)*.6);if(Math.abs(x)>.035&&z<.41&&z>.17&&d<.022)cc.lerp(c('#4a3626'),d<.014?1:.5);}if(ny<-.3)cc.lerp(c('#d5c6ae'),.5);if(ny<.6&&ny>-.1&&z>.3)cc.lerp(c('#c3b096'),.35);},64,.88);
@@ -209,7 +217,7 @@ function kitAgua(Merger){
    const am=(x,y,z,nx,ny,nz,cc)=>{cc.copy(c('#f4d65a'));cc.lerp(c('#d9b23a'),Math.max(0,-ny)*.35);cc.lerp(c('#fff1a8'),Math.max(0,ny-.4)*.4);};
    elR(0,.15,-.01,.14,.13,.17,-.1,am,22);
    elR(0,.31,.06,.105,.1,.1,0,am,22);
-   elR(0,.17,-.17,.05,.04,.05,-.5,am,12);
+   leque([0,.175,-.15],5,.07,.022,.014,.35,.75,am,.1);
    bico(.172,.048,.031,.02,.295,.012);
    for(const k of [-1,1]){B.ell(k*.075,.33,.12,.016,.022,.022,'#0b0b0c',null,10);B.ell(k*.085,.338,.13,.006,.007,.007,'#ffffff',null,6);pe(k,.05,.02,-.05,.75,.06);}}
   const g=B.build();g.pernas=BL.build();return g;}
