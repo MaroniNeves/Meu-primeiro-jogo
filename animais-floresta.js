@@ -261,7 +261,7 @@ function ikPata(L,t){const G=L.front?OSSO.f:OSSO.t,a=Math.hypot(G.uy,G.uz),b=Mat
  L.ang=angWrap(Math.atan2(t.z,t.y)-Math.atan2(G.uz+G.wz,G.uy+G.wy));}   // ângulo da linha quadril→casco (para decidir o passo)
 function passosCervo(d,dt,bp,bob){
  d.root.position.set(d.x,d.y,d.z);d.root.rotation.set(d.pitch,d.yaw,0,'YXZ');d.body.position.y=bob*d.S;d.body.rotation.set(bp,0,0);d.root.updateMatrixWorld(true);
- const baixo=!d.gUp,andando=d.speed>.03,alvoF=baixo?-.26:0,alvoT=0;
+ const andando=d.speed>.03,alvoF=-.26,alvoT=0;   // pastando, as patas da frente ficam um pouco à frente o tempo todo
  const casco=L=>{const P=L.front?PATA.f:PATA.t;L.hip.updateMatrixWorld(true);return L.knee.localToWorld(new T.Vector3(0,P.hy,P.hz));};
  let noAr=0;for(const L of d.legs)if(L.sp)noAr++;
  for(const L of d.legs){const P=L.front?PATA.f:PATA.t,a0=Math.atan2(P.vz,P.vy);
@@ -272,7 +272,7 @@ function passosCervo(d,dt,bp,bob){
   else{_pv.copy(L.F);d.body.worldToLocal(_pv).sub(L.hip.position);ikPata(L,_pv);}   // apoiada: quadril e joelho fazem o casco ficar no ponto gravado
  }
  if(noAr<1){let melhor=null,mv=0;
-  for(const L of d.legs){if(L.sp)continue;const alvo=(L.front?alvoF:alvoT)-bp,dv=andando?L.ang-alvo:Math.abs(L.ang-alvo),lim=andando?.13:.05;if(dv>lim&&dv>mv){mv=dv;melhor=L;}}
+  for(const L of d.legs){if(L.sp)continue;const alvo=(L.front?alvoF:alvoT)-bp,dv=andando?L.ang-alvo:Math.abs(L.ang-alvo),lim=andando?.13:.09;if(dv>lim&&dv>mv){mv=dv;melhor=L;}}
   if(melhor){const alvo=(melhor.front?alvoF:alvoT)-bp,to=andando?alvo-.13:alvo;
    // ponto de pouso: onde o casco fica com a perna reta nesse ângulo, encostado no chão
    const hx=melhor.hip.rotation.x,hz=melhor.hip.rotation.z,kx=melhor.knee.rotation.x;melhor.hip.rotation.set(to,0,melhor.front?melhor.side*.06*(d.gz||0):0);melhor.knee.rotation.x=0;
@@ -310,7 +310,7 @@ function animarCervo(d,dt,now,dxp,dzp){
   d.neckPitch+=(wantNeck-d.neckPitch)*Math.min(1,dt*3.5);d.headYaw+=(wantHeadYaw-d.headYaw)*Math.min(1,dt*4);
   // pastar como um cervo de verdade: a frente do corpo abaixa, as patas da frente vão para a frente (e abrem um pouco),
   // o pescoço desce em diagonal saindo da cernelha e a cabeça aponta para o capim — cascos sempre no chão.
-  let gzAlvo=(d.st==='graze'&&d.neck2&&!d.gUp)?1:0;if(gzAlvo===0&&d.st==='graze'&&d.legs.some(L=>L.front&&(L.sp||(L.ang!=null&&L.ang+d.body.rotation.x< -.1))))gzAlvo=d.gz||0;   // levanta só com as patas da frente embaixo do corpo
+  let gzAlvo=(d.st==='graze'&&d.neck2)?1:0;if(gzAlvo===0&&d.st==='graze'&&d.legs.some(L=>L.front&&(L.sp||(L.ang!=null&&L.ang+d.body.rotation.x< -.1))))gzAlvo=d.gz||0;   // levanta só com as patas da frente embaixo do corpo
   d.gz=(d.gz||0)+(gzAlvo-(d.gz||0))*Math.min(1,dt*2.2);const gz=d.gz*d.gz*(3-2*d.gz);
   // patas quase retas: só as da frente avançam um pouco; o corpo inclina pouco; o pescoço estica (como o pescoço real, que deixa de ficar em curva)
   if(gz>.001){bodyPitch+=.1*gz;bob-=.016*gz;
@@ -319,8 +319,8 @@ function animarCervo(d,dt,now,dxp,dzp){
   if(passo)passosCervo(d,dt,bodyPitch,bob);
   const flinch=d.stagger>0?Math.sin(d.stagger*30)*.08:0;
   d.body.position.y=bob*d.S;d.body.rotation.set(bodyPitch,0,flinch);d.neck.rotation.x=d.neckPitch;d.neck.rotation.y=d.headYaw*.5;d.head.rotation.x=-d.neckPitch*.45+chew;d.head.rotation.y=d.headYaw*.5;
-  if(d.neck2){const p0=d.neck2.userData.p0;d.neck2.position.set(p0.x,p0.y+.16*gz,p0.z+.064*gz);d.neck.rotation.x=d.neckPitch;d.neck2.rotation.x=-.15*gz;d.neck.rotation.y=d.neck2.rotation.y=d.headYaw*.25;
-   d.head.rotation.x=lerp(-d.neckPitch*.45,-(bodyPitch+d.neckPitch-.15*gz-1.45),gz)+chew;}   // cabeça quase vertical com o focinho no capim   // pescoço desce em diagonal (o corpo ajuda a abaixar)
+  if(d.neck2){const gn=sstep(d.neckPitch/2.13),p0=d.neck2.userData.p0;d.neck2.position.set(p0.x,p0.y+.16*gn,p0.z+.064*gn);d.neck.rotation.x=d.neckPitch;d.neck2.rotation.x=-.15*gn;d.neck.rotation.y=d.neck2.rotation.y=d.headYaw*.25;
+   d.head.rotation.x=lerp(-d.neckPitch*.45,-(bodyPitch+d.neckPitch-.15*gn-1.45),gn)+chew;}   // cabeça quase vertical com o focinho no capim   // pescoço desce em diagonal (o corpo ajuda a abaixar)
   for(const e of d.ears){const tw=Math.max(0,Math.sin(now*.0013+e.ph*3))>.985?Math.sin(now*.05)*.5:0;
    e.g.rotation.x=-.2+(d.st==='alert'?-.35:0)+tw*.6;e.g.rotation.z=e.s*(d.st==='alert'?-.55:-.9)+tw*.3;}
   d.tail.rotation.x=(d.st==='flee'?-1.3:-.2)+Math.sin(now*.02+d.phase)*(d.st==='flee'?.25:.12);
@@ -443,7 +443,7 @@ function install(){
    if(d.t<=0&&dp<=22)d.t=1;}
   else if(d.st==='alert'){if(d.t<=0){d.st='graze';d.t=rr(3,7);d.notice*=.5;}}
   else if(d.st==='graze'){if(d.t<=0){if(Math.random()<.6){d.st='walk';choose(d);d.t=rr(4,9);}else d.t=rr(2,6);}
-   if(d.gw>0){d.gw-=dt;targetSpeed=.2;wantYaw=d.yaw+Math.sin(now*.0005+d.phase)*.25;}else if(!d.gUp&&Math.random()<dt*.15)d.gw=rr(1.2,2.8);}   // caminhada de pastagem
+   if(d.gw>0){d.gw-=dt;targetSpeed=.2;wantYaw=d.yaw+Math.sin(now*.0005+d.phase)*.25;}else if(!d.gUp&&Math.random()<dt*.06)d.gw=rr(1,2.2);}   // caminhada de pastagem (de vez em quando)
   else if(d.st==='walk'){const dx=d.tx-d.x,dz=d.tz-d.z,L=Math.hypot(dx,dz);
    if(L<.4||d.t<=0){d.st='graze';d.t=rr(3,9);}else{wantYaw=Math.atan2(dx,dz);targetSpeed=d.walkSpeed*(L<1.5?.6:1);
     const nx=d.x+Math.sin(d.yaw)*.8,nz=d.z+Math.cos(d.yaw)*.8;if(!canGo(d.x,d.z,nx,nz)){choose(d);}}}
