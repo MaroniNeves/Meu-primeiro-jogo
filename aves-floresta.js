@@ -63,33 +63,91 @@ function kit(Merger){
 /* ---------- asas e corujas (fora do install para a enciclopédia dos bichos também usar) ---------- */
 function wingsFly(b,flap,t){for(const w of b.wings){w.root.visible=true;const a=flap?.12+.8*Math.sin(t):.14+.05*Math.sin(t*.2),c=flap?.55*Math.sin(t-1.0):-.1;w.root.rotation.z=w.s*a;w.tip.rotation.z=c;}}
 function wingsFold(b){for(const w of b.wings)w.root.visible=false;}
-function owlKitBuild(Merger){const mat=new T.MeshStandardMaterial({vertexColors:true,roughness:.85,side:T.DoubleSide});
-  const sg=(pts)=>{const sh=new T.Shape();pts.forEach(([x,y],i)=>i?sh.lineTo(x,y):sh.moveTo(x,y));const g=new T.ShapeGeometry(sh);g.rotateX(PI/2);return g;};
-  const cols=[['#8a6a4a','#e8d6b8','#6a4e34'],['#9a9488','#efe9dc','#6e6a62'],['#b0763a','#f2dcb4','#7a4e22']];
-  return cols.map(([back,face,wing])=>{
-   const B=Merger();
-   {const g=new T.SphereGeometry(1,16,12).toNonIndexed(),p=g.attributes.position,col=new Float32Array(p.count*3),a=new T.Color(back),c2=new T.Color(face),c=new T.Color();
-    for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),z=p.getZ(i),k=Math.max(0,Math.min(1,(z-.2)/.5))*Math.max(0,Math.min(1,(.6-y)/.6));c.copy(a).lerp(c2,k);
-     const st=Math.sin(y*22+x*3)>.6&&k>.3?.82:1;c.multiplyScalar(st);p.setXYZ(i,x*.36,.5+y*.46,z*.34);col.set([c.r,c.g,c.b],i*3);}
-    g.setAttribute('color',new T.BufferAttribute(col,3));B.add(g);}
-   for(const s of [-1,1]){B.ball(s*.3,.48,-.02,.2,wing,.45,1.1,1.5);B.limb([s*.1,.08,.05],[s*.1,-.02,.12],.03,'#d8b04a',.02);for(const a2 of [-.4,.1,.6])B.limb([s*.1,-.02,.12],[s*.1+Math.sin(a2)*.1,-.03,.12+Math.cos(a2)*.1],.015,'#2a2420',.008);}
-   const body=B.build();
-   const Hh=Merger();
-   {const g=new T.SphereGeometry(.3,16,12);g.scale(1.1,.92,.95);Hh.add(g,back);
-    const disc=new T.CircleGeometry(.27,20);disc.scale(1.25,1,1);disc.translate(0,0,.255);Hh.add(disc,face);
-    for(const s of [-1,1]){Hh.ball(s*.12,.03,.27,.095,'#f0c030');Hh.ball(s*.12,.03,.335,.05,'#0c0c0c');Hh.ball(s*.105,.055,.37,.015,'#ffffff');
-     const tuft=new T.ConeGeometry(.06,.2,5);tuft.rotateZ(-s*.35);tuft.translate(s*.22,.28,.02);Hh.add(tuft,back);}
-    const bk=new T.ConeGeometry(.04,.11,6);bk.rotateX(PI/2+.6);bk.translate(0,-.06,.31);Hh.add(bk,'#3a3028');}
-   const head=Hh.build();
-   const W1=Merger();W1.add(sg([[0,.22],[.55,.26],[.6,-.18],[.5,-.26],[.4,-.2],[.3,-.28],[.2,-.21],[.1,-.27],[0,-.2]]),wing);
-   const W2=Merger();W2.add(sg([[0,.26],[.4,.26],[.72,.12],[.78,-.06],[.68,-.16],[.58,-.08],[.48,-.22],[.36,-.12],[.24,-.26],[.12,-.16],[0,-.22]]),wing);
-   const lid=new T.SphereGeometry(.1,10,6,0,TAU,0,PI/2);
-   return {body,head,w1:W1.build(),w2:W2.build(),lid,lidMat:new T.MeshStandardMaterial({color:back,roughness:.9}),mat};});}
+/* ---------- coruja (pele única) ----------
+   Corpo em forma de pera e cabeça redonda saem de UMA malha contínua (mesma técnica da pele dos cervos).
+   O pescoço tem uma corrente de 4 ossos: a cabeça gira até ~155° e a torção se reparte entre eles, sem amassar.
+   Peças à parte (com contorno): olhos, pálpebras, bico em gancho, tufos das orelhas, asas dobradas em camadas,
+   cauda de penas, dedos com garras. Medidas em "unidades de coruja" (pés em y=0, de frente para +z). */
+const OWL_PAL=[
+ {n:'Marrom',back:'#7a5536',dark:'#5a3b24',belly:'#ecd0aa',spot:'#c9a47a',face:'#f0d4ae',rim:'#6a4429',wing:'#6e4a2e',cov:'#a07148',leg:'#e6bea2'},
+ {n:'Cinza', back:'#7d7973',dark:'#57534e',belly:'#e8e3d8',spot:'#bdb6aa',face:'#efe9dd',rim:'#55524d',wing:'#6c6862',cov:'#a39d93',leg:'#ddccbc'},
+ {n:'Ruiva', back:'#a2602c',dark:'#77401a',belly:'#f2d3a4',spot:'#d8a46c',face:'#f5dcb4',rim:'#7a3f18',wing:'#93531f',cov:'#c98242',leg:'#ecc19c'}];
+const OWL_NECK=.86;   // altura da base do pescoço (onde a torção começa)
+const owlInk=new T.MeshBasicMaterial({color:'#1e1a22',side:T.BackSide});
+owlInk.onBeforeCompile=sh=>{sh.vertexShader=sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\n transformed+=normal*.018;');};
+owlInk.customProgramCacheKey=()=>'owl-ink-v1';
+function owlKitBuild(Merger){
+ const mat=new T.MeshStandardMaterial({vertexColors:true,roughness:.88});
+ const sg=(pts)=>{const sh=new T.Shape();pts.forEach(([x,y],i)=>i?sh.lineTo(x,y):sh.moveTo(x,y));const g=new T.ShapeGeometry(sh);g.rotateX(PI/2);return g;};
+ return OWL_PAL.map(P=>{const C=h=>{const c=new T.Color(h);return [c.r,c.g,c.b];},mix=(a,b,t)=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t];
+  const sst=t=>{t=clamp(t,0,1);return t*t*(3-2*t);},gr=(c,x,y,z)=>{const v=.95+.06*Math.sin(x*53+y*41+z*37);return [c[0]*v,c[1]*v,c[2]*v];};
+  const back=C(P.back),dark=C(P.dark),belly=C(P.belly),spot=C(P.spot),face=C(P.face),rim=C(P.rim),wing=C(P.wing),cov=C(P.cov),leg=C(P.leg);
+  // pesos da pele: abaixo do pescoço = corpo (osso 0); no pescoço a torção se reparte entre os ossos 1..3; acima = cabeça (osso 4)
+  const chain=(x,y)=>{const s=clamp((y-(OWL_NECK-.06))/.2,0,1)*4,i=Math.min(3,Math.floor(s)),f=s-i;return s>=4?[[4,1]]:[[i,1-f],[i+1,f]];};
+  const bodyCol=(x,y,z,nx,ny,nz)=>{
+   const fr=sst((nz-.05)/.55)*sst((.92-y)/.1);let c=mix(back,belly,fr);
+   if(fr>.5&&Math.sin(x*38+y*9)*Math.sin(y*44-x*6)>.72)c=mix(c,spot,.7);                    // pintinhas na barriga
+   const jag=.83+.018*Math.sin(x*46);if(y>jag-.04&&y<jag+.03&&nz>.25)c=mix(c,belly,.6);      // babador claro sob o rosto
+   if(y<.2)c=mix(c,leg,.6);return gr(c,x,y,z);};
+  const headCol=(x,y,z,nx,ny,nz)=>{
+   let c=back;const r=Math.hypot(x/.25,(y-1.0)/.23);
+   if(nz>.12){if(r<.92)c=face;else if(r<1.1)c=rim;}
+   if(ny>.55&&nz<.6)c=mix(c,dark,.45);                                                       // alto da cabeça mais escuro
+   if(y<.9&&nz>.3)c=mix(c,belly,.5);
+   return gr(c,x,y,z);};
+  const prims=[],K=window.arcanoPele;
+  const add=(p,k,col,sc)=>prims.push({...p,bone:0,k,col,sc,sb:.05,reach:.12,boneFn:chain});
+  add(K.tubePrim([[0,.2,-.02],[0,.42,0],[0,.62,.01],[0,.8,0],[0,.92,-.01]],[[.2,.19],[.33,.31],[.37,.34],[.33,.3],[.27,.25]],{n:20,ca:.3,cb:.2}),.02,bodyCol);
+  add(K.ellPrim(0,.5,.08,.3,.3,.3),.1,bodyCol);                  // barriga cheia
+  add(K.ellPrim(0,.45,-.17,.24,.26,.22),.1,bodyCol);             // garupa
+  add(K.ellPrim(0,1.03,.03,.33,.29,.3),.14,headCol);             // cabeça redonda (une com o corpo sem pescoço visível)
+  for(const s of [-1,1])add(K.tubePrim([[s*.1,.26,.03],[s*.11,.13,.06],[s*.11,.03,.08]],[[.075,.075],[.062,.062],[.046,.046]],{n:8,ca:0,cb:.25}),.05,(x,y,z)=>gr(leg,x,y,z));   // pernas emplumadas
+  const skin=K.skinGeometry(prims,(/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)||innerWidth<680)?.026:.018);
+  // ---- peças da cabeça (coordenadas do osso da cabeça: corpo menos a base do pescoço) ----
+  const hy=-OWL_NECK,B=K.Builder,ink=[];
+  const eyes=B();for(const s of [-1,1]){
+   eyes.ell(s*.11,1.02+hy,.262,.081,.083,.06,'#2a1d16',null,18);                                 // contorno do olho
+   eyes.ell(s*.11,1.02+hy,.27,.074,.076,.06,'#0c0a0b',null,18);                               // olho grande
+   eyes.ell(s*.135,1.05+hy,.322,.017,.017,.01,'#ffffff',null,8);eyes.ell(s*.095,.99+hy,.326,.008,.008,.006,'#ffffff',null,6);}   // brilhos
+  const beak=B();beak.sweep([[0,.99+hy,.318],[0,.955+hy,.36],[0,.905+hy,.35]],[[.036,.03],[.026,.022],[.004,.004]],{n:10,m:10,ca:0,cb:.1},'#4a3b30');
+  const tufts=B();for(const s of [-1,1])for(const [ox,oy,oz,tx,ty,tz,w] of [[.16,1.19,.04,.24,1.42,.02,.07],[.21,1.16,-.01,.31,1.35,-.04,.06],[.11,1.21,.01,.15,1.38,-.01,.055]])
+   tufts.sweep([[s*ox,oy+hy,oz],[s*(ox+tx)/2,(oy+ty)/2+hy,(oz+tz)/2+.01],[s*tx,ty+hy,tz]],[[w,.02],[w*.6,.016],[.004,.004]],{n:10,m:10,ca:0,cb:.12},null,(x,y)=>y>1.32+hy?C(P.dark):back);
+  const lid=B();lid.ell(0,-.113,0,.083,.113,.072,null,()=>mix(face,rim,.45),16);lid.ell(0,-.224,.006,.07,.005,.06,'#2a1d16',null,10);   // pálpebra + cílios
+  // ---- asas dobradas (penas em camadas) ----
+  const wingsF=B();for(const s of [-1,1]){
+   const wc=(x,y,z)=>{let c=wing;if(y>.5){const row=(y-.5)/.11+.25*Math.sin(z*28),f=row-Math.floor(row);c=f<.3?mix(cov,belly,.25):mix(cov,wing,.35*(f-.3));}   // fileiras de coberteiras, borda clara
+    else if(Math.sin(y*34+z*6)>.55)c=mix(wing,cov,.55);return gr(c,x,y,z);};
+   wingsF.sweep([[s*.3,.85,.08],[s*.355,.64,-.01],[s*.33,.43,-.15],[s*.23,.25,-.38]],[[.045,.16],[.05,.23],[.04,.19],[.012,.07]],{n:22,m:14,ca:.25,cb:.15},null,wc);
+   for(const [dy,dz,len] of [[0,0,.0],[-.03,-.03,.04],[-.06,-.06,.08]])                           // pontas das penas primárias
+    wingsF.sweep([[s*.29,.4+dy,-.16+dz],[s*.25,.27+dy,-.33+dz],[s*.2,.16+dy-len*.5,-.46+dz-len]],[[.03,.035],[.018,.03],[.004,.01]],{n:8,m:8,ca:0,cb:.2},null,(x,y,z)=>gr(mix(wing,dark,.4),x,y,z));}
+  // ---- cauda ----
+  const tail=B();for(let i=-2;i<=2;i++)tail.sweep([[i*.04,.36,-.2],[i*.05,.24,-.36],[i*.065,.13,-.5]],[[.045,.012],[.05,.012],[.02,.008]],{n:10,m:8,ca:0,cb:.25},null,(x,y,z)=>gr(Math.sin(y*45)>.55?mix(wing,cov,.6):mix(wing,dark,.3),x,y,z));
+  // ---- dedos com garras ----
+  const feet=B();for(const s of [-1,1]){const bx=s*.11;
+   for(const a of [-.38,0,.38]){const ex=bx+Math.sin(a)*.13,ez=.08+Math.cos(a)*.13;feet.sweep([[bx,.03,.08],[ (bx+ex)/2,.03,(.08+ez)/2],[ex,.02,ez]],[[.028,.022],[.022,.018],[.017,.014]],{n:8,m:10,ca:.2,cb:.2},null,()=>leg);
+    feet.sweep([[ex,.022,ez],[ex+Math.sin(a)*.03,.012,ez+Math.cos(a)*.03],[ex+Math.sin(a)*.04,-.005,ez+Math.cos(a)*.035]],[[.012,.01],[.008,.007],[.002,.002]],{n:6,m:8,ca:0,cb:.2},'#1c1716');}
+   feet.sweep([[bx,.03,.07],[bx,.025,0],[bx,.02,-.05]],[[.024,.02],[.02,.017],[.016,.014]],{n:6,m:10,ca:.2,cb:.2},null,()=>leg);
+   feet.sweep([[bx,.02,-.05],[bx,.01,-.08],[bx,-.005,-.085]],[[.011,.009],[.007,.006],[.002,.002]],{n:6,m:8,ca:0,cb:.2},'#1c1716');}
+  // ---- asas abertas (voo) ----
+  const W1=Merger();W1.add(sg([[0,.22],[.55,.26],[.6,-.18],[.5,-.26],[.4,-.2],[.3,-.28],[.2,-.21],[.1,-.27],[0,-.2]]),P.wing);W1.add(sg([[0,.22],[.55,.26],[.55,.08],[0,.04]]).translate(0,.004,0),P.cov);
+  const W2=Merger();W2.add(sg([[0,.26],[.4,.26],[.72,.12],[.78,-.06],[.68,-.16],[.58,-.08],[.48,-.22],[.36,-.12],[.24,-.26],[.12,-.16],[0,-.22]]),P.wing);
+  return {P,mat,skin,eyes:eyes.build(),beak:beak.build(),tufts:tufts.build(),lid:lid.build(),wingsF:wingsF.build(),tail:tail.build(),feet:feet.build(),w1:W1.build(),w2:W2.build(),
+   wmat:new T.MeshStandardMaterial({vertexColors:true,roughness:.85,side:T.DoubleSide})};});
+}
 function makeOwlFrom(owlKit,k){const P=owlKit[k!=null?k:(Math.random()*owlKit.length)|0],g=new T.Group(),inner=new T.Group();g.add(inner);inner.scale.setScalar(rr(.42,.5));
-  inner.add(new T.Mesh(P.body,P.mat));const head=new T.Group();head.position.set(0,.98,.05);inner.add(head);head.add(new T.Mesh(P.head,P.mat));
-  const lids=[];for(const s of [-1,1]){const l=new T.Mesh(P.lid,P.lidMat);l.position.set(s*.12,.03,.33);l.rotation.x=-PI/2;l.scale.set(1,.2,1);head.add(l);lids.push(l);}
-  const wings=[];for(const s of [-1,1]){const r0=new T.Group();r0.position.set(s*.28,.66,.0);r0.scale.x=s;inner.add(r0);r0.add(new T.Mesh(P.w1,P.mat));const tip=new T.Group();tip.position.x=.58;r0.add(tip);tip.add(new T.Mesh(P.w2,P.mat));r0.visible=false;wings.push({s,root:r0,tip});}
-  g.visible=false;return {g,inner,head,lids,wings,ph:rr(0,TAU),vx:0,vy:0,vz:0,x:0,y:0,z:0,st:'sleep',t:0};}
+ const withInk=(geo,m)=>{const me=new T.Mesh(geo,m||P.mat);me.castShadow=true;me.add(new T.Mesh(geo,owlInk));return me;};
+ // esqueleto: corpo → 3 ossos de torção do pescoço → cabeça
+ const body=new T.Bone(),n1=new T.Bone(),n2=new T.Bone(),n3=new T.Bone(),hb=new T.Bone();n1.position.set(0,OWL_NECK,0);body.add(n1);n1.add(n2);n2.add(n3);n3.add(hb);inner.add(body);
+ const skin=new T.SkinnedMesh(P.skin,P.mat),ink=new T.SkinnedMesh(P.skin,owlInk);skin.castShadow=true;inner.add(skin,ink);inner.updateMatrixWorld(true);
+ const sk=new T.Skeleton([body,n1,n2,n3,hb]);skin.bind(sk);ink.bind(sk,skin.bindMatrix);
+ hb.add(new T.Mesh(P.eyes,P.mat),withInk(P.beak),withInk(P.tufts));
+ const lids=[];for(const s of [-1,1]){const l=new T.Group();l.position.set(s*.11,1.02-OWL_NECK+.124,.27);l.scale.y=.2;l.visible=false;const lm=new T.Mesh(P.lid,P.mat);l.add(lm);hb.add(l);lids.push(l);}
+ const folded=withInk(P.wingsF);body.add(folded,withInk(P.tail),withInk(P.feet));
+ const wings=[];for(const s of [-1,1]){const r0=new T.Group();r0.position.set(s*.3,.78,.0);r0.scale.x=s;inner.add(r0);r0.add(new T.Mesh(P.w1,P.wmat));const tip=new T.Group();tip.position.x=.58;r0.add(tip);tip.add(new T.Mesh(P.w2,P.wmat));r0.visible=false;wings.push({s,root:r0,tip});}
+ // "head" é quem o jogo gira (y = virar, z = inclinar); sync() reparte o giro pelos ossos do pescoço
+ const head=new T.Object3D();
+ const sync=()=>{const y=head.rotation.y/4;n1.rotation.y=n2.rotation.y=n3.rotation.y=hb.rotation.y=y;hb.rotation.z=head.rotation.z;folded.visible=!wings[0].root.visible;for(const l of lids)l.visible=l.scale.y>.3;};
+ g.visible=false;return {g,inner,head,lids,wings,sync,ph:rr(0,TAU),vx:0,vy:0,vz:0,x:0,y:0,z:0,st:'sleep',t:0};}
 window.arcanoKitAves={SPECIES,kit,owlKitBuild,makeOwlFrom,wingsFly,wingsFold};
 
 function install(){
@@ -231,7 +289,7 @@ function install(){
    for(let i=groups.length-1;i>=0;i--)if(Math.hypot(groups[i].x-state.px,groups[i].z-state.pz)>75){for(const b of groups[i].birds)root.remove(b.g);groups.splice(i,1);}
    if(groups.length<GROUPS&&state.day>=.18)newGroup();}
   for(const G of groups){if(G.alarm>0){G.alarm+=dt;if(G.alarm>2&&G.birds.every(b=>b.st==='perch')&&G.birds.every(b=>pDist(b.x,b.z)>6))G.alarm=0;}for(const b of G.birds)updGround(b,dt);}
-  if(owls.length<OWLS){const o=makeOwl();root.add(o.g);owls.push(o);}for(const o of owls){if(o.st!=='sleep'&&pDist(o.x,o.z)>90)o.st='sleep';updOwl(o,dt);}
+  if(owls.length<OWLS){const o=makeOwl();root.add(o.g);owls.push(o);}for(const o of owls){if(o.st!=='sleep'&&pDist(o.x,o.z)>90)o.st='sleep';updOwl(o,dt);if(o.sync)o.sync();}
   updSky(dt);
  })(last);
  window.arcanoAves={groups,sky,owls,flock:F,roofPerches,especies:SPECIES.map(s=>s.n)};

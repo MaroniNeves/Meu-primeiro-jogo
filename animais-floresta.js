@@ -335,6 +335,7 @@ function animarCervo(d,dt,now,dxp,dzp){
   d.root.position.set(d.x,d.y,d.z);d.root.rotation.set(d.pitch,d.yaw,0,'YXZ');
 }
 window.arcanoKitCervo={makeDeer,animarCervo};
+window.arcanoPele={tubePrim,ellPrim,skinGeometry,sweepGeo,Builder,spline,smin};   // pele única (formas somadas → malha contínua), usada também pela coruja
 
 /* ---------- mundo ---------- */
 function install(){
