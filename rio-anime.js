@@ -574,8 +574,15 @@ function install(){
   const fz=profile.fall.z,top=u.uFallTop.value,drop=u.uFallDrop.value;
   const rows=[];
   for(let k=0;k<=14;k++){const s=k/14;rows.push({y:top-.01-drop*s,z:fz-.35+.7*s});}
-  const w=((typeof profile.halfWidth==='function'?profile.halfWidth(fz):profile.halfWidth)||3)*.96;
-  fallShell(material,rows,profile.center(fz),w,.28,'Volume da cachoeira do rio');
+  let cx=profile.center(fz),w=((typeof profile.halfWidth==='function'?profile.halfWidth(fz):profile.halfWidth)||3)*.96;
+  // As laterais do volume seguem a margem real da água na borda da queda (onde ainda há ~10 cm de água),
+  // e não a meia-largura teórica do leito: antes passavam ~1,8 m de cada lado e apareciam por cima da areia.
+  if(profile.depthAt){
+   const zl=fz-.35,edge=s=>{let x=cx;for(let i=0;i<120;i++){const nx=x+s*.1;if(profile.depthAt(nx,zl)<.1)return x;x=nx;}return cx+s*w;};
+   const xl=edge(-1)+.35,xr=edge(1)-.35;
+   if(xr-xl>1){cx=(xl+xr)/2;w=Math.min(w,(xr-xl)/2);}
+  }
+  fallShell(material,rows,cx,w,.28,'Volume da cachoeira do rio');
  }
 
  // ---------- Névoa e gotas da cachoeira ----------
