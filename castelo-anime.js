@@ -197,7 +197,7 @@ function matcapTex(kind){
  }
  g.putImageData(img,0,0);const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;return t;
 }
-const metal=k=>new T.MeshMatcapMaterial({matcap:matcapTex(k),side:T.DoubleSide,fog:false});
+const metal=k=>{const m=new T.MeshMatcapMaterial({matcap:matcapTex(k),side:T.DoubleSide,fog:false});m.name='metal '+k;return m;};
 M.steel=metal('steel');M.steelDark=metal('dark');M.goldM=metal('gold');M.brass=metal('brass');
 M.plume=mat({color:'#b8302a',side:T.DoubleSide});M.leather=mat({color:'#5a3a22'});
 // Mapa-múndi pintado do globo (antes: esfera azul lisa). Continentes por ruído na esfera (sem emenda),
@@ -262,7 +262,7 @@ const ARM_BUILD=function(variant){
  const part=(m,secs,x,y,z,o)=>{o=o||{};const me=new T.Mesh(loftGeo(secs,o.N,o.cap),m);me.position.set(x,y,z);if(o.rx)me.rotation.x=o.rx;if(o.ry)me.rotation.y=o.ry;if(o.rz)me.rotation.z=o.rz;a.add(me);return me;};
  const partAB=(m,A,B,secs,o)=>{o=o||{};const d=new T.Vector3().subVectors(B,A),L=d.length(),me=new T.Mesh(loftGeo(secs.map(q=>Object.assign({},q,{y:q.t*L})),o.N,o.cap),m);me.position.copy(A);me.quaternion.setFromUnitVectors(Y,d.normalize());a.add(me);return me;};
  const extrude=(m,shape,depth,bevel,x,y,z,o)=>{o=o||{};const g=new T.ExtrudeGeometry(shape,{depth,bevelEnabled:true,bevelSize:bevel,bevelThickness:bevel,bevelSegments:2,curveSegments:14});g.translate(0,0,-depth/2);const me=new T.Mesh(g,m);me.position.set(x,y,z);if(o.rx)me.rotation.x=o.rx;if(o.ry)me.rotation.y=o.ry;if(o.rz)me.rotation.z=o.rz;a.add(me);return me;};
- const gem=(m,r,x,y,z,sx,sy,sz)=>{const me=new T.Mesh(new T.IcosahedronGeometry(r,1),m);me.position.set(x,y,z);me.scale.set(sx||1,sy||1,sz||1);a.add(me);return me;};
+ const gem=(m,r,x,y,z,sx,sy,sz)=>{const me=new T.Mesh(new T.IcosahedronGeometry(r,r<.02?0:1),m);me.position.set(x,y,z);me.scale.set(sx||1,sy||1,sz||1);a.add(me);return me;};
  box(a,1.0,.2,1.0,M.base,0,.1,0,0,2);box(a,.86,.1,.86,M.trim,0,.25,0,0,2);box(a,.9,.03,.9,G,0,.31,0);
  const yb=.32;
  for(const s of [-1,1]){

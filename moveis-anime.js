@@ -92,7 +92,7 @@ function cyl(g,r1,r2,h,m,x,y,z,seg,rx,rz){const mm=new T.Mesh(new T.CylinderGeom
 function sph(g,r,m,x,y,z,sx,sy,sz,seg){const mm=new T.Mesh(new T.SphereGeometry(r,seg||10,Math.max(5,(seg||10)>>1)),m);mm.position.set(x,y,z);mm.scale.set(sx||1,sy||1,sz||1);g.add(mm);return mm;}
 function lathe(g,pts,m,x,y,z,seg){const mm=new T.Mesh(new T.LatheGeometry(pts.map(p=>new T.Vector2(p[0],p[1])),seg||10),m);mm.position.set(x,y,z);g.add(mm);return mm;}
 // perna torneada de altura h
-function perna(g,m,x,y,z,h,r){r=r||.045;lathe(g,[[0,0],[r*.8,0],[r*.9,h*.06],[r*.6,h*.12],[r*.75,h*.2],[r*.55,h*.3],[r*.6,h*.55],[r,h*.62],[r*.7,h*.7],[r*1.05,h*.78],[r*1.1,h],[0,h]],m,x,y,z,8);}
+function perna(g,m,x,y,z,h,r){r=r||.045;lathe(g,[[0,0],[r*.8,0],[r*.9,h*.06],[r*.6,h*.12],[r*.75,h*.2],[r*.55,h*.3],[r*.6,h*.55],[r,h*.62],[r*.7,h*.7],[r*1.05,h*.78],[r*1.1,h],[0,h]],m,x,y,z,6);}
 function rodizio(g,a,b,m,r){const dx=b[0]-a[0],dy=b[1]-a[1],dz=b[2]-a[2],L=Math.hypot(dx,dy,dz);const mm=new T.Mesh(new T.CylinderGeometry(r,r,L,5),m);mm.position.set((a[0]+b[0])/2,(a[1]+b[1])/2,(a[2]+b[2])/2);mm.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),new T.Vector3(dx/L,dy/L,dz/L));g.add(mm);return mm;}
 // ---------- móveis ----------
 // cama ao longo de x; cabeceira do lado hx (±1); centro (cx,cz)

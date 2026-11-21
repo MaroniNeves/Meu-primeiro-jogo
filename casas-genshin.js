@@ -93,7 +93,7 @@ function Builder(){
   add(key,geo,x,y,z,ry,o){o=o||{};
    const m=new T.Matrix4().compose(V.set(x||0,y||0,z||0),Q.setFromEuler(E.set(o.rx||0,ry||0,o.rz||0,'YXZ')),Sc.set(o.sx||1,o.sy||1,o.sz||1));m.premultiply(stack[stack.length-1]);
    let g=geo.index?geo.toNonIndexed():geo.clone();if(!g.attributes.normal)g.computeVertexNormals();g.applyMatrix4(m);
-   const b=buckets[key]||(buckets[key]={P:[],N:[],U:[],C:[]});const P=g.attributes.position,Nn=g.attributes.normal,U=g.attributes.uv,n=P.count,tile=TILE[key]||0,col=o.color;
+   const b=buckets[key]||(buckets[key]={P:[],N:[],U:[],C:[]});const P=g.attributes.position,Nn=g.attributes.normal,U=g.attributes.uv,n=P.count,tile=TILE[key]||TILE[key.replace(/\d+$/,'')]||0,col=o.color;
    for(let i=0;i<n;i+=3){
     A.fromBufferAttribute(P,i);Bv.fromBufferAttribute(P,i+1);Cv.fromBufferAttribute(P,i+2);N.crossVectors(Bv.clone().sub(A),Cv.clone().sub(A)).normalize();
     const ax=Math.abs(N.x),ay=Math.abs(N.y),az=Math.abs(N.z),mode=ax>ay&&ax>az?0:ay>az?1:2;
@@ -104,16 +104,16 @@ function Builder(){
    }
    g.dispose();},
   box(key,w,h,d,x,y,z,ry,o){B.add(key,new T.BoxGeometry(w,h,d),x,y,z,ry,o);},
-  xg:new T.Group(),
+  xg:new T.Group(),xg1:new T.Group(),
   finish(M,shadow){const grp=new T.Group();
-   if(B.xg.children.length){B.xg.updateMatrixWorld(true);const bk=new Map();
-    B.xg.traverse(o=>{if(!o.isMesh)return;let g=o.geometry.index?o.geometry.toNonIndexed():o.geometry.clone();g.applyMatrix4(o.matrixWorld);if(!g.attributes.normal)g.computeVertexNormals();if(!g.attributes.uv)g.setAttribute('uv',new T.BufferAttribute(new Float32Array(g.attributes.position.count*2),2));if(!bk.has(o.material))bk.set(o.material,[]);bk.get(o.material).push(g);});
+   for(const [XG,nomeX] of [[B.xg,'casa mobília'],[B.xg1,'casa mobília andar de cima']])if(XG.children.length){XG.updateMatrixWorld(true);const bk=new Map();
+    XG.traverse(o=>{if(!o.isMesh)return;let g=o.geometry.index?o.geometry.toNonIndexed():o.geometry.clone();g.applyMatrix4(o.matrixWorld);if(!g.attributes.normal)g.computeVertexNormals();if(!g.attributes.uv)g.setAttribute('uv',new T.BufferAttribute(new Float32Array(g.attributes.position.count*2),2));if(!bk.has(o.material))bk.set(o.material,[]);bk.get(o.material).push(g);});
     for(const [m,list] of bk){let n=0;for(const g of list)n+=g.attributes.position.count;const P=new Float32Array(n*3),N=new Float32Array(n*3),U=new Float32Array(n*2);let off=0;
      for(const g of list){const k=g.attributes.position.count;P.set(g.attributes.position.array,off*3);N.set(g.attributes.normal.array,off*3);U.set(g.attributes.uv.array.subarray(0,k*2),off*2);off+=k;g.dispose();}
      const g=new T.BufferGeometry();g.setAttribute('position',new T.BufferAttribute(P,3));g.setAttribute('normal',new T.BufferAttribute(N,3));g.setAttribute('uv',new T.BufferAttribute(U,2));g.computeBoundingSphere();
-     const me=new T.Mesh(g,m);me.name='casa mobília';me.castShadow=!m.emissive||m.emissiveIntensity<.5;me.receiveShadow=true;grp.add(me);}}
+     const me=new T.Mesh(g,m);me.name=nomeX;me.castShadow=!m.emissive||m.emissiveIntensity<.5;me.receiveShadow=true;grp.add(me);}}
    for(const k in buckets){const b=buckets[k],g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(b.P,3));g.setAttribute('normal',new T.Float32BufferAttribute(b.N,3));g.setAttribute('uv',new T.Float32BufferAttribute(b.U,2));g.setAttribute('color',new T.Float32BufferAttribute(b.C,3));
-    g.computeBoundingSphere();const me=new T.Mesh(g,M[k]);me.name='casa '+k;me.castShadow=k!=='leaf'&&k!=='glass'||k==='leaf'&&shadow;me.receiveShadow=true;grp.add(me);}
+    g.computeBoundingSphere();const me=new T.Mesh(g,M[k]||M[k.replace(/\d+$/,'')]);me.name='casa '+k;me.castShadow=k!=='leaf'&&k!=='glass'||k==='leaf'&&shadow;me.receiveShadow=true;grp.add(me);}
    return grp;}
  };
  return B;}
@@ -189,7 +189,7 @@ function furnish(B,R,W,D,floors,fh,Y0,sx,X){
    const portas=f===0?[{x:0,w:1.7}]:(X.bay?[{x:0,w:(X.Wc||4.6)-.4}]:[]);
    const lados=[];if(f===0&&X.innerDoor)lados.push({lado:X.annexSide,z:X.innerDoor.hz,w:1.2});
    // escada do lado sx: sem estante e prateleira desse lado; térreo é sala de estar (armário no lugar da cama)
-   AM.sala(g,{iw,id,y,top,s:-sx,portas,lados,v:v+f,sem:{cama:f===0,estante:true,prateleira:true,lareira:f>0}});}
+   AM.sala(f?B.xg1:g,{iw,id,y,top,s:-sx,portas,lados,v:v+f,sem:{cama:f===0,estante:true,prateleira:true,lareira:f>0}});}
   return;}
  const top=f=>Y0+f*fh+.12;
  // térreo: mesa, cadeiras, estante, tapete, barril
@@ -367,7 +367,7 @@ function build(o){o=o||{};
   B.pop();B.pop();}
  // ---- interior: pisos, lajes, escadas, móveis
  slab(B,'plank',W-.55,D-.55,Y0-.02,.12,null);
- for(let f=1;f<floors;f++){const hole={x0:sxS*(W/2-1.1)-.6,x1:sxS*(W/2-1.1)+.6,z0:-2.75,z1:.3};slab(B,'plank',W-.55,D-.55,Y0+f*fh-.12,.24,hole);
+ for(let f=1;f<floors;f++){const hole={x0:sxS*(W/2-1.1)-.6,x1:sxS*(W/2-1.1)+.6,z0:-2.75,z1:.3};slab(B,'plank1',W-.55,D-.55,Y0+f*fh-.12,.24,hole);
   const y0=Y0+(f-1)*fh+.1,n=12,rise=(fh+.02)/n,run=.32;
   for(let i=0;i<n;i++)B.box('plank',1.1,(i+1)*rise,run,sxS*(W/2-1.1),y0+(i+1)*rise/2,1.3-(i+.5)*run);
   B.box('timber',.08,1.0,3.9,sxS*(W/2-1.1)-.6,y0+1.4,-.7,0,{rx:-Math.atan2(fh,3.8)*.0});}
@@ -382,7 +382,7 @@ function build(o){o=o||{};
   {const holes=[];for(let f=1;f<floors;f++)for(const wx of[-1.45,0,1.45])holes.push({cx:wx,y0:(f-1)*fh+.9,w:1.0,h:1.75});
    B.push(0,Y0+fh,zf,0);wallPanel(B,Wc,H-fh,holes,TH);B.pop();}
   for(const sg of[-1,1])B.box('plaster',TH,H-fh,pb,sg*(Wc/2-TH/2),yb+(H-fh)/2,D/2+pb/2);
-  B.box('plank',Wc-.55,.24,pb,0,yb,D/2+pb/2);
+  B.box('plank1',Wc-.55,.24,pb,0,yb,D/2+pb/2);
   // pórtico: postes + vigas + arcos
   for(const px of[-Wc/2+.1,-Wc/4,Wc/4,Wc/2-.1])B.box('timber',.26,fh-.1,.26,px,Y0+(fh-.1)/2,zf-.2);
   B.box('timberH',Wc+.4,.34,.4,0,yb-.15,zf-.2);B.box('timberH',Wc+.4,.2,.3,0,Y0+.1,zf-.2);
