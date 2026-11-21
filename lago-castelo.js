@@ -119,15 +119,19 @@ function install(){
     // lamparina no lado de fora (longe do lago), no meio dos trechos 1 e 3
     if(k===1||k===3){const mx=cx,mz=cz;let e=1;if((mx+nx-L.x)*nx+(mz+nz-L.z)*nz<0)e=-1;const px=mx+nx*e*(BW/2+.16),pz=mz+nz*e*(BW/2+.16),yy=(ya+yb)/2;lantern(px,yy-.25,pz,-nx*e,-nz*e,2.3,yy,H(px,pz)-.3);}
    }
-   if(yEnd-gE>.35){box(g,BW+1.2,.2,2.2,M.deck,lx,yEnd-.2,lz-.6,0,1.5);box(g,BW+1.4,.22,.3,M.woodDark,lx,yEnd-.42,lz-1.5,0,1.5);box(g,BW+1.4,.22,.3,M.woodDark,lx,yEnd-.42,lz+.3,0,1.5);
-    for(const ox of [-1,1])for(const oz of [-1.5,.3]){const px=lx+ox*((BW+1.2)/2-.15),pz=lz-.6+oz+.6,h2=H(px,pz);cyl(g,.15,.18,yEnd-h2+.4,M.log,px,h2-.4,pz,7,1.4);}
-    for(const e of [-1,1]){const px=lx+e*((BW+1.2)/2-.08);cyl(g,.09,.1,1.15,M.woodDark,px,yEnd,lz+.45,6,1);rod(g,px,yEnd+1.05,lz-1.65,px,yEnd+1.05,lz+.45,.045,M.woodDark,5);O.addBox({x:px,z:lz-.6,hw:.12,hd:1.1,rot:0});}
-    rod(g,lx-(BW+1.2)/2+.08,yEnd+1.05,lz+.45,lx+(BW+1.2)/2-.08,yEnd+1.05,lz+.45,.045,M.woodDark,5);O.addBox({x:lx,z:lz+.45,hw:(BW+1.2)/2,hd:.12,rot:0});}
-   else box(g,BW+1.2,Math.max(.2,yEnd-gE+.3),2.2,M.deck,lx,yEnd-Math.max(.2,yEnd-gE+.3),lz-.6,0,1.5);
-   decks.push({x0:lx,z0:lz-.6,len:0,end:true,y0:yEnd,y1:yEnd});
-   lantern(lx+s*((BW+1.2)/2+.14),yEnd-.25,lz-1.3,-s,0,2.3,yEnd,Math.min(yEnd-.25,H(lx+s*((BW+1.2)/2+.14),lz-1.3)-.3));
+   // Plataforma da ponta GIRADA na direção do último trecho (antes ficava reta no eixo do mundo e atravessava
+   // o trecho em diagonal: tábuas, vigas, corrimão e estacas desencontrados). a = ao longo do trecho, b = de lado.
+   const pa=pts[pts.length-2],ryL=Math.atan2(pts[pts.length-1][0]-pa[0],pts[pts.length-1][1]-pa[1]),ux=Math.sin(ryL),uz=Math.cos(ryL),bxL=Math.cos(ryL),bzL=-Math.sin(ryL);
+   const P=(a,b)=>[lx+ux*a+bxL*b,lz+uz*a+bzL*b],LW=(BW+1.2)/2,[cxL,czL]=P(-.6,0);
+   if(yEnd-gE>.35){box(g,BW+1.2,.2,2.2,M.deck,cxL,yEnd-.2,czL,ryL,1.5);for(const a of [-1.5,.3]){const [vx,vz]=P(a,0);box(g,BW+1.4,.22,.3,M.woodDark,vx,yEnd-.42,vz,ryL,1.5);}
+    for(const ob of [-1,1])for(const a of [-1.5,.3]){const [px,pz]=P(a,ob*(LW-.15)),h2=H(px,pz);cyl(g,.15,.18,yEnd-h2+.4,M.log,px,h2-.4,pz,7,1.4);}
+    for(const e of [-1,1]){const [px,pz]=P(.45,e*(LW-.08)),[qx,qz]=P(-1.65,e*(LW-.08)),[ox,oz]=P(-.6,e*(LW-.08));cyl(g,.09,.1,1.15,M.woodDark,px,yEnd,pz,6,1);rod(g,qx,yEnd+1.05,qz,px,yEnd+1.05,pz,.045,M.woodDark,5);O.addBox({x:ox,z:oz,hw:.12,hd:1.1,rot:ryL});}
+    {const [ax,az]=P(.45,-(LW-.08)),[bx,bz]=P(.45,LW-.08),[fx,fz]=P(.45,0);rod(g,ax,yEnd+1.05,az,bx,yEnd+1.05,bz,.045,M.woodDark,5);O.addBox({x:fx,z:fz,hw:LW,hd:.12,rot:ryL});}}
+   else box(g,BW+1.2,Math.max(.2,yEnd-gE+.3),2.2,M.deck,cxL,yEnd-Math.max(.2,yEnd-gE+.3),czL,ryL,1.5);
+   decks.push({x0:cxL,z0:czL,len:0,end:true,y0:yEnd,y1:yEnd,ux,uz,bx:bxL,bz:bzL});
+   {const lado=(bxL*s>=0)?1:-1,[px,pz]=P(-1.3,lado*(LW+.14));lantern(px,yEnd-.25,pz,-bxL*lado,-bzL*lado,2.3,yEnd,Math.min(yEnd-.25,H(px,pz)-.3));}
   }
-  const dist=(x,z,d)=>{if(d.end)return Math.max(Math.abs(x-d.x0)-(BW+1.2)/2,Math.abs(z-d.z0)-1.1);const ux=(d.x1-d.x0)/d.len,uz=(d.z1-d.z0)/d.len,t=Math.max(-.25,Math.min(d.len+.25,(x-d.x0)*ux+(z-d.z0)*uz));return Math.hypot(x-(d.x0+ux*t),z-(d.z0+uz*t))-BW/2;};
+  const dist=(x,z,d)=>{if(d.end){const dx=x-d.x0,dz=z-d.z0;return Math.max(Math.abs(dx*d.bx+dz*d.bz)-(BW+1.2)/2,Math.abs(dx*d.ux+dz*d.uz)-1.1);}const ux=(d.x1-d.x0)/d.len,uz=(d.z1-d.z0)/d.len,t=Math.max(-.25,Math.min(d.len+.25,(x-d.x0)*ux+(z-d.z0)*uz));return Math.hypot(x-(d.x0+ux*t),z-(d.z0+uz*t))-BW/2;};
   const yAt=(x,z,d)=>{if(d.end)return d.y0;const ux=(d.x1-d.x0)/d.len,uz=(d.z1-d.z0)/d.len,t=Math.max(0,Math.min(1,((x-d.x0)*ux+(z-d.z0)*uz)/d.len));return d.y0+(d.y1-d.y0)*t;};
   (window.arcanoExtraDecks=window.arcanoExtraDecks||[]).push({surfaceAt(x,z){for(const d of decks)if(dist(x,z,d)<=0)return yAt(x,z,d)+.03;return null;},blocksSegment(){return false;}});
   // sem capim crescendo por cima das passarelas
