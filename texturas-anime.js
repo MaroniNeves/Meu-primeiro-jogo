@@ -97,56 +97,76 @@ function cobble(o){
 
 /* ---------- Madeira em tábuas: anéis de crescimento ("catedral"), fibras finas, poros, nós e juntas ---------- */
 function wood(o){
- o=o||{};const S=o.size||512,R=rng(o.seed||3),boards=o.boards||4;
+ /* Tábuas com aparência natural (antes: 4 tábuas iguais com anéis ovais perfeitos e emendas na mesma altura,
+    que viravam um carimbo alinhado no piso, nas paredes e nas portas):
+    - 6 a 8 tábuas de larguras diferentes, cada uma com 1 ou 2 emendas de topo em alturas próprias;
+    - cada trecho de tábua tem o seu tom; o veio são fibras longas e onduladas que desviam dos nós;
+    - "catedral" só em alguns trechos, suave e irregular; pregos apenas nas emendas. Repete sem emenda. */
+ o=o||{};const S=o.size||512,R=rng(o.seed||3),boards=o.boards||(6+Math.floor(R()*3));
  const hue=o.hue!=null?o.hue:28,light=o.light!=null?o.light:38,sat=o.sat!=null?o.sat:46;
  const cm=mk(S),ch=mk(S),g=cm.getContext('2d'),h=ch.getContext('2d');
  h.fillStyle='#8a8a8a';h.fillRect(0,0,S,S);
- const ws=[];let sum=0;for(let b=0;b<boards;b++){const w=.7+R()*.8;ws.push(w);sum+=w;}
+ const ws=[];let sum=0;for(let b=0;b<boards;b++){const w=.55+R()*.9;ws.push(w);sum+=w;}
+ const wrapY=(y0,y1,fn)=>{for(const oy of [-S,0,S]){const a=y0+oy,b=y1+oy;if(b<0||a>S)continue;fn(a,b);}};
  let x0=0;
  for(let b=0;b<boards;b++){
-  const bw=ws[b]/sum*S,l=light+(R()-.5)*16,H=hue+(R()-.5)*12,Sa=sat+(R()-.5)*14;
-  const gr=g.createLinearGradient(x0,0,x0+bw,0);
-  gr.addColorStop(0,`hsl(${H},${Sa}%,${l-7}%)`);gr.addColorStop(.18,`hsl(${H},${Sa}%,${l}%)`);gr.addColorStop(.82,`hsl(${H},${Sa}%,${l+2}%)`);gr.addColorStop(1,`hsl(${H},${Sa+4}%,${l-8}%)`);
-  g.fillStyle=gr;g.fillRect(x0,0,bw,S);
+  const bw=ws[b]/sum*S,bH=hue+(R()-.5)*10,bS=sat+(R()-.5)*12,bL=light+(R()-.5)*12;
   g.save();g.beginPath();g.rect(x0,0,bw,S);g.clip();h.save();h.beginPath();h.rect(x0,0,bw,S);h.clip();
-  // anéis de crescimento em "catedral": elipses muito alongadas, espaçamento irregular
-  const rcx=x0+bw*(.15+R()*.7),rcy=R()*S,nr=16+Math.floor(R()*10),gap=bw*(.05+R()*.05);
-  let rx=gap*.4;
-  for(let r=0;r<nr;r++){
-   rx+=gap*(.5+R()*1.1);const ry=rx*(6+R()*5),early=R()<.5,al=early?.07+R()*.12:.12+R()*.2,lw=.7+R()*(early?1.2:2.4);
-   for(const oy of [-S,0,S]){
-    g.strokeStyle=early?`rgba(255,228,184,${al*.8})`:`rgba(${58+R()*20},${30+R()*14},12,${al})`;g.lineWidth=lw;g.beginPath();g.ellipse(rcx,rcy+oy,rx,ry,0,0,6.3);g.stroke();
-    if(!early){h.strokeStyle=`rgba(40,40,40,${al*1.6})`;h.lineWidth=lw;h.beginPath();h.ellipse(rcx,rcy+oy,rx,ry,0,0,6.3);h.stroke();}
+  // emendas de topo desta tábua (posições próprias) → trechos cíclicos
+  const nj=1+(R()<.45?1:0),js=[];for(let k=0;k<nj;k++)js.push(R()*S);js.sort((a,c)=>a-c);
+  const trechos=[];for(let k=0;k<js.length;k++){const a=js[k],c=k+1<js.length?js[k+1]:js[0]+S;trechos.push([a,c]);}
+  for(const [ya,yb] of trechos){
+   const l=bL+(R()-.5)*9,Hh=bH+(R()-.5)*5,Sa=bS+(R()-.5)*8;
+   const gr=g.createLinearGradient(x0,0,x0+bw,0);
+   gr.addColorStop(0,`hsl(${Hh},${Sa}%,${l-5}%)`);gr.addColorStop(.2+R()*.2,`hsl(${Hh},${Sa}%,${l+1}%)`);gr.addColorStop(.6+R()*.2,`hsl(${Hh+2},${Sa-2}%,${l+3}%)`);gr.addColorStop(1,`hsl(${Hh},${Sa+3}%,${l-6}%)`);
+   wrapY(ya,yb,(a,c)=>{g.fillStyle=gr;g.fillRect(x0,a,bw,c-a);
+    // variação longa de tom ao longo do trecho
+    const lg=g.createLinearGradient(0,a,0,c);lg.addColorStop(0,`rgba(40,20,8,${.04+R()*.06})`);lg.addColorStop(.5,'rgba(255,236,200,0)');lg.addColorStop(1,`rgba(40,20,8,${.04+R()*.06})`);g.fillStyle=lg;g.fillRect(x0,a,bw,c-a);});
+   // nós do trecho (0 ou 1, raramente 2)
+   const nos=[];const nk=(R()<.35?1:0)+(R()<.08?1:0);
+   for(let k=0;k<nk;k++)nos.push({x:x0+bw*(.25+R()*.5),y:ya+(yb-ya)*(.2+R()*.6),r:3.5+R()*6});
+   // veio: fibras longas onduladas que desviam dos nós
+   const nf=Math.round(bw*(.28+R()*.14));
+   // faixas largas e suaves de tom (veio visto de longe)
+   for(let k=0;k<3;k++){const fx=x0+R()*bw,ww=bw*(.12+R()*.25);wrapY(ya,yb,(a,c)=>{const bg=g.createLinearGradient(fx-ww,0,fx+ww,0);const dk=R()<.5;bg.addColorStop(0,'rgba(0,0,0,0)');bg.addColorStop(.5,dk?`rgba(60,30,10,${.05+R()*.06})`:`rgba(255,235,200,${.04+R()*.05})`);bg.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=bg;g.fillRect(fx-ww,a,ww*2,c-a);});}
+   for(let k=0;k<nf;k++){
+    const fx=x0+R()*bw,f1=.006+R()*.012,f2=.03+R()*.05,a1=1.5+R()*4,a2=.3+R()*1.2,ph=R()*6.3,ph2=R()*6.3;
+    const tardio=R()<.45,al=tardio?.04+R()*.06:.02+R()*.04,lw=tardio?.7+R()*1.1:.5+R()*.6;
+    const cor=tardio?`rgba(${48+R()*24},${24+R()*12},${8+R()*8},${al})`:`rgba(255,232,196,${al*.9})`;
+    g.strokeStyle=cor;g.lineWidth=lw;
+    for(const oy of [-S,0,S]){g.beginPath();let first=true;
+     for(let yy=ya;yy<=yb;yy+=6){let xx=fx+Math.sin(yy*f1+ph)*a1+Math.sin(yy*f2+ph2)*a2;
+      for(const n of nos){const dx=xx-n.x,dy=yy-n.y,d2=dx*dx+dy*dy*.35,inf=Math.exp(-d2/(n.r*n.r*6));xx+=Math.sign(dx||1)*inf*n.r*1.8;}
+      if(first){g.moveTo(xx,yy+oy);first=false;}else g.lineTo(xx,yy+oy);}
+     g.stroke();}
+    if(tardio&&R()<.3){h.strokeStyle=`rgba(40,40,40,${al*1.4})`;h.lineWidth=lw;h.beginPath();for(let yy=ya;yy<=yb;yy+=10){const xx=fx+Math.sin(yy*f1+ph)*a1;yy===ya?h.moveTo(xx,yy):h.lineTo(xx,yy);}h.stroke();}
    }
+   // "catedral" suave e irregular só em alguns trechos (antes: elipses perfeitas em todas as tábuas)
+   if(R()<.32){const cx=x0+bw*(.3+R()*.4),cy=ya+(yb-ya)*(.3+R()*.5),na=4+Math.floor(R()*4);let rx=bw*.06;
+    for(let r=0;r<na;r++){rx+=bw*(.04+R()*.05);const alto=rx*(5+R()*4),al=.04+R()*.06;
+     g.strokeStyle=`rgba(${60+R()*20},${30+R()*12},10,${al})`;g.lineWidth=.8+R()*1.4;
+     for(const oy of [-S,0,S]){g.beginPath();for(let t=-1;t<=1.001;t+=.08){const wob=Math.sin(t*7+r*2.1)*rx*.08;const xx=cx+t*rx+wob,yy=cy-alto*(1-t*t)+oy;t===-1?g.moveTo(xx,yy):g.lineTo(xx,yy);}g.stroke();}}}
+   // nós desenhados
+   for(const n of nos)for(const oy of [-S,0,S]){
+    const kg=g.createRadialGradient(n.x,n.y+oy,0,n.x,n.y+oy,n.r*1.3);kg.addColorStop(0,'rgba(34,16,6,.85)');kg.addColorStop(.6,'rgba(70,36,16,.35)');kg.addColorStop(1,'rgba(70,36,16,0)');
+    g.fillStyle=kg;g.beginPath();g.ellipse(n.x,n.y+oy,n.r*.9,n.r*1.35,R()*.4-.2,0,6.3);g.fill();
+    g.strokeStyle='rgba(40,18,6,.35)';g.lineWidth=.9;for(let r=1;r<=3;r++){g.beginPath();g.ellipse(n.x,n.y+oy,n.r*(.9+r*.35),n.r*(1.35+r*.6),0,0,6.3);g.stroke();}
+    h.fillStyle='rgba(25,25,25,.6)';h.beginPath();h.ellipse(n.x,n.y+oy,n.r*.8,n.r*1.2,0,0,6.3);h.fill();}
+   // desgaste ocasional e rachadura curta
+   if(R()<.4){const wy=ya+R()*(yb-ya),wh=30+R()*90;wrapY(wy,wy+wh,(a,c)=>{const wg=g.createLinearGradient(0,a,0,c);wg.addColorStop(0,'rgba(205,195,175,0)');wg.addColorStop(.5,`rgba(205,195,175,${.04+R()*.06})`);wg.addColorStop(1,'rgba(205,195,175,0)');g.fillStyle=wg;g.fillRect(x0,a,bw,c-a);});}
+   if(R()<.3){let cx2=x0+bw*(.2+R()*.6),cy2=ya+R()*(yb-ya)*.8;g.strokeStyle='rgba(22,10,4,.6)';g.lineWidth=1;g.beginPath();g.moveTo(cx2,cy2);for(let t=0;t<4;t++){cx2+=(R()-.5)*2.5;cy2+=5+R()*12;g.lineTo(cx2,cy2);}g.stroke();}
   }
-  // fibras finas e poros
-  for(let k=0;k<170;k++){const fx=x0+R()*bw,fy=R()*S,len=30+R()*190,dk=R()<.62,al=.05+R()*.1,ph=R()*6,am=.6+R()*1.6;
-   g.strokeStyle=dk?`rgba(50,26,10,${al})`:`rgba(255,232,196,${al*.8})`;g.lineWidth=.5+R()*1;g.beginPath();
-   for(let t=0;t<=len;t+=8){const xx=fx+Math.sin(t*.05+ph)*am,yy=fy+t;t?g.lineTo(xx,yy):g.moveTo(xx,yy);}g.stroke();
-   if(dk&&R()<.4){h.strokeStyle=`rgba(50,50,50,${al*2})`;h.lineWidth=.8;h.beginPath();h.moveTo(fx,fy);h.lineTo(fx+Math.sin(len*.05+ph)*am,fy+len);h.stroke();}}
-  for(let k=0;k<150;k++){const px=x0+R()*bw,py=R()*S,len=2+R()*7;g.strokeStyle=`rgba(40,20,8,${.2+R()*.25})`;g.lineWidth=.7+R()*.7;g.beginPath();g.moveTo(px,py);g.lineTo(px+(R()-.5)*1.2,py+len);g.stroke();}
-  // nós com anéis que contornam o veio
-  for(let k=0;k<(R()<.6?1:0)+(R()<.25?1:0);k++){
-   const kx=x0+bw*(.2+R()*.6),ky=R()*S,kr=5+R()*7;
-   for(let r=9;r>=1;r--){for(const oy of [-S,0,S]){g.strokeStyle=`rgba(62,30,12,${.07+.05*(10-r)/9})`;g.lineWidth=1.2;g.beginPath();g.ellipse(kx,ky+oy,kr*r*.45,kr*r*1.1,0,0,6.3);g.stroke();}}
-   const kg=g.createRadialGradient(kx,ky,0,kx,ky,kr);kg.addColorStop(0,'rgba(36,16,6,.9)');kg.addColorStop(1,'rgba(70,36,16,.1)');g.fillStyle=kg;g.beginPath();g.ellipse(kx,ky,kr*.75,kr*1.3,0,0,6.3);g.fill();
-   h.fillStyle='rgba(25,25,25,.7)';h.beginPath();h.ellipse(kx,ky,kr*.7,kr*1.2,0,0,6.3);h.fill();
-  }
-  // desgaste: faixa acinzentada clara e rachadura curta
-  if(R()<.6){const wy=R()*S,wh=40+R()*120,wg=g.createLinearGradient(0,wy,0,wy+wh);wg.addColorStop(0,'rgba(200,190,170,0)');wg.addColorStop(.5,`rgba(200,190,170,${.06+R()*.08})`);wg.addColorStop(1,'rgba(200,190,170,0)');g.fillStyle=wg;g.fillRect(x0,wy,bw,wh);}
-  if(R()<.5){let cx2=x0+bw*(.2+R()*.6),cy2=R()*S*.8;g.strokeStyle='rgba(20,10,4,.7)';g.lineWidth=1.2;g.beginPath();g.moveTo(cx2,cy2);for(let t=0;t<5;t++){cx2+=(R()-.5)*3;cy2+=6+R()*14;g.lineTo(cx2,cy2);}g.stroke();}
-  // emenda de topo: a parte de baixo da tábua tem outro tom
-  const jy=S*(.25+R()*.5);g.fillStyle=`rgba(${R()<.5?'255,236,200':'40,20,8'},.07)`;g.fillRect(x0,jy,bw,S-jy);
-  g.fillStyle='rgba(18,8,4,.8)';g.fillRect(x0,jy,bw,2.5);h.fillStyle='#101010';h.fillRect(x0,jy,bw,3);
+  // emendas de topo (linha escura) e pregos só nelas, em posições levemente diferentes
+  for(const jy of js){for(const oy of [-S,0,S]){g.fillStyle='rgba(18,8,4,.75)';g.fillRect(x0,jy+oy-1,bw,2.2);g.fillStyle='rgba(255,228,190,.12)';g.fillRect(x0,jy+oy+1.2,bw,1.2);h.fillStyle='#121212';h.fillRect(x0,jy+oy-1.5,bw,3);}
+   for(const side of [-1,1]){if(R()<.15)continue;const nx=x0+bw*(.5+side*(.22+R()*.12)),ny=jy+side*(4+R()*4)+(R()-.5)*3;
+    for(const oy of [-S,0,S]){g.fillStyle='rgba(30,22,20,.8)';g.beginPath();g.arc(nx,ny+oy,1.9+R()*.6,0,6.3);g.fill();g.fillStyle='rgba(220,200,170,.35)';g.beginPath();g.arc(nx-.5,ny+oy-.5,.7,0,6.3);g.fill();h.fillStyle='#cfcfcf';h.beginPath();h.arc(nx,ny+oy,2.1,0,6.3);h.fill();}}}
   g.restore();h.restore();
-  // pregos
-  for(const ny of [S*.08,S*.93]){for(const nx of [x0+bw*.2,x0+bw*.8]){g.fillStyle='rgba(30,22,20,.85)';g.beginPath();g.arc(nx,ny,2.3,0,6.3);g.fill();g.fillStyle='rgba(220,200,170,.4)';g.beginPath();g.arc(nx-.6,ny-.6,.8,0,6.3);g.fill();h.fillStyle='#d0d0d0';h.beginPath();h.arc(nx,ny,2.4,0,6.3);h.fill();}}
   // junta funda entre tábuas
-  g.fillStyle='rgba(20,9,5,.9)';g.fillRect(x0,0,2.5,S);g.fillStyle='rgba(255,226,184,.12)';g.fillRect(x0+3,0,2,S);
-  h.fillStyle='#0c0c0c';h.fillRect(x0,0,3.5,S);h.fillStyle='#c0c0c0';h.fillRect(x0+4,0,2.5,S);
+  g.fillStyle='rgba(20,9,5,.85)';g.fillRect(x0,0,2.2,S);g.fillStyle='rgba(255,226,184,.1)';g.fillRect(x0+2.6,0,1.6,S);
+  h.fillStyle='#0c0c0c';h.fillRect(x0,0,3.2,S);h.fillStyle='#bdbdbd';h.fillRect(x0+3.6,0,2,S);
   x0+=bw;
  }
- grain(g,S,R,S*2,'40,24,12','255,240,215',.06);
+ grain(g,S,R,S*2,'40,24,12','255,240,215',.05);
  if(o.horizontal)return out(rot(cm),rot(ch));
  return out(cm,ch);
 }

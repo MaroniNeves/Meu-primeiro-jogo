@@ -90,7 +90,7 @@ function install(){
   const tmp=new T.Group();
   const ctx={g:tmp,live,M,sp,rot,W,gy,group,K:{tree:null},
    pad(lx,lz,w,d,ry){let hi=-1e9,lo=1e9;const cr=Math.cos(ry),sr=Math.sin(ry);for(const i of [-1,0,1])for(const j of [-1,0,1]){const ox=i*w/2,oz=j*d/2,px=lx+ox*cr+oz*sr,pz=lz-ox*sr+oz*cr,h=gy(px,pz);hi=Math.max(hi,h);lo=Math.min(lo,h);}return {y:hi,depth:Math.max(0,hi-lo)+.12};},
-   colBox(lx,lz,hw,hd,ang){const w=W(lx,lz);O.addBox({x:w.x,z:w.z,hw,hd,rot:rot+(ang||0)});},
+   colBox(lx,lz,hw,hd,ang){const w=W(lx,lz);return O.addBox({x:w.x,z:w.z,hw,hd,rot:rot+(ang||0)});},
    colCircle(lx,lz,r){const w=W(lx,lz);O.addCircle(w.x,w.z,r);},
    noGrassC(lx,lz,r){const w=W(lx,lz);NG.push([w.x,w.z,r]);}};
   ctx.K.tree=(cx,px,pz,sc,crown)=>{const y=gy(px,pz);if(!(window.arcanoVillageTree&&window.arcanoVillageTree(tmp,px,y,pz,sc,crown===M.leafDark))){VM.cyl(tmp,.16*sc,.24*sc,2.2*sc,M.bark,px,y,pz,7,1.5);for(const [dx,dy,dz,r] of [[0,2.7,0,1.35],[.8,2.2,.3,.95],[-.7,2.35,-.3,1.0],[.1,3.3,.2,.85]])VM.sph(tmp,r*sc,crown||M.leaf,px+dx*sc,y+dy*sc,pz+dz*sc,1,.85,1,8);}ctx.colCircle(px,pz,.45*sc);ctx.noGrassC(px,pz,1.5*sc);};

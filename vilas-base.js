@@ -114,6 +114,9 @@ VM.makeMats=function(){
   M.roofShake=tex(AT.shingles({hue:28,sat:20,l0:28,l1:42,seed:94}),.9,{side:T.DoubleSide});
  }else{for(const k of ['stone','stoneDark','plaster','white','wood','woodDark','woodH','log','deck','cobble','roofTerra','roofSlate','roofRed','roofTeal','roofShake'])M[k]=flat('#9a8a78');}
  let t=TEX.thatch();M.thatch=tex(t,1.1,{side:T.DoubleSide});t=TEX.turf();M.turf=tex(t,1,{side:T.DoubleSide});
+ // espessura dos telhados (roofMesh dá volume a estes materiais): telha .16, palha e grama .3
+ for(const k of ['roofTerra','roofSlate','roofRed','roofTeal','roofShake'])if(M[k])M[k].userData.roofT=.16;
+ M.thatch.userData.roofT=.3;M.turf.userData.roofT=.3;
  t=TEX.dirt();M.dirt=tex(t,.8,{side:T.DoubleSide,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1});
  t=TEX.wheat();M.wheat=tex(t,1.2,{polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1});
  const sh=TEX.shoji();M.shoji=mat({map:sh.map,emissive:new T.Color('#ffffff'),emissiveMap:sh.emit,emissiveIntensity:.05});
@@ -145,7 +148,45 @@ const cone=VM.cone=function(g,r,h,m,x,y,z,seg,tile){const geo=new T.ConeGeometry
 // Haste entre dois pontos.
 VM.rod=function(g,ax,ay,az,bx,by,bz,r,m,seg){const A=new T.Vector3(ax,ay,az),d=new T.Vector3(bx-ax,by-ay,bz-az),L=d.length();const mm=new T.Mesh(new T.CylinderGeometry(r,r,L,seg||6),m);mm.position.copy(A).addScaledVector(d,.5);mm.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),d.normalize());g.add(mm);return mm;};
 // Telhados com UV em metros: roofMesh/pushTri/pushQuad.
-function roofMesh(g,P,U,m,x,y,z){const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(P,3));geo.setAttribute('uv',new T.Float32BufferAttribute(U,2));geo.computeVertexNormals();const mm=new T.Mesh(geo,m);mm.position.set(x,y,z);g.add(mm);return mm;}
+function roofMesh(g,P,U,m,x,y,z){const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(P,3));geo.setAttribute('uv',new T.Float32BufferAttribute(U,2));geo.computeVertexNormals();const mm=new T.Mesh(geo,m);mm.position.set(x,y,z);g.add(mm);
+ if(m&&m.userData&&m.userData.roofT)roofVolume(g,P,m,x,y,z,m.userData.roofT);
+ return mm;}
+/* Telhado com volume (antes era uma folha de espessura zero): forro por baixo, bordas fechadas no beiral e nas
+   empenas, capa arredondada na cumeeira e nas quinas, e fileiras de telhas em degrau (relevo de verdade). */
+function roofVolume(g,P,m,x,y,z,t){
+ const n=P.length/9,key=(a,b,c)=>Math.round(a*200)+','+Math.round(b*200)+','+Math.round(c*200);
+ const tris=[];let ymin=1e9;
+ for(let i=0;i<n;i++){const a=new T.Vector3(P[i*9],P[i*9+1],P[i*9+2]),b=new T.Vector3(P[i*9+3],P[i*9+4],P[i*9+5]),c=new T.Vector3(P[i*9+6],P[i*9+7],P[i*9+8]);
+  const nr=new T.Vector3().subVectors(b,a).cross(new T.Vector3().subVectors(c,a));if(nr.lengthSq()<1e-10)continue;nr.normalize();if(nr.y<0)nr.negate();
+  tris.push({v:[a,b,c],n:nr});ymin=Math.min(ymin,a.y,b.y,c.y);}
+ const arestas=new Map();
+ for(const tr of tris)for(let e=0;e<3;e++){const a=tr.v[e],b=tr.v[(e+1)%3],ka=key(a.x,a.y,a.z),kb=key(b.x,b.y,b.z),k=ka<kb?ka+'|'+kb:kb+'|'+ka;
+  if(!arestas.has(k))arestas.set(k,{a,b,faces:[]});arestas.get(k).faces.push(tr);}
+ const B=[],UV=[],down=new T.Vector3(0,-t,0);
+ const quad=(a,b,c,d,ua,ub)=>{B.push(a.x,a.y,a.z,b.x,b.y,b.z,c.x,c.y,c.z,a.x,a.y,a.z,c.x,c.y,c.z,d.x,d.y,d.z);UV.push(0,0,ua,0,ua,ub,0,0,ua,ub,0,ub);};
+ // forro (face de baixo)
+ for(const tr of tris){const [a,b,c]=tr.v.map(v=>v.clone().add(down));B.push(a.x,a.y,a.z,c.x,c.y,c.z,b.x,b.y,b.z);UV.push(a.x*.4,a.z*.4,c.x*.4,c.z*.4,b.x*.4,b.z*.4);}
+ const capas=[];
+ for(const ar of arestas.values()){
+  if(ar.faces.length===1){const a=ar.a,b=ar.b,L=a.distanceTo(b);quad(a,b,b.clone().add(down),a.clone().add(down),L/2,t/2);}
+  else if(ar.faces.length===2&&ar.faces[0].n.dot(ar.faces[1].n)<.985&&Math.max(ar.a.y,ar.b.y)>ymin+.2)capas.push(ar);}
+ // fileiras de telhas: degrau baixo ao longo de cada nível horizontal de cada face
+ const passo=.42,deg=Math.min(.07,t*.45);
+ for(const tr of tris){const ny=tr.n.y,sen=Math.sqrt(Math.max(0,1-ny*ny));if(sen<.15)continue;
+  const dy=passo*sen,[a,b,c]=tr.v,lo=Math.min(a.y,b.y,c.y),hi=Math.max(a.y,b.y,c.y),up=tr.n.clone().multiplyScalar(deg);
+  for(let yy=ymin+dy*.75;yy<hi-.05;yy+=dy){if(yy<lo+.02)continue;const pts=[];
+   for(const [p,q] of [[a,b],[b,c],[c,a]]){if((p.y-yy)*(q.y-yy)<0){const k=(yy-p.y)/(q.y-p.y);pts.push(new T.Vector3().lerpVectors(p,q,k));}}
+   if(pts.length===2&&pts[0].distanceTo(pts[1])>.05){const [p,q]=pts,L=p.distanceTo(q);quad(p,q,q.clone().add(up),p.clone().add(up),L/2,.05);}}}
+ const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(B,3));geo.setAttribute('uv',new T.Float32BufferAttribute(UV,2));geo.computeVertexNormals();
+ const mm=new T.Mesh(geo,m);mm.position.set(x,y,z);g.add(mm);
+ // capa da cumeeira e das quinas (meia cana)
+ for(const ar of capas){const A=ar.a,Bv=ar.b,d=new T.Vector3().subVectors(Bv,A),L=d.length();if(L<.1)continue;
+  const cg=new T.CylinderGeometry(t*.75,t*.75,L+.04,10,1,false,0,PI),uv=cg.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)*.6,uv.getY(i)*L/2);
+  const cm=new T.Mesh(cg,m);cm.position.set(x+(A.x+Bv.x)/2,y+(A.y+Bv.y)/2,z+(A.z+Bv.z)/2);cm.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),d.normalize());
+  // gira a meia cana para ficar com a parte redonda para cima
+  const nm=new T.Vector3().addVectors(ar.faces[0].n,ar.faces[1].n).normalize(),loc=new T.Vector3(0,0,1).applyQuaternion(cm.quaternion);
+  const ang=Math.atan2(new T.Vector3().crossVectors(loc,nm).dot(d),loc.dot(nm));cm.rotateY(ang+PI/2);g.add(cm);}
+}
 function pushTri(P,U,a,b,c,ua,ub,uc){P.push(...a,...b,...c);U.push(...ua,...ub,...uc);}
 function pushQuad(P,U,a,b,c,d,ua,ub,uc,ud){pushTri(P,U,a,b,c,ua,ub,uc);pushTri(P,U,a,c,d,ua,uc,ud);}
 VM.roofMesh=roofMesh;VM.pushTri=pushTri;VM.pushQuad=pushQuad;
@@ -173,7 +214,15 @@ VM.gableRoof=function(g,L,D,rise,roofM,faceM,x,y,z,over,ovE,tile){tile=tile||3;o
    roofMesh(g,Q,V,faceM,x,y,z);}}
 };
 // Cone/pirâmide redonda com UV em metros (telhas do tamanho certo).
-VM.coneRoof=function(g,r,h,m,x,y,z,seg,tile){tile=tile||3;const geo=new T.ConeGeometry(r,h,seg||10),uv=geo.attributes.uv,sl=Math.hypot(h,r);for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)*2*PI*r/tile,uv.getY(i)*sl/tile);const mm=new T.Mesh(geo,m);mm.position.set(x,y+h/2,z);g.add(mm);return mm;};
+VM.coneRoof=function(g,r,h,m,x,y,z,seg,tile){tile=tile||3;const geo=new T.ConeGeometry(r,h,seg||10),uv=geo.attributes.uv,sl=Math.hypot(h,r);for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)*2*PI*r/tile,uv.getY(i)*sl/tile);const mm=new T.Mesh(geo,m);mm.position.set(x,y+h/2,z);g.add(mm);
+ const t=m&&m.userData&&m.userData.roofT;
+ if(t){// borda grossa, forro e anéis de telha (volume, como roofVolume)
+  const band=new T.CylinderGeometry(r,r,t,seg||10,1,true),fb=new T.Mesh(band,m);fb.position.set(x,y-t/2,z);g.add(fb);
+  const fo=new T.Mesh(new T.CircleGeometry(r,seg||10),m);fo.rotation.x=PI/2;fo.position.set(x,y-t,z);g.add(fo);
+  const nAn=Math.max(1,Math.floor(sl/.42)-1);
+  for(let i=1;i<=nAn;i++){const f=i/(nAn+1),rr=r*(1-f);if(rr<.12)break;const an=new T.Mesh(new T.TorusGeometry(rr,Math.min(.05,t*.35),4,seg||10),m);an.rotation.x=PI/2;an.rotation.z=PI/(seg||10);an.position.set(x,y+h*f,z);g.add(an);}
+ }
+ return mm;};
 
 /* ---------- Junção de malhas por material ---------- */
 VM.mergeInto=function(group,parent,name,shadow){

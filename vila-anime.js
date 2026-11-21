@@ -75,26 +75,39 @@ function windowAt(g,x,y,z,ry,shutter=true){const c=Math.cos(ry),s=Math.sin(ry);
  if(shutter)for(const sd of [-1,1])box(g,.36,1.15,.06,M.timber,x+c*sd*.79,y,z-s*sd*.79,ry);}
 function flowerBox(g,x,y,z,ry){box(g,1,.25,.3,M.wood,x,y,z,ry);for(let i=0;i<4;i++){const c=Math.cos(ry),s=Math.sin(ry),o=-.35+i*.23;const f=new T.Mesh(new T.IcosahedronGeometry(.13,0),M.flower[(i+Math.floor(x))&3]);f.position.set(x+c*o,y+.2,z-s*o);g.add(f);}}
 function door(g,w,z,frame=M.timber,leaf=M.wood,y0=0,open=false){
- if(open){const pv=new T.Group();pv.position.set(-.62,y0,z-WT-.05);pv.rotation.y=Math.PI*.47;g.add(pv);box(pv,1.24,2.18,.08,leaf,.62,1.09,0);box(pv,.1,.1,.08,M.gold,1.05,1.05,.08);}
+ if(open){const pv=new T.Group();pv.position.set(-.62,y0,z-WT-.05);g.add(pv);
+  // folha solta (abre com E): tábuas, travessas e mão-francesa por dentro, dobradiças e argola por fora
+  const ps=[box(pv,1.24,2.18,.07,leaf,.62,1.09,0),box(pv,.1,.1,.08,M.gold,1.05,1.05,.08)];
+  for(const yy of [.32,1.86])ps.push(box(pv,1.1,.12,.03,M.timber,.62,yy,-.05));
+  {const b=box(pv,.1,1.7,.03,M.timber,.62,1.09,-.05);b.rotation.z=-.6;ps.push(b);}
+  for(const yy of [.32,1.86])ps.push(box(pv,.55,.05,.02,M.iron,.3,yy,.045));
+  {const r=new T.Mesh(new T.TorusGeometry(.06,.012,5,12),M.iron);r.position.set(1.05,.95,.09);pv.add(r);ps.push(r);}
+  for(const m of ps)m.userData.keep=true;PEND.push({pv,y0,z});}
  else{box(g,1.3,2.2,.14,leaf,0,y0+1.1,z+.02);box(g,.12,.12,.1,M.gold,.4,y0+1.1,z+.12);}
  box(g,1.6,.2,.24,frame,0,y0+2.3,z+.02);for(const s of [-1,1])box(g,.15,2.3,.24,frame,s*.72,y0+1.15,z+.02);}
 // ---------- Casas ocas: paredes com vãos, piso, forro e móveis ----------
-const WT=.22;
+const WT=.22,PEND=[];
 function wallShape(L,H,cuts){const sh=new T.Shape(),notch=cuts.filter(c=>c.v0<=.02).sort((a,b)=>a.u0-b.u0);sh.moveTo(-L/2,0);
  for(const c of notch){sh.lineTo(c.u0,0);sh.lineTo(c.u0,c.v1);sh.lineTo(c.u1,c.v1);sh.lineTo(c.u1,0);}
  sh.lineTo(L/2,0);sh.lineTo(L/2,H);sh.lineTo(-L/2,H);sh.lineTo(-L/2,0);
  for(const c of cuts)if(c.v0>.02){const p=new T.Path();p.moveTo(c.u0,c.v0);p.lineTo(c.u1,c.v0);p.lineTo(c.u1,c.v1);p.lineTo(c.u0,c.v1);p.lineTo(c.u0,c.v0);sh.holes.push(p);}return sh;}
+// vão de porta que passa da altura da parede: a parede vira pedaços separados (antes sobrava uma faixa de 6 cm atravessando a porta)
+function wallPieces(L,H,cuts){const full=cuts.filter(c=>c.v0<=.02&&c.v1>=H-.001).sort((a,b)=>a.u0-b.u0),rest=cuts.filter(c=>!full.includes(c)),out=[];let a=-L/2;
+ const seg=(x0,x1)=>{const len=x1-x0;if(len<.02)return;const cx=(x0+x1)/2,sub=rest.filter(c=>c.u1>x0&&c.u0<x1).map(c=>({u0:Math.max(c.u0,x0+.02)-cx,u1:Math.min(c.u1,x1-.02)-cx,v0:c.v0,v1:c.v1}));out.push({shape:wallShape(len,H,sub),cx});};
+ for(const f of full){seg(a,f.u0);a=f.u1;}seg(a,L/2);return out;}
 // faces: 0 frente(+z) 1 fundo 2 direita(+x) 3 esquerda; furo: {f,u,w,y0,y1}
 function shell(g,W,D,y0,h,m,holes,tile){const RY=[0,Math.PI,Math.PI/2,-Math.PI/2];
  for(let fi=0;fi<4;fi++){const L=fi<2?W:D-2*WT,off=fi<2?D/2:W/2,cuts=[];
-  for(const hl of holes){if(hl.f!==fi)continue;const v0=Math.max(0,hl.y0-y0),v1=Math.min(h,hl.y1-y0);if(v1-v0<.05)continue;cuts.push({u0:Math.max(-L/2+.15,hl.u-hl.w/2),u1:Math.min(L/2-.15,hl.u+hl.w/2),v0:v0<.05?0:v0,v1:v1>h-.05?h-.06:v1});}
-  const geo=new T.ExtrudeGeometry(wallShape(L,h,cuts),{depth:WT,bevelEnabled:false});const uv=geo.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)/(tile||2.5),uv.getY(i)/(tile||2.5));
-  const fg=new T.Group();fg.rotation.y=RY[fi];g.add(fg);const mm=new T.Mesh(geo,m);mm.position.set(0,y0,off-WT);fg.add(mm);}}
+  for(const hl of holes){if(hl.f!==fi)continue;const v0=Math.max(0,hl.y0-y0),v1=Math.min(h,hl.y1-y0);if(v1-v0<.05)continue;cuts.push({u0:Math.max(-L/2+.15,hl.u-hl.w/2),u1:Math.min(L/2-.15,hl.u+hl.w/2),v0:v0<.05?0:v0,v1:v1>h-.05?(v0<.05?h:h-.06):v1});}
+  const fg=new T.Group();fg.rotation.y=RY[fi];g.add(fg);
+  for(const pc of wallPieces(L,h,cuts)){const geo=new T.ExtrudeGeometry(pc.shape,{depth:WT,bevelEnabled:false});geo.translate(pc.cx,0,0);const uv=geo.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,(uv.getX(i)+pc.cx)/(tile||2.5),uv.getY(i)/(tile||2.5));
+   const mm=new T.Mesh(geo,m);mm.position.set(0,y0,off-WT);fg.add(mm);}}}
 // interior: piso, forro com vigas e móveis (porta na frente, em x=0)
 function interior(g,W,D,y,top){const iw=W-2*WT,id=D-2*WT,ix=iw/2,iz=id/2;
- box(g,iw,.08,id,M.wood,0,y+.04,0,0,1.6);box(g,iw,.12,id,M.wood,0,top-.06,0,0,1.6);
+ const AM=window.arcanoMoveis;box(g,iw,.08,id,AM?AM.M.piso:M.wood,0,y+.04,0,0,AM?2.4:1.6);box(g,iw,.12,id,M.wood,0,top-.06,0,0,1.6);
  {const nb=Math.max(2,Math.round(iw/1.4));for(let i=1;i<nb;i++)box(g,.16,.16,id,M.timber,-ix+i*iw/nb,top-.2,0);}
  const yf=y+.08;
+ if(AM){AM.sala(g,{iw,id,y:yf,top,s:-1,portas:[{x:0,w:1.5}],v:(interior.n=(interior.n||0)+1)});return;}
  box(g,Math.min(2.6,iw*.42),.02,Math.min(1.7,id*.36),M.clothR,0,yf+.01,.2);box(g,Math.min(2.2,iw*.35),.025,Math.min(1.3,id*.27),M.clothY,0,yf+.015,.2);
  // cama no canto do fundo à esquerda, baú ao pé
  const bx=-ix+1.05,bz=-iz+.62;box(g,2.0,.32,1.15,M.wood,bx,yf+.16,bz);box(g,1.9,.16,1.05,M.clothW,bx,yf+.4,bz);box(g,1.25,.07,1.08,M.clothB,bx+.3,yf+.5,bz);box(g,.45,.12,.75,M.clothW,bx-.7,yf+.54,bz);box(g,.1,.9,1.15,M.wood,bx-1.0,yf+.45,bz);
@@ -195,7 +208,7 @@ const BUILD={enxaimel:houseEnxaimel,sobrado:houseSobrado,pagode:housePagode,torr
 
 function mergeInto(group,parent,name){
  group.updateMatrixWorld(true);const buckets=new Map();
- group.traverse(o=>{if(!o.isMesh)return;let g=o.geometry.index?o.geometry.toNonIndexed():o.geometry.clone();g.applyMatrix4(o.matrixWorld);if(!g.attributes.uv)g.setAttribute('uv',new T.BufferAttribute(new Float32Array(g.attributes.position.count*2),2));if(!buckets.has(o.material))buckets.set(o.material,[]);buckets.get(o.material).push(g);});
+ group.traverse(o=>{if(!o.isMesh||o.userData.keep)return;let g=o.geometry.index?o.geometry.toNonIndexed():o.geometry.clone();g.applyMatrix4(o.matrixWorld);if(!g.attributes.uv)g.setAttribute('uv',new T.BufferAttribute(new Float32Array(g.attributes.position.count*2),2));if(!buckets.has(o.material))buckets.set(o.material,[]);buckets.get(o.material).push(g);});
  for(const [m,list] of buckets){let n=0;for(const g of list)n+=g.attributes.position.count;const P=new Float32Array(n*3),N=new Float32Array(n*3),U=new Float32Array(n*2);let off=0;
   for(const g of list){P.set(g.attributes.position.array,off*3);if(g.attributes.normal)N.set(g.attributes.normal.array,off*3);U.set(g.attributes.uv.array.subarray(0,g.attributes.position.count*2),off*2);off+=g.attributes.position.count;g.dispose();}
   const geo=new T.BufferGeometry();geo.setAttribute('position',new T.BufferAttribute(P,3));geo.setAttribute('normal',new T.BufferAttribute(N,3));geo.setAttribute('uv',new T.BufferAttribute(U,2));geo.computeBoundingSphere();
@@ -215,18 +228,24 @@ function build(api,V){
   box(g,p.w+1.2,depth,p.d+1.2,M.stone,0,.12-depth/2,0);
   box(g,p.w+1.4,.14,p.d+1.4,M.stone,0,.12,0);
   const house=new T.Group();house.position.y=.18;g.add(house);
-  const sala=BUILD[p.style](house,p.w,p.d,M.roofs[(i*3+1)%M.roofs.length]);p.sala=sala;
+  const sala=BUILD[p.style](house,p.w,p.d,M.roofs[(i*3+1)%M.roofs.length]);p.sala=sala;const portas=PEND.splice(0);
   // Degraus da porta até o terraço e um vaso de flores.
   box(g,1.8,.2,.6,M.stone,0,.1,p.d/2+.9);
   {const pot=new T.Mesh(new T.CylinderGeometry(.3,.22,.5,10),M.redWood);pot.position.set(p.w/2+.2,.43,p.d/2+.7);g.add(pot);const b=new T.Mesh(new T.IcosahedronGeometry(.42,1),M.leaf);b.position.set(p.w/2+.2,.95,p.d/2+.7);g.add(b);}
   g.position.set(p.x,p.y,p.z);g.rotation.y=p.rot;all.add(g);
   if(sala){const a=new T.Object3D();a.position.set(p.x,p.y+.18,p.z);a.rotation.y=p.rot;a.name='Sala da casa';anchors.push(a);
    a.userData.rooms=[{x:0,z:0,hw:sala.W/2-WT-.15,hd:sala.D/2-WT-.15,y:sala.y,top:sala.top}];a.userData.floor={W:sala.W,D:sala.D,y:sala.y,step:{x0:-.8,x1:.8,z0:sala.D/2-.35,z1:sala.D/2+1.2,y:sala.y*.55}};
-   a.userData.casa={ctx:{centers:{},list:[]},update(){},pick(){return 0;},toggleId(){},set(){},roof(){}};(window.arcanoSalasVilas=window.arcanoSalasVilas||[]).push(a);}
+   const its=[],cen={};portas.forEach((d,k)=>{const id=k+1;d.pv.parent&&d.pv.parent.remove(d.pv);a.add(d.pv);its.push({id,kind:'door',tgt:0,cur:0,pv:d.pv});cen[id]={p:new T.Vector3(0,d.y0+1.1,d.z-WT/2)};});
+   a.userData.casa={ctx:{centers:cen,list:its},
+    update(dt){for(const it of its){it.cur+=(it.tgt-it.cur)*Math.min(1,dt*3.2);if(Math.abs(it.tgt-it.cur)<.002)it.cur=it.tgt;it.pv.rotation.y=it.cur*Math.PI*.5;}},
+    pick(rc){for(const it of its)if(rc.intersectObject(it.pv,true).length)return it.id;return 0;},
+    toggleId(id){const it=its.find(q=>q.id===id);if(it)it.tgt=it.tgt>0?0:1;},set(){},roof(){}};p.portas=its;
+   (window.arcanoSalasVilas=window.arcanoSalasVilas||[]).push(a);}
   if(O){const r=p.style==='torre'?Math.max(p.w,p.d)/2+.3:0;
    if(sala){const L2=(lx,lz)=>({x:p.x+lx*c+lz*s,z:p.z-lx*s+lz*c}),yr={ymin:lo-2,ymax:p.y+12},W2=p.w/2,D2=p.d/2,t=WT/2+.06;
     const wb=(lx,lz,hw,hd)=>{const q=L2(lx,lz);O.addBox({x:q.x,z:q.z,hw,hd,rot:p.rot,...yr});};
-    wb(0,-D2+t,W2,t);wb(W2-t,0,t,D2);wb(-W2+t,0,t,D2);wb(-(W2+.68)/2,D2-t,(W2-.68)/2,t);wb((W2+.68)/2,D2-t,(W2-.68)/2,t);}
+    wb(0,-D2+t,W2,t);wb(W2-t,0,t,D2);wb(-W2+t,0,t,D2);wb(-(W2+.68)/2,D2-t,(W2-.68)/2,t);wb((W2+.68)/2,D2-t,(W2-.68)/2,t);
+    if(p.portas&&p.portas[0]){const it=p.portas[0],q=L2(0,D2-t);O.addBox({x:q.x,z:q.z,hw:.7,hd:t,rot:p.rot,...yr,enabled:()=>it.cur<.35});}}
    else O.addBox({x:p.x,z:p.z,hw:p.w/2+.25+(r?.3:0),hd:p.d/2+.32,rot:p.rot,ymin:lo-2,ymax:p.y+12});
    // Vaso de flores ao lado da porta.
    const L2W=(lx,lz)=>[p.x+lx*c+lz*s,p.z-lx*s+lz*c],yr={ymin:p.y-2,ymax:p.y+8};

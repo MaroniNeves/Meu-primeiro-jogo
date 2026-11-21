@@ -21,7 +21,13 @@ function base(ctx,x,z,ry,w,d,plinthM){
  return bg;
 }
 function doorAt(bg,M,x,z,w,h,leaf,frame,arch){
- if(REC){REC.holes.push({door:true,x,z,ry:0,w,h,y0:F,y1:F+h});const pv=new T.Group();pv.position.set(x-w/2+.05,F+.08,z-WT-.04);pv.rotation.y=PI*.47;bg.add(pv);box(pv,w-.06,h-.1,.08,leaf,(w-.06)/2,0,0,0,1.2);sph(pv,.045,M.gold,w*.8,h*.48,.07,1,1,1,6);}
+ if(REC){REC.holes.push({door:true,x,z,ry:0,w,h,y0:F,y1:F+h});const pv=new T.Group();pv.position.set(x-w/2+.05,F+.08,z-WT-.04);bg.add(pv);const lw=w-.06,lh=h-.1;
+  // folha de tábuas com travessas e mão-francesa (Z), dobradiças de ferro e argola
+  const ps=[box(pv,lw,lh,.06,leaf,lw/2,0,0,0,1.2)];for(const yy of [.25,lh-.35])ps.push(box(pv,lw-.12,.12,.03,M.woodDark,lw/2,yy,-.045,0,1.2));
+  {const L=Math.hypot(lw-.2,lh-.72),b=box(pv,.1,L,.03,M.woodDark,lw/2,lh/2-L/2,-.045,0,1.2);b.rotation.z=-Math.atan2(lw-.2,lh-.72);ps.push(b);}
+  for(const yy of [.3,lh-.3])ps.push(box(pv,lw*.45,.05,.02,M.iron,lw*.22,yy-.025,.04,0,1));
+  ps.push(sph(pv,.045,M.gold,lw*.85,lh*.48,.07,1,1,1,6));{const r=new T.Mesh(new T.TorusGeometry(.06,.012,5,12),M.iron);r.position.set(lw*.85,lh*.42,.08);pv.add(r);ps.push(r);}
+  for(const m of ps)m.userData.keep=true;REC.leaves=REC.leaves||[];REC.leaves.push({pv,x,z,w,h});}
  else box(bg,w,h,.1,leaf,x,F,z+.02,0,1.2);
  for(const s of [-1,1])box(bg,.14,h+.14,.22,frame,x+s*(w/2+.07),F,z,0,1);
  box(bg,w+.42,.16,.24,frame,x,F+h,z,0,1);
@@ -71,7 +77,7 @@ function cabinSign(ctx,x,z,ry){const M=ctx.M,y=ctx.gy(x,z),g=ctx.g;cyl(g,.05,.05
 let REC=null;const WT=.2;
 // parede maciça da casa: numa casa oca vira paredes com vãos (montadas no fim, quando já se sabe onde ficam porta e janelas)
 function wallBox(bg,w,h,d,m,y,tile){if(REC){REC.walls.push({w,h,d,m,y,tile:tile||2.5});return;}box(bg,w,h,d,m,0,y,0,0,tile);}
-function bandBox(bg,w,h,d,m,y,tile){if(!REC){box(bg,w,h,d,m,0,y,0,0,tile);return;}const t=.1;box(bg,w,h,t,m,0,y,(d-t)/2,0,tile);box(bg,w,h,t,m,0,y,-(d-t)/2,0,tile);box(bg,t,h,d-2*t,m,(w-t)/2,y,0,0,tile);box(bg,t,h,d-2*t,m,-(w-t)/2,y,0,0,tile);}
+function bandBox(bg,w,h,d,m,y,tile){if(!REC){box(bg,w,h,d,m,0,y,0,0,tile);return;}const t=.1;(REC.bands=REC.bands||[]).push({w,h,d,m,y,tile,t});box(bg,w,h,t,m,0,y,-(d-t)/2,0,tile);box(bg,t,h,d-2*t,m,(w-t)/2,y,0,0,tile);box(bg,t,h,d-2*t,m,-(w-t)/2,y,0,0,tile);}
 function faceOf(hl,W,D){const tol=.45;if(Math.abs(hl.z-D/2)<tol&&Math.abs(Math.sin(hl.ry))<.3&&Math.cos(hl.ry)>0)return 0;if(Math.abs(hl.z+D/2)<tol)return 1;if(Math.abs(hl.x-W/2)<tol)return 2;if(Math.abs(hl.x+W/2)<tol)return 3;return -1;}
 const FACE_RY=[0,PI,PI/2,-PI/2];
 function wallShape(L,H,cuts){ // cuts: {u0,u1,v0,v1}; v0=0: entalhe na base (porta), senão furo (janela)
@@ -80,6 +86,10 @@ function wallShape(L,H,cuts){ // cuts: {u0,u1,v0,v1}; v0=0: entalhe na base (por
  sh.lineTo(L/2,0);sh.lineTo(L/2,H);sh.lineTo(-L/2,H);sh.lineTo(-L/2,0);
  for(const c of cuts)if(c.v0>.02){const p=new T.Path();p.moveTo(c.u0,c.v0);p.lineTo(c.u1,c.v0);p.lineTo(c.u1,c.v1);p.lineTo(c.u0,c.v1);p.lineTo(c.u0,c.v0);sh.holes.push(p);}
  return sh;}
+// vão de porta que passa da altura da parede: a parede vira pedaços separados (antes sobrava uma faixa de 6 cm atravessando a porta)
+function wallPieces(L,H,cuts){const full=cuts.filter(c=>c.v0<=.02&&c.v1>=H-.001).sort((a,b)=>a.u0-b.u0),rest=cuts.filter(c=>!full.includes(c)),out=[];let a=-L/2;
+ const seg=(x0,x1)=>{const len=x1-x0;if(len<.02)return;const cx=(x0+x1)/2,sub=rest.filter(c=>c.u1>x0&&c.u0<x1).map(c=>({u0:Math.max(c.u0,x0+.02)-cx,u1:Math.min(c.u1,x1-.02)-cx,v0:c.v0,v1:c.v1}));out.push({shape:wallShape(len,H,sub),cx});};
+ for(const f of full){seg(a,f.u0);a=f.u1;}seg(a,L/2);return out;}
 function finishHollow(ctx,bg,Rc,opt){opt=opt||{};const M=ctx.M,B=Rc.base;
  let W=B.w,D=B.d,y0=F,top=F+2.5;
  if(Rc.walls.length){W=Math.max(...Rc.walls.map(j=>j.w));D=Math.max(...Rc.walls.map(j=>j.d));y0=Math.min(...Rc.walls.map(j=>j.y));top=Math.max(...Rc.walls.map(j=>j.y+j.h));}
@@ -89,12 +99,16 @@ function finishHollow(ctx,bg,Rc,opt){opt=opt||{};const M=ctx.M,B=Rc.base;
  for(const j of Rc.walls){
   for(let fi=0;fi<4;fi++){const ry=FACE_RY[fi],L=fi<2?W:D-2*WT,off=fi<2?D/2:W/2,c=Math.cos(ry),sn=Math.sin(ry),cuts=[];
    for(const hl of Rc.holes){if(faceOf(hl,W,D)!==fi)continue;const u=hl.x*c-hl.z*sn,v0=Math.max(0,hl.y0-j.y),v1=Math.min(j.h,hl.y1-j.y);if(v1-v0<.05)continue;
-    cuts.push({u0:Math.max(-L/2+.15,u-hl.w/2),u1:Math.min(L/2-.15,u+hl.w/2),v0:v0<.05?0:v0,v1:v1>j.h-.05?j.h-.06:v1});}
-   const g=new T.ExtrudeGeometry(wallShape(L,j.h,cuts),{depth:WT,bevelEnabled:false});const uv=g.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)/j.tile,uv.getY(i)/j.tile);
-   const fg=new T.Group();fg.rotation.y=ry;bg.add(fg);const m=new T.Mesh(g,j.m);m.position.set(0,j.y,off-WT);fg.add(m);}}
+    cuts.push({u0:Math.max(-L/2+.15,u-hl.w/2),u1:Math.min(L/2-.15,u+hl.w/2),v0:v0<.05?0:v0,v1:v1>j.h-.05?(v0<.05?j.h:j.h-.06):v1});}
+   const fg=new T.Group();fg.rotation.y=ry;bg.add(fg);
+   for(const pc of wallPieces(L,j.h,cuts)){const g=new T.ExtrudeGeometry(pc.shape,{depth:WT,bevelEnabled:false});g.translate(pc.cx,0,0);const uv=g.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,(uv.getX(i)+pc.cx)/j.tile,uv.getY(i)/j.tile);
+    const m=new T.Mesh(g,j.m);m.position.set(0,j.y,off-WT);fg.add(m);}}}
+ // friso da parede da frente: cortado nos vãos das portas (antes atravessava a porta)
+ for(const bd of (Rc.bands||[])){const ds=doors.filter(h=>faceOf(h,W,D)===0&&bd.y<h.y1&&bd.y+bd.h>h.y0).sort((a,b)=>a.x-b.x);let u=-bd.w/2;
+  for(const h of ds){const L=h.x-h.w/2-u;if(L>.02)box(bg,L,bd.h,bd.t,bd.m,u+L/2,bd.y,(bd.d-bd.t)/2,0,bd.tile);u=h.x+h.w/2;}const L=bd.w/2-u;if(L>.02)box(bg,L,bd.h,bd.t,bd.m,u+L/2,bd.y,(bd.d-bd.t)/2,0,bd.tile);}
  // piso, forro e vigas
  const iw=W-2*WT,id=D-2*WT;
- box(bg,iw,.08,id,M.deck,0,y0,0,0,1.6);box(bg,iw,.12,id,M.woodH,0,top-.12,0,0,1.6);
+ box(bg,iw,.08,id,window.arcanoMoveis?window.arcanoMoveis.M.piso:M.deck,0,y0,0,0,2.4);box(bg,iw,.12,id,M.woodH,0,top-.12,0,0,1.6);
  {const nb=Math.max(1,Math.round(iw/1.4));for(let i=1;i<nb;i++)box(bg,.16,.16,id,M.woodDark,-iw/2+i*iw/nb,top-.28,0,0,1);}
  // móveis
  const dx=doors.length?doors[0].x:0;furnish(bg,M,iw,id,y0+.08,top,dx,opt.style);
@@ -107,7 +121,14 @@ function finishHollow(ctx,bg,Rc,opt){opt=opt||{};const M=ctx.M,B=Rc.base;
  const a=new T.Object3D();a.position.copy(bg.position);a.rotation.y=B.ry;ctx.live.add(a);a.name='Sala da casa';
  a.userData.rooms=[{x:0,z:0,hw:iw/2-.12,hd:id/2-.12,y:y0+.08,top:top-.2}];
  a.userData.floor={W,D,y:y0+.08,step:{x0:dx-.8,x1:dx+.8,z0:D/2-.35,z1:D/2+1.1,y:y0*.55}};
- a.userData.casa={ctx:{centers:{},list:[]},update(){},pick(){return 0;},toggleId(){},set(){},roof(){}};
+ // portas de verdade: a folha passa para a âncora (fora da malha fundida); fechada bloqueia a passagem
+ const its=[],cen={};(Rc.leaves||[]).forEach((d,i)=>{const id=i+1;bg.remove(d.pv);a.add(d.pv);const it={id,kind:'door',tgt:0,cur:0,pv:d.pv};its.push(it);
+  cen[id]={p:new T.Vector3(d.x,F+d.h/2,d.z-WT/2)};
+  const [lx,lz]=Lc(d.x,d.z-WT/2);const bx=ctx.colBox(lx,lz,d.w/2,WT/2+.05,B.ry);if(bx)bx.enabled=()=>it.cur<.35;});
+ a.userData.casa={ctx:{centers:cen,list:its},
+  update(dt){for(const it of its){const k=Math.min(1,dt*3.2);it.cur+=(it.tgt-it.cur)*k;if(Math.abs(it.tgt-it.cur)<.002)it.cur=it.tgt;it.pv.rotation.y=it.cur*PI*.5;}},
+  pick(rc){for(const it of its)if(rc.intersectObject(it.pv,true).length)return it.id;return 0;},
+  toggleId(id){const it=its.find(q=>q.id===id);if(it)it.tgt=it.tgt>0?0:1;},set(){},roof(){}};
  (window.arcanoSalasVilas=window.arcanoSalasVilas||[]).push(a);}
 // mobília conforme o tamanho do cômodo; o lado da porta fica livre
 function furnish(bg,M,iw,id,y,top,dx,style){
@@ -118,6 +139,7 @@ function furnish(bg,M,iw,id,y,top,dx,style){
   box(bg,1.0,.12,2.0,M.cloth,s*(ix-.6),y,-iz+1.1,0,1);box(bg,1.0,.08,1.2,M.blue,s*(ix-.6),y+.12,-iz+1.4,0,1);
   box(bg,1.6,.2,.5,M.woodDark,-s*(ix-1.0),y+.5,-iz+.3,0,1);cyl(bg,.12,.09,.4,M.white,-s*(ix-1.0),y+.7,-iz+.3,8,1);
   sph(bg,.26,M.lantern,0,top-.9,0,1,1.25,1,8);return;}
+ if(window.arcanoMoveis){const AM=window.arcanoMoveis;AM.sala(bg,{iw,id,y,top,s,portas:[{x:dx,w:1.5}],v:(furnish.n=(furnish.n||0)+1),pequena:small});return;}
  // tapete
  box(bg,Math.min(2.6,iw*.45),.02,Math.min(1.7,id*.4),M.red,0,y,.1,0,1);box(bg,Math.min(2.2,iw*.38),.025,Math.min(1.3,id*.3),M.cloth,0,y,.1,0,1);
  // cama no fundo, do lado oposto à porta
