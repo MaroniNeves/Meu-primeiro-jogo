@@ -59,6 +59,7 @@ function material(kind,indoor){
    float ph=position.x*2.2+uTime*2.3+hang*3.0;
    float amp=hang*hang*uWindK*gust;
    float dz=amp*(0.34*sin(ph)+0.16*sin(position.x*4.1+uTime*3.7+hang*6.0));
+   dz=max(dz,-0.05-0.05*hang); // o vento não empurra o pano para dentro da parede (antes recuava até ~0,9 m)
    float dx=hang*uWindK*0.06*sin(uTime*1.4+hang*2.0);
    float dy=-abs(dz)*0.18;
    float dzdx=amp*(0.34*2.2*cos(ph)+0.16*4.1*cos(position.x*4.1+uTime*3.7+hang*6.0));

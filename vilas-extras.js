@@ -13,8 +13,13 @@ const ANIM=VM.anim={flames:[],smoke:[],embers:[],glows:[],sails:[],night:[]};
 /* ---------- Estradas de terra ---------- */
 // pts: polilinha em coordenadas locais da vila; w: largura. Segue o relevo.
 const ROAD_TILE={dirt:0,mud:0,gravel:2.4,flag:3.2,cobble:2.8,plank:2.4};
-VM.road=function(ctx,pts,w,type){
- type=type||'dirt';const tileM=ROAD_TILE[type]||0;
+// prio: estrada de cima onde duas se cruzam (praça/principal 4, travessa e ligação 3, ramal 2, caminho de porta 1).
+// Antes todas tinham o mesmo deslocamento de profundidade e piscavam (z-fight) nos cruzamentos.
+const ROAD_MAT=new Map();
+function roadMat(ctx,type,prio){const base=ctx.M['rd'+type.charAt(0).toUpperCase()+type.slice(1)]||ctx.M.dirt,k=base.uuid+'|'+prio;let m=ROAD_MAT.get(k);
+ if(!m){m=base.clone();m.polygonOffset=true;m.polygonOffsetFactor=-2-prio*.5;m.polygonOffsetUnits=-2-prio*2;m.userData=Object.assign({},base.userData,{prioridade:prio});ROAD_MAT.set(k,m);}return m;}
+VM.road=function(ctx,pts,w,type,prio){
+ type=type||'dirt';const tileM=ROAD_TILE[type]||0;prio=prio==null?2:prio;const lift=.07+prio*.006;
  const P=[],U=[],idx=[];let run=0;
  const samples=[];
  for(let i=1;i<pts.length;i++){const a=pts[i-1],b=pts[i],L=Math.hypot(b.x-a.x,b.z-a.z),n=Math.max(1,Math.ceil(L/2.2));
@@ -24,17 +29,18 @@ VM.road=function(ctx,pts,w,type){
   // normal média entre segmentos vizinhos
   const p=samples[Math.max(0,i-1)],q=samples[Math.min(samples.length-1,i+1)];let dx=q.x-p.x,dz=q.z-p.z;const l=Math.hypot(dx,dz)||1;dx/=l;dz/=l;
   const nx=-dz,nz=dx;
-  for(const e of [-1,1]){const x=s.x+nx*e*w/2,z=s.z+nz*e*w/2;P.push(x,ctx.gy(x,z)+.07,z);U.push(e<0?0:(tileM?w/tileM:1),run/(tileM||3));}
+  const wf=VM.taperEnd?Math.max(.25,Math.min(1,(samples.length-1-i)/3)):1;
+  for(const e of [-1,1]){const x=s.x+nx*e*w*wf/2,z=s.z+nz*e*w*wf/2;P.push(x,ctx.gy(x,z)+lift,z);U.push(e<0?0:(tileM?w/tileM:1),run/(tileM||3));}
   if(i>0){const a=(i-1)*2,b=i*2;idx.push(a,b,a+1,a+1,b,b+1);}
  }
  const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(P,3));geo.setAttribute('uv',new T.Float32BufferAttribute(U,2));geo.setIndex(idx);geo.computeVertexNormals();
- const m=new T.Mesh(geo,ctx.M['rd'+type.charAt(0).toUpperCase()+type.slice(1)]||ctx.M.dirt);m.name='Estrada ('+type+')';m.receiveShadow=true;
+ const m=new T.Mesh(geo,roadMat(ctx,type,prio));m.name='Estrada ('+type+')';m.receiveShadow=true;
  ctx.live.add(m);
  for(const s of samples.filter((_,i)=>i%2===0))ctx.noGrassC(s.x,s.z,w/2+1.4);
  // o personagem pisa na superfície da estrada (decalque a 7 cm do chão), sem afundar
  if(ctx.W&&window.arcanoIslandHeight){const ws=samples.map(q=>ctx.W(q.x,q.z)),hw=w/2+.05;let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;for(const q of ws){x0=Math.min(x0,q.x);x1=Math.max(x1,q.x);z0=Math.min(z0,q.z);z1=Math.max(z1,q.z);}
   (window.arcanoGroundOverrides=window.arcanoGroundOverrides||[]).push((x,z)=>{if(x<x0-hw||x>x1+hw||z<z0-hw||z>z1+hw)return null;
-   for(let i=1;i<ws.length;i++){const A=ws[i-1],B=ws[i],dx=B.x-A.x,dz=B.z-A.z,L2=dx*dx+dz*dz||1,t=Math.max(0,Math.min(1,((x-A.x)*dx+(z-A.z)*dz)/L2)),ex=A.x+dx*t-x,ez=A.z+dz*t-z;if(ex*ex+ez*ez<hw*hw)return window.arcanoIslandHeight(x,z)+.07;}
+   for(let i=1;i<ws.length;i++){const A=ws[i-1],B=ws[i],dx=B.x-A.x,dz=B.z-A.z,L2=dx*dx+dz*dz||1,t=Math.max(0,Math.min(1,((x-A.x)*dx+(z-A.z)*dz)/L2)),ex=A.x+dx*t-x,ez=A.z+dz*t-z;if(ex*ex+ez*ez<hw*hw)return window.arcanoIslandHeight(x,z)+lift;}
    return null;});}
 };
 

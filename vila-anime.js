@@ -104,10 +104,10 @@ function shell(g,W,D,y0,h,m,holes,tile){const RY=[0,Math.PI,Math.PI/2,-Math.PI/2
    const mm=new T.Mesh(geo,m);mm.position.set(0,y0,off-WT);fg.add(mm);}}}
 // interior: piso, forro com vigas e móveis (porta na frente, em x=0)
 function interior(g,W,D,y,top){const iw=W-2*WT,id=D-2*WT,ix=iw/2,iz=id/2;
- const AM=window.arcanoMoveis;box(g,iw,.08,id,AM?AM.M.piso:M.wood,0,y+.04,0,0,AM?2.4:1.6);box(g,iw,.12,id,M.wood,0,top-.06,0,0,1.6);
+ const AM=window.arcanoMoveis,vv=AM?(interior.n=(interior.n||0)+1):0;box(g,iw,.08,id,AM?AM.pisoDe(vv):M.wood,0,y+.04,0,0,AM?2.4:1.6);box(g,iw,.12,id,M.wood,0,top-.06,0,0,1.6);
  {const nb=Math.max(2,Math.round(iw/1.4));for(let i=1;i<nb;i++)box(g,.16,.16,id,M.timber,-ix+i*iw/nb,top-.2,0);}
  const yf=y+.08;
- if(AM){AM.sala(g,{iw,id,y:yf,top,s:-1,portas:[{x:0,w:1.5}],v:(interior.n=(interior.n||0)+1)});return;}
+ if(AM){AM.sala(g,{iw,id,y:yf,top,s:-1,portas:[{x:0,w:1.5}],v:vv});return;}
  box(g,Math.min(2.6,iw*.42),.02,Math.min(1.7,id*.36),M.clothR,0,yf+.01,.2);box(g,Math.min(2.2,iw*.35),.025,Math.min(1.3,id*.27),M.clothY,0,yf+.015,.2);
  // cama no canto do fundo à esquerda, baú ao pé
  const bx=-ix+1.05,bz=-iz+.62;box(g,2.0,.32,1.15,M.wood,bx,yf+.16,bz);box(g,1.9,.16,1.05,M.clothW,bx,yf+.4,bz);box(g,1.25,.07,1.08,M.clothB,bx+.3,yf+.5,bz);box(g,.45,.12,.75,M.clothW,bx-.7,yf+.54,bz);box(g,.1,.9,1.15,M.wood,bx-1.0,yf+.45,bz);
@@ -187,8 +187,12 @@ function houseTorre(g,w,d,roof){
  for(const sx of [-1,1])for(const sz of [-1,1])box(g,.2,2.8,.2,M.timber,ax+sx*aw/2,1.4,az+sz*ad/2);
  box(g,aw+.06,.18,.22,M.timber,ax,2.75,az+ad/2);box(g,aw+.06,.18,.22,M.timber,ax,.1,az+ad/2);
  windowAt(g,ax+aw/2+.08,1.7,az,Math.PI/2);
- door(g,w,r+.03,M.timber,M.wood);
- for(const [y,a] of [[3.6,0],[5.6,.9],[5.6,-.9],[3.6,Math.PI]]){windowAt(g,Math.sin(a)*(r+.06),y,Math.cos(a)*(r+.06),a,false);}
+ // Portal de pedra reto para a porta (antes a porta era reta colada no cilindro e a base de pedra, mais larga,
+ // passava na frente dela): o portal sai mais que a base, com degrau e cornija; a porta fica na face dele.
+ box(g,2.1,2.9,1.1,M.stone,0,1.45,r+.02);box(g,2.35,.2,1.25,M.timber,0,3.0,r+.05);box(g,1.9,.14,.6,M.stone,0,.07,r+.85);
+ door(g,w,r+.57,M.timber,M.wood);
+ // Nichos retos para as janelas (antes a moldura reta ficava solta nas pontas sobre a parede curva).
+ for(const [y,a] of [[3.6,0],[5.6,.9],[5.6,-.9],[3.6,Math.PI]]){box(g,1.5,1.75,.5,M.stone,Math.sin(a)*(r-.06),y,Math.cos(a)*(r-.06),a);windowAt(g,Math.sin(a)*(r+.25),y,Math.cos(a)*(r+.25),a,false);}
  windowAt(g,ax,1.75,az+ad/2+.08,0);flowerBox(g,ax,1.02,az+ad/2+.27,0);
 }
 function houseChale(g,w,d,roof){

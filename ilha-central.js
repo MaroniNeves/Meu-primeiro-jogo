@@ -973,6 +973,11 @@ function install(){
    const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;return t;
   })();
   const bannerMat=new T.MeshStandardMaterial({map:bannerTex,side:T.DoubleSide,roughness:1});
+  {const AT=window.arcanoTex;if(AT){const put=(m,t,sc)=>{m.map=t.map;m.bumpMap=t.bump;m.bumpScale=sc;m.color.set('#ffffff');m.needsUpdate=true;};
+   put(wallMat,AT.stone({hue:222,sat:7,l0:56,l1:72,seed:211,rows:8,cracks:.1,moss:.12}),.8);
+   put(roofMat,AT.shingles({hue:188,sat:30,l0:30,l1:46,seed:212}),.9);
+   put(woodMat,AT.wood({hue:24,light:34,seed:213}),.7);
+   put(stone,AT.stone({hue:38,sat:12,l0:60,l1:76,seed:214,rows:5,cracks:.12}),.8);}}
   const boxUV=(geo,w,h,d,tile)=>{const uv=geo.attributes.uv,F=[[d,h],[d,h],[w,d],[w,d],[w,h],[w,h]];for(let f=0;f<6;f++)for(let v=0;v<4;v++){const i=f*4+v;uv.setXY(i,uv.getX(i)*F[f][0]/tile,uv.getY(i)*F[f][1]/tile);}return geo;};
   const WALL_H=11,BASE=4,THK=3.2,GATE_A=Math.PI/2,GATE_HALF=9.5/CITY_R;
   const ang=(a,b)=>Math.abs(Math.atan2(Math.sin(a-b),Math.cos(a-b)));
@@ -1012,7 +1017,7 @@ function install(){
    const nm=Math.round(r*2.6);
    for(let k=0;k<nm;k++){const a=k/nm*Math.PI*2;const mm=new T.Mesh(towerMerlon,wallMat);mm.position.set(Math.cos(a)*(r+.4),h+BASE+1.7,Math.sin(a)*(r+.4));mm.rotation.y=-a+Math.PI/2;g.add(mm);}
    for(let k=0;k<4;k++){const a=k/4*Math.PI*2+.4;const sl=new T.Mesh(new T.BoxGeometry(.35,1.6,.3),darkMat);sl.position.set(Math.cos(a)*(r+.02),BASE+h*.6,Math.sin(a)*(r+.02));sl.rotation.y=-a+Math.PI/2;g.add(sl);}
-   if(roof){const cone=new T.Mesh(new T.ConeGeometry(r+1.2,r*1.5,24),roofMat);cone.position.y=h+BASE+1+r*.75;g.add(cone);}
+   if(roof){const cg=new T.ConeGeometry(r+1.2,r*1.5,24),cu=cg.attributes.uv,per=2*Math.PI*(r+1.2),sl=Math.hypot(r*1.5,r+1.2);for(let i=0;i<cu.count;i++)cu.setXY(i,cu.getX(i)*Math.round(per/2.6),cu.getY(i)*sl/2.6);const cone=new T.Mesh(cg,roofMat);cone.position.y=h+BASE+1+r*.75;g.add(cone);}
    g.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
    g.name='Torre da muralha';scene.add(g);
    if(O)O.addCircle(x,z,r+.3);
@@ -1032,7 +1037,8 @@ function install(){
    const GW=19,GH=WALL_H+4,GD=9,AW=7.5,AH=7.5;
    const shape=new T.Shape();
    shape.moveTo(-GW/2,-BASE);shape.lineTo(GW/2,-BASE);shape.lineTo(GW/2,GH);shape.lineTo(-GW/2,GH);shape.lineTo(-GW/2,-BASE);
-   const hole=new T.Path();hole.moveTo(-AW/2,0);hole.lineTo(AW/2,0);hole.lineTo(AW/2,AH);hole.absarc(0,AH,AW/2,0,Math.PI,false);hole.lineTo(-AW/2,0);
+   // vão do arco desce abaixo do chão (antes o piso do vão ficava no mesmo plano do terreno e piscava)
+   const hole=new T.Path();hole.moveTo(-AW/2,-1.2);hole.lineTo(AW/2,-1.2);hole.lineTo(AW/2,AH);hole.absarc(0,AH,AW/2,0,Math.PI,false);hole.lineTo(-AW/2,-1.2);
    shape.holes.push(hole);
    const gg=new T.ExtrudeGeometry(shape,{depth:GD,bevelEnabled:false});gg.translate(0,0,-GD/2);
    const gu=gg.attributes.uv;for(let i=0;i<gu.count;i++)gu.setXY(i,gu.getX(i)/3.2,gu.getY(i)/3.2);
@@ -1051,11 +1057,16 @@ function install(){
     hinge.rotation.y=side*1.25;
    }
    // Grade levadiça erguida (aparece no alto do arco).
-   for(let k=0;k<7;k++){const bar=new T.Mesh(new T.BoxGeometry(.16,2.4,.16),darkMat);bar.position.set(-AW/2+.5+k*(AW-1)/6,AH+AW/2-1.6,GD/2-1.2);G.add(bar);}
+   for(let k=0;k<7;k++){const bar=new T.Mesh(new T.BoxGeometry(.16,3.4,.16),darkMat);bar.position.set(-AW/2+.5+k*(AW-1)/6,AH+AW/2-.9,GD/2-1.2);G.add(bar);const tip=new T.Mesh(new T.ConeGeometry(.11,.32,6),darkMat);tip.rotation.x=Math.PI;tip.position.set(-AW/2+.5+k*(AW-1)/6,AH+AW/2-2.76,GD/2-1.2);G.add(tip);}
+   for(const yy of [AH+AW/2-2.3,AH+AW/2-1.3]){const cb=new T.Mesh(new T.BoxGeometry(AW-.4,.14,.2),darkMat);cb.position.set(0,yy,GD/2-1.2);G.add(cb);}
    // Estandartes grandes e lanternas na fachada.
    for(const side of [-1,1]){
-    const b=new T.Mesh(new T.PlaneGeometry(2.8,7.5),bannerMat);b.position.set(side*(AW/2+2.6),GH-5,GD/2+.06);G.add(b);
+    const b=new T.Mesh(new T.PlaneGeometry(2.8,7.5),bannerMat);b.position.set(side*(AW/2+2.6),GH-5,GD/2+.1);G.add(b);
+    {const rodB=new T.Mesh(new T.CylinderGeometry(.06,.06,3.3,8),darkMat);rodB.rotation.z=Math.PI/2;rodB.position.set(side*(AW/2+2.6),GH-1.2,GD/2+.14);G.add(rodB);for(const e of [-1,1]){const br=new T.Mesh(new T.BoxGeometry(.08,.08,.18),darkMat);br.position.set(side*(AW/2+2.6)+e*1.3,GH-1.2,GD/2+.07);G.add(br);}}
     const lamp=new T.Mesh(new T.BoxGeometry(.5,.7,.5),lampMat);lamp.position.set(side*(AW/2+1.1),4.2,GD/2+.5);G.add(lamp);
+    {const cap=new T.Mesh(new T.ConeGeometry(.42,.32,4),darkMat);cap.rotation.y=Math.PI/4;cap.position.set(side*(AW/2+1.1),4.71,GD/2+.5);G.add(cap);
+     const arm=new T.Mesh(new T.BoxGeometry(.07,.07,.62),darkMat);arm.position.set(side*(AW/2+1.1),5.0,GD/2+.31);G.add(arm);const hg=new T.Mesh(new T.BoxGeometry(.04,.16,.04),darkMat);hg.position.set(side*(AW/2+1.1),4.92,GD/2+.5);G.add(hg);
+     const pl=new T.Mesh(new T.BoxGeometry(.32,.42,.05),darkMat);pl.position.set(side*(AW/2+1.1),4.95,GD/2+.025);G.add(pl);}
    }
    // Torres do portão, mais altas e com telhado.
    for(const side of [-1,1]){
@@ -1094,7 +1105,9 @@ function install(){
   scene.add(pave);
   // Meio-fio de pedra nas duas bordas do piso (sem fresta entre piso e chão).
   for(const r of [CASTLE_R+27,CITY_R-1.2]){
-   const curb=new T.Mesh(new T.CylinderGeometry(r,r,1.1,160,1,true),new T.MeshStandardMaterial({color:'#9b958b',roughness:1,side:T.DoubleSide}));
+   const cg=new T.CylinderGeometry(r,r,1.1,160,1,true),cuv=cg.attributes.uv;for(let i=0;i<cuv.count;i++)cuv.setXY(i,cuv.getX(i)*Math.round(2*Math.PI*r/2.4),cuv.getY(i)*1.1/2.4);
+   const cm2=new T.MeshStandardMaterial({color:'#ffffff',roughness:1,side:T.DoubleSide});{const AT=window.arcanoTex;if(AT){const t=AT.stone({hue:30,sat:8,l0:52,l1:66,seed:215,rows:2,cracks:.2});cm2.map=t.map;cm2.bumpMap=t.bump;cm2.bumpScale=.7;}else cm2.color.set('#9b958b');}
+   const curb=new T.Mesh(cg,cm2);
    curb.position.set(C.x,CITY_Y-.48,C.z);curb.name='Pedra do meio-fio da cidade';curb.receiveShadow=true;scene.add(curb);
   }
  }
@@ -1335,7 +1348,8 @@ function install(){
  // ---------- Local do castelo + núcleo de energia ----------
  {
   const y=window.arcanoIslandHeight(C.x,C.z);
-  const base=new T.Mesh(new T.CylinderGeometry(CASTLE_R-6,CASTLE_R-3,3,48),stone);
+  const bg=new T.CylinderGeometry(CASTLE_R-6,CASTLE_R-3,3,48,2);{const p=bg.attributes.position,n=bg.attributes.normal,u=bg.attributes.uv;for(let i=0;i<p.count;i++){if(Math.abs(n.getY(i))>.7)u.setXY(i,p.getX(i)/3.2,p.getZ(i)/3.2);else u.setXY(i,(Math.atan2(p.getZ(i),p.getX(i))+Math.PI)*(CASTLE_R-4.5)/3.2,p.getY(i)/3.2);}}
+  const base=new T.Mesh(bg,stone);
   base.position.set(C.x,y-1.2,C.z);base.receiveShadow=true;base.castShadow=true;
   base.name='Pedra da fundação do castelo';scene.add(base);
   // O topo da fundação é piso (o personagem sobe nele em vez de atravessar).

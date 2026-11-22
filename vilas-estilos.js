@@ -9,6 +9,7 @@ if(!T)return;
 const VM=window.__vm;
 if(!VM)return;
 const {box,cyl,sph,cone,rod}=VM,rnd=VM.rnd,PI=Math.PI;
+const OLV={};
 const F=.5;                           // altura do piso sobre o chão (soco de pedra)
 const KIT=VM.KIT={};
 
@@ -61,13 +62,36 @@ function tree(ctx,x,z,s,crown,trunkM){
  for(const [dx,dy,dz,r] of [[0,2.7,0,1.35],[.8,2.2,.3,.95],[-.7,2.35,-.3,1.0],[.1,3.3,.2,.85]])sph(g,r*s,crown||M.leaf,x+dx*s,y+dy*s,z+dz*s,1,.85,1,8);}
  ctx.colCircle(x,z,.45*s);ctx.noGrassC(x,z,1.4*s);
 }
+// Anel de pedras talhadas em setores (boca de poço, canteiro): cada pedra é um setor de coroa, com junta fina.
+function anelPedras(g,x,y,z,Ri,Ro,h,N,m){for(let k=0;k<N;k++){const gp=.012,a0=k/N*PI*2+gp,a1=(k+1)/N*PI*2-gp,sh=new T.Shape();
+  sh.moveTo(Ri*Math.cos(a0),Ri*Math.sin(a0));sh.lineTo(Ro*Math.cos(a0),Ro*Math.sin(a0));sh.absarc(0,0,Ro,a0,a1,false);sh.lineTo(Ri*Math.cos(a1),Ri*Math.sin(a1));sh.absarc(0,0,Ri,a1,a0,true);
+  const geo=new T.ExtrudeGeometry(sh,{depth:h,bevelEnabled:true,bevelThickness:.012,bevelSize:.012,bevelSegments:1,curveSegments:6});geo.rotateX(-PI/2);
+  const uv=geo.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)/1.2,uv.getY(i)/1.2);const me=new T.Mesh(geo,m);me.position.set(x,y,z);g.add(me);}}
+/* Poço com profundidade (antes: cilindro maciço com um disco de água em cima e o balde pousado nele).
+   Parede de pedra oca (face de dentro escurecendo para baixo), coroa de pedras talhadas na boca, água escura lá
+   embaixo, sarilho com manivela entre os esteios, corda e balde pendurados sobre a boca. */
 function well(ctx,x,z,o){
- o=o||{};const M=ctx.M,y=ctx.gy(x,z),g=ctx.g;
- cyl(g,1.15,1.2,.95,o.stone||M.stone,x,y,z,12,1.4);cyl(g,.82,.82,.04,M.water,x,y+.95,z,12,1);
- for(const s of [-1,1])box(g,.16,2.3,.16,M.woodDark,x+s*1.0,y+.5,z,0,1.5);
- box(g,2.4,.16,.16,M.woodDark,x,y+2.5,z,0,1.5);
- VM.gableRoof(g,2.6,1.9,.85,o.roof||M.roofShake,M.woodDark,x,y+2.65,z,.15,.2,2);
- cyl(g,.18,.18,.28,M.woodDark,x,y+1.0,z,8,1);rod(g,x,y+2.5,z,x,y+1.2,z,.015,M.cloth,3);
+ o=o||{};const M=ctx.M,y=ctx.gy(x,z),g=ctx.g,sM=o.stone||M.stone;
+ const R0=1.12,R1=.8,H0=.92,base=y-.35,seg=28,HT=H0+(y-base);
+ const tube=(r,mat,inner)=>{const gg=new T.CylinderGeometry(r,r,HT,seg,6,true),uv=gg.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)*Math.round(2*PI*r/1.4),uv.getY(i)*HT/1.4);
+  if(inner){const p=gg.attributes.position,c=new Float32Array(p.count*3);for(let i=0;i<p.count;i++){const t=(p.getY(i)+HT/2)/HT,v=.16+.84*Math.pow(t,1.7);c[i*3]=c[i*3+1]=c[i*3+2]=v;}gg.setAttribute('color',new T.BufferAttribute(c,3));}
+  const m=new T.Mesh(gg,mat);m.position.set(x,base+HT/2,z);g.add(m);};
+ const kIn='wellIn'+sM.uuid;if(!M[kIn]){M[kIn]=sM.clone();M[kIn].side=T.BackSide;M[kIn].vertexColors=true;}
+ if(!M.wellWater)M.wellWater=new T.MeshStandardMaterial({color:'#17394a',roughness:.12,metalness:.15,emissive:new T.Color('#0b2230'),emissiveIntensity:.3});
+ tube(R0,sM,false);tube(R1,M[kIn],true);
+ {const w=new T.Mesh(new T.CircleGeometry(R1-.01,seg),M.wellWater);w.rotation.x=-PI/2;w.position.set(x,y+.2,z);g.add(w);}
+ // coroa: pedras talhadas em volta da boca
+ anelPedras(g,x,y+H0,z,R1-.04,R0+.07,.12,11,sM);
+ // esteios, travessa e telhado
+ const PX=R0+.1;for(const s of [-1,1])box(g,.18,2.5,.18,M.woodDark,x+s*PX,y,z,0,1.5);
+ box(g,2*PX+.3,.16,.16,M.woodDark,x,y+2.5,z,0,1.5);
+ VM.gableRoof(g,2*PX+.6,1.9,.85,o.roof||M.roofShake,M.woodDark,x,y+2.65,z,.15,.2,2);
+ // sarilho: rolo entre os esteios, manivela de ferro, corda e balde com aros
+ rod(g,x-PX+.09,y+1.72,z,x+PX-.09,y+1.72,z,.09,M.woodDark,10);
+ rod(g,x+PX+.12,y+1.72,z,x+PX+.12,y+1.42,z,.025,M.iron,6);rod(g,x+PX+.09,y+1.72,z,x+PX+.13,y+1.72,z,.03,M.iron,6);rod(g,x+PX+.12,y+1.42,z,x+PX+.32,y+1.42,z,.03,M.wood,6);
+ rod(g,x,y+1.65,z,x,y+1.27,z,.014,M.cloth,4);
+ cyl(g,.15,.12,.26,M.woodDark,x,y+1.0,z,12,1);for(const yy of [1.04,1.19])cyl(g,.157,.157,.03,M.iron,x,y+yy,z,12,1);
+ rod(g,x-.15,y+1.26,z,x,y+1.33,z,.012,M.iron,4);rod(g,x+.15,y+1.26,z,x,y+1.33,z,.012,M.iron,4);
  ctx.colCircle(x,z,1.45);ctx.noGrassC(x,z,3);
 }
 function lanternPost(ctx,x,z,m){const M=ctx.M,y=ctx.gy(x,z),g=ctx.g;cyl(g,.07,.1,2.7,m||M.woodDark,x,y,z,6,1.5);box(g,.34,.4,.34,M.lantern,x,y+2.5,z,0,1);box(g,.46,.08,.46,M.iron,x,y+2.9,z,0,1);ctx.colCircle(x,z,.2);}
@@ -108,10 +132,10 @@ function finishHollow(ctx,bg,Rc,opt){opt=opt||{};const M=ctx.M,B=Rc.base;
   for(const h of ds){const L=h.x-h.w/2-u;if(L>.02)box(bg,L,bd.h,bd.t,bd.m,u+L/2,bd.y,(bd.d-bd.t)/2,0,bd.tile);u=h.x+h.w/2;}const L=bd.w/2-u;if(L>.02)box(bg,L,bd.h,bd.t,bd.m,u+L/2,bd.y,(bd.d-bd.t)/2,0,bd.tile);}
  // piso, forro e vigas
  const iw=W-2*WT,id=D-2*WT;
- box(bg,iw,.08,id,window.arcanoMoveis?window.arcanoMoveis.M.piso:M.deck,0,y0,0,0,2.4);box(bg,iw,.12,id,M.woodH,0,top-.12,0,0,1.6);
+ const AMv=window.arcanoMoveis,vv=AMv?(finishHollow.n=(finishHollow.n||0)+1):0;box(bg,iw,.08,id,AMv&&opt.style!=='oriental'?AMv.pisoDe(vv):M.deck,0,y0,0,0,2.4);box(bg,iw,.12,id,M.woodH,0,top-.12,0,0,1.6);
  {const nb=Math.max(1,Math.round(iw/1.4));for(let i=1;i<nb;i++)box(bg,.16,.16,id,M.woodDark,-iw/2+i*iw/nb,top-.28,0,0,1);}
  // móveis
- const dx=doors.length?doors[0].x:0;furnish(bg,M,iw,id,y0+.08,top,dx,opt.style);
+ const dx=doors.length?doors[0].x:0;furnish(bg,M,iw,id,y0+.08,top,dx,opt.style,vv);
  // colisão: paredes, com vão nas portas
  const cr=Math.cos(B.ry),sr=Math.sin(B.ry),Lc=(ox,oz)=>[B.x+ox*cr+oz*sr,B.z-ox*sr+oz*cr];
  const seg=(ax,az,hx,hz)=>{if(hx<=.02||hz<=.02)return;const [lx,lz]=Lc(ax,az);ctx.colBox(lx,lz,hx,hz,B.ry);};
@@ -131,7 +155,7 @@ function finishHollow(ctx,bg,Rc,opt){opt=opt||{};const M=ctx.M,B=Rc.base;
   toggleId(id){const it=its.find(q=>q.id===id);if(it)it.tgt=it.tgt>0?0:1;},set(){},roof(){}};
  (window.arcanoSalasVilas=window.arcanoSalasVilas||[]).push(a);}
 // mobília conforme o tamanho do cômodo; o lado da porta fica livre
-function furnish(bg,M,iw,id,y,top,dx,style){
+function furnish(bg,M,iw,id,y,top,dx,style,vv){
  const ix=iw/2,iz=id/2,s=dx>=0?-1:1,small=iw<4.2;
  if(style==='oriental'){ // tatame, mesa baixa com almofadas, futon e nicho
   box(bg,iw*.7,.03,id*.6,M.hay,0,y,0,0,1);box(bg,1.3,.08,.8,M.woodDark,0,y+.3,0,0,1);for(const a of [-1,1])for(const b of [-1,1])box(bg,.08,.3,.08,M.woodDark,a*.55,y,b*.3,0,1);
@@ -139,7 +163,7 @@ function furnish(bg,M,iw,id,y,top,dx,style){
   box(bg,1.0,.12,2.0,M.cloth,s*(ix-.6),y,-iz+1.1,0,1);box(bg,1.0,.08,1.2,M.blue,s*(ix-.6),y+.12,-iz+1.4,0,1);
   box(bg,1.6,.2,.5,M.woodDark,-s*(ix-1.0),y+.5,-iz+.3,0,1);cyl(bg,.12,.09,.4,M.white,-s*(ix-1.0),y+.7,-iz+.3,8,1);
   sph(bg,.26,M.lantern,0,top-.9,0,1,1.25,1,8);return;}
- if(window.arcanoMoveis){const AM=window.arcanoMoveis;AM.sala(bg,{iw,id,y,top,s,portas:[{x:dx,w:1.5}],v:(furnish.n=(furnish.n||0)+1),pequena:small});return;}
+ if(window.arcanoMoveis){const AM=window.arcanoMoveis;AM.sala(bg,{iw,id,y,top,s,portas:[{x:dx,w:1.5}],v:vv||(furnish.n=(furnish.n||0)+1),pequena:small});return;}
  // tapete
  box(bg,Math.min(2.6,iw*.45),.02,Math.min(1.7,id*.4),M.red,0,y,.1,0,1);box(bg,Math.min(2.2,iw*.38),.025,Math.min(1.3,id*.3),M.cloth,0,y,.1,0,1);
  // cama no fundo, do lado oposto à porta
@@ -314,6 +338,8 @@ KIT.mediterranea={
   ctx.colCircle(x,z,2.55);ctx.noGrassC(x,z,4);},
  poco(ctx,x,z){well(ctx,x,z,{roof:ctx.M.roofTerra,stone:ctx.M.white});},
  oliveira(ctx,x,z,s){const M=ctx.M,y=ctx.gy(x,z),g=ctx.g;s=s||1;
+  {const TR=window.arcanoTrees;if(TR&&TR.types.indexOf('oliveira')>=0){try{const n=(OLV.n=(OLV.n||0)+1),k='v'+(n%3);const v=OLV[k]||(OLV[k]=TR.make('oliveira',{h:4.4+(n%3)*.45,seed:900+(n%3)*17,density:.2,shadows:false}));
+   const o=v.clone();o.position.set(x,y-.05,z);o.rotation.y=rnd()*6.283;o.scale.setScalar(s);g.add(o);ctx.colCircle(x,z,.4*s);ctx.noGrassC(x,z,1.3*s);return;}catch(e){}}}
   const t=cyl(g,.18*s,.3*s,1.9*s,M.bark,x,y,z,6,1.5);rod(g,x,y+1.4*s,z,x+.5*s,y+2.4*s,z+.1,.12*s,M.bark,5);rod(g,x,y+1.4*s,z,x-.5*s,y+2.3*s,z-.1,.1*s,M.bark,5);
   const ol=ctx.M.olive||(ctx.M.olive=new T.MeshStandardMaterial({color:'#859d6a',roughness:1}));
   for(const [dx,dy,dz,r] of [[.5,2.7,.1,.95],[-.5,2.6,-.1,.9],[0,3.1,0,.8]])sph(g,r*s,ol,x+dx*s,y+dy*s,z+dz*s,1.15,.7,1.15,8);ctx.colCircle(x,z,.4*s);},
@@ -346,7 +372,8 @@ KIT.nordica={
   for(const sx of [-1,1])for(const sz of [-1,1]){cyl(bg,.2,.28,pd.depth+1.0,M.stoneDark,sx*w*.4,-pd.depth,sz*d*.4,7,1.2);cyl(bg,.34,.34,.1,M.stone,sx*w*.4,.95,sz*d*.4,8,1);}
   box(bg,w,2.7,d,M.woodDark,0,1.05,0,0,2.2);box(bg,w+.4,.14,d+.4,M.wood,0,3.75,0,0,1.5);
   VM.gableRoof(bg,w,d,2.0,M.turf,M.woodDark,0,3.75,0,1.0,.7,2.8);dragonEnds(bg,M,w-.2,5.75);
-  box(bg,1.0,1.8,.1,M.wood,0,1.15,d/2+.02,0,1);for(let i=0;i<3;i++)box(bg,.9,.12,.5,M.wood,0,.4+i*.22,d/2+.7-i*.0+.4+i*.3,0,1);
+  box(bg,1.0,1.8,.1,M.wood,0,1.15,d/2+.02,0,1);// escada de toras até a porta (antes os degraus subiam se afastando da casa e ficavam soltos no ar)
+  for(let i=0;i<4;i++){const top=1.05*(i+1)/4,zz=d/2+.2+(3-i)*.32;box(bg,1.1,top+pd.depth,.34,M.wood,0,-pd.depth,zz,0,1);box(bg,1.16,.06,.38,M.woodDark,0,top-.03,zz,0,1);}
   ctx.colBox(x,z,w/2+.3,d/2+.3,ry);ctx.noGrassC(x,z,3.4);return bg;},
  runa(ctx,x,z,ry){const M=ctx.M,y=ctx.gy(x,z),g=new T.Group();g.position.set(x,y,z);g.rotation.y=ry;ctx.g.add(g);
   const st=box(g,1.3,3.2,.6,M.stoneDark,0,0,0,0,2);st.rotation.z=.04;box(g,.9,.7,.5,M.stoneDark,0,3.2,0,0,2).rotation.z=.04;
@@ -379,7 +406,14 @@ KIT.oriental={
   box(bg,w+.1,.5,.14,M.woodDark,0,fy,d/2+.02,0,1.5);
   // telhado em dois níveis com cantos dourados
   VM.hipRoof(bg,w+2.8,d+2.8,1.5,M.roofSlate,0,fy+2.7,0,2.6);goldCorners(bg,M,w+2.6,d+2.6,fy+2.55);
-  box(bg,w-.6,1.2,d-.6,M.white,0,fy+4.0,0,0,2);VM.hipRoof(bg,w+1.2,d+1.2,1.4,M.roofSlate,0,fy+5.1,0,2.6);goldCorners(bg,M,w+1.0,d+1.0,fy+4.95);
+  // andar de cima: as paredes descem até dentro do telhado de baixo (antes a caixa começava 75 cm acima dele, na linha
+  // das paredes, e parecia flutuar) e ganham pilares de canto, cinta de madeira e janelas shoji
+  {const uw=w-.6,ud=d-.6;box(bg,uw,2.45,ud,M.white,0,fy+2.75,0,0,2);
+   for(const sx of [-1,1])for(const sz of [-1,1])box(bg,.16,2.45,.16,M.woodDark,sx*uw/2,fy+2.75,sz*ud/2,0,1.5);
+   box(bg,uw+.08,.14,ud+.08,M.woodDark,0,fy+4.9,0,0,1.5);
+   for(const sz of [-1,1])for(const sx of [-1,1]){box(bg,1.1,.85,.06,M.shoji,sx*uw/4,fy+3.75,sz*(ud/2+.03),0,1);box(bg,1.2,.08,.1,M.woodDark,sx*uw/4,fy+3.71,sz*(ud/2+.04),0,1);}
+   for(const sx of [-1,1]){box(bg,.06,.85,1.1,M.shoji,sx*(uw/2+.03),fy+3.75,0,0,1);box(bg,.1,.08,1.2,M.woodDark,sx*(uw/2+.04),fy+3.71,0,0,1);}}
+  VM.hipRoof(bg,w+1.2,d+1.2,1.4,M.roofSlate,0,fy+5.1,0,2.6);goldCorners(bg,M,w+1.0,d+1.0,fy+4.95);
   cyl(bg,.06,.06,.7,M.gold,0,fy+6.5,0,5,1);sph(bg,.16,M.gold,0,fy+7.2,0,1,1,1,6);
   // lanternas penduradas
   for(const s of [-1,1]){rod(bg,s*(w/2+.9),fy+2.7,d/2+1.0,s*(w/2+.9),fy+2.2,d/2+1.0,.012,M.iron,3);sph(bg,.24,M.lantern,s*(w/2+.9),fy+1.95,d/2+1.0,.9,1.15,.9,8);}
@@ -393,10 +427,18 @@ KIT.oriental={
  toro(ctx,x,z){const M=ctx.M,y=ctx.gy(x,z),g=ctx.g;
   box(g,.9,.2,.9,M.stoneDark,x,y,z,0,1);cyl(g,.16,.2,1.1,M.stone,x,y+.2,z,8,1);box(g,.8,.15,.8,M.stoneDark,x,y+1.3,z,0,1);box(g,.5,.5,.5,M.lantern,x,y+1.45,z,0,1);
   VM.pyramid(g,1.1,1.1,.5,M.stoneDark,x,y+1.95,z,1);sph(g,.1,M.stone,x,y+2.5,z,1,1,1,6);ctx.colCircle(x,z,.5);},
+ // Lago de carpas oco (antes: cilindro maciço de pedra e a água 1 cm acima do topo dele — as duas superfícies
+ // brigavam e a água ficava listrada): parede de pedra, borda de pedras talhadas, água abaixo da borda e fundo escuro.
  lago(ctx,x,z,r){const M=ctx.M,y=ctx.gy(x,z),g=ctx.g;
-  cyl(g,r+.35,r+.4,.3,M.stone,x,y,z,20,2);cyl(g,r,r,.05,M.water,x,y+.26,z,20,1);
-  for(let i=0;i<5;i++){const a=i*1.3,l=cyl(g,.35,.35,.02,M.leaf,x+Math.cos(a)*r*.55,y+.3,z+Math.sin(a)*r*.55,8,1);}
-  for(let i=0;i<4;i++){const a=i*1.7+.5,f=sph(g,.13,M.redLacquer,x+Math.cos(a)*r*.4,y+.32,z+Math.sin(a)*r*.4,1.8,.5,.8,6);f.rotation.y=a;}
+  const tubo=(rr,y0,h,mat)=>{const gg=new T.CylinderGeometry(rr,rr,h,28,1,true),uv=gg.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)*Math.round(2*PI*rr/1.4),uv.getY(i)*h/1.4);const m=new T.Mesh(gg,mat);m.position.set(x,y0+h/2,z);g.add(m);};
+  const kIn='lagoIn'+M.stone.uuid;if(!M[kIn]){M[kIn]=M.stone.clone();M[kIn].side=T.BackSide;}
+  if(!M.lagoFundo)M.lagoFundo=new T.MeshStandardMaterial({color:'#24414a',roughness:1});
+  tubo(r+.38,y-.15,.43,M.stone);tubo(r,y,.28,M[kIn]);
+  {const f=new T.Mesh(new T.CircleGeometry(r,28),M.lagoFundo);f.rotation.x=-PI/2;f.position.set(x,y+.04,z);g.add(f);}
+  anelPedras(g,x,y+.26,z,r-.03,r+.42,.08,18,M.stone);
+  {const w=new T.Mesh(new T.CircleGeometry(r-.01,28),M.water);w.rotation.x=-PI/2;w.position.set(x,y+.2,z);g.add(w);}
+  for(let i=0;i<5;i++){const a=i*1.3,l=cyl(g,.35,.35,.02,M.leaf,x+Math.cos(a)*r*.55,y+.2,z+Math.sin(a)*r*.55,8,1);}
+  for(let i=0;i<4;i++){const a=i*1.7+.5,f=sph(g,.13,M.redLacquer,x+Math.cos(a)*r*.4,y+.12,z+Math.sin(a)*r*.4,1.8,.5,.8,6);f.rotation.y=a;}
   ctx.colCircle(x,z,r+.4);ctx.noGrassC(x,z,r+2.5);},
  cerejeira(ctx,x,z,s){const M=ctx.M,y=ctx.gy(x,z),g=ctx.g;s=s||1;
   const lite=/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)||innerWidth<700;
@@ -406,16 +448,24 @@ KIT.oriental={
    for(let i=0;i<150;i++){const x=Math.random()*128,y=Math.random()*256,w=6+Math.random()*16;cg.strokeStyle='rgba(190,170,160,'+(.25+Math.random()*.3)+')';cg.lineWidth=1.6;cg.beginPath();cg.moveTo(x,y);cg.lineTo(x+w,y+(Math.random()-.5)*2);cg.stroke();}
    for(let i=0;i<24;i++){const x=Math.random()*128,y=Math.random()*256;const gr=cg.createRadialGradient(x,y,0,x,y,10);gr.addColorStop(0,'rgba(120,140,100,.35)');gr.addColorStop(1,'rgba(120,140,100,0)');cg.fillStyle=gr;cg.fillRect(x-10,y-10,20,20);}
    const bt=new T.CanvasTexture(c);bt.wrapS=bt.wrapT=T.RepeatWrapping;bt.colorSpace=T.SRGBColorSpace;M.cherryBark=new T.MeshStandardMaterial({map:bt,roughness:1});}
-  const organic=(pts,rad,flare,sd)=>{const curve=new T.CatmullRomCurve3(pts.map(p=>new T.Vector3(p[0],p[1],p[2]))),N=18,S=10,fr=curve.computeFrenetFrames(N,false),len=curve.getLength();
+  const organic=(pts,rad,flare,sd,flat)=>{flat=flat||1;const curve=new T.CatmullRomCurve3(pts.map(p=>new T.Vector3(p[0],p[1],p[2]))),N=18,S=flare>0?20:10,fr=curve.computeFrenetFrames(N,false),len=curve.getLength();
    const P=[],U=[],I=[];
    for(let i=0;i<=N;i++){const t=i/N,pos=curve.getPoint(t),f=t*(rad.length-1),k=Math.min(rad.length-2,Math.floor(f)),rr=(rad[k]+(rad[k+1]-rad[k])*(f-k))*(1+flare*Math.exp(-t*8)),nn=fr.normals[i],bb=fr.binormals[i];
-    for(let j=0;j<=S;j++){const an=j/S*Math.PI*2,lump=1+.1*Math.sin(an*3+t*8+sd)+.07*Math.sin(an*5-t*13+sd*2)+(flare>0?.16*Math.max(0,Math.sin(an*4+sd))*Math.exp(-t*7):0),dx=nn.x*Math.cos(an)+bb.x*Math.sin(an),dy=nn.y*Math.cos(an)+bb.y*Math.sin(an),dz=nn.z*Math.cos(an)+bb.z*Math.sin(an);
-     P.push(pos.x+dx*rr*lump,pos.y+dy*rr*lump,pos.z+dz*rr*lump);U.push(j/S*Math.max(1,rr*5),t*len/1.1);}}
+    for(let j=0;j<=S;j++){const an=j/S*Math.PI*2,lump=1+.07*Math.sin(an*3+t*8+sd)+.045*Math.sin(an*5-t*13+sd*2)+(flare>0?.18*Math.pow(.5+.5*Math.cos(an*5+sd),2)*Math.exp(-t*3.5):0),dx=nn.x*Math.cos(an)+bb.x*Math.sin(an),dy=nn.y*Math.cos(an)+bb.y*Math.sin(an),dz=nn.z*Math.cos(an)+bb.z*Math.sin(an);
+     P.push(pos.x+dx*rr*lump,pos.y+dy*rr*lump*flat,pos.z+dz*rr*lump);U.push(j/S*Math.max(2,Math.round(rr*6)),t*len/1.1);}}
    for(let i=0;i<N;i++)for(let j=0;j<S;j++){const q=i*(S+1)+j;I.push(q,q+S+1,q+1,q+1,q+S+1,q+S+2);}
    const gg=new T.BufferGeometry();gg.setAttribute('position',new T.Float32BufferAttribute(P,3));gg.setAttribute('uv',new T.Float32BufferAttribute(U,2));gg.setIndex(I);gg.computeVertexNormals();
    const m=new T.Mesh(gg,M.cherryBark);m.castShadow=true;m.receiveShadow=true;g.add(m);};
-  organic([[x,y-.2,z],[x+.04*s,y+.9*s,z+.05*s],[x+.22*s,y+1.7*s,z-.04*s],[x+.14*s,y+2.5*s,z+.03*s]],[.36*s,.26*s,.21*s,.16*s],.9,rnd()*6);
-  for(let q=0;q<5;q++){const a2=q/5*6.283+rnd()*.5,dx=Math.cos(a2),dz=Math.sin(a2);organic([[x+dx*.2*s,y+.35*s,z+dz*.2*s],[x+dx*.7*s,y+.08*s,z+dz*.7*s],[x+dx*1.25*s,y-.12*s,z+dz*1.25*s]],[.17*s,.1*s,.04*s],0,rnd()*6);}
+  organic([[x,y-.25,z],[x+.04*s,y+.9*s,z+.05*s],[x+.22*s,y+1.7*s,z-.04*s],[x+.14*s,y+2.5*s,z+.03*s]],[.34*s,.26*s,.21*s,.16*s],.55,rnd()*6);
+  const pit=x===0&&z===0;
+  if(pit){if(!M.soilPetal){const c=document.createElement('canvas');c.width=c.height=256;const q=c.getContext('2d');q.fillStyle='#4a3424';q.fillRect(0,0,256,256);
+    for(let i=0;i<900;i++){q.fillStyle='rgba('+(Math.random()<.5?'30,20,14':'110,84,60')+','+(.08+Math.random()*.14)+')';q.beginPath();q.arc(Math.random()*256,Math.random()*256,1+Math.random()*4,0,6.3);q.fill();}
+    for(let i=0;i<60;i++){q.fillStyle='rgba(150,140,128,.6)';q.beginPath();q.ellipse(Math.random()*256,Math.random()*256,1.5+Math.random()*2.5,1+Math.random()*1.5,Math.random()*3,0,6.3);q.fill();}
+    for(let i=0;i<70;i++){const x=Math.random()*256,y=Math.random()*256;q.save();q.translate(x,y);q.rotate(Math.random()*6.3);q.fillStyle=Math.random()<.7?'rgba(255,176,204,.85)':'rgba(255,236,242,.85)';q.beginPath();q.ellipse(0,0,3.2,1.8,0,0,6.3);q.fill();q.restore();}
+    const t=new T.CanvasTexture(c);t.wrapS=t.wrapT=T.RepeatWrapping;t.repeat.set(2,2);t.colorSpace=T.SRGBColorSpace;M.soilPetal=new T.MeshStandardMaterial({map:t,roughness:1,polygonOffset:true,polygonOffsetFactor:-3,polygonOffsetUnits:-4});}
+   const soil=M.soilPetal;const sd=new T.Mesh(new T.CircleGeometry(1.62*s,36),soil);sd.rotation.x=-PI/2;sd.position.set(x,y+.12,z);g.add(sd);anelPedras(g,x,y+.04,z,1.62*s,1.86*s,.13,16,M.stone);
+   for(let i=0;i<7;i++){const a=rnd()*6.283,r=(1.0+rnd()*.5)*s;sph(g,.07,[M.pink,M.cream,M.leaf][i%3],x+Math.cos(a)*r,y+.18,z+Math.sin(a)*r,1,.6,1,6);}}
+  for(let q=0;q<6;q++){const a2=q/6*6.283+rnd()*.4,dx=Math.cos(a2),dz=Math.sin(a2);organic([[x+dx*.08*s,y+.4*s,z+dz*.08*s],[x+dx*.5*s,y+.2*s,z+dz*.5*s],[x+dx*.95*s,y+.14*s,z+dz*.95*s],[x+dx*1.38*s,y+.06*s,z+dz*1.38*s]],[.3*s,.21*s,.13*s,.05*s],0,rnd()*6,.55);}
   const tips=[[1.05,3.0,.45],[-1.0,2.9,-.4],[.35,3.9,.1],[.1,3.0,-1.0],[-.2,3.2,1.0]];
   for(const [dx,dy,dz] of tips){const st=[x+.16*s,y+(1.8+rnd()*.5)*s,z+.02*s],en=[x+dx*s,y+dy*s,z+dz*s],mid=[(st[0]+en[0])/2+(rnd()-.5)*.3*s,(st[1]+en[1])/2-.15*s,(st[2]+en[2])/2+(rnd()-.5)*.3*s];
    organic([st,mid,en],[.13*s,.09*s,.045*s],.15,rnd()*6);

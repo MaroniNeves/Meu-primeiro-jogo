@@ -244,10 +244,24 @@ function lathe(a,pts,m,x,y,z,sx=1,sz=1,seg=18){
 function ball(a,r,m,x,y,z,sx=1,sy=1,sz=1){const s=new T.Mesh(new T.SphereGeometry(r,14,10),m);s.position.set(x,y,z);s.scale.set(sx,sy,sz);a.add(s);return s;}
 function ring(a,r,tube,m,x,y,z,rx=Math.PI/2){const t=new T.Mesh(new T.TorusGeometry(r,tube,6,22),m);t.position.set(x,y,z);t.rotation.x=rx;a.add(t);return t;}
 /* Superfícies "loftadas": seções superelípticas empilhadas (peitoral com quilha, grevas com cume, elmo bicudo...). */
-function loftGeo(secs,N,cap){
- N=N||22;const P=[],U=[],I=[],R=N+1;
+function loftGeo(secs,N,cap,o){
+ // Peças mais elaboradas sem peças novas: (1) entre duas seções entram outras 3, por Catmull-Rom (a placa curva
+ // de verdade em vez de gomos retos); (2) caneluras: s.fl (altura) e s.fk (quantas) fazem as nervuras das armaduras
+ // góticas; (3) o.roll: borda enrolada (friso) nas pontas abertas das lâminas.
+ o=o||{};N=N||30;
+ {const keys=['y','rx','rz','ox','oz','n','fr','bk','fl'],val=(q,k)=>q[k]!=null?q[k]:(k==='n'?2.2:0);
+  if(secs.length>2){const out=[],sub=3;
+   for(let i=0;i<secs.length-1;i++){const p0=secs[Math.max(0,i-1)],p1=secs[i],p2=secs[i+1],p3=secs[Math.min(secs.length-1,i+2)];
+    for(let j=0;j<sub;j++){const t=j/sub,t2=t*t,t3=t2*t,q={};
+     for(const k of keys){const a=val(p0,k),b=val(p1,k),c=val(p2,k),d=val(p3,k);q[k]=k==='y'?b+(c-b)*t:.5*(2*b+(-a+c)*t+(2*a-5*b+4*c-d)*t2+(-a+3*b-3*c+d)*t3);}
+     q.rx=Math.max(.0015,q.rx);q.rz=Math.max(.0015,q.rz);q.fk=p1.fk||p2.fk||0;q.n=Math.max(1.05,q.n);out.push(q);}}
+   out.push(Object.assign({},secs[secs.length-1]));secs=out;}
+  if(o.roll&&cap===false){const f=secs[0],l=secs[secs.length-1],dir=Math.sign(l.y-f.y)||1,lip=(q,dy,dr)=>Object.assign({},q,{y:q.y+dy,rx:q.rx+dr,rz:q.rz+dr,fl:0});
+   secs=[lip(f,-dir*.009,.004),lip(f,-dir*.005,.009),...secs,lip(l,dir*.005,.009),lip(l,dir*.009,.004)];}}
+ const P=[],U=[],I=[],R=N+1;
  secs.forEach((s,i)=>{for(let k=0;k<=N;k++){const t=k/N*Math.PI*2,c=Math.cos(t),sn=Math.sin(t),n=s.n||2.2,ex=Math.sign(c)*Math.pow(Math.abs(c),2/n),ez=Math.sign(sn)*Math.pow(Math.abs(sn),2/n);
-  let x=(s.ox||0)+s.rx*ex,z=(s.oz||0)+s.rz*ez;
+  const fm=s.fl?1+s.fl*Math.pow(Math.abs(Math.cos(t*(s.fk||10)/2)),8):1;
+  let x=(s.ox||0)+s.rx*fm*ex,z=(s.oz||0)+s.rz*fm*ez;
   if(s.fr&&sn>0)z+=s.fr*s.rz*Math.exp(-Math.pow(ex*3,2))*sn;
   if(s.bk&&sn<0)z+=s.bk*s.rz*Math.exp(-Math.pow(ex*3,2))*sn;
   P.push(x,s.y,z);U.push(k/N*2,i/(secs.length-1)*2);}});
@@ -259,8 +273,8 @@ const ARM_BUILD=function(variant){
  const a=new T.Group(),S=M.steel,D=M.steelDark,G=M.goldM;
  for(const m of [S,D,G,M.leather,M.woodDark,M.plume])if(m)m.side=T.DoubleSide;
  const Y=V3(0,1,0);
- const part=(m,secs,x,y,z,o)=>{o=o||{};const me=new T.Mesh(loftGeo(secs,o.N,o.cap),m);me.position.set(x,y,z);if(o.rx)me.rotation.x=o.rx;if(o.ry)me.rotation.y=o.ry;if(o.rz)me.rotation.z=o.rz;a.add(me);return me;};
- const partAB=(m,A,B,secs,o)=>{o=o||{};const d=new T.Vector3().subVectors(B,A),L=d.length(),me=new T.Mesh(loftGeo(secs.map(q=>Object.assign({},q,{y:q.t*L})),o.N,o.cap),m);me.position.copy(A);me.quaternion.setFromUnitVectors(Y,d.normalize());a.add(me);return me;};
+ const part=(m,secs,x,y,z,o)=>{o=o||{};const me=new T.Mesh(loftGeo(secs,o.N,o.cap,o),m);me.position.set(x,y,z);if(o.rx)me.rotation.x=o.rx;if(o.ry)me.rotation.y=o.ry;if(o.rz)me.rotation.z=o.rz;a.add(me);return me;};
+ const partAB=(m,A,B,secs,o)=>{o=o||{};const d=new T.Vector3().subVectors(B,A),L=d.length(),me=new T.Mesh(loftGeo(secs.map(q=>Object.assign({},q,{y:q.t*L})),o.N,o.cap,o),m);me.position.copy(A);me.quaternion.setFromUnitVectors(Y,d.normalize());a.add(me);return me;};
  const extrude=(m,shape,depth,bevel,x,y,z,o)=>{o=o||{};const g=new T.ExtrudeGeometry(shape,{depth,bevelEnabled:true,bevelSize:bevel,bevelThickness:bevel,bevelSegments:2,curveSegments:14});g.translate(0,0,-depth/2);const me=new T.Mesh(g,m);me.position.set(x,y,z);if(o.rx)me.rotation.x=o.rx;if(o.ry)me.rotation.y=o.ry;if(o.rz)me.rotation.z=o.rz;a.add(me);return me;};
  const gem=(m,r,x,y,z,sx,sy,sz)=>{const me=new T.Mesh(new T.IcosahedronGeometry(r,r<.02?0:1),m);me.position.set(x,y,z);me.scale.set(sx||1,sy||1,sz||1);a.add(me);return me;};
  box(a,1.0,.2,1.0,M.base,0,.1,0,0,2);box(a,.86,.1,.86,M.trim,0,.25,0,0,2);box(a,.9,.03,.9,G,0,.31,0);
@@ -270,29 +284,29 @@ const ARM_BUILD=function(variant){
   part(S,[{y:0,rx:.068,rz:.068,n:2.4},{y:.09,rx:.078,rz:.078,n:2.4},{y:.17,rx:.07,rz:.056,oz:-.01,n:2.4},{y:.25,rx:.04,rz:.032,oz:-.02,n:2.4},{y:.3,rx:.006,rz:.008,oz:-.025}],fx,yb+.07,-.09,{rx:Math.PI/2});
   part(D,[{y:0,rx:.078,rz:.058,n:2.6},{y:.07,rx:.085,rz:.063,n:2.6},{y:.11,rx:.07,rz:.05,n:2.6}],fx,yb+.07,.02,{rx:Math.PI/2,cap:false});
   part(S,[{y:0,rx:.07,rz:.075,n:2.4},{y:.05,rx:.08,rz:.085,n:2.4},{y:.1,rx:.088,rz:.095,n:2.4}],fx,yb+.12,-.005,{cap:false});
-  partAB(S,V3(fx,yb+.2,0),V3(fx,yb+.62,0),[{t:0,rx:.062,rz:.064,n:2.6,fr:.25},{t:.28,rx:.082,rz:.088,n:2.7,fr:.55,bk:.1},{t:.7,rx:.088,rz:.085,n:2.7,fr:.5},{t:1,rx:.07,rz:.07,n:2.5,fr:.25}]);
+  partAB(S,V3(fx,yb+.2,0),V3(fx,yb+.62,0),[{t:0,rx:.062,rz:.064,n:2.6,fr:.25},{t:.28,rx:.082,rz:.088,n:2.7,fr:.55,bk:.1,fl:.05,fk:12},{t:.7,rx:.088,rz:.085,n:2.7,fr:.5,fl:.05,fk:12},{t:1,rx:.07,rz:.07,n:2.5,fr:.25}]);
   part(S,[{y:0,rx:.1,rz:.092,n:2.4},{y:.04,rx:.104,rz:.096,n:2.4},{y:.085,rx:.075,rz:.07,n:2.4},{y:.12,rx:.03,rz:.03,n:2.4},{y:.15,rx:.004,rz:.004}],fx,yb+.66,.01,{rx:Math.PI/2});
   partAB(D,V3(fx+s*.07,yb+.66,.02),V3(fx+s*.19,yb+.7,-.02),[{t:0,rx:.05,rz:.07,n:3},{t:.5,rx:.06,rz:.08,n:3},{t:1,rx:.004,rz:.012,n:3}]);
-  partAB(S,V3(fx,yb+.72,0),V3(fx,yb+1.12,0),[{t:0,rx:.088,rz:.092,n:2.5,fr:.15},{t:.4,rx:.112,rz:.118,n:2.6,fr:.35},{t:1,rx:.122,rz:.126,n:2.5,fr:.15}]);
+  partAB(S,V3(fx,yb+.72,0),V3(fx,yb+1.12,0),[{t:0,rx:.088,rz:.092,n:2.5,fr:.15},{t:.4,rx:.112,rz:.118,n:2.6,fr:.35,fl:.045,fk:14},{t:.75,rx:.12,rz:.124,n:2.6,fr:.25,fl:.04,fk:14},{t:1,rx:.122,rz:.126,n:2.5,fr:.15}]);
   partAB(D,V3(fx,yb+.74,0),V3(fx,yb+.76,0),[{t:0,rx:.094,rz:.098,n:2.5},{t:1,rx:.097,rz:.101,n:2.5}],{cap:false});
  }
- for(let i=0;i<4;i++)part(i%2?D:S,[{y:0,rx:.225+i*.012,rz:.175+i*.01,n:2.5},{y:.07,rx:.247+i*.016,rz:.195+i*.012,n:2.5},{y:.13,rx:.262+i*.02,rz:.208+i*.015,n:2.5}],0,yb+1.1-i*.07,0,{cap:false});
+ for(let i=0;i<4;i++)part(i%2?D:S,[{y:0,rx:.225+i*.012,rz:.175+i*.01,n:2.5},{y:.07,rx:.247+i*.016,rz:.195+i*.012,n:2.5,fl:.03,fk:18},{y:.13,rx:.262+i*.02,rz:.208+i*.015,n:2.5}],0,yb+1.1-i*.07,0,{cap:false,roll:true});
  partAB(S,V3(0,yb+.92,.21),V3(0,yb+1.18,.19),[{t:0,rx:.045,rz:.016,n:3,fr:.6},{t:.5,rx:.07,rz:.02,n:3,fr:.8},{t:1,rx:.09,rz:.018,n:3,fr:.4}]);
  ring(a,.235,.026,G,0,yb+1.2,0);gem(G,.036,0,yb+1.2,.24);
- part(S,[{y:0,rx:.19,rz:.15,n:2.4,bk:.1},{y:.12,rx:.215,rz:.165,n:2.5,fr:.08,bk:.12},{y:.25,rx:.245,rz:.185,n:2.6,fr:.14,bk:.15},{y:.36,rx:.272,rz:.205,n:2.8,fr:.36,bk:.15},{y:.46,rx:.268,rz:.19,n:2.8,fr:.3,bk:.1},{y:.53,rx:.21,rz:.15,n:2.5},{y:.575,rx:.13,rz:.115,n:2.3}],0,yb+1.2,0,{cap:false});
+ part(S,[{y:0,rx:.19,rz:.15,n:2.4,bk:.1},{y:.12,rx:.215,rz:.165,n:2.5,fr:.08,bk:.12,fl:.025,fk:16},{y:.25,rx:.245,rz:.185,n:2.6,fr:.14,bk:.15,fl:.03,fk:16},{y:.36,rx:.272,rz:.205,n:2.8,fr:.36,bk:.15,fl:.022,fk:16},{y:.46,rx:.268,rz:.19,n:2.8,fr:.3,bk:.1},{y:.53,rx:.21,rz:.15,n:2.5},{y:.575,rx:.13,rz:.115,n:2.3}],0,yb+1.2,0,{cap:false,roll:true});
  part(G,[{y:0,rx:.012,rz:.012,oz:.205,n:2},{y:.2,rx:.016,rz:.012,oz:.24,n:2},{y:.36,rx:.012,rz:.012,oz:.255,n:2}],0,yb+1.2,0,{cap:false,N:8});
  for(const s of [-1,1])part(D,[{y:0,rx:.08,rz:.03,ox:s*.1,oz:.15,n:3},{y:.1,rx:.095,rz:.035,ox:s*.1,oz:.2,n:3},{y:.2,rx:.07,rz:.03,ox:s*.1,oz:.2,n:3}],0,yb+1.43,0,{cap:false,N:14});
- for(let i=0;i<3;i++)part(i%2?D:S,[{y:0,rx:.095+i*.01,rz:.09+i*.01,n:2.3},{y:.03,rx:.115+i*.012,rz:.108+i*.012,n:2.3},{y:.055,rx:.14+i*.012,rz:.128+i*.012,n:2.3}],0,yb+1.7+i*.032,0,{cap:false});
+ for(let i=0;i<3;i++)part(i%2?D:S,[{y:0,rx:.095+i*.01,rz:.09+i*.01,n:2.3},{y:.03,rx:.115+i*.012,rz:.108+i*.012,n:2.3},{y:.055,rx:.14+i*.012,rz:.128+i*.012,n:2.3}],0,yb+1.7+i*.032,0,{cap:false,roll:true});
  for(const s of [-1,1]){
-  for(let i=0;i<4;i++){const k=1-i*.1;part(i%2?D:S,[{y:0,rx:.15*k,rz:.14*k,n:2.3},{y:.045,rx:.165*k,rz:.15*k,n:2.3},{y:.1,rx:.125*k,rz:.12*k,n:2.3},{y:.145,rx:.07*k,rz:.07*k,n:2.3},{y:.17,rx:.01,rz:.01,n:2.3}],s*(.27+i*.012),yb+1.66-i*.055,0,{rz:-s*(1.1-i*.05)});}
+  for(let i=0;i<4;i++){const k=1-i*.1;part(i%2?D:S,[{y:0,rx:.15*k,rz:.14*k,n:2.3},{y:.045,rx:.165*k,rz:.15*k,n:2.3,fl:.06,fk:10},{y:.1,rx:.125*k,rz:.12*k,n:2.3,fl:.05,fk:10},{y:.145,rx:.07*k,rz:.07*k,n:2.3},{y:.17,rx:.01,rz:.01,n:2.3}],s*(.27+i*.012),yb+1.66-i*.055,0,{rz:-s*(1.1-i*.05)});}
   const sp=new T.Mesh(new T.ConeGeometry(.02,.1,6),G);sp.position.set(s*.38,yb+1.8,0);sp.rotation.z=-s*.5;a.add(sp);
  }
  const W=variant===1?[V3(.52,yb+1.12,.3),V3(-.3,yb+1.02,.16)]:variant===2?[V3(.44,yb+1.1,.26),V3(-.2,yb+1.14,.3)]:[V3(.07,yb+1.17,.35),V3(-.07,yb+1.17,.35)];
  [1,-1].forEach((s,i)=>{
   const sh=V3(s*.31,yb+1.62,0),el=V3(s*(variant===1&&s<0?.4:.37),yb+1.36,.08),wr=W[i];
-  partAB(S,sh,el,[{t:0,rx:.056,rz:.058,n:2.3},{t:.45,rx:.07,rz:.068,n:2.5,fr:.2},{t:1,rx:.054,rz:.055,n:2.3}]);
+  partAB(S,sh,el,[{t:0,rx:.056,rz:.058,n:2.3},{t:.45,rx:.07,rz:.068,n:2.5,fr:.2,fl:.04,fk:10},{t:1,rx:.054,rz:.055,n:2.3}]);
   part(S,[{y:0,rx:.062,rz:.058,n:2.4},{y:.035,rx:.066,rz:.062,n:2.4},{y:.07,rx:.04,rz:.04,n:2.4},{y:.1,rx:.006,rz:.006}],el.x,el.y,el.z-.02,{rx:-Math.PI/2});
-  partAB(S,el,wr,[{t:0,rx:.052,rz:.05,n:2.3},{t:.35,rx:.064,rz:.06,n:2.5,fr:.32},{t:.85,rx:.05,rz:.05,n:2.4,fr:.2},{t:1,rx:.046,rz:.046,n:2.3}]);
+  partAB(S,el,wr,[{t:0,rx:.052,rz:.05,n:2.3},{t:.35,rx:.064,rz:.06,n:2.5,fr:.32,fl:.04,fk:10},{t:.85,rx:.05,rz:.05,n:2.4,fr:.2},{t:1,rx:.046,rz:.046,n:2.3}]);
   const hg=new T.Group();hg.position.copy(wr);a.add(hg);
   const hpart=(m,A,B,rad0,rad1)=>{const d=new T.Vector3().subVectors(B,A),L=d.length(),me=new T.Mesh(loftGeo([{y:0,rx:rad0,rz:rad0,n:2.2},{y:L*.5,rx:(rad0+rad1)/2*1.1,rz:(rad0+rad1)/2*1.1,n:2.2},{y:L,rx:rad1,rz:rad1,n:2.2}],10,true),m);me.position.copy(A);me.quaternion.setFromUnitVectors(Y,d.normalize());hg.add(me);};
   hpart(S,V3(0,0,-.02),V3(0,0,.07),.04,.036);
@@ -300,7 +314,7 @@ const ARM_BUILD=function(variant){
   hpart(D,V3(s*.035,-.005,.01),V3(s*.055,-.008,.07),.011,.008);
  });
  const hy=yb+1.76;
- part(S,[{y:0,rx:.112,rz:.122,n:2.2},{y:.06,rx:.126,rz:.138,n:2.3},{y:.13,rx:.122,rz:.134,n:2.3},{y:.19,rx:.1,rz:.114,oz:-.01,n:2.3},{y:.235,rx:.06,rz:.08,oz:-.02,n:2.3},{y:.268,rx:.02,rz:.03,oz:-.03,n:2.3},{y:.28,rx:.003,rz:.004,oz:-.032}],0,hy,0);
+ part(S,[{y:0,rx:.112,rz:.122,n:2.2},{y:.06,rx:.126,rz:.138,n:2.3},{y:.13,rx:.122,rz:.134,n:2.3,fl:.035,fk:12},{y:.19,rx:.1,rz:.114,oz:-.01,n:2.3,fl:.04,fk:12},{y:.235,rx:.06,rz:.08,oz:-.02,n:2.3,fl:.03,fk:12},{y:.268,rx:.02,rz:.03,oz:-.03,n:2.3},{y:.28,rx:.003,rz:.004,oz:-.032}],0,hy,0);
  part(D,[{y:0,rx:.1,rz:.075,n:2.5},{y:.06,rx:.092,rz:.07,n:2.5},{y:.12,rx:.062,rz:.055,n:2.4},{y:.165,rx:.03,rz:.036,n:2.4},{y:.18,rx:.004,rz:.006}],0,hy+.055,.07,{rx:Math.PI/2});
  for(let i=0;i<3;i++)box(a,.17-i*.02,.01,.012,M.iron,0,hy+.095-i*.022,.185-i*.012,0,1);
  for(const s of [-1,1])partAB(S,V3(s*.118,hy+.07,.0),V3(s*.1,hy-.1,.08),[{t:0,rx:.016,rz:.075,n:3},{t:.6,rx:.02,rz:.085,n:3,fr:.3},{t:1,rx:.012,rz:.04,n:3}]);
@@ -338,34 +352,6 @@ const ARM_BUILD=function(variant){
   gem(S,.075,.44,yb+1.37,.26);
   for(let i=0;i<10;i++){const t=i/10*Math.PI*2,sp=new T.Mesh(new T.ConeGeometry(.016,.075,5),D);sp.position.set(.44+Math.cos(t)*.075,yb+1.37+Math.sin(t*3)*.03,.26+Math.sin(t)*.075);sp.rotation.z=-Math.cos(t)*Math.PI/2;sp.rotation.x=Math.sin(t)*Math.PI/2;a.add(sp);}
   const top=new T.Mesh(new T.ConeGeometry(.02,.1,6),D);top.position.set(.44,yb+1.48,.26);a.add(top);
- }
- // ---- peças extras: cinto com fivela, tassets, tabardo com brasão, cotoveleiras em leque, rebites e bainha
- {const TAB=[['#8e2a2a','#d8b45a'],['#2a4a8e','#e8e0c8'],['#2f6a3a','#d8b45a']][variant%3];
-  const tabM=mat({color:TAB[0],side:T.DoubleSide}),tabT=mat({color:TAB[1],side:T.DoubleSide});
-  part(M.leather,[{y:0,rx:.272,rz:.222,n:2.5},{y:.055,rx:.272,rz:.222,n:2.5}],0,yb+1.1,0,{cap:false});
-  box(a,.1,.08,.02,G,0,yb+1.087,.226,0,1);box(a,.06,.045,.025,M.leather,0,yb+1.105,.228,0,1);
-  for(let i=0;i<10;i++){const t=-1.35+i*.3;gem(G,.011,Math.sin(t)*.276,yb+1.128,Math.cos(t)*.226);}
-  for(const s of [-1,1]){
-   for(let k=0;k<3;k++){const w0=.2-k*.012,w1=.17-k*.014,hh=.12;const sh=new T.Shape();sh.moveTo(-w0/2,0);sh.lineTo(w0/2,0);sh.lineTo(w1/2,-hh);sh.quadraticCurveTo(0,-hh-.025,-w1/2,-hh);sh.closePath();
-    extrude(k%2?D:S,sh,.01,.005,s*.16,yb+1.0-k*.09,.17+k*.012,{rx:-.18-k*.03,ry:s*.28});}
-   gem(G,.013,s*.1,yb+.99,.2);gem(G,.013,s*.21,yb+.99,.16);
-   const el=V3(s*.38,yb+1.36,.08);const fan=new T.Mesh(new T.SphereGeometry(.085,14,8),D);fan.scale.set(.25,1,1);fan.position.set(el.x+s*.055,el.y,el.z-.01);fan.rotation.y=s*.25;a.add(fan);gem(G,.018,el.x+s*.078,el.y,el.z-.01);
-  }
-  {const tw=.3,th=.52,sh=new T.Shape();sh.moveTo(-tw/2,0);sh.lineTo(tw/2,0);sh.lineTo(tw/2,-th+.08);sh.lineTo(0,-th);sh.lineTo(-tw/2,-th+.08);sh.closePath();
-   extrude(tabM,sh,.008,.003,0,yb+1.08,.262,{rx:-.06});
-   const sb=new T.Shape();sb.moveTo(-tw/2-.006,-th+.06);sb.lineTo(0,-th-.02);sb.lineTo(tw/2+.006,-th+.06);sb.lineTo(tw/2+.006,-th+.1);sb.lineTo(0,-th+.02);sb.lineTo(-tw/2-.006,-th+.1);sb.closePath();
-   extrude(tabT,sb,.01,.002,0,yb+1.08,.264,{rx:-.06});
-   const em=new T.Shape();em.moveTo(0,.07);em.lineTo(.05,0);em.lineTo(0,-.07);em.lineTo(-.05,0);em.closePath();extrude(tabT,em,.01,.003,0,yb+.86,.282,{rx:-.06});
-   gem(G,.018,0,yb+.86,.29);}
-  for(let i=0;i<9;i++){const t=-1.2+i*.3;gem(G,.01,Math.sin(t)*.205,yb+1.27,Math.cos(t)*.17);}
-  for(let i=0;i<7;i++){const t=-1.1+i*.366;gem(G,.009,Math.sin(t)*.125,yb+1.63,Math.cos(t)*.12);}
-  if(variant!==0){const A=V3(-.29,yb+1.08,.05),B=V3(-.38,yb+.42,-.14);
-   partAB(M.leather,A,B,[{t:0,rx:.036,rz:.016,n:2.2},{t:.9,rx:.03,rz:.014,n:2.2},{t:1,rx:.012,rz:.01,n:2.2}],{N:10});
-   partAB(G,B.clone().lerp(A,.12),B,[{t:0,rx:.034,rz:.017,n:2.2},{t:1,rx:.012,rz:.01,n:2.2}],{N:10});
-   const dir=new T.Vector3().subVectors(A,B).normalize();const hilt=A.clone().addScaledVector(dir,.02);
-   partAB(G,hilt.clone().add(V3(-.09,0,0)),hilt.clone().add(V3(.09,0,0)),[{t:0,rx:.012,rz:.012,n:2},{t:.5,rx:.016,rz:.016,n:2},{t:1,rx:.012,rz:.012,n:2}],{N:8});
-   partAB(M.leather,hilt,hilt.clone().addScaledVector(dir,.17),[{t:0,rx:.017,rz:.017},{t:.5,rx:.02,rz:.02},{t:1,rx:.017,rz:.017}],{N:8});
-   const pm=hilt.clone().addScaledVector(dir,.2);gem(G,.03,pm.x,pm.y,pm.z);}
  }
  a.updateMatrixWorld(true);const buckets=new Map(),inkList=[];
  a.traverse(o=>{if(!o.isMesh)return;let g=o.geometry.index?o.geometry.toNonIndexed():o.geometry.clone();g.applyMatrix4(o.matrixWorld);if(!g.attributes.normal)g.computeVertexNormals();if(!g.attributes.uv)g.setAttribute('uv',new T.BufferAttribute(new Float32Array(g.attributes.position.count*2),2));
@@ -503,7 +489,8 @@ function build(api,site){
  // Telhado do prédio (some ao entrar).
  const roof=new T.Group();root.add(roof);
  // Laje de teto do térreo (só de fora): sem ela se veria o telhado por baixo pela porta.
- const lid=new T.Mesh(boxUV(new T.BoxGeometry(2*BX-1,.4,BZ1-BZ0-1),2*BX-1,.4,BZ1-BZ0-1,3),M.dark);lid.position.set(0,Fy(1)-.2,(BZ0+BZ1)/2);root.add(lid);
+ // tampa sobre o térreo (de fora): usava M.dark, que não existe — o three desenhava branco puro sem luz (o "vazio branco" visto pela porta)
+ const lid=new T.Mesh(boxUV(new T.BoxGeometry(2*BX-1,.4,BZ1-BZ0-1),2*BX-1,.4,BZ1-BZ0-1,3),M.inner);lid.position.set(0,Fy(1)-.2,(BZ0+BZ1)/2);root.add(lid);
  {const r=new T.Group();
   // Telhado de quatro águas: cai sobre a laje de pedra sem triângulos nus nas pontas.
   const E=1.2,Wd=2*BX+2*E,Dd=(BZ1-BZ0)+2*E,hh=8,zc=(BZ0+BZ1)/2,Y0=TOP+.8,hd=Dd/2,gz=BZ1+E;
@@ -561,10 +548,10 @@ function build(api,site){
   // Quadro com moldura dourada (paisagens, retratos, natureza-morta).
   const paint=(x,z,rot,i,w=1.6,h=1.1,y=2.9)=>{const c=Math.cos(rot),s=Math.sin(rot);box(g,w+.2,h+.2,.06,M.gold,x,Y(y),z,rot);box(g,w,h,.04,M.art[i%M.art.length],x+s*.035,Y(y),z+c*.035,rot);};
   // Cortinas de tecido dos dois lados da janela: pregas, braçadeira dourada com borla, sanefa ondulada e varão.
-  const curtain=(x,z,rot,m)=>{const tie=.42,h=4.55,gp=new T.Group();gp.position.set(x,Y(0),z);gp.rotation.y=rot;g.add(gp);
+  const curtain=(x,z,rot,m)=>{const tie=.42,h=4.55,gp=new T.Group();gp.position.set(x,Y(0),z);gp.rotation.y=rot;gp.translateZ(.09);g.add(gp);
    for(const e of [-1,1]){const pm=new T.Mesh(drapeGeo(e,.5,1.55,h,tie),m);pm.position.y=F+.05+h/2;gp.add(pm);
     const yt=F+.05+h*tie,tb=new T.Mesh(new T.TorusGeometry(.2,.035,6,14),M.gold);tb.rotation.x=Math.PI/2;tb.scale.set(1,.7,1);tb.position.set(e*1.38,yt,.14);gp.add(tb);
-    const ts=new T.Mesh(new T.ConeGeometry(.06,.28,8),M.gold);ts.position.set(e*1.2,yt-.2,.3);gp.add(ts);}
+    const ts=new T.Mesh(new T.ConeGeometry(.06,.28,8),M.gold);ts.position.set(e*1.38,yt-.175,.28);gp.add(ts);}
    const va=new T.Mesh(valanceGeo(3.4),m);va.position.y=F+4.45;gp.add(va);
    const rodM=new T.Mesh(new T.CylinderGeometry(.04,.04,3.6,8),M.gold);rodM.rotation.z=Math.PI/2;rodM.position.set(0,F+4.78,.14);gp.add(rodM);
    for(const e of [-1,1]){const f=new T.Mesh(new T.SphereGeometry(.08,8,6),M.gold);f.position.set(e*1.85,F+4.78,.14);gp.add(f);}};

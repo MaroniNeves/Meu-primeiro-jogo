@@ -62,6 +62,11 @@ function leafTex(kind){
   g.strokeStyle='#4a3a28';g.lineWidth=3;g.beginPath();g.moveTo(0,58);g.lineTo(0,34);g.stroke();
  }else if(kind==='small'){
   g.beginPath();g.moveTo(0,-50);g.bezierCurveTo(30,-30,30,26,0,52);g.bezierCurveTo(-30,26,-30,-30,0,-50);g.closePath();const gr=g.createLinearGradient(0,-50,0,52);gr.addColorStop(0,'#d8f08a');gr.addColorStop(1,'#8cc84a');g.fillStyle=gr;g.fill();g.save();g.clip();vein('rgba(60,100,30,.5)');g.restore();g.lineWidth=3;g.strokeStyle='rgba(40,80,26,.85)';g.stroke();
+ }else if(kind==='olive'){
+  // folha de oliveira: estreita, verde-acinzentada em cima e prateada na metade de baixo, nervura clara
+  g.beginPath();g.moveTo(0,-60);g.bezierCurveTo(13,-30,12,34,0,60);g.bezierCurveTo(-12,34,-13,-30,0,-60);g.closePath();
+  const gr=g.createLinearGradient(-12,0,12,0);gr.addColorStop(0,'#c9d3bd');gr.addColorStop(.48,'#9aab88');gr.addColorStop(.52,'#7d9270');gr.addColorStop(1,'#62775a');g.fillStyle=gr;g.fill();
+  g.strokeStyle='rgba(40,60,40,.75)';g.lineWidth=2.4;g.stroke();g.strokeStyle='rgba(230,236,220,.7)';g.lineWidth=1.6;g.beginPath();g.moveTo(0,-54);g.lineTo(0,56);g.stroke();
  }else if(kind==='lance'){
   g.beginPath();g.moveTo(0,-60);g.bezierCurveTo(16,-30,14,34,0,60);g.bezierCurveTo(-14,34,-16,-30,0,-60);g.closePath();const gr=g.createLinearGradient(0,-60,0,60);gr.addColorStop(0,'#c8e87c');gr.addColorStop(1,'#6fb148');g.fillStyle=gr;g.fill();g.strokeStyle='rgba(30,80,30,.8)';g.lineWidth=2.6;g.stroke();g.beginPath();g.moveTo(0,-54);g.lineTo(0,56);g.stroke();
  }else if(kind==='round'){
@@ -95,11 +100,11 @@ function Builder(kind,R){
  const g=new T.Group(),leaves={};let rng=R; // folhas usam um gerador próprio por massa: a forma da árvore é a mesma em todos os níveis de detalhe
  function tube(pts,rad,flare,sd,sides){
   if((CUR.lod===2&&rad[0]<.07)||(CUR.lod===1&&rad[0]<.035))return;
-  const curve=new T.CatmullRomCurve3(pts.map(p=>new T.Vector3(p[0],p[1],p[2]))),N=CUR.lod===2?Math.max(2,Math.round(curve.getLength()*.45)):CUR.lod===1?Math.max(4,Math.round(curve.getLength()*.9)):Math.max(10,Math.round(curve.getLength()*3.5)),S=CUR.lod===2?3:CUR.lod===1?5:(sides||10),fr=curve.computeFrenetFrames(N,false),len=curve.getLength();
+  const curve=new T.CatmullRomCurve3(pts.map(p=>new T.Vector3(p[0],p[1],p[2]))),N=CUR.lod===2?Math.max(2,Math.round(curve.getLength()*.45)):CUR.lod===1?Math.max(4,Math.round(curve.getLength()*.9)):Math.max(10,Math.round(curve.getLength()*3.5)),S=CUR.lod===2?3:CUR.lod===1?5:(flare>0?Math.max(sides||10,16):(sides||10)),fr=curve.computeFrenetFrames(N,false),len=curve.getLength();
   const P=[],U=[],I=[];
   for(let i=0;i<=N;i++){const t=i/N,pos=curve.getPoint(t),f=t*(rad.length-1),k=Math.min(rad.length-2,Math.floor(f)),rr=(rad[k]+(rad[k+1]-rad[k])*(f-k))*(1+flare*Math.exp(-t*8)),nn=fr.normals[i],bb=fr.binormals[i];
-   for(let j=0;j<=S;j++){const an=j/S*TAU,lump=1+.09*Math.sin(an*3+t*8+sd)+.06*Math.sin(an*5-t*13+sd*2)+(flare>0?.15*Math.max(0,Math.sin(an*4+sd))*Math.exp(-t*7):0),dx=nn.x*Math.cos(an)+bb.x*Math.sin(an),dy=nn.y*Math.cos(an)+bb.y*Math.sin(an),dz=nn.z*Math.cos(an)+bb.z*Math.sin(an);
-    P.push(pos.x+dx*rr*lump,pos.y+dy*rr*lump,pos.z+dz*rr*lump);U.push(j/S*Math.max(1,rr*4),t*len/1.1);}}
+   for(let j=0;j<=S;j++){const an=j/S*TAU,lump=1+.09*Math.sin(an*3+t*8+sd)+.06*Math.sin(an*5-t*13+sd*2)+(flare>0?.2*Math.pow(.5+.5*Math.cos(an*5+sd),3)*Math.exp(-t*6):0),dx=nn.x*Math.cos(an)+bb.x*Math.sin(an),dy=nn.y*Math.cos(an)+bb.y*Math.sin(an),dz=nn.z*Math.cos(an)+bb.z*Math.sin(an);
+    P.push(pos.x+dx*rr*lump,pos.y+dy*rr*lump,pos.z+dz*rr*lump);U.push(j/S*Math.max(1,Math.round(rr*4)),t*len/1.1);}}
   for(let i=0;i<N;i++)for(let j=0;j<S;j++){const q=i*(S+1)+j;I.push(q,q+S+1,q+1,q+1,q+S+1,q+S+2);}
   const base0=twigs.P.length/3;for(let i=0;i<P.length;i++)twigs.P.push(P[i]);for(let i=0;i<U.length;i++)twigs.U.push(U[i]);for(let i=0;i<I.length;i++)twigs.I.push(I[i]+base0);
  }
@@ -120,7 +125,7 @@ function Builder(kind,R){
   for(let ring=0;ring<2;ring++){const rr=ring?r*.35:r,c=ring?b:a;for(let j=0;j<=S;j++){const an=j/S*TAU,ca=Math.cos(an),sa=Math.sin(an);twigs.P.push(c[0]+(nx[0]*ca+bx[0]*sa)*rr,c[1]+(nx[1]*ca+bx[1]*sa)*rr,c[2]+(nx[2]*ca+bx[2]*sa)*rr);twigs.U.push(j/S,ring*Math.max(.3,L));}}
   for(let j=0;j<S;j++){const q=base+j;twigs.I.push(q,q+S+1,q+1,q+1,q+S+1,q+S+2);}
  }
- const ALIGNED={oakleaf:1,small:1,lance:1,maple:1,acacia:1,broad:1,round:1,fan:1};
+ const ALIGNED={oakleaf:1,small:1,lance:1,olive:1,maple:1,acacia:1,broad:1,round:1,fan:1};
  /* Massa de folhagem com "cumes": vários lóbulos, cada um com galhinhos que saem do miolo e folhas ao longo deles. */
  function clump(lk,cx,cy,cz,rx,ry,rz,n,size,palette,opt){
   opt=opt||{};const Rl=mkRng(Math.floor(R()*4294967295)+1),R0=rng;rng=Rl;if(ALIGNED[lk]){n*=2.4;size*=1.3;}
@@ -227,6 +232,15 @@ const TYPES={
   B.clump('round',lean*1.2*s,8.2*s,0,4.4*s,2.4*s,4.4*s,Math.round(1300*s*s),.42*(.8+.2*s),pal);
   return B.finish();},
  /* redonda: arvoreta de copa em bola, verde vivo */
+ // Oliveira: tronco curto, retorcido e grosso; copa larga e baixa de folhas estreitas verde-prateadas.
+ oliveira(h,R){const s=h/5,B=Builder('oak',R),lean=(R()-.5)*.7;
+  B.tube([[0,-.25,0],[.16*s+lean*.15*s,.7*s,.1*s],[-.12*s+lean*.35*s,1.35*s,-.12*s],[.1*s+lean*.5*s,1.95*s,.04*s]],[.3*s,.23*s,.2*s,.16*s],.7,R()*6,16);
+  const tips=[];for(let q=0;q<6;q++){const a=q/6*TAU+R()*.5,r=(1.15+R()*.55)*s;tips.push({end:[Math.cos(a)*r+lean*.45*s,(2.55+R()*.5)*s,Math.sin(a)*r],up:.12*s,r:.8});}
+  limbs(B,t=>[lean*.4*s,(1.65+R()*.3)*s,0],tips,.12*s,1);
+  const pal=[[.95,.98,.92],[1.05,1.06,1],[.85,.9,.82],[1.12,1.1,1.05]];
+  for(const t of tips){const [x,y,z]=t.end;B.clump('olive',x,y+.1*s,z,1.2*s,.75*s,1.2*s,Math.round(560*s*s),.24*(.8+.2*s),pal);}
+  B.clump('olive',lean*.45*s,2.95*s,0,1.9*s,.85*s,1.9*s,Math.round(820*s*s),.24*(.8+.2*s),pal);
+  return B.finish();},
  redonda(h,R){const s=h/5,B=Builder('oak',R);
   B.tube([[0,-.2,0],[.05*s,1.0*s,0],[(R()-.5)*.3*s,2.0*s,0]],[.26*s,.2*s,.15*s],.8,R()*6,9);
   const tips=[];for(let q=0;q<5;q++){const a=q/5*TAU+R()*.5,r=(.7+R()*.4)*s;tips.push({end:[Math.cos(a)*r,(2.6+R()*.6)*s,Math.sin(a)*r],up:.2*s,r:.7});}

@@ -117,15 +117,29 @@ function install(){
   const PR=7.2,clipP=pts=>{const out=[];let cur=[];for(let i=0;i<pts.length;i++){const p=pts[i],inP=Math.hypot(p.x,p.z)<PR;
     if(i>0){const a=pts[i-1],aIn=Math.hypot(a.x,a.z)<PR;if(aIn!==inP){let lo=0,hi=1;for(let k=0;k<20;k++){const m=(lo+hi)/2,q={x:a.x+(p.x-a.x)*m,z:a.z+(p.z-a.z)*m};((Math.hypot(q.x,q.z)<PR)===aIn)?lo=m:hi=m;}const q={x:a.x+(p.x-a.x)*lo,z:a.z+(p.z-a.z)*lo};cur.push(q);if(!inP){}else{out.push(cur);cur=[];}if(!inP)cur=[q];}}
     if(!inP)cur.push(p);}if(cur.length>1)out.push(cur);return out;};
-  const roadC=(pts,w,t)=>{for(const pc of clipP(pts))if(pc.length>1)VM.road(ctx,pc,w,t);};
-  const mpiece=(a,b,t)=>{const p=roadPieces(main,a,b);if(p.length>1)roadC(p,3.6,t);};
-  mpiece(-50,-22,RT.main);mpiece(-22,22,RT.plaza);mpiece(22,58,RT.main);mpiece(58,site.conn,RT.conn);
-  roadC(cross.filter(p=>Math.abs(p.z)<=11),3.2,RT.plaza);roadC(cross.filter(p=>p.z<=-9),3.2,RT.cross);roadC(cross.filter(p=>p.z>=9),3.2,RT.cross);
-  for(const b of branches)roadC(b,2.4,RT.branch);
+  const roadC=(pts,w,t,pr)=>{for(const pc of clipP(pts))if(pc.length>1)VM.road(ctx,pc,w,t,pr);};
+  const mpiece=(a,b,t,pr)=>{const p=roadPieces(main,a,b);if(p.length>1)roadC(p,3.6,t,pr==null?4:pr);};
+  mpiece(-50,-22,RT.main);mpiece(-22,22,RT.plaza);mpiece(22,58,RT.main);mpiece(58,site.conn,RT.conn,3);
+  roadC(cross.filter(p=>Math.abs(p.z)<=11),3.2,RT.plaza,4);roadC(cross.filter(p=>p.z<=-9),3.2,RT.cross,3);roadC(cross.filter(p=>p.z>=9),3.2,RT.cross,3);
+  VM.taperEnd=true;for(const b of branches)roadC(b,2.4,RT.branch,2);VM.taperEnd=false;
   // praça
-  {const pg=new T.CircleGeometry(7.2,32);pg.rotateX(-PI/2);const uv=pg.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)*4.8,uv.getY(i)*4.8);
-   const pm=new T.Mesh(pg,M.cobble.clone());{const PS={moinho:{style:'round',hue:38,sat:20,l0:52,l1:70,seed:301,n:7},lenhadores:{style:'rubble',hue:28,sat:12,l0:38,l1:54,seed:302,n:6},mediterranea:{style:'flag',hue:40,sat:22,l0:66,l1:82,seed:303,n:5},nordica:{style:'rubble',hue:215,sat:8,l0:40,l1:58,seed:304,n:6},oriental:{style:'round',hue:30,sat:10,l0:50,l1:66,seed:305,n:12},cogumelos:{style:'setts',hue:280,sat:10,l0:48,l1:64,seed:306,n:8}}[site.id];if(PS&&window.arcanoTex){const ct=window.arcanoTex.cobble(PS);pm.material.map=ct.map;pm.material.bumpMap=ct.bump;pm.material.needsUpdate=true;}}pm.material.polygonOffset=true;pm.material.polygonOffsetFactor=-1;pm.material.polygonOffsetUnits=-1;pm.position.set(0,gy(0,0)+.1,0);pm.receiveShadow=true;ctx.live.add(pm);{const pw=ctx.W(0,0),py=window.arcanoIslandHeight(pw.x,pw.z)+.1;(window.arcanoGroundOverrides=window.arcanoGroundOverrides||[]).push((x,z)=>{const dx=x-pw.x,dz=z-pw.z;return dx*dx+dz*dz<7.3*7.3?py:null;});}
-   const ring=new T.Mesh(new T.RingGeometry(7.1,7.55,32),M.stoneDark);ring.rotation.x=-PI/2;ring.position.set(0,gy(0,0)+.12,0);ctx.live.add(ring);ctx.noGrassC(0,0,9);}
+  // Praça: disco que acompanha o terreno (antes era plano na altura do centro: na encosta a borda flutuava ou sumia)
+  // e meio-fio de pedras de verdade (antes um anel chapado com a textura esticada), aberto onde as estradas entram.
+  {const RP=7.2,NR=10,NS=56,P=[],U=[],I=[],plY=(lx,lz)=>gy(lx,lz)+.1;
+   P.push(0,plY(0,0),0);U.push(0,0);
+   for(let r=1;r<=NR;r++){const rad=RP*r/NR;for(let s=0;s<NS;s++){const a=s/NS*PI*2,lx=Math.cos(a)*rad,lz=Math.sin(a)*rad;P.push(lx,plY(lx,lz),lz);U.push(lx/3,-lz/3);}}
+   for(let s=0;s<NS;s++)I.push(0,1+(s+1)%NS,1+s);
+   for(let r=1;r<NR;r++)for(let s=0;s<NS;s++){const a=1+(r-1)*NS+s,b=1+(r-1)*NS+(s+1)%NS,c=1+r*NS+s,d=1+r*NS+(s+1)%NS;I.push(a,b,c,b,d,c);}
+   const pg=new T.BufferGeometry();pg.setAttribute('position',new T.Float32BufferAttribute(P,3));pg.setAttribute('uv',new T.Float32BufferAttribute(U,2));pg.setIndex(I);pg.computeVertexNormals();
+   const pm=new T.Mesh(pg,M.cobble.clone());pm.name='Praça da vila';{const PS={moinho:{style:'round',hue:38,sat:20,l0:52,l1:70,seed:301,n:7},lenhadores:{style:'rubble',hue:28,sat:12,l0:38,l1:54,seed:302,n:6},mediterranea:{style:'flag',hue:40,sat:22,l0:66,l1:82,seed:303,n:5},nordica:{style:'rubble',hue:215,sat:8,l0:40,l1:58,seed:304,n:6},oriental:{style:'round',hue:30,sat:10,l0:50,l1:66,seed:305,n:12},cogumelos:{style:'setts',hue:280,sat:10,l0:48,l1:64,seed:306,n:8}}[site.id];if(PS&&window.arcanoTex){const ct=window.arcanoTex.cobble(PS);pm.material.map=ct.map;pm.material.bumpMap=ct.bump;pm.material.needsUpdate=true;}}
+   pm.material.polygonOffset=true;pm.material.polygonOffsetFactor=-1;pm.material.polygonOffsetUnits=-1;pm.receiveShadow=true;ctx.live.add(pm);
+   {const pw=ctx.W(0,0);(window.arcanoGroundOverrides=window.arcanoGroundOverrides||[]).push((x,z)=>{const dx=x-pw.x,dz=z-pw.z;return dx*dx+dz*dz<7.3*7.3?window.arcanoIslandHeight(x,z)+.1:null;});}
+   // meio-fio: pedras talhadas em volta, 6 cm acima do piso, enterradas 16 cm; nada de pedra no meio das estradas
+   const roadsIn=[main,cross],curbM=(site.id==='nordica'||site.id==='lenhadores')?M.stoneDark:M.stone,RC=RP+.15,NB=Math.round(PI*2*RC/.56);
+   for(let k=0;k<NB;k++){const a=(k+.5)/NB*PI*2,lx=Math.cos(a)*RC,lz=Math.sin(a)*RC;
+    let skip=false;for(const rd of roadsIn)for(let i=1;i<rd.length&&!skip;i++){const q=segPt(lx,lz,rd[i-1],rd[i]);if(Math.hypot(lx-q.x,lz-q.z)<(rd===main?1.8:1.6)+.3)skip=true;}
+    if(skip)continue;const top=plY(lx,lz)+.06,w=PI*2*RC/NB-.05;VM.box(ctx.g,w,.34,.3,curbM,lx,top-.34,lz,-a-PI/2,1.2);}
+   ctx.noGrassC(0,0,9);}
   // ----- sorteio das construções ao longo das estradas -----
   const occ=[],samples=[];for(const r of [near,cross,...branches])for(let i=1;i<r.length;i++){const a=r[i-1],b=r[i],n=Math.max(1,Math.ceil(Math.hypot(b.x-a.x,b.z-a.z)/3));for(let k=0;k<n;k++)samples.push({x:a.x+(b.x-a.x)*k/n,z:a.z+(b.z-a.z)*k/n});}
   const stubs=[],stubLines=[];
@@ -147,7 +161,7 @@ function install(){
     occ.push({cx:x,cz:z,w,d,ry});
     run(x,z,ry);
     if(o.door!==false){const fx=Math.sin(ry),fz=Math.cos(ry),dp={x:x+fx*(d/2+.5),z:z+fz*(d/2+.5)},n=nearestOnRoads(dp.x,dp.z,allRoads);
-     if(n&&n.d>1.4&&n.d<20){VM.road(ctx,[dp,{x:n.x,z:n.z}],1.5,RT.stub);stubs.push({x:n.x,z:n.z});stubLines.push([dp,{x:n.x,z:n.z}]);}}
+     if(n&&n.d>1.4&&n.d<20){const ux=(dp.x-n.x)/n.d,uz=(dp.z-n.z)/n.d,eb=Math.min(1.05,n.d-.3);VM.road(ctx,[dp,{x:n.x+ux*eb,z:n.z+uz*eb}],1.5,RT.stub,1);stubs.push({x:n.x,z:n.z});stubLines.push([dp,{x:n.x,z:n.z}]);}}
     return true;}
    return false;};
   const many=(count,wf,df,o,run)=>{for(let i=0;i<count;i++){const w=wf(),d=df();place(w,d,o,(x,z,ry)=>run(x,z,ry,w,d));}};

@@ -65,33 +65,62 @@ function stone(o){
  return out(cm,ch);
 }
 
-/* ---------- Calçamento de pedras redondas (praças, ruas) ---------- */
+/* ---------- Ruído suave periódico (repete sem emenda) ---------- */
+function ruido(R,periodos){const T=periodos.map(P=>{const v=new Float32Array(P*P);for(let i=0;i<v.length;i++)v[i]=R();return {P,v};});
+ const um=(t,x,y)=>{const P=t.P,xi=Math.floor(x),yi=Math.floor(y),fx=x-xi,fy=y-yi,ux=fx*fx*(3-2*fx),uy=fy*fy*(3-2*fy);
+  const i0=((xi%P)+P)%P,j0=((yi%P)+P)%P,i1=(i0+1)%P,j1=(j0+1)%P,v=t.v,a=v[j0*P+i0],b=v[j0*P+i1],c=v[j1*P+i0],d=v[j1*P+i1];
+  return a+(b-a)*ux+(c-a)*uy+(a-b-c+d)*ux*uy;};
+ return (u,v)=>{let s=0,w=0,a=1;for(const t of T){s+=um(t,u*t.P,v*t.P)*a;w+=a;a*=.55;}return s/w;};}
+
+/* ---------- Calçamento (praças, ruas) ----------
+   Antes: pedras numa grade regular, contorno preto grosso e relevo em 4 anéis concêntricos (parecia carimbo/serra).
+   Agora: células de Voronoi que repetem sem emenda — pedras encaixadas de tamanhos variados, cantos arredondados
+   (mínimo suave entre as 2 vizinhas), juntas de terra com variação, relevo em domo e luz suave de cima à esquerda.
+   style: round (seixos de rio), rubble (pedra bruta), flag (lajes), setts (paralelepípedos em fiadas). */
 function cobble(o){
- o=o||{};const S=o.size||512,R=rng(o.seed||11),n=o.n||7;
+ o=o||{};const S=o.size||512,R=rng(o.seed||11),n=o.n||7,style=o.style||'round';
  const hue=o.hue!=null?o.hue:36,sat=o.sat!=null?o.sat:22,l0=o.l0!=null?o.l0:44,l1=o.l1!=null?o.l1:66;
  const cm=mk(S),ch=mk(S),g=cm.getContext('2d'),h=ch.getContext('2d');
- g.fillStyle=o.dirt||`hsl(${hue+4},${sat-4}%,${l0-24}%)`;g.fillRect(0,0,S,S);h.fillStyle='#505050';h.fillRect(0,0,S,S);
- const style=o.style||'round',c=S/n,pts=[];
- for(let j=0;j<n;j++)for(let i=0;i<n;i++){const stag=style==='setts'?(j%2?.5:0):0,big=style==='rubble'?.62+R()*.5:1,jit=style==='setts'?.08:.35;pts.push([(i+.5+stag+(R()-.5)*jit)*c,(j+.5+(R()-.5)*jit)*c,c*(style==='setts'?.47:style==='flag'?.48:.40+R()*.08)*big,c*(style==='setts'?.3:style==='flag'?.4:.34+R()*.09)*big,style==='setts'?0:style==='flag'?(R()-.5)*.25:R()*Math.PI]);}
- // pedras maiores primeiro; cada uma é desenhada nas 9 posições de ladrilho para repetir sem emenda
- for(const [x,y,rx,ry,a] of pts){
-  const NP=style==='rubble'?7:(style==='flag'||style==='setts')?4:10,wob=[];for(let k=0;k<NP;k++)wob.push(style==='rubble'?.62+R()*.5:(style==='flag'||style==='setts')?.9+R()*.18:.9+R()*.2);
-  const L=l0+R()*(l1-l0),H=hue+(R()-.5)*18,Sa=sat+(R()-.5)*12;
-  const path=(gg,ox,oy,sc)=>{gg.beginPath();for(let k=0;k<=NP;k++){const t=k/NP*Math.PI*2+((style==='flag'||style==='setts')?Math.PI/4:0),r=wob[k%NP]*sc*((style==='flag'||style==='setts')?1.35:1),px=Math.cos(t)*rx*r,py=Math.sin(t)*ry*r;gg[k?'lineTo':'moveTo'](x+ox+px*Math.cos(a)-py*Math.sin(a),y+oy+px*Math.sin(a)+py*Math.cos(a));}gg.closePath();};
-  for(const ox of [-S,0,S])for(const oy of [-S,0,S]){
-   if(x+ox<-c||x+ox>S+c||y+oy<-c||y+oy>S+c)continue;
-   const gr=g.createRadialGradient(x+ox-rx*.25,y+oy-ry*.35,2,x+ox,y+oy,Math.max(rx,ry));
-   gr.addColorStop(0,`hsl(${H},${Sa}%,${L+9}%)`);gr.addColorStop(.7,`hsl(${H},${Sa}%,${L}%)`);gr.addColorStop(1,`hsl(${H+4},${Sa+5}%,${L-9}%)`);
-   g.fillStyle=gr;path(g,ox,oy,1);g.fill();
-   g.save();path(g,ox,oy,1);g.clip();
-   for(let i=0;i<26;i++){const px=x+ox+(R()-.5)*rx*2,py=y+oy+(R()-.5)*ry*2,len=3+R()*10,ang=R()*6.3;g.strokeStyle=R()<.5?`rgba(255,246,226,${.05+R()*.07})`:`rgba(64,46,44,${.05+R()*.07})`;g.lineWidth=1+R()*2;g.beginPath();g.moveTo(px,py);g.lineTo(px+Math.cos(ang)*len,py+Math.sin(ang)*len);g.stroke();}
-   for(let i=0;i<7;i++){g.fillStyle=`rgba(52,40,38,${.12+R()*.16})`;g.beginPath();g.arc(x+ox+(R()-.5)*rx*1.6,y+oy+(R()-.5)*ry*1.6,.6+R()*1.3,0,6.3);g.fill();}
-   g.restore();
-   g.strokeStyle=INK;g.lineWidth=1.6;path(g,ox,oy,1);g.stroke();
-   for(let i=0;i<4;i++){const v=Math.min(255,120+i*26);h.fillStyle=`rgb(${v},${v},${v})`;path(h,ox,oy,1-i*.12);h.fill();}
-  }
- }
- grain(g,S,R,S*2,'40,30,34','255,244,224',.1);
+ const img=g.createImageData(S,S),hb=h.createImageData(S,S),D=img.data,HB=hb.data;
+ const nz=ruido(R,[5,11,27]),nz2=ruido(R,[3,7]);
+ const k=S/512;
+ const mw=(style==='flag'?2.2:style==='setts'?1.8:style==='rubble'?3.2:2.6)*k,bev=(style==='flag'?5:style==='setts'?6:style==='rubble'?8:11)*k;
+ // cor de uma pedra
+ const hsl=(H,s,l)=>{s/=100;l/=100;const a=s*Math.min(l,1-l),f=q=>{const kk=(q+H/30)%12;return l-a*Math.max(-1,Math.min(kk-3,9-kk,1));};return [f(0)*255,f(8)*255,f(4)*255];};
+ const dirt=hsl(hue+6,Math.max(4,sat-6),Math.max(12,l0-24));
+ const mkStone=()=>({L:l0+R()*(l1-l0),H:hue+(R()-.5)*16,Sa:Math.max(0,sat+(R()-.5)*12),amp:.75+R()*.35,ph:R()*6.3,moss:o.moss&&R()<o.moss});
+ // ---- sementes (Voronoi) ou fiadas (setts)
+ let seeds=null,rows=null;
+ if(style==='setts'){rows=[];for(let j=0;j<n;j++){const ws=[];let sum=0;while(sum<1.5*n){const w=.75+R()*.6;ws.push(w);sum+=w;}const cols=[];let acc=0;for(const w of ws){cols.push({a:acc/sum,b:(acc+w)/sum,st:mkStone()});acc+=w;}rows.push({off:R(),cols});}}
+ else{const jit=style==='flag'?.8:style==='rubble'?.75:.62;seeds=[];
+  for(let j=0;j<n;j++)for(let i=0;i<n;i++){seeds.push(Object.assign({x:i+.5+(R()-.5)*jit,y:j+.5+(R()-.5)*jit},mkStone()));}}
+ const smin=(a,b,kk)=>{const hh=Math.max(kk-Math.abs(a-b),0)/kk;return Math.min(a,b)-hh*hh*kk*.25;};
+ for(let py=0;py<S;py++)for(let px=0;px<S;px++){
+  const u=(px+.5)/S,v=(py+.5)/S;let e,st,cx,cy;
+  if(rows){const fy=v*n,j=Math.floor(fy),row=rows[j%n],fv=fy-j;let fu=(u+row.off)%1;let c=row.cols[0];for(const q of row.cols)if(fu>=q.a&&fu<q.b){c=q;break;}
+   const wpx=(c.b-c.a)*S,hpx=S/n,du=(fu-c.a)*S,dv=fv*hpx;e=smin(smin(du,wpx-du,bev),smin(dv,hpx-dv,bev),bev);st=c.st;cx=(du/wpx-.5)*2;cy=(dv/hpx-.5)*2;}
+  else{const gx=u*n,gy=v*n,ci=Math.floor(gx),cj=Math.floor(gy);let d1=1e9,d2=1e9,d3=1e9,s1=null,x1=0,y1=0,s2x=0,s2y=0,s3x=0,s3y=0;
+   for(let dj=-1;dj<=1;dj++)for(let di=-1;di<=1;di++){const ii=ci+di,jj=cj+dj,s=seeds[((jj%n+n)%n)*n+((ii%n+n)%n)],sx=s.x+ii-((ii%n+n)%n),sy=s.y+jj-((jj%n+n)%n),d=(sx-gx)*(sx-gx)+(sy-gy)*(sy-gy);
+    if(d<d1){d3=d2;s3x=s2x;s3y=s2y;d2=d1;s2x=x1;s2y=y1;d1=d;s1=s;x1=sx;y1=sy;}else if(d<d2){d3=d2;s3x=s2x;s3y=s2y;d2=d;s2x=sx;s2y=sy;}else if(d<d3){d3=d;s3x=sx;s3y=sy;}}
+   const bis=(ax,ay)=>{const mx=(x1+ax)/2,my=(y1+ay)/2,vx=ax-x1,vy=ay-y1,l=Math.hypot(vx,vy)||1;return ((mx-gx)*vx+(my-gy)*vy)/l*S/n;};
+   e=smin(bis(s2x,s2y),bis(s3x,s3y),bev*(style==='flag'?.6:1.4));st=s1;cx=(gx-x1)*1.6;cy=(gy-y1)*1.6;}
+  const nn=nz(u,v),n2=nz2(u,v),i4=(py*S+px)*4;let r,gg,b,hgt;
+  const jw=mw*(.75+nn*.6);
+  if(e<jw){ // junta de terra/argamassa
+   const t=e/Math.max(.001,jw);const base=dirt||[110,92,70];const sh=.78+.22*t+(n2-.5)*.25;
+   r=base[0]*sh;gg=base[1]*sh;b=base[2]*sh;if(o.moss&&nn>.62){r=r*.6+60*.4;gg=gg*.6+92*.4;b=b*.6+44*.4;}hgt=.16+.1*t+(nn-.5)*.06;}
+  else{const t=Math.min(1,(e-jw)/bev),prof=style==='flag'||style==='setts'?Math.sqrt(t):Math.pow(t,.6),c=hsl(st.H,st.Sa,st.L);
+   const lit=1+(-(cx*.55+cy*.75))*.07*(1-t*.6)+(nn-.5)*.16+(n2-.5)*.08+(prof-1)*.18;
+   r=c[0]*lit;gg=c[1]*lit;b=c[2]*lit;
+   if(e-jw<1.3*k){r*=.72;gg*=.7;b*=.72;} // filete escuro na borda (traço anime fino)
+   if(st.moss&&nn>.58&&t<.6){const m=(nn-.58)*2.4;r=r*(1-m)+70*m;gg=gg*(1-m)+104*m;b=b*(1-m)+52*m;}
+   hgt=.32+.5*prof*st.amp+(nn-.5)*.08;}
+  D[i4]=Math.max(0,Math.min(255,r));D[i4+1]=Math.max(0,Math.min(255,gg));D[i4+2]=Math.max(0,Math.min(255,b));D[i4+3]=255;
+  const hv=Math.max(0,Math.min(255,hgt*255));HB[i4]=HB[i4+1]=HB[i4+2]=hv;HB[i4+3]=255;}
+ g.putImageData(img,0,0);h.putImageData(hb,0,0);
+ // pinceladas finas e lascas por cima (acabamento pintado), poucas e suaves
+ for(let i=0;i<S*1.2;i++){const x=R()*S,y=R()*S,len=2+R()*7,ang=R()*6.3;g.strokeStyle=R()<.5?`rgba(255,246,226,${.03+R()*.05})`:`rgba(64,46,44,${.03+R()*.05})`;g.lineWidth=.8+R()*1.4;g.beginPath();g.moveTo(x,y);g.lineTo(x+Math.cos(ang)*len,y+Math.sin(ang)*len);g.stroke();}
+ grain(g,S,R,S*2,'40,30,34','255,244,224',.07);
  return out(cm,ch);
 }
 
@@ -217,14 +246,29 @@ function shingles(o){
 
 /* ---------- Reboco/estuque pintado (paredes de casas) ---------- */
 function plaster(o){
+ /* Reboco: antes eram ~1500 pontinhos de relevo fortes (parecia teto "pipoca"). Agora: manchas largas e suaves de cor,
+    marcas curvas de desempenadeira (cor e relevo baixos), grão fino e raras fissuras de cabelo. Repete sem emenda. */
  o=o||{};const S=o.size||512,R=rng(o.seed||13);
  const hue=o.hue!=null?o.hue:38,sat=o.sat!=null?o.sat:36,l=o.l!=null?o.l:78;
  const cm=mk(S),ch=mk(S),g=cm.getContext('2d'),h=ch.getContext('2d');
  g.fillStyle=`hsl(${hue},${sat}%,${l}%)`;g.fillRect(0,0,S,S);h.fillStyle='#808080';h.fillRect(0,0,S,S);
- for(let i=0;i<70;i++){const x=R()*S,y=R()*S,r=30+R()*70,a=.05+R()*.07;const tone=R()<.5?'255,246,226':'150,110,90';
-  for(const ox of [0,-S])for(const oy of [0,-S]){const gr=g.createRadialGradient(x+ox,y+oy,0,x+ox,y+oy,r);gr.addColorStop(0,`rgba(${tone},${a})`);gr.addColorStop(1,`rgba(${tone},0)`);g.fillStyle=gr;g.fillRect(x+ox-r,y+oy-r,r*2,r*2);}}
- for(let i=0;i<S*3;i++){const x=R()*S,y=R()*S,r=.6+R()*1.9,v=R()<.5?90:170;h.fillStyle=`rgba(${v},${v},${v},.55)`;h.beginPath();h.arc(x,y,r,0,6.3);h.fill();}
- grain(g,S,R,S*2,'80,56,52','255,246,230',.12);
+ const wrap=(fn)=>{for(const ox of [0,-S,S])for(const oy of [0,-S,S])fn(ox,oy);};
+ // manchas largas de tom (umidade, sol, pó)
+ for(let i=0;i<46;i++){const x=R()*S,y=R()*S,r=40+R()*110,a=.04+R()*.06,tone=R()<.55?'255,248,232':(R()<.5?'150,112,92':'120,120,110');
+  wrap((ox,oy)=>{if(x+ox+r<0||x+ox-r>S||y+oy+r<0||y+oy-r>S)return;const gr=g.createRadialGradient(x+ox,y+oy,0,x+ox,y+oy,r);gr.addColorStop(0,`rgba(${tone},${a})`);gr.addColorStop(1,`rgba(${tone},0)`);g.fillStyle=gr;g.fillRect(x+ox-r,y+oy-r,r*2,r*2);});}
+ // marcas de desempenadeira: arcos largos e rasos
+ g.lineCap=h.lineCap='round';g.filter='blur(4px)';h.filter='blur(3px)';
+ for(let i=0;i<55;i++){const x=R()*S,y=R()*S,rad=30+R()*70,a0=R()*6.3,a1=a0+.6+R()*1.2,w=6+R()*16,lit=R()<.6,ag=lit?.04+R()*.04:.018+R()*.022,ah=.035+R()*.03;
+  wrap((ox,oy)=>{if(x+ox+rad<0||x+ox-rad>S||y+oy+rad<0||y+oy-rad>S)return;
+   g.strokeStyle=lit?`rgba(255,250,236,${ag})`:`rgba(120,96,84,${ag})`;g.lineWidth=w;g.beginPath();g.arc(x+ox,y+oy,rad,a0,a1);g.stroke();
+});}
+ g.filter=h.filter='none';
+ // grão fino (relevo leve, sem pontos fortes)
+ for(let i=0;i<S*5;i++){const x=R()*S,y=R()*S,r=.5+R()*1.1,v=R()<.5?104:152;h.fillStyle=`rgba(${v},${v},${v},.22)`;h.beginPath();h.arc(x,y,r,0,6.3);h.fill();}
+ // fissuras finas e raras
+ for(let i=0;i<(o.cracks!=null?o.cracks:3);i++){let x=R()*S,y=R()*S;g.strokeStyle='rgba(90,70,64,.28)';g.lineWidth=.9;h.strokeStyle='rgba(60,60,60,.5)';h.lineWidth=1;
+  g.beginPath();h.beginPath();g.moveTo(x,y);h.moveTo(x,y);for(let k=0;k<6;k++){x+=(R()-.5)*18;y+=6+R()*14;g.lineTo(x,y);h.lineTo(x,y);}g.stroke();h.stroke();}
+ grain(g,S,R,S*2,'80,56,52','255,246,230',.08);
  return out(cm,ch);
 }
 

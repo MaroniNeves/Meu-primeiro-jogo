@@ -51,7 +51,8 @@ const TEX={
   for(let i=0;i<220;i++){const x=rnd()*S,y=rnd()*S,r=8+rnd()*22;g.fillStyle=`hsla(${20+rnd()*10},${28+rnd()*14}%,${20+rnd()*16}%,.35)`;g.beginPath();g.arc(x,y,r,0,6.3);g.fill();}
   for(const u of [S*.28,S*.72]){g.fillStyle='rgba(30,18,10,.45)';g.fillRect(u-11,0,22,S);h.fillStyle='#505050';h.fillRect(u-11,0,22,S);}
   // poças: manchas azuladas e lisas (reflexo do céu)
-  for(let i=0;i<9;i++){const x=rnd()*S,y=rnd()*S,rx=14+rnd()*24,ry=8+rnd()*12;const gr=g.createRadialGradient(x,y,2,x,y,rx);gr.addColorStop(0,'rgba(150,176,196,.8)');gr.addColorStop(.7,'rgba(110,134,150,.6)');gr.addColorStop(1,'rgba(70,56,44,0)');g.fillStyle=gr;g.beginPath();g.ellipse(x,y,rx,ry,rnd()*3,0,6.3);g.fill();h.fillStyle='#707070';h.beginPath();h.ellipse(x,y,rx,ry,0,0,6.3);h.fill();}
+  for(let i=0;i<6;i++){const x=rnd()*S,y=rnd()*S,rx=14+rnd()*24,ry=8+rnd()*12;const gr=g.createRadialGradient(x,y,2,x,y,rx);gr.addColorStop(0,'rgba(112,140,160,.55)');gr.addColorStop(.6,'rgba(92,112,124,.4)');gr.addColorStop(1,'rgba(70,56,44,0)');const an=rnd()*3;g.fillStyle=gr;g.beginPath();g.ellipse(x,y,rx,ry,an,0,6.3);g.fill();g.strokeStyle='rgba(220,236,250,.22)';g.lineWidth=1.6;g.beginPath();g.ellipse(x-rx*.15,y-ry*.2,rx*.45,ry*.2,an,3.7,5.0);g.stroke();
+   const hg=h.createRadialGradient(x,y,1,x,y,rx);hg.addColorStop(0,'rgba(112,112,112,.9)');hg.addColorStop(.75,'rgba(120,120,120,.55)');hg.addColorStop(1,'rgba(138,138,138,0)');h.fillStyle=hg;h.beginPath();h.ellipse(x,y,rx,ry,an,0,6.3);h.fill();}
   for(let i=0;i<40;i++){const x=rnd()*S,y=rnd()*S;g.fillStyle='rgba(20,12,8,.5)';g.beginPath();g.ellipse(x,y,5,2.5,rnd()*3,0,6.3);g.fill();h.fillStyle='#606060';h.beginPath();h.ellipse(x,y,5,2.5,0,0,6.3);h.fill();}
  }),
  gravel:()=>pair(256,(g,h,S)=>{

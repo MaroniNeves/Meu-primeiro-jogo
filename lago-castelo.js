@@ -104,11 +104,14 @@ function install(){
    const lx=X0+pts[pts.length-1][0],lz=pts[pts.length-1][1];
    let gE=-1e9;for(const ox of [-1.9,0,1.9])for(const oz of [-1.7,-.6,.5])gE=Math.max(gE,H(lx+ox,lz+oz));
    const yEnd=gE+.12>DY+.06?Math.min(DY+1.6,gE+.12):DY;   // só sobe até a margem; sobre a água fica no nível do píer, apoiado em estacas
+   let prevRy=null;
    for(let k=0;k<pts.length-1;k++){const x0=X0+pts[k][0],z0=pts[k][1],x1=X0+pts[k+1][0],z1=pts[k+1][1],dx=x1-x0,dz=z1-z0,len=Math.hypot(dx,dz),ry=Math.atan2(dx,dz),cx=(x0+x1)/2,cz=(z0+z1)/2,nx=Math.cos(ry),nz=-Math.sin(ry);
     const ya=DY,yb=k===last?yEnd:DY;
-    if(Math.abs(yb-ya)<.06){box(g,BW,.2,len+.5,M.deck,cx,DY-.2,cz,ry,2);box(g,BW+.2,.22,.3,M.woodDark,cx,DY-.42,cz,ry,1.5);}
+    if(Math.abs(yb-ya)<.06){box(g,BW,.2,len,M.deck,cx,DY-.2,cz,ry,2);box(g,BW+.2,.22,.3,M.woodDark,cx,DY-.42,cz,ry,1.5);}
     else{const n=Math.max(2,Math.ceil(Math.abs(yb-ya)/.17)),sl=len/n;
      for(let i=0;i<n;i++){const t=(i+.5)/n,y=ya+(yb-ya)*(i+1)/n,px=x0+dx*t,pz=z0+dz*t,hh=Math.max(.2,y-Math.min(ya,yb)+.25);box(g,BW,hh,sl+.04,M.deck,px,y-hh,pz,ry,2);}}
+    if(prevRy!==null){const bis=prevRy+Math.atan2(Math.sin(ry-prevRy),Math.cos(ry-prevRy))/2,turn=Math.abs(Math.atan2(Math.sin(ry-prevRy),Math.cos(ry-prevRy)));box(g,BW+.04,.06,.42+BW*Math.tan(turn/2),M.woodDark,x0,DY-.048,z0,bis,1.2);}
+    prevRy=ry;
     for(const e of [-1,1]){const o=BW/2-.08,ax=x0+nx*e*o,az=z0+nz*e*o,bx=x1+nx*e*o,bz=z1+nz*e*o;
      if(k===0&&e===-s)continue;
      cyl(g,.09,.1,1.15,M.woodDark,ax,ya,az,6,1);if(k===last)cyl(g,.09,.1,1.15,M.woodDark,bx,yb,bz,6,1);
@@ -123,12 +126,12 @@ function install(){
    // o trecho em diagonal: tábuas, vigas, corrimão e estacas desencontrados). a = ao longo do trecho, b = de lado.
    const pa=pts[pts.length-2],ryL=Math.atan2(pts[pts.length-1][0]-pa[0],pts[pts.length-1][1]-pa[1]),ux=Math.sin(ryL),uz=Math.cos(ryL),bxL=Math.cos(ryL),bzL=-Math.sin(ryL);
    const P=(a,b)=>[lx+ux*a+bxL*b,lz+uz*a+bzL*b],LW=(BW+1.2)/2,[cxL,czL]=P(-.6,0);
-   if(yEnd-gE>.35){box(g,BW+1.2,.2,2.2,M.deck,cxL,yEnd-.2,czL,ryL,1.5);for(const a of [-1.5,.3]){const [vx,vz]=P(a,0);box(g,BW+1.4,.22,.3,M.woodDark,vx,yEnd-.42,vz,ryL,1.5);}
+   if(yEnd-gE>.35){box(g,BW+1.2,.2,2.2,M.deck,cxL,yEnd-.175,czL,ryL,1.5);for(const a of [-1.5,.3]){const [vx,vz]=P(a,0);box(g,BW+1.4,.22,.3,M.woodDark,vx,yEnd-.42,vz,ryL,1.5);}
     for(const ob of [-1,1])for(const a of [-1.5,.3]){const [px,pz]=P(a,ob*(LW-.15)),h2=H(px,pz);cyl(g,.15,.18,yEnd-h2+.4,M.log,px,h2-.4,pz,7,1.4);}
     for(const e of [-1,1]){const [px,pz]=P(.45,e*(LW-.08)),[qx,qz]=P(-1.65,e*(LW-.08)),[ox,oz]=P(-.6,e*(LW-.08));cyl(g,.09,.1,1.15,M.woodDark,px,yEnd,pz,6,1);rod(g,qx,yEnd+1.05,qz,px,yEnd+1.05,pz,.045,M.woodDark,5);O.addBox({x:ox,z:oz,hw:.12,hd:1.1,rot:ryL});}
     {const [ax,az]=P(.45,-(LW-.08)),[bx,bz]=P(.45,LW-.08),[fx,fz]=P(.45,0);rod(g,ax,yEnd+1.05,az,bx,yEnd+1.05,bz,.045,M.woodDark,5);O.addBox({x:fx,z:fz,hw:LW,hd:.12,rot:ryL});}}
-   else box(g,BW+1.2,Math.max(.2,yEnd-gE+.3),2.2,M.deck,cxL,yEnd-Math.max(.2,yEnd-gE+.3),czL,ryL,1.5);
-   decks.push({x0:cxL,z0:czL,len:0,end:true,y0:yEnd,y1:yEnd,ux,uz,bx:bxL,bz:bzL});
+   else box(g,BW+1.2,Math.max(.2,yEnd-gE+.3),2.2,M.deck,cxL,yEnd+.025-Math.max(.2,yEnd-gE+.3),czL,ryL,1.5);
+   decks.push({x0:cxL,z0:czL,len:0,end:true,y0:yEnd+.025,y1:yEnd+.025,ux,uz,bx:bxL,bz:bzL});
    {const lado=(bxL*s>=0)?1:-1,[px,pz]=P(-1.3,lado*(LW+.14));lantern(px,yEnd-.25,pz,-bxL*lado,-bzL*lado,2.3,yEnd,Math.min(yEnd-.25,H(px,pz)-.3));}
   }
   const dist=(x,z,d)=>{if(d.end){const dx=x-d.x0,dz=z-d.z0;return Math.max(Math.abs(dx*d.bx+dz*d.bz)-(BW+1.2)/2,Math.abs(dx*d.ux+dz*d.uz)-1.1);}const ux=(d.x1-d.x0)/d.len,uz=(d.z1-d.z0)/d.len,t=Math.max(-.25,Math.min(d.len+.25,(x-d.x0)*ux+(z-d.z0)*uz));return Math.hypot(x-(d.x0+ux*t),z-(d.z0+uz*t))-BW/2;};

@@ -253,7 +253,7 @@ function install(){
    if(i%6===0&&t>.08&&t<.92){tube(post,[new T.Vector3(x,H(x,z)-.3,z),new T.Vector3(x,y-.3,z)],[.22,.2],6,2);}
    const top=new T.Vector3(x,y+1.05,z);if(prev){tube(rl,[prev.clone(),top],[.06,.06],5,2);const lo=new T.Vector3(x,y+.55,z),plo=new T.Vector3(x,bridgeY((i-2)/N)+.55,z-2.4);tube(rl,[plo,lo],[.045,.045],5,2);}prev=top;}}
   g.add(build(post,plainBark,'Postes da ponte',false));g.add(build(rl,plainBark,'Corrimão da ponte',false));
-  for(const t of [.04,.5,.96])for(const s of [-1,1]){const z=LG.z+BR.z0+len*t,y=bridgeY(t),x=LG.x+s*(BR.w/2+.05);const lp=new T.Mesh(new T.SphereGeometry(.2,9,7),glowM);lp.position.set(x,y+1.5,z);g.add(lp);}
+  for(const t of [.04,.5,.96])for(const s of [-1,1]){const z=LG.z+BR.z0+len*t,y=bridgeY(t),x=LG.x+s*(BR.w/2+.05);const lp=new T.Mesh(new T.SphereGeometry(.2,9,7),glowM);lp.position.set(x,y+1.3,z);g.add(lp);const cup=new T.Mesh(new T.CylinderGeometry(.13,.07,.1,8),plainBark);cup.position.set(x,y+1.13,z);g.add(cup);}
   for(let i=0;i<N;i++){const zc=LG.z+BR.z0+len*(i+.5)/N;for(const s of [-1,1])O.addBox({x:LG.x+s*(BR.w/2+.1),z:zc,hw:.12,hd:len/N/2+.05,rot:0});}
   (window.arcanoExtraDecks=window.arcanoExtraDecks||[]).push({
    surfaceAt(x,z){const dx=Math.abs(x-LG.x);if(dx>BR.w/2+.02)return null;const t=bridgeT(z);if(t<0||t>1)return null;return bridgeY(t)+.04;},
