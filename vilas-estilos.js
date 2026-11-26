@@ -135,12 +135,13 @@ function finishHollow(ctx,bg,Rc,opt){opt=opt||{};const M=ctx.M,B=Rc.base;
  const AMv=window.arcanoMoveis,vv=AMv?(finishHollow.n=(finishHollow.n||0)+1):0;box(bg,iw,.08,id,AMv&&opt.style!=='oriental'?AMv.pisoDe(vv):M.deck,0,y0,0,0,2.4);box(bg,iw,.12,id,M.woodH,0,top-.12,0,0,1.6);
  {const nb=Math.max(1,Math.round(iw/1.4));for(let i=1;i<nb;i++)box(bg,.16,.16,id,M.woodDark,-iw/2+i*iw/nb,top-.28,0,0,1);}
  // móveis
- const dx=doors.length?doors[0].x:0;furnish(bg,M,iw,id,y0+.08,top,dx,opt.style,vv);
+ const dx=doors.length?doors[0].x:0,moveisCol=furnish(bg,M,iw,id,y0+.08,top,dx,opt.style,vv)||[];
  // colisão: paredes, com vão nas portas
  const cr=Math.cos(B.ry),sr=Math.sin(B.ry),Lc=(ox,oz)=>[B.x+ox*cr+oz*sr,B.z-ox*sr+oz*cr];
  const seg=(ax,az,hx,hz)=>{if(hx<=.02||hz<=.02)return;const [lx,lz]=Lc(ax,az);ctx.colBox(lx,lz,hx,hz,B.ry);};
  {let u=-W/2;const ds=doors.filter(h=>faceOf(h,W,D)===0).sort((a,b)=>a.x-b.x);for(const h of ds){seg((u+h.x-h.w/2)/2,D/2-WT/2,(h.x-h.w/2-u)/2,WT/2+.05);u=h.x+h.w/2;}seg((u+W/2)/2,D/2-WT/2,(W/2-u)/2,WT/2+.05);}
  seg(0,-D/2+WT/2,W/2,WT/2+.05);seg(W/2-WT/2,0,WT/2+.05,D/2);seg(-W/2+WT/2,0,WT/2+.05,D/2);
+ for(const c of moveisCol)seg(c.x,c.z,c.hw,c.hd);   // móveis (antes atravessáveis)
  // sala registrada: chão de dentro, degrau da porta e câmera dentro do cômodo (vilas-mundo.js)
  const a=new T.Object3D();a.position.copy(bg.position);a.rotation.y=B.ry;ctx.live.add(a);a.name='Sala da casa';
  a.userData.rooms=[{x:0,z:0,hw:iw/2-.12,hd:id/2-.12,y:y0+.08,top:top-.2}];
@@ -163,7 +164,7 @@ function furnish(bg,M,iw,id,y,top,dx,style,vv){
   box(bg,1.0,.12,2.0,M.cloth,s*(ix-.6),y,-iz+1.1,0,1);box(bg,1.0,.08,1.2,M.blue,s*(ix-.6),y+.12,-iz+1.4,0,1);
   box(bg,1.6,.2,.5,M.woodDark,-s*(ix-1.0),y+.5,-iz+.3,0,1);cyl(bg,.12,.09,.4,M.white,-s*(ix-1.0),y+.7,-iz+.3,8,1);
   sph(bg,.26,M.lantern,0,top-.9,0,1,1.25,1,8);return;}
- if(window.arcanoMoveis){const AM=window.arcanoMoveis;AM.sala(bg,{iw,id,y,top,s,portas:[{x:dx,w:1.5}],v:vv||(furnish.n=(furnish.n||0)+1),pequena:small});return;}
+ if(window.arcanoMoveis){const AM=window.arcanoMoveis,cm=[];AM.sala(bg,{iw,id,y,top,s,portas:[{x:dx,w:1.5}],v:vv||(furnish.n=(furnish.n||0)+1),pequena:small,colisores:cm});return cm;}
  // tapete
  box(bg,Math.min(2.6,iw*.45),.02,Math.min(1.7,id*.4),M.red,0,y,.1,0,1);box(bg,Math.min(2.2,iw*.38),.025,Math.min(1.3,id*.3),M.cloth,0,y,.1,0,1);
  // cama no fundo, do lado oposto à porta

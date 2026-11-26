@@ -936,6 +936,7 @@ function install(){
    lg.setAttribute('waterDepth',new T.BufferAttribute(dep,1));lg.setAttribute('waterFlow',new T.BufferAttribute(fl,2));
    lg.setIndex(ix);
    const lake=new T.Mesh(lg,shareMat(-9999));lake.name='Lago da nascente';lake.frustumCulled=false;lake.renderOrder=3;
+   lake.material.uniforms.uFoamK={value:.4};   // riachos rasos: menos espuma, mesma cara do rio
    scene.add(lake);
   }
   // ---------- Grande lago da floresta (lago-grande.js): uma malha de água com a mesma água dos outros ----------
@@ -1133,13 +1134,42 @@ function install(){
  }
  // ---------- Estradas calçadas estilizadas ----------
  {
-  const cv=document.createElement('canvas');cv.width=256;cv.height=256;
-  const g=cv.getContext('2d');
-  // Bordas transparentes (terra/grama aparecem), centro com pedras irregulares.
-  const grad=g.createLinearGradient(0,0,256,0);
-  grad.addColorStop(0,'rgba(150,120,80,0)');grad.addColorStop(.14,'rgba(150,120,80,.85)');
-  grad.addColorStop(.86,'rgba(150,120,80,.85)');grad.addColorStop(1,'rgba(150,120,80,0)');
-  g.fillStyle=grad;g.fillRect(0,0,256,256);
+  // Terra batida pintada (antes: só um degradê marrom chapado — a estrada parecia sem textura). 512 px na largura,
+  // 1024 ao longo (8 m): manchas claras e escuras, trilhas de roda compactadas com a corcova clara no meio,
+  // rachaduras, seixos com contorno, areia fina; bordas irregulares que somem na grama. Repete sem emenda ao longo.
+  const W=512,H=1024,cv=document.createElement('canvas');cv.width=W;cv.height=H;
+  const g=cv.getContext('2d'),hb=document.createElement('canvas');hb.width=W;hb.height=H;const hg=hb.getContext('2d');
+  {let sd=4242;const R=()=>{sd=(sd*16807)%2147483647;return sd/2147483647;};
+   g.fillStyle='hsl(32,36%,47%)';g.fillRect(0,0,W,H);hg.fillStyle='#808080';hg.fillRect(0,0,W,H);
+   const blob=(x,y,r,rgb,a)=>{for(const oy of [-H,0,H]){const gr=g.createRadialGradient(x,y+oy,1,x,y+oy,r);gr.addColorStop(0,`rgba(${rgb},${a})`);gr.addColorStop(1,`rgba(${rgb},0)`);g.fillStyle=gr;g.fillRect(x-r,y+oy-r,2*r,2*r);}};
+   for(let i=0;i<110;i++){const cl=R()<.5;blob(R()*W,R()*H,26+R()*90,cl?'214,180,128':'92,62,36',.16+R()*.16);}
+   // trilhas das rodas (duas faixas compactadas, levemente onduladas) e a corcova clara entre elas
+   for(const u0 of [.34,.66])for(let y=0;y<H;y+=2){const x=u0*W+Math.sin(y/H*6.2832*2+u0*9)*7;
+    g.fillStyle='rgba(84,58,34,.20)';g.fillRect(x-24,y,48,2);g.fillStyle='rgba(66,44,26,.16)';g.fillRect(x-12,y,24,2);
+    hg.fillStyle='rgba(40,40,40,.45)';hg.fillRect(x-22,y,44,2);}
+   for(let y=0;y<H;y+=2){g.fillStyle='rgba(236,208,154,.10)';g.fillRect(W*.5-28+Math.sin(y/H*6.2832*3)*4,y,56,2);}
+   // rachaduras finas
+   g.lineCap='round';
+   for(let i=0;i<30;i++){let x=W*(.2+R()*.6),y=R()*H;g.strokeStyle='rgba(64,42,24,.42)';g.lineWidth=1+R()*1.3;g.beginPath();g.moveTo(x,y);
+    for(let k=0;k<6;k++){x+=(R()-.5)*26;y+=8+R()*18;g.lineTo(x,y);}g.stroke();}
+   // seixos e pedrinhas com contorno (relevo no bump)
+   for(let i=0;i<950;i++){const x=W*(.1+.8*R()),y=R()*H,rx=2+R()*5.5,ry=1.5+R()*4,a=R()*3,L=48+R()*30,hu=28+R()*16,sa=8+R()*16;
+    for(const oy of [-H,0,H]){g.fillStyle=`hsl(${hu},${sa}%,${L}%)`;g.beginPath();g.ellipse(x,y+oy,rx,ry,a,0,6.2832);g.fill();
+     g.strokeStyle='rgba(52,36,26,.5)';g.lineWidth=1;g.stroke();hg.fillStyle='#e4e4e4';hg.beginPath();hg.ellipse(x,y+oy,rx,ry,a,0,6.2832);hg.fill();}}
+   // areia fina
+   for(let i=0;i<18000;i++){const x=R()*W,y=R()*H;g.fillStyle=R()<.5?'rgba(255,240,205,.16)':'rgba(60,40,22,.16)';g.fillRect(x,y,1.5,1.5);}
+   // tufos de grama entrando pelas bordas
+   for(let i=0;i<520;i++){const lado=R()<.5,u=lado?.03+R()*.13:.84+R()*.13,x=u*W,y=R()*H,len=5+R()*11;
+    g.strokeStyle=`hsla(${84+R()*30},${40+R()*20}%,${30+R()*16}%,.85)`;g.lineWidth=1.2+R();g.beginPath();g.moveTo(x,y);g.lineTo(x+(R()-.5)*7,y-len);g.stroke();}
+   // máscara: some nas bordas por uma linha irregular (sem a reta de antes)
+   const ed=y=>{const t=y/H*6.2832;return .5*Math.sin(t*3+1.3)+.3*Math.sin(t*7+.4)+.2*Math.sin(t*13+2.1);};
+   g.globalCompositeOperation='destination-in';
+   for(let y=0;y<H;y+=2){const eL=.09+.035*ed(y),eR=.91-.035*ed(y+H*.37),gr=g.createLinearGradient(0,0,W,0);
+    gr.addColorStop(0,'rgba(0,0,0,0)');gr.addColorStop(Math.max(0,eL-.06),'rgba(0,0,0,0)');gr.addColorStop(eL+.05,'rgba(0,0,0,.92)');
+    gr.addColorStop(eR-.05,'rgba(0,0,0,.92)');gr.addColorStop(Math.min(1,eR+.06),'rgba(0,0,0,0)');gr.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=gr;g.fillRect(0,y,W,2);}
+   g.globalCompositeOperation='source-over';}
+  const btex=new T.CanvasTexture(hb);btex.wrapS=T.ClampToEdgeWrapping;btex.wrapT=T.RepeatWrapping;btex.anisotropy=4;
+  setTimeout(()=>{window.arcanoTerraBatida={map:tex,bump:btex};},0);   // trilhas das minas usam a mesma terra
   for(let k=0;k<0;k++){ // pedras pintadas desligadas: agora são pedras 3D (ver "Pedras da calçada")
    const x=40+rnd()*176,y=rnd()*256,w=14+rnd()*16,h=11+rnd()*12,l=60+rnd()*14;
    g.fillStyle=`hsl(${32+rnd()*12},${12+rnd()*10}%,${l}%)`;
@@ -1148,7 +1178,7 @@ function install(){
    if(y<20||y>236){g.beginPath();g.ellipse(x,y+(y<20?256:-256),w/2,h/2,0,0,6.3);g.fill();g.stroke();}
   }
   const tex=new T.CanvasTexture(cv);tex.wrapS=T.ClampToEdgeWrapping;tex.wrapT=T.RepeatWrapping;tex.colorSpace=T.SRGBColorSpace;tex.anisotropy=4;
-  const mat=new T.MeshStandardMaterial({map:tex,transparent:true,depthWrite:false,roughness:1,side:T.DoubleSide,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4});
+  const mat=new T.MeshStandardMaterial({map:tex,bumpMap:btex,bumpScale:.9,transparent:true,depthWrite:false,roughness:1,side:T.DoubleSide,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4});
   const groundAt=(x,z)=>(Math.abs(x)<INNER.x1-.3&&Math.abs(z)<INNER.z1-.3)?ground.heightAt(x,z):window.arcanoIslandHeight(x,z);
   const bridge=window.arcanoBridgeSolid;
   const lines=roads.map(l=>({pts:l,w:2.4}));
@@ -1174,7 +1204,7 @@ function install(){
     const NC=7; // 7 pontos na largura: a estrada acompanha o relevo de perto
     for(let c=0;c<NC;c++){
      const off=(c/(NC-1)*2-1)*line.w,x=p.x-tz*off,z=p.z+tx*off;
-     pos.push(x,Math.max(groundAt(x,z),meshH(x,z))+.012-(onBridge?50:0),z);uvs.push(c/(NC-1),along/3);
+     pos.push(x,Math.max(groundAt(x,z),meshH(x,z))+.012-(onBridge?50:0),z);uvs.push(c/(NC-1),along/8);   // textura de 8 m ao longo
     }
     if(i>0&&!onBridge){const a=base-NC;for(let c=0;c<NC-1;c++)idx.push(a+c,base+c,a+c+1,a+c+1,base+c,base+c+1);}
    }

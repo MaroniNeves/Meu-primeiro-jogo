@@ -107,7 +107,7 @@ function interior(g,W,D,y,top){const iw=W-2*WT,id=D-2*WT,ix=iw/2,iz=id/2;
  const AM=window.arcanoMoveis,vv=AM?(interior.n=(interior.n||0)+1):0;box(g,iw,.08,id,AM?AM.pisoDe(vv):M.wood,0,y+.04,0,0,AM?2.4:1.6);box(g,iw,.12,id,M.wood,0,top-.06,0,0,1.6);
  {const nb=Math.max(2,Math.round(iw/1.4));for(let i=1;i<nb;i++)box(g,.16,.16,id,M.timber,-ix+i*iw/nb,top-.2,0);}
  const yf=y+.08;
- if(AM){AM.sala(g,{iw,id,y:yf,top,s:-1,portas:[{x:0,w:1.5}],v:vv});return;}
+ if(AM){const cm=[];AM.sala(g,{iw,id,y:yf,top,s:-1,portas:[{x:0,w:1.5}],v:vv,colisores:cm});g.userData.colisoresMoveis=cm;return;}
  box(g,Math.min(2.6,iw*.42),.02,Math.min(1.7,id*.36),M.clothR,0,yf+.01,.2);box(g,Math.min(2.2,iw*.35),.025,Math.min(1.3,id*.27),M.clothY,0,yf+.015,.2);
  // cama no canto do fundo à esquerda, baú ao pé
  const bx=-ix+1.05,bz=-iz+.62;box(g,2.0,.32,1.15,M.wood,bx,yf+.16,bz);box(g,1.9,.16,1.05,M.clothW,bx,yf+.4,bz);box(g,1.25,.07,1.08,M.clothB,bx+.3,yf+.5,bz);box(g,.45,.12,.75,M.clothW,bx-.7,yf+.54,bz);box(g,.1,.9,1.15,M.wood,bx-1.0,yf+.45,bz);
@@ -262,7 +262,9 @@ function build(api,V){
    if(sala){const L2=(lx,lz)=>({x:p.x+lx*c+lz*s,z:p.z-lx*s+lz*c}),yr={ymin:lo-2,ymax:p.y+12},W2=p.w/2,D2=p.d/2,t=WT/2+.06;
     const wb=(lx,lz,hw,hd)=>{const q=L2(lx,lz);O.addBox({x:q.x,z:q.z,hw,hd,rot:p.rot,...yr});};
     wb(0,-D2+t,W2,t);wb(W2-t,0,t,D2);wb(-W2+t,0,t,D2);wb(-(W2+.68)/2,D2-t,(W2-.68)/2,t);wb((W2+.68)/2,D2-t,(W2-.68)/2,t);
-    if(p.portas&&p.portas[0]){const it=p.portas[0],q=L2(0,D2-t);O.addBox({x:q.x,z:q.z,hw:.7,hd:t,rot:p.rot,...yr,enabled:()=>it.cur<.35});}}
+    if(p.portas&&p.portas[0]){const it=p.portas[0],q=L2(0,D2-t);O.addBox({x:q.x,z:q.z,hw:.7,hd:t,rot:p.rot,...yr,enabled:()=>it.cur<.35});}
+    for(const cm of house.userData.colisoresMoveis||[])wb(cm.x,cm.z,cm.hw,cm.hd);   // móveis (antes atravessáveis)
+   }
    else O.addBox({x:p.x,z:p.z,hw:p.w/2+.25+(r?.3:0),hd:p.d/2+.32,rot:p.rot,ymin:lo-2,ymax:p.y+12});
    // Vaso de flores ao lado da porta.
    const L2W=(lx,lz)=>[p.x+lx*c+lz*s,p.z-lx*s+lz*c],yr={ymin:p.y-2,ymax:p.y+8};

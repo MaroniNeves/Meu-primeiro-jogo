@@ -54,6 +54,13 @@ function mats(S){
  M.plaster=new T.MeshToonMaterial({map:tex(plaster.c),gradientMap:gm});
  M.timber=new T.MeshToonMaterial({map:cleanWood(S.timber,7,false),gradientMap:gm});
  M.timberH=new T.MeshToonMaterial({map:cleanWood(S.timber,9,true),gradientMap:gm});
+ // vigamento (madeira escura) com a mesma madeira nova das tábuas claras (arcanoTex.wood: tábuas de larguras
+ // diferentes, emendas desencontradas, veio ondulado); antes ficava com o desenho antigo, só riscos. Cor do estilo.
+ {const AT=window.arcanoTex;if(AT){const C=mats.timberCache||(mats.timberCache={}),k=S.timber.join();
+   if(!C[k]){const n=parseInt(S.timber[1].slice(1),16),r=(n>>16&255)/255,g2=(n>>8&255)/255,b=(n&255)/255,mx=Math.max(r,g2,b),mn=Math.min(r,g2,b),l=(mx+mn)/2,d=mx-mn;
+    let h=0,s=0;if(d){s=d/(1-Math.abs(2*l-1));h=mx===r?((g2-b)/d)%6:mx===g2?(b-r)/d+2:(r-g2)/d+4;h*=60;if(h<0)h+=360;}
+    const o={hue:h,sat:Math.max(10,s*100),light:l*100,boards:2};C[k]=[AT.wood(Object.assign({seed:461},o)),AT.wood(Object.assign({seed:462,horizontal:true},o))];}
+   const [tv,th]=C[k];M.timber.map=tv.map;M.timber.bumpMap=tv.bump;M.timber.bumpScale=.5;M.timberH.map=th.map;M.timberH.bumpMap=th.bump;M.timberH.bumpScale=.5;}}
  // telhas: escamas pintadas
  const sh=brush(S.roof[0],S.roof,240,31,{l0:20,l1:60,w0:8,w1:16,spread:1.6});const g=sh.g;g.strokeStyle=S.roofLine;g.lineWidth=3;g.globalAlpha=.75;
  for(let r=0;r<8;r++)for(let k=-1;k<5;k++){g.beginPath();g.arc((k+(r%2)*.5)*64+32,r*32,32,0,PI);g.stroke();}g.globalAlpha=1;
@@ -189,7 +196,8 @@ function furnish(B,R,W,D,floors,fh,Y0,sx,X){
    const portas=f===0?[{x:0,w:1.7}]:(X.bay?[{x:0,w:(X.Wc||4.6)-.4}]:[]);
    const lados=[];if(f===0&&X.innerDoor)lados.push({lado:X.annexSide,z:X.innerDoor.hz,w:1.2});
    // escada do lado sx: sem estante e prateleira desse lado; térreo é sala de estar (armário no lugar da cama)
-   AM.sala(f?B.xg1:g,{iw,id,y,top,s:-sx,portas,lados,v:v+f,sem:{cama:f===0,estante:true,prateleira:true,lareira:f>0}});}
+   const cm=[];AM.sala(f?B.xg1:g,{iw,id,y,top,s:-sx,portas,lados,v:v+f,sem:{cama:f===0,estante:true,prateleira:true,lareira:f>0},colisores:f===0?cm:null});
+   if(X.colls)for(const c of cm)X.colls.push({b:[c.x,c.z,c.hw,c.hd]});}
   return;}
  const top=f=>Y0+f*fh+.12;
  // térreo: mesa, cadeiras, estante, tapete, barril
@@ -371,8 +379,10 @@ function build(o){o=o||{};
   const y0=Y0+(f-1)*fh+.1,n=12,rise=(fh+.02)/n,run=.32;
   for(let i=0;i<n;i++)B.box('plank',1.1,(i+1)*rise,run,sxS*(W/2-1.1),y0+(i+1)*rise/2,1.3-(i+.5)*run);
   B.box('timber',.08,1.0,3.9,sxS*(W/2-1.1)-.6,y0+1.4,-.7,0,{rx:-Math.atan2(fh,3.8)*.0});}
+ // escada do térreo: só o térreo é andável — antes o personagem atravessava os degraus
+ if(floors>1)colls.push({b:[sxS*(W/2-1.1),1.3-12*.32/2,.6,12*.32/2+.06]});
  slab(B,'ceil',W-.55,D-.55,wallTop-.2,.2,null);
- furnish(B,R,W,D,floors,fh,Y0,sxS,{bay,Wc,innerDoor,annexSide:annexOn?annexSide:0});
+ furnish(B,R,W,D,floors,fh,Y0,sxS,{bay,Wc,innerDoor,annexSide:annexOn?annexSide:0,colls});
  // ---- telhado principal
  const Hr=o.roofH||3.9,qq=o.roofQ||1.55,sMain=D/2,roof=roofGable(B,S,W,sMain,o.ov||.95,Hr,qq,Y0+H,.32);
  // ---- baía frontal com pórtico e varanda

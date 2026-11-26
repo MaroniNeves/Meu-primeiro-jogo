@@ -86,6 +86,7 @@ uniform float uPlayerWet;
 uniform vec4 uRings[12];
 uniform float uClock;
 uniform sampler2D uRefl;
+uniform float uFoamK; // quanto de espuma (1 no rio; menos nos riachos rasos da nascente)
 uniform mat4 uReflMatrix;
 uniform float uReflReady,uMirrorY;
 // Cena já desenhada (leito, pedras, musgo) para a refração, e pedras próximas para a espuma da correnteza.
@@ -230,7 +231,7 @@ void main(){
  float bank=1.-smoothstep(.0,.07,vDepth);
  float foamBank=bank*smoothstep(.40,.70,fn+.25);
  float foamFast=smoothstep(.8,1.2,speed)*smoothstep(.62,.80,fbm(vWorld.xz*vec2(4.,1.2)-flow*uTime*2.));
- float foam=clamp(foamBank*.85+foamFast*.5+max(ringW,0.)*.35+bodyPush*.35,0.,1.);
+ float foam=clamp((foamBank*.85+foamFast*.5)*uFoamK+max(ringW,0.)*.35+bodyPush*.35,0.,1.);
  {
   vec2 perp=vec2(-flow.y,flow.x);vec2 fq=vec2(dot(vWorld.xz,flow),dot(vWorld.xz,perp));
   float deepK=smoothstep(.05,.3,vDepth),spK=smoothstep(.08,.5,speed);
@@ -245,7 +246,7 @@ void main(){
    rockFoam+=wake*smoothstep(.5,.68,fn)*.6*spK;
    rockLines+=wake*smoothstep(.8,.93,sin((fq.x-uTime*(.5+speed))*5.+ac*4.+fn*7.))*.6*spK;}
   col+=uFoam*(streak*.1+specks*.22+rockLines*.42)*(.3+.7*dayK)*(1.-.85*smoothstep(1.24,1.42,length(vFlow)));
-  foam=clamp(foam+rockFoam,0.,1.);
+  foam=clamp(foam+rockFoam*uFoamK,0.,1.);
  }
  col=mix(col,uFoam,foam);a=max(a,foam*.9);
 
@@ -283,9 +284,11 @@ void main(){
   for(int k=0;k<4;k++){vec2 o=flow*float(k)*.55;sA+=fbm(PR-advR*q0-o);sB+=fbm(PR+vec2(.37,.61)-advR*q1-o);}
   float w1=mix(sA,sB,wmR)*.25,w2=mix(noise(PR*3.1-advR*q0*2.),noise(PR*3.1+vec2(5.3,1.7)-advR*q1*2.),wmR);
   float white=clamp(smoothstep(.38,.72,w1)*.8+smoothstep(.62,.9,w2)*.45,0.,1.);
-  vec3 rapC=mix(mix(uShallow,uFoam,.55),uFoam,white)*(.78+.22*dayK);
-  col=mix(col,rapC,rap*(.6+.4*white));
-  a=max(a,rap*(.85+.15*white));
+  // a mesma água do rio (cor, transparência e reflexo) com listras de espuma descendo; antes virava água branca
+  // quase opaca e o riacho da nascente parecia outro material
+  float wk=white*(.45+.55*uFoamK);
+  col=mix(col,uFoam*(.8+.2*dayK),rap*wk*.85);
+  a=max(a,rap*(.55+.35*wk));
  }
  float pz=vWorld.z-(uFallZ+.65);
  float plunge=exp(-pz*pz*.6)*smoothstep(-.9,-.15,pz)*(1.-sheet);
@@ -328,7 +331,7 @@ function install(){
    uSunPower:shared('uSunPower',.8),uCloudiness:shared('uCloudiness',.4),
    uSunColor:{value:srgb('#fff4dc')},
    uSkyTop:{value:srgb('#3d8fe0')},uSkyHorizon:{value:srgb('#bfe8ff')},
-   uShallow:{value:srgb('#86d6c6')},uDeep:{value:srgb('#1d6f92')},uFoam:{value:srgb('#f2fbfa')},
+   uShallow:{value:srgb('#86d6c6')},uDeep:{value:srgb('#1d6f92')},uFoam:{value:srgb('#f2fbfa')},uFoamK:{value:1},
    uPlayer:{value:new T.Vector3(0,-999,0)},uPlayerWet:{value:0},
    uRings:{value:Array.from({length:12},()=>new T.Vector4(0,0,-99,0))},uClock:{value:0},
    uRefl:{value:null},uReflMatrix:{value:new T.Matrix4()},uReflReady:{value:0},uMirrorY:{value:0},

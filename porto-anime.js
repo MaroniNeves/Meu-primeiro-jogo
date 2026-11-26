@@ -366,6 +366,10 @@ function build(api,isl){
   const lo=new T.Group();
   const wall=new T.Mesh(new T.CylinderGeometry(RI,RI+.15,H,24,1,true,Math.PI*1.5+gap,Math.PI*2-gap*2),M.stone);wall.position.y=H/2;lo.add(wall);
   const wall2=new T.Mesh(new T.CylinderGeometry(RI-.25,RI-.1,H,24,1,true,Math.PI*1.5+gap,Math.PI*2-gap*2),M.stone);wall2.position.y=H/2;lo.add(wall2);
+  // parede acima da porta: o vão das paredes ia do chão até o topo (3,4 m) e o batente só até 2,64 m — sobrava um
+  // buraco de ~0,8 m em cima da porta. Os dois pedaços seguem o mesmo afunilamento das paredes.
+  {const yv=2.64,hv=H-yv;
+   for(const [rt,rb] of [[RI,RI+.15*(1-yv/H)],[RI-.25,RI-.1-.15*yv/H]]){const p=new T.Mesh(new T.CylinderGeometry(rt,rb,hv,6,1,true,Math.PI*1.5-gap,gap*2),M.stone);p.position.y=yv+hv/2;lo.add(p);}}
   cyl(lo,RI+.35,RI+.45,.35,M.stone,0,0,0,24);box(lo,RI*2-.5,.08,RI*2-.5,M.deck,0,.06,0,0,2);
   const dh=new T.Group();dh.position.set(-RI,0,-.85);lo.add(dh);box(dh,.08,2.3,1.7,M.door,0,1.15,.85,0,1.4);for(const yy of [.4,1.15,1.9])box(dh,.11,.08,1.6,M.iron,0,yy,.85);sph(dh,.06,M.gold,-.07,1.1,1.5);
   box(lo,.4,2.6,.15,M.dark,-RI,1.3,-.95);box(lo,.4,2.6,.15,M.dark,-RI,1.3,.95);box(lo,.45,.18,2.1,M.dark,-RI,2.55,0);

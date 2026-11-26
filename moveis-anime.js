@@ -40,8 +40,38 @@ function quiltTex(cols,seed){const S=256,c=cv(S),g=c.getContext('2d'),R=rng(seed
  g.strokeStyle='rgba(255,246,225,.7)';g.setLineDash([4,3]);g.lineWidth=1.2;for(let i=0;i<=n;i++){g.beginPath();g.moveTo(i*q+3,0);g.lineTo(i*q+3,S);g.stroke();g.beginPath();g.moveTo(0,i*q+3);g.lineTo(S,i*q+3);g.stroke();}
  g.setLineDash([]);g.strokeStyle='rgba(30,20,15,.35)';g.lineWidth=1;for(let i=0;i<=n;i++){g.beginPath();g.moveTo(i*q,0);g.lineTo(i*q,S);g.stroke();g.beginPath();g.moveTo(0,i*q);g.lineTo(S,i*q);g.stroke();}
  return ct(c);}
-function linenTex(cor,seed){const S=128,c=cv(S),g=c.getContext('2d'),R=rng(seed);g.fillStyle=cor;g.fillRect(0,0,S,S);
- for(let i=0;i<S;i+=2){g.fillStyle=`rgba(0,0,0,${.02+R()*.03})`;g.fillRect(0,i,S,1);g.fillStyle=`rgba(0,0,0,${.015+R()*.02})`;g.fillRect(i,0,1,S);}return ct(c);}
+// tecido: trama de fios claros e escuros bem visível, manchas de luz e sombra (dobras e uso). Antes a trama era quase
+// invisível (2 a 5% de escuro) e todo tecido parecia cor chapada.
+function trama(g,S,R,passo){for(let i=0;i<S;i+=passo){g.fillStyle=`rgba(255,255,255,${.06+R()*.05})`;g.fillRect(0,i,S,1);g.fillStyle=`rgba(0,0,0,${.09+R()*.07})`;g.fillRect(0,i+1,S,1);}
+ for(let i=0;i<S;i+=passo){g.fillStyle=`rgba(0,0,0,${.07+R()*.05})`;g.fillRect(i,0,1,S);g.fillStyle=`rgba(255,255,255,${.04+R()*.04})`;g.fillRect(i+1,0,1,S);}
+ for(let k=0;k<12;k++){const x=R()*S,y=R()*S,r=S*(.1+R()*.22),cl=R()<.5?'255,255,255':'0,0,0';
+  for(const ox of [-S,0,S])for(const oy of [-S,0,S]){const gr=g.createRadialGradient(x+ox,y+oy,1,x+ox,y+oy,r);gr.addColorStop(0,`rgba(${cl},.09)`);gr.addColorStop(1,`rgba(${cl},0)`);g.fillStyle=gr;g.fillRect(x+ox-r,y+oy-r,2*r,2*r);}}}
+function linenTex(cor,seed){const S=256,c=cv(S),g=c.getContext('2d'),R=rng(seed);g.fillStyle=cor;g.fillRect(0,0,S,S);trama(g,S,R,3);return ct(c);}
+// estofados e toalhas: flores (damasco), xadrez ou listras por cima da trama
+function estampaTex(cor,seed,tipo){const S=256,c=cv(S),g=c.getContext('2d'),R=rng(seed);g.fillStyle=cor;g.fillRect(0,0,S,S);
+ const cl='rgba(255,246,226,.30)',es='rgba(0,0,0,.18)';
+ if(tipo==='xadrez'){for(let i=0;i<S;i+=32){g.fillStyle=es;g.fillRect(i,0,12,S);g.fillRect(0,i,S,12);g.fillStyle=cl;g.fillRect(i+20,0,3,S);g.fillRect(0,i+20,S,3);}}
+ else if(tipo==='listras'){for(let i=0;i<S;i+=32){g.fillStyle=cl;g.fillRect(i,0,8,S);g.fillStyle=es;g.fillRect(i+14,0,4,S);g.fillRect(i+24,0,2,S);}}
+ else{for(let r=0;r<4;r++)for(let k=0;k<4;k++){const x=k*64+(r%2)*32+32,y=r*64+32;g.fillStyle=cl;
+   for(let p=0;p<5;p++){const a=p/5*6.283;g.beginPath();g.ellipse(x+Math.cos(a)*9,y+Math.sin(a)*9,7,4,a,0,6.283);g.fill();}
+   g.fillStyle=es;g.beginPath();g.arc(x,y,4,0,6.283);g.fill();g.strokeStyle=cl;g.lineWidth=2;g.beginPath();g.arc(x,y,22,.3,1.4);g.stroke();g.beginPath();g.arc(x,y,22,3.4,4.5);g.stroke();}}
+ trama(g,S,R,3);return ct(c);}
+// cerâmica vidrada: faixas pintadas, respingos e brilho
+function ceramicaTex(cor,seed){const W=128,H=128,c=cv(W,H),g=c.getContext('2d'),R=rng(seed);g.fillStyle=cor;g.fillRect(0,0,W,H);
+ for(const [y,h,a] of [[H*.22,6,.35],[H*.3,3,.25],[H*.62,8,.3]]){g.fillStyle=`rgba(255,244,220,${a})`;g.fillRect(0,y,W,h);g.fillStyle='rgba(60,30,20,.25)';g.fillRect(0,y+h,W,2);}
+ for(let i=0;i<10;i++){const x=R()*W;g.fillStyle='rgba(255,244,220,.25)';g.beginPath();g.ellipse(x,H*.45,5,9,0,0,6.283);g.fill();}
+ for(let i=0;i<300;i++){g.fillStyle=R()<.5?'rgba(0,0,0,.12)':'rgba(255,255,255,.12)';g.fillRect(R()*W,R()*H,1.5,1.5);}
+ const gr=g.createLinearGradient(0,0,W,0);gr.addColorStop(0,'rgba(0,0,0,.12)');gr.addColorStop(.35,'rgba(255,255,255,.18)');gr.addColorStop(.45,'rgba(255,255,255,0)');gr.addColorStop(1,'rgba(0,0,0,.12)');g.fillStyle=gr;g.fillRect(0,0,W,H);return ct(c);}
+// metal batido: marcas de martelo, riscos e pontos de desgaste
+function metalTex(cor,seed){const S=128,c=cv(S),g=c.getContext('2d'),R=rng(seed);g.fillStyle=cor;g.fillRect(0,0,S,S);
+ for(let i=0;i<70;i++){const x=R()*S,y=R()*S,r=3+R()*7;const gr=g.createRadialGradient(x-r*.3,y-r*.3,1,x,y,r);gr.addColorStop(0,'rgba(255,255,255,.16)');gr.addColorStop(.7,'rgba(0,0,0,.10)');gr.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=gr;g.fillRect(x-r,y-r,2*r,2*r);}
+ for(let i=0;i<40;i++){const x=R()*S,y=R()*S;g.strokeStyle=R()<.5?'rgba(255,255,255,.14)':'rgba(0,0,0,.18)';g.lineWidth=1;g.beginPath();g.moveTo(x,y);g.lineTo(x+(R()-.5)*30,y+(R()-.5)*8);g.stroke();}
+ for(let i=0;i<500;i++){g.fillStyle=R()<.5?'rgba(0,0,0,.10)':'rgba(255,255,255,.08)';g.fillRect(R()*S,R()*S,1,1);}return ct(c);}
+// vidro dos frascos: brilho vertical e rótulo de papel no meio
+function frascoTex(cor,seed){const W=128,H=128,c=cv(W,H),g=c.getContext('2d'),R=rng(seed);g.fillStyle=cor;g.fillRect(0,0,W,H);
+ const gr=g.createLinearGradient(0,0,W,0);gr.addColorStop(0,'rgba(0,0,0,.18)');gr.addColorStop(.28,'rgba(255,255,255,.35)');gr.addColorStop(.34,'rgba(255,255,255,0)');gr.addColorStop(1,'rgba(0,0,0,.12)');g.fillStyle=gr;g.fillRect(0,0,W,H);
+ g.fillStyle='#efe2bf';g.fillRect(W*.45,H*.38,W*.4,H*.22);g.strokeStyle='rgba(90,60,30,.6)';g.lineWidth=1.5;g.strokeRect(W*.45,H*.38,W*.4,H*.22);
+ g.fillStyle='rgba(90,60,30,.55)';for(let k=0;k<3;k++)g.fillRect(W*.5,H*(.42+k*.05),W*(.18+R()*.12),2);return ct(c);}
 function bookTex(cor){const c=cv(64,128),g=c.getContext('2d');g.fillStyle=cor;g.fillRect(0,0,64,128);
  const gr=g.createLinearGradient(0,0,64,0);gr.addColorStop(0,'rgba(0,0,0,.25)');gr.addColorStop(.5,'rgba(255,255,255,.08)');gr.addColorStop(1,'rgba(0,0,0,.25)');g.fillStyle=gr;g.fillRect(0,0,64,128);
  g.fillStyle='#d9b35a';for(const y of [14,22,104,112])g.fillRect(0,y,64,3);g.fillRect(16,52,32,20);g.fillStyle=cor;g.fillRect(19,55,26,14);return ct(c);}
@@ -70,7 +100,7 @@ function materiais(){
   escuro:w({hue:22,light:30,seed:306}),escuroH:w({hue:22,light:30,horizontal:true,seed:307}),
   pedra:AT?tx(AT.stone({hue:30,sat:8,l0:46,l1:62,seed:308,rows:5}),.8):mat({color:'#8c8780'}),
   fuligem:mat({color:'#1c1612'}),
-  ferro:mat({color:'#2e2f34',roughness:.55,metalness:.35}),lata:mat({color:'#c9a24e',roughness:.4,metalness:.45}),
+  ferro:mat({map:metalTex('#3a3b42',61),roughness:.55,metalness:.35}),lata:mat({map:metalTex('#c9a24e',62),roughness:.4,metalness:.45}),
   brasa:mat({color:'#ff9a3a',emissive:new T.Color('#ff5a1a'),emissiveIntensity:1.4}),
   chama:mat({color:'#ffe08a',emissive:new T.Color('#ffb03a'),emissiveIntensity:1.6}),
   vidro:mat({color:'#fff2c8',emissive:new T.Color('#ffbe5a'),emissiveIntensity:.6,roughness:.3}),
@@ -82,15 +112,15 @@ function materiais(){
   livros:['#8e2f2a','#2f557a','#3f6f3a','#6a3f7a','#a8742a','#4a3a2a'].map(c=>mat({map:bookTex(c),roughness:.8})),
   papel:mat({color:'#efe4c8'}),
   quadro:mat({map:paintingTex(41)}),
-  ceramica:[mat({color:'#c06a3a',roughness:.6}),mat({color:'#e8dcc2',roughness:.5}),mat({color:'#4f7fa8',roughness:.5}),mat({color:'#8a9a5a',roughness:.6})],
+  ceramica:[mat({map:ceramicaTex('#c06a3a',71),roughness:.6}),mat({map:ceramicaTex('#e8dcc2',72),roughness:.5}),mat({map:ceramicaTex('#4f7fa8',73),roughness:.5}),mat({map:ceramicaTex('#8a9a5a',74),roughness:.6})],
   folha:mat({color:'#4e9a45'}),folhaE:mat({color:'#3a7a36'}),terra:mat({color:'#4a3324'}),
   pao:mat({color:'#c8893e'}),maca:mat({color:'#c83a2e',roughness:.5}),
   pisoClaro:w({hue:36,light:58,horizontal:true,boards:8,seed:314},.5),pisoEscuro:w({hue:24,light:34,horizontal:true,boards:7,seed:312},.5),
   pisoPedra:AT?tx(AT.cobble({style:'flag',hue:34,sat:10,l0:56,l1:70,n:4,seed:313}),.6):mat({color:'#9a948a'}),
   erva:mat({color:'#6f8f3a'}),lavanda:mat({color:'#8a6ab8'}),saco:mat({map:linenTex('#c4ad80',14)}),aparas:mat({color:'#d8b07a'}),
-  estanho:mat({color:'#9aa0a6',roughness:.45,metalness:.5}),
-  frascos:['#4fc2a0','#c25ab8','#e2b84a','#5a8ae0','#d0563a'].map(c=>mat({color:c,roughness:.2,emissive:new T.Color(c),emissiveIntensity:.25})),
-  tecidos:['#b8452c','#3f6f9e','#d9b35a','#5b8f6a','#7a5a9e','#e8dcc2'].map((c,i)=>mat({map:linenTex(c,40+i)})),
+  estanho:mat({map:metalTex('#9aa0a6',63),roughness:.45,metalness:.5}),
+  frascos:['#4fc2a0','#c25ab8','#e2b84a','#5a8ae0','#d0563a'].map((c,i)=>mat({map:frascoTex(c,80+i),roughness:.2,emissive:new T.Color(c),emissiveIntensity:.25})),
+  tecidos:['#b8452c','#3f6f9e','#d9b35a','#5b8f6a','#7a5a9e','#e8dcc2'].map((c,i)=>mat({map:estampaTex(c,40+i,['flores','xadrez','listras'][i%3])})),
   globo:mat({map:globoTex(),roughness:.5})
  };
  // lambri: madeira escura, madeira clara, pintado de verde e de azul (cada casa um); molduras combinando
@@ -298,7 +328,7 @@ const TEMAS=['quarto','cozinha','oficina','estudo','taverna','boticario','alfaia
 const temaDe=(v,sem)=>{let t=TEMAS[(v*5+Math.floor(v/7))%TEMAS.length];if(sem&&sem.cama&&t==='quarto')t='estudo';return t;};
 function pisoDe(v,sem){if(!M)materiais();const t=temaDe(v,sem);return t==='cozinha'||t==='boticario'?M.pisoPedra:(t==='oficina'||t==='taverna')?M.pisoEscuro:(v%2?M.piso:M.pisoClaro);}
 // o: {iw,id,y,top,s(lado da cama ±1),portas:[{x,w}],lados,v(variação),pequena,sem:{cama,estante,prateleira,lareira},tema}
-function sala(g,o){if(!M)materiais();const ix=o.iw/2,iz=o.id/2,y=o.y,s=o.s||1,v=o.v||0,sem=o.sem||{},R=rng(101+v*37);
+function salaBase(g,o){if(!M)materiais();const ix=o.iw/2,iz=o.id/2,y=o.y,s=o.s||1,v=o.v||0,sem=o.sem||{},R=rng(101+v*37);
  const tema=o.tema||temaDe(v,sem),dx=o.portas&&o.portas[0]?o.portas[0].x:0;
  const livre=x=>Math.abs(x-dx)>1.25; // não bloquear a porta
  M.lambri=M.lambris[v%M.lambris.length];M.moldura=M.molduras[v%M.molduras.length];
@@ -348,6 +378,20 @@ function sala(g,o){if(!M)materiais();const ix=o.iw/2,iz=o.id/2,y=o.y,s=o.s||1,v=
   estanteTecidos(g,y,-s*(ix-.8),-iz+.28,0,R);mesaCorte(g,y,-s*.3,.25,Math.min(1.8,o.iw*.34),v,R);cadeira(g,y,-s*.3,1.05,PI);
   canto((x,z)=>manequim(g,y,x,z-.1,0,M.tecidos[(v+2)%M.tecidos.length]));fogo(sem.cama?-.2:.35);luz(1);quadro(g,y+1.45,s*.6,-iz,0);
   if(!sem.prateleira)prateleira(g,y+1.55,-s*(ix-.02),.4,s*PI/2);}
+ return tema;}
+// Colisão dos móveis (antes o personagem atravessava cama, mesa, estante, lareira...): depois de montar a sala, mede
+// cada peça nova que fica no chão (sem tapete, quadro, lampião, prateleira de parede e lambri), junta as que se tocam
+// (pernas, tampo, cadeiras) e devolve caixas no espaço do grupo em o.colisores = [{x,z,hw,hd}].
+function caixaLocal(c,inv){const b=new T.Box3(),t=new T.Box3(),m4=new T.Matrix4();c.traverse(q=>{if(!q.isMesh||!q.geometry)return;if(!q.geometry.boundingBox)q.geometry.computeBoundingBox();m4.multiplyMatrices(inv,q.matrixWorld);t.copy(q.geometry.boundingBox).applyMatrix4(m4);b.union(t);});return b;}
+function sala(g,o){const n0=g.children.length,tema=salaBase(g,o);
+ if(o&&Array.isArray(o.colisores)){g.updateWorldMatrix(true,true);const inv=new T.Matrix4().copy(g.matrixWorld).invert(),y=o.y,ix=o.iw/2,iz=o.id/2,bs=[];
+  for(let i=n0;i<g.children.length;i++){const b=caixaLocal(g.children[i],inv);if(b.isEmpty())continue;const sx=b.max.x-b.min.x,sz=b.max.z-b.min.z,sy=b.max.y-b.min.y,cx=(b.min.x+b.max.x)/2,cz=(b.min.z+b.max.z)/2;
+   if(sy<.12||b.min.y>y+.6)continue;
+   if(Math.min(sx,sz)<.09&&(Math.abs(Math.abs(cx)-ix)<.3||Math.abs(Math.abs(cz)-iz)<.3))continue;
+   bs.push(b);}
+  const gr=[];for(const b of bs){const q=gr.find(q=>q.clone().expandByScalar(.08).intersectsBox(b));if(q)q.union(b);else gr.push(b.clone());}
+  for(let it=0;it<3;it++)for(let i=0;i<gr.length;i++)for(let j=gr.length-1;j>i;j--)if(gr[i].clone().expandByScalar(.08).intersectsBox(gr[j])){gr[i].union(gr[j]);gr.splice(j,1);}
+  for(const b of gr){const hw=(b.max.x-b.min.x)/2,hd=(b.max.z-b.min.z)/2;if(hw*hd<.02)continue;o.colisores.push({x:(b.min.x+b.max.x)/2,z:(b.min.z+b.max.z)/2,hw:hw+.04,hd:hd+.04});}}
  return tema;}
 window.arcanoMoveis={sala,pisoDe,temaDe,armario,lampiao,cama,mesa,cadeira,estante,bau,lareira,barril,vaso,lambri,get M(){if(!M)materiais();return M;}};
 })();

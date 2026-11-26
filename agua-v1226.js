@@ -4138,7 +4138,7 @@ const gameCameraOffset=new T.Vector3();
 const gameCameraSmooth={focus:NaN,ground:NaN,floor:NaN};
 function applyGameCamera(){
  // Primeira pessoa (primeira-pessoa.js): a câmera fica nos olhos do personagem.
- if(typeof window!=="undefined"&&window.arcanoFirstPerson&&window.arcanoFirstPerson.active){window.arcanoFirstPerson.apply(camera,game,worldGround);return;}
+ if(typeof window!=="undefined"&&window.arcanoFirstPerson&&window.arcanoFirstPerson.active){occU.uOccOn.value=0;window.arcanoFirstPerson.apply(camera,game,worldGround);return;}
  const goal=game.position;
  const reach=Math.cos(game.camPitch)*game.camDistance;
  const bx=-Math.sin(game.camHeading)*reach,bz=-Math.cos(game.camHeading)*reach;
@@ -4172,7 +4172,45 @@ function applyGameCamera(){
  if(window.arcanoCameraLimit)window.arcanoCameraLimit(gameCameraFocus,camera.position);
  camera.lookAt(gameCameraFocus);
  updateGameCameraOcclusion(gameCameraFocus,camera.position);
+ occU.uOccCam.value.copy(camera.position);occU.uOccFoco.value.copy(gameCameraFocus);occU.uOccOn.value=1;
 }
+// V13 — árvores entre a câmera e o personagem ficam quase invisíveis em TODAS as florestas.
+// O sistema acima (por árvore, materiais clonados) só conhece as árvores de forestInstances; a floresta da Ilha
+// Central virou InstancedMesh + árvores orgânicas e as árvores das vilas são cópias delas, por isso as árvores
+// pararam de ficar transparentes. Agora o próprio material das árvores descarta, num pontilhado fino, os pixels
+// que ficam num cone entre a câmera e o personagem (só a parte que tapa a vista); o resto da árvore não muda.
+const occU={uOccCam:{value:new T.Vector3()},uOccFoco:{value:new T.Vector3()},uOccOn:{value:0}};
+const NL=String.fromCharCode(10);
+const OCC_FRAG=NL+'uniform vec3 uOccCam,uOccFoco;uniform float uOccOn;varying vec3 vOccW;'+NL+
+ 'float occB2(vec2 a){return mod(a.x*2.+a.y*3.,4.);}'+NL+
+ 'float occBayer(vec2 p){p=floor(mod(p,4.));return (4.*occB2(mod(p,2.))+occB2(floor(p/2.)))/16.;}'+NL;
+const OCC_TESTE='if(uOccOn>.5){vec3 od=uOccFoco-uOccCam;float oL=length(od);vec3 ou=od/max(oL,1e-3);vec3 ow=vOccW-uOccCam;float ot=dot(ow,ou);'+
+ 'if(ot>.25&&ot<oL-.3){float orr=mix(.6,1.35,clamp(ot/oL,0.,1.));float ok=length(ow-ou*ot)/orr;'+
+ 'if(ok<1.&&occBayer(gl_FragCoord.xy)>.13+.87*smoothstep(.45,1.,ok))discard;}}'+NL;
+function occMarcar(m){
+ if(!m||m.userData.occ||m.isShaderMaterial||m.isRawShaderMaterial||m.isPointsMaterial||m.isSpriteMaterial||m.isLineBasicMaterial)return;
+ m.userData.occ=true;const prev=m.onBeforeCompile,prevKey=m.customProgramCacheKey;
+ m.onBeforeCompile=function(sh,r){
+  if(prev)prev.call(this,sh,r);
+  if(!sh.vertexShader.includes('#include <project_vertex>')||!sh.fragmentShader.includes('void main() {'))return;
+  Object.assign(sh.uniforms,occU);
+  sh.vertexShader='varying vec3 vOccW;'+NL+sh.vertexShader.replace('#include <project_vertex>','#include <project_vertex>'+NL+
+   '{vec4 owp=vec4(transformed,1.);'+NL+'#ifdef USE_INSTANCING'+NL+'owp=instanceMatrix*owp;'+NL+'#endif'+NL+'vOccW=(modelMatrix*owp).xyz;}');
+  sh.fragmentShader=OCC_FRAG+sh.fragmentShader.replace('void main() {','void main() {'+NL+OCC_TESTE);
+ };
+ m.customProgramCacheKey=function(){return (prevKey?prevKey.call(this):'')+'|occ1';};
+ m.needsUpdate=true;
+}
+// materiais das árvores: floresta da ilha (perto e longe), árvores orgânicas (pool e instanciadas, que também são as
+// das vilas), árvore gigante. Procura de tempos em tempos porque as árvores aparecem aos poucos.
+const OCC_NOMES=/^(Floresta da Ilha|Árvore|Árvores|Floresta distante|Folhas da árvore)/;
+function occVarrer(){
+ scene.traverse(o=>{if(!o.isMesh||!o.material)return;let n=o.name,q=o;while(q&&!n){q=q.parent;n=q&&q.name;}
+  let ok=OCC_NOMES.test(o.name||'');for(let p=o.parent;!ok&&p;p=p.parent)ok=OCC_NOMES.test(p.name||'');
+  if(ok)for(const m of [].concat(o.material))occMarcar(m);});
+}
+setInterval(()=>{if(game.active)occVarrer();},2500);
+
 // V12.62: se a copa invade a linha de visão, os MATERIAIS APENAS DAQUELA
 // árvore recebem transparência temporária. Todos os demais mantêm os mapas
 // de casca, folhas, sombras e vento; tudo é restaurado ao sair do modo Jogar.
@@ -4254,6 +4292,7 @@ function restoreGameCameraTreeFade(a){
  gameCameraFades.delete(a);
 }
 function clearGameCameraOcclusion(){
+ occU.uOccOn.value=0;
  for(const a of [...gameCameraFades.keys()])restoreGameCameraTreeFade(a);
  gameCameraFadeClock=0;
 }

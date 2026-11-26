@@ -320,10 +320,11 @@ function build(api,H){
   for(let i=0;i<(mobile?12:30);i++){let lx,lz,r;do{lx=(R()-.5)*2*MC.rx*.85;lz=MC.z+(R()-.5)*2*MC.rzB*.85;r=s.domeR(lx,lz);}while(r>.92||(Math.abs(lx)<4.5&&lz>PZ-6));
    const sz=1.1+R()*1.8;rock(E,R,lx,s.domeY(lx,lz)-sz*.55,lz,sz,1.25,.75,1,R()<.5?'#8d96a0':'#958f84',null,.7);}
   for(let i=0;i<(mobile?10:22);i++){const a=R()*TAU,lx=Math.sin(a)*MC.rx*1.0,lz=MC.z+Math.cos(a)*(Math.cos(a)>0?MC.rzF:MC.rzB)*1.0;
-   if(Math.abs(lx)<5.5&&lz>PZ-4)continue;const sz=.6+R()*1.1;rock(E,R,lx,yL(lx,lz)+sz*.2,lz,sz,1.15,.75,1,'#8a929b',null,.5);}
+   if(Math.abs(lx)<5.5&&lz>PZ-4)continue;const sz=.6+R()*1.1;rock(E,R,lx,yL(lx,lz)+sz*.2,lz,sz,1.15,.75,1,'#8a929b',null,.5);if(O){const w=s.toW(lx,lz);O.addCircle(w.x,w.z,sz);}}
   {const ax=TW/2+.95,yc=TH*.62,ry=TH*.6+.4;for(let a=-.15;a<=PI+.15;a+=.24){const r=.55+R()*.25;rock(E,R,Math.cos(a)*ax,yc+Math.sin(a)*ry,PZ+.35+R()*.15,r,1,.9,.8,'#8f97a1',null,.45);}
    for(const sx of [-1,1])for(let y=.3;y<yc;y+=.75){const r=.6+R()*.25;rock(E,R,sx*(ax+R()*.15),y,PZ+.35+R()*.2,r,.9,1,.85,'#8a929b',null,.3);}
-   for(const sx of [-1,1]){rock(E,R,sx*(ax+1.2),.3,PZ+.9,1.1+R()*.3,1,.8,1,'#858e98',null,.5);rock(E,R,sx*(ax+.6),.15,PZ+1.4,.55,1,.7,1,'#8a929b',null,.4);}}
+   for(const sx of [-1,1]){rock(E,R,sx*(ax+1.2),.3,PZ+.9,1.1+R()*.3,1,.8,1,'#858e98',null,.5);rock(E,R,sx*(ax+.6),.15,PZ+1.4,.55,1,.7,1,'#8a929b',null,.4);
+    if(O){for(const [qx,qz,qr] of [[sx*(ax+1.2),PZ+.9,1.1],[sx*(ax+.6),PZ+1.4,.5],[sx*ax,PZ+.45,.6]]){const w=s.toW(qx,qz);O.addCircle(w.x,w.z,qr);}}}}
   {const C=new T.Group();ext.add(C);const blk=(x0,x1,y0,y1,z0,z1)=>{const gg=new T.BoxGeometry(x1-x0,y1-y0,z1-z0,4,6,2),p=gg.attributes.position;
     for(let i=0;i<p.count;i++){const X=p.getX(i)+(x0+x1)/2,Y=p.getY(i)+(y0+y1)/2,Z=p.getZ(i)+(z0+z1)/2,inner=Math.abs(Math.abs(X)-TW/2-.05)<.12||Math.abs(Y-TH-.05)<.12;
      p.setXYZ(i,X+(inner?0:.18*N3(X,Y,Z,3)),Y+(inner?0:.12*N3(Y,Z,X,5)),Z+(Z>PZ?.2*N3(X*1.3,Y*1.3,1,7):0));}
@@ -355,12 +356,14 @@ function build(api,H){
    for(let d=0;d<=L1;d+=.8)pts.push({x:a.x+(b.x-a.x)*d/L1,z:a.z+(b.z-a.z)*d/L1,w:5.2-d/L1*2.4});
    for(let d=.8;d<=L2;d+=1){const t=d/L2,wob=Math.sin(t*PI*2+s.seed)*1.2*Math.sin(t*PI);pts.push({x:b.x+(e.x-b.x)*t+(-(e.z-b.z)/L2)*wob,z:b.z+(e.z-b.z)*t+((e.x-b.x)/L2)*wob,w:2.3});}
    const P=[],C=[],ix=[],c0=new T.Color('#b59b74'),c1=new T.Color('#9a8460'),tc=new T.Color();
-   for(let i=0;i<pts.length;i++){const p=pts[i],q=pts[Math.min(pts.length-1,i+1)],o=pts[Math.max(0,i-1)];let dx=q.x-o.x,dz=q.z-o.z;const l=Math.hypot(dx,dz)||1;dx/=l;dz/=l;
+   const UV=[];let ac=0;
+   for(let i=0;i<pts.length;i++){const p=pts[i],q=pts[Math.min(pts.length-1,i+1)],o=pts[Math.max(0,i-1)];let dx=q.x-o.x,dz=q.z-o.z;const l=Math.hypot(dx,dz)||1;dx/=l;dz/=l;if(i)ac+=Math.hypot(p.x-pts[i-1].x,p.z-pts[i-1].z);for(const u of [0,.275,.725,1])UV.push(u,ac/8);
     for(const k of [-1,-.45,.45,1]){const jw=k*p.w/2*(1+(Math.abs(k)===1?.12*Math.sin(i*1.7+k):0)),x=p.x-dz*jw,z=p.z+dx*jw;P.push(x,H(x,z)+.07,z);
      tc.copy(c0).lerp(c1,Math.abs(k)===1?.6:.15*(.5+.5*Math.sin(i*.9)));C.push(tc.r,tc.g,tc.b);}}
    for(let i=0;i<pts.length-1;i++)for(let k=0;k<3;k++){const a0=i*4+k,b0=a0+1,c=a0+4,d=c+1;ix.push(a0,c,b0,b0,c,d);}
-   const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(P,3));g.setAttribute('color',new T.Float32BufferAttribute(C,3));g.setIndex(ix);g.computeVertexNormals();
-   const m=new T.Mesh(g,new T.MeshStandardMaterial({vertexColors:true,roughness:1,side:T.DoubleSide,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}));m.receiveShadow=true;m.name='Trilha da mina';scene.add(m);}
+   const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(P,3));g.setAttribute('color',new T.Float32BufferAttribute(C,3));g.setAttribute('uv',new T.Float32BufferAttribute(UV,2));g.setIndex(ix);g.computeVertexNormals();
+   const m=new T.Mesh(g,new T.MeshStandardMaterial({vertexColors:true,roughness:1,side:T.DoubleSide,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}));m.receiveShadow=true;m.name='Trilha da mina';scene.add(m);
+   const terra=()=>{const tb=window.arcanoTerraBatida;if(!tb){setTimeout(terra,600);return;}const mm=m.material;mm.map=tb.map;mm.bumpMap=tb.bump;mm.bumpScale=.9;mm.vertexColors=false;mm.transparent=true;mm.depthWrite=false;mm.needsUpdate=true;};terra();}
 
   /* ===== Planta da dungeon (já vale para colisão e câmera; a malha é feita ao se aproximar) ===== */
   const LY=makeLayout(s);s.L=LY;s.plat=[];
@@ -423,7 +426,7 @@ function build(api,H){
   const wallCrystals=(L,room,n,pal)=>{for(const w of pick(walls(L,room),n)){const h=.2+R()*1.8,p=wallPt(w.c,w.sd,.5,h,-.05);
    cluster(PC[L],R,p.x,p.y,p.z,.6+R()*.6,p.nx*1.6,p.nz*1.6,pal);addLight(L,p.x+p.nx*.4,p.y+.5,p.z+p.nz*.4,pal===PAL_PURP?[.7,.3,1]:[.3,.7,1.1],.9,.18);}};
   const floorCrystal=(L,x,z,size,pal)=>{const y=LVF[L]+fl0(L,x,z);cluster(PC[L],R,x,y,z,size,0,0,pal);addLight(L,x,y+size*.7,z,pal===PAL_PURP?[.7,.3,1]:[.3,.7,1.1],1.3*size,.14);obst(L,x,z,size*.35);};
-  const frame=(L,pa,pb)=>{const B=PR[L];log(B,[pa.x,pa.fl-.1,pa.z],[pa.x,pa.top,pa.z],.15,WD);log(B,[pb.x,pb.fl-.1,pb.z],[pb.x,pb.top,pb.z],.15,WD);
+  const frame=(L,pa,pb)=>{const B=PR[L];obst(L,pa.x,pa.z,.22);obst(L,pb.x,pb.z,.22);log(B,[pa.x,pa.fl-.1,pa.z],[pa.x,pa.top,pa.z],.15,WD);log(B,[pb.x,pb.fl-.1,pb.z],[pb.x,pb.top,pb.z],.15,WD);
    log(B,[pa.x,pa.top-.12,pa.z],[pb.x,pb.top-.12,pb.z],.16,WD);
    const dx=pb.x-pa.x,dz=pb.z-pa.z,l=Math.hypot(dx,dz)||1,ux=dx/l,uz=dz/l;
    log(B,[pa.x,pa.top-.75,pa.z],[pa.x+ux*.6,pa.top-.1,pa.z+uz*.6],.06,WD2);log(B,[pb.x,pb.top-.75,pb.z],[pb.x-ux*.6,pb.top-.1,pb.z-uz*.6],.06,WD2);};
@@ -442,7 +445,7 @@ function build(api,H){
    for(let k=0;k<4;k++){const v0=k/4,v1=(k+1)/4,ya=bil(c.y,.5,v0),yb=bil(c.y,.5,v1),top=Math.max(ya,yb),bot=Math.min(ya,yb)-.4;
     box(B,GC+eL+eR,top-bot,.5,R()<.5?'#77716a':'#6c6862',mat(x0+GC/2+(eR-eL)/2,(top+bot)/2,z0+(v0+v1)/2*GC));}}
   // escoramento de madeira nas paredes
-  const crib=(L,w)=>{const a=wallPt(w.c,w.sd,0,0,.18),b=wallPt(w.c,w.sd,1,0,.18),B=PR[L],ht=Math.min(3.4,w.c.ceil-.2);
+  const crib=(L,w)=>{const a=wallPt(w.c,w.sd,0,0,.18),b=wallPt(w.c,w.sd,1,0,.18),B=PR[L],ht=Math.min(3.4,w.c.ceil-.2);obst(L,a.x,a.z,.2);obst(L,b.x,b.z,.2);
    log(B,[a.x,a.fl-.1,a.z],[a.x,a.fl+ht,a.z],.14,WD);log(B,[b.x,b.fl-.1,b.z],[b.x,b.fl+ht,b.z],.14,WD);
    for(const h of [.7,1.5,2.3])box(B,Math.hypot(b.x-a.x,b.z-a.z)+.3,.22,.08,R()<.5?WD:WD2,mat((a.x+b.x)/2+a.nx*.08,a.fl+h,(a.z+b.z)/2+a.nz*.08,0,Math.atan2(b.x-a.x,b.z-a.z)+PI/2));
    log(B,[a.x,a.fl+ht,a.z],[b.x,b.fl+ht,b.z],.13,WD2);};
