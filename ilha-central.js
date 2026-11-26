@@ -125,7 +125,11 @@ function install(){
   pts.push({x:way[way.length-1].x,z:way[way.length-1].z});
   // Nível da água: sempre abaixo do terreno e só descendo (corredeiras na encosta).
   let lvl=startLevel;
-  for(const p of pts){lvl=Math.min(lvl,field(p.x,p.z)-.6);p.level=Math.max(lvl,endLevel);}
+  // Braço que sai de outro curso: começa no nível do curso de cima e desce no máximo 22 cm por metro
+  // (antes pegava na hora o nível do terreno: na bifurcação C ficava 2,7 m abaixo, com paredão e água em dois níveis).
+  {const br=startLevel!==Infinity;let dd=0;
+   for(let i=0;i<pts.length;i++){const p=pts[i];if(i>0)dd+=Math.hypot(p.x-pts[i-1].x,p.z-pts[i-1].z);
+    lvl=Math.min(lvl,Math.max(field(p.x,p.z)-.6,br?startLevel-.22*dd:-Infinity));p.level=Math.max(lvl,endLevel);}}
   pts[0].level=Math.min(startLevel,pts[0].level);
   // Últimos metros: o nível desce suave até o da foz (lago ou outro braço), sem degrau.
   {let acc=0;const dist=new Array(pts.length).fill(0);for(let i=pts.length-2;i>=0;i--){acc+=Math.hypot(pts[i+1].x-pts[i].x,pts[i+1].z-pts[i].z);dist[i]=acc;}
@@ -242,7 +246,7 @@ function install(){
     // entre dois cursos: mistura as duas margens numa faixa de ~7 m (antes virava um paredão onde trocava o curso mais próximo)
     const yA=one(two[0]),yB=one(two[1]),t=.5*(1-sm(0,7,two[1].d-two[0].d));let ym=yA+(yB-yA)*t;
     // a margem do curso mais próximo continua acima da água dele (sem lâmina d'água escorrendo pela encosta)
-    {const cl=q=>q.d<STREAM_W*.78?-1e9:q.level+.12+(Math.min(q.d,STREAM_W+3.5)-STREAM_W*.78)*.12-Math.max(0,q.d-(STREAM_W+3.5))*1.1,cA=cl(two[0]),cB=cl(two[1]);ym=Math.max(ym,cB<-1e8?cA:cA+(cB-cA)*t);}return finishWater(x,z,ym);}
+    {const cl=q=>q.d<STREAM_W*.78?-1e9:q.level+.12+(Math.min(q.d,STREAM_W+3.5)-STREAM_W*.78)*.12-Math.max(0,q.d-(STREAM_W+3.5))*.55,cA=cl(two[0]),cB=cl(two[1]);ym=Math.max(ym,cB<-1e8?cA:Math.max(cA,cB));}return finishWater(x,z,ym);}
    const depth=.75-1.2*sI(clamp((si.d/STREAM_W-.45)/.5,0,1));
    const bankT=sI(clamp((STREAM_W+6-si.d)/6,0,1));
    if(bankT>0)y=y+(si.level-depth-y)*bankT;
@@ -332,12 +336,15 @@ function install(){
   return y;
  }
  // Nível único da água do lago + canal + afluentes (e a correnteza no ponto).
- function pondWater(x,z){
+ // malha=true (só para montar a superfície d'água): entre dois cursos, o ponto fora do canal volta marcado
+ // como seco em vez de nulo — a célula entra e a borda some pela profundidade negativa, seguindo o terreno.
+ // Com nulo, a célula inteira (70 cm) saía e a margem ficava em escada.
+ function pondWater(x,z,malha){
   if(z>INNER.z0+.01)return null;
   const le=lakeE(x,z),canal=z>LAKE.z&&Math.abs(x-river.center(z))<half(z)+3;
-  const si=streamInfo(x,z);let inS=si&&si.d<STREAM_W+3.4;
+  const si=streamInfo(x,z);let inS=si&&si.d<STREAM_W+3.4,seca=false;
   // dois cursos lado a lado (perto das bifurcações): a água fica só no canal, sem escorrer pelo barranco entre eles
-  if(inS&&si.d>STREAM_W*.8&&!STREAMS[si.sid].south&&Math.min(Math.hypot(x-splitB.x,z-splitB.z),Math.hypot(x-splitC.x,z-splitC.z),Math.hypot(x-joinC.x,z-joinC.z))>9){const two=streamInfo2(x,z);if(two.length>1&&two[1].d<STREAM_W+16&&two[1].d-two[0].d<7)inS=false;}
+  if(inS&&si.d>STREAM_W*.8&&!STREAMS[si.sid].south&&Math.min(Math.hypot(x-splitB.x,z-splitB.z),Math.hypot(x-splitC.x,z-splitC.z),Math.hypot(x-joinC.x,z-joinC.z))>9){const two=streamInfo2(x,z);if(two.length>1&&two[1].d<STREAM_W+16&&two[1].d-two[0].d<7){if(malha)seca=true;else inS=false;}}
   const lakeish=le<1.6||canal;
   if(!lakeish&&!inS)return null;
   const toRiver=sm(LAKE.z,INNER.z0,z);
@@ -347,7 +354,7 @@ function install(){
    level=Math.max(si.level,LAKE.y);sid=level>LAKE.y+.05?si.sid:-1;
    fx=fx*(1-w)+si.tx*si.speed*w;fz=fz*(1-w)+si.tz*si.speed*w;
   }
-  return {level,fx,fz,sid};
+  return {level,fx,fz,sid,seca};
  }
  const outsideDist=(x,z)=>{
   const dx=Math.max(INNER.x0-x,0,x-INNER.x1),dz=Math.max(INNER.z0-z,0,z-INNER.z1);
@@ -874,7 +881,7 @@ function install(){
    const pos=[],uvA=[],dep=[],flw=[],ix=[];let prevRow=-1;
    for(let i=0;i<P.length;i++){if(!keep[i]){prevRow=-1;continue;}const p=P[i],nx=p.tz,nz=-p.tx,row=pos.length/3;
     for(let c=0;c<COLS;c++){const bw=B.w*branchWiden(B,i),sc=(c/(COLS-1))*2-1,x=p.x+nx*sc*bw*.98,z=p.z+nz*sc*bw*.98,lvv=inMainRiver(x,z,-.4)?river.levelAt(z)-.03:joinLevel(x,z,p.level);pos.push(x,lvv+.002,z);uvA.push(c/(COLS-1),i/(P.length-1));
-     dep.push(Math.max(0,lvv-window.arcanoIslandHeight(x,z)));flw.push(p.tx*p.speed,p.tz*p.speed);}
+     dep.push(Math.max(-.35,lvv-window.arcanoIslandHeight(x,z)));flw.push(p.tx*p.speed,p.tz*p.speed);}
     if(prevRow>=0)for(let c=0;c<COLS-1;c++){const a=prevRow+c,b=a+1,cc=row+c,d=cc+1;ix.push(a,cc,b,b,cc,d);}prevRow=row;}
    if(!ix.length)continue;const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(pos,3));g.setAttribute('uv',new T.Float32BufferAttribute(uvA,2));
    g.setAttribute('waterDepth',new T.Float32BufferAttribute(dep,1));g.setAttribute('waterFlow',new T.Float32BufferAttribute(flw,2));g.setIndex(ix);g.computeBoundingSphere();
@@ -882,7 +889,7 @@ function install(){
   // Lagoa no fim do braço oeste.
   {const RN=10,AN=56,pos=[],uvA=[],dep=[],flw=[],ix=[];
    for(let r=0;r<=RN;r++)for(let a=0;a<=AN;a++){const t=r/RN*1.03,an=a/AN*Math.PI*2,x=LAGOON.x+Math.cos(an)*LAGOON.rx*t,z=LAGOON.z+Math.sin(an)*LAGOON.rz*t;
-    pos.push(x,LAGOON.y+.002,z);uvA.push(a/AN,r/RN);dep.push(Math.max(0,LAGOON.y-window.arcanoIslandHeight(x,z)));flw.push(0,0);}
+    pos.push(x,LAGOON.y+.002,z);uvA.push(a/AN,r/RN);dep.push(Math.max(-.35,LAGOON.y-window.arcanoIslandHeight(x,z)));flw.push(0,0);}
    for(let r=0;r<RN;r++)for(let a=0;a<AN;a++){const p=r*(AN+1)+a,q=p+AN+1;ix.push(p,p+1,q,p+1,q+1,q);}
    const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(pos,3));g.setAttribute('uv',new T.Float32BufferAttribute(uvA,2));
    g.setAttribute('waterDepth',new T.Float32BufferAttribute(dep,1));g.setAttribute('waterFlow',new T.Float32BufferAttribute(flw,2));g.setIndex(ix);g.computeBoundingSphere();
@@ -896,11 +903,12 @@ function install(){
    const nx=Math.round((xB-xA)/S)+1,nz=Math.round((zB-zA)/S)+1;
    const p=new Float32Array(nx*nz*3),uvA=new Float32Array(nx*nz*2),dep=new Float32Array(nx*nz),fl=new Float32Array(nx*nz*2),ok=new Uint8Array(nx*nz),ix=[],lev=new Float32Array(nx*nz),sidA=new Int8Array(nx*nz);
    for(let j=0;j<nz;j++)for(let i=0;i<nx;i++){
-    const k=j*nx+i,x=xA+i*S,z=Math.min(zB,zA+j*S),w=pondWater(x,z);
+    const k=j*nx+i,x=xA+i*S,z=Math.min(zB,zA+j*S),w=pondWater(x,z,true);
     p[k*3]=x;p[k*3+2]=z;uvA[k*2]=i/(nx-1);uvA[k*2+1]=j/(nz-1);
     if(!w){p[k*3+1]=LAKE.y;continue;}
     ok[k]=1;p[k*3+1]=w.level+.003;lev[k]=w.level;sidA[k]=w.sid;
-    dep[k]=Math.max(0,w.level-window.arcanoIslandHeight(x,z));
+    dep[k]=Math.max(-.35,w.level-window.arcanoIslandHeight(x,z)); // com sinal: borda da água segue o terreno (com 0 ficava em escada na grade)
+    if(w.seca)dep[k]=Math.min(-.05,dep[k]);
     fl[k*2]=w.fx;fl[k*2+1]=w.fz;
    }
    // Célula molhada: os 4 cantos com nível definido, alguma profundidade e sem
@@ -909,7 +917,7 @@ function install(){
    for(let j=0;j<nz-1;j++)for(let i=0;i<nx-1;i++){
     const a=j*nx+i,b=a+1,c=a+nx,d=c+1;
     if(!(ok[a]&&ok[b]&&ok[c]&&ok[d]))continue;
-    if(dep[a]+dep[b]+dep[c]+dep[d]<=0)continue;
+    if(Math.max(dep[a],dep[b],dep[c],dep[d])<=0)continue;
     const lo=Math.min(lev[a],lev[b],lev[c],lev[d]),hi=Math.max(lev[a],lev[b],lev[c],lev[d]);
     const jx=p[a*3],jz=p[a*3+2],nearJ=Math.min(Math.hypot(jx-splitB.x,jz-splitB.z),Math.hypot(jx-splitC.x,jz-splitC.z),Math.hypot(jx-joinC.x,jz-joinC.z))<14;
     const same=nearJ||(sidA[a]===sidA[b]&&sidA[a]===sidA[c]&&sidA[a]===sidA[d]);
@@ -919,7 +927,7 @@ function install(){
    }
    // Só a água ligada ao corpo principal (poças soltas na margem eram os 'vazamentos').
    const q=[];
-   for(let c=0;c<CN;c++){if(!wet[c])continue;const i=c%(nx-1),j=(c/(nx-1))|0,a=j*nx+i;if(dep[a]+dep[a+1]+dep[a+nx]+dep[a+nx+1]>1.0){seen[c]=1;q.push(c);}}
+   for(let c=0;c<CN;c++){if(!wet[c])continue;const i=c%(nx-1),j=(c/(nx-1))|0,a=j*nx+i;if(Math.max(0,dep[a])+Math.max(0,dep[a+1])+Math.max(0,dep[a+nx])+Math.max(0,dep[a+nx+1])>1.0){seen[c]=1;q.push(c);}}
    while(q.length){const c=q.pop(),i=c%(nx-1),j=(c/(nx-1))|0;
     for(const [di,dj] of [[1,0],[-1,0],[0,1],[0,-1]]){const ii=i+di,jj=j+dj;if(ii<0||jj<0||ii>=nx-1||jj>=nz-1)continue;const n=jj*(nx-1)+ii;if(wet[n]&&!seen[n]){seen[n]=1;q.push(n);}}}
    for(let c=0;c<CN;c++){if(!seen[c])continue;const i=c%(nx-1),j=(c/(nx-1))|0,a=j*nx+i,b=a+1,cc=a+nx,d=cc+1;ix.push(a,cc,b,b,cc,d);}
@@ -935,8 +943,8 @@ function install(){
    if(LG){
     const S=1.1,A=LG.r+17,nx=Math.round(2*A/S)+1,nz=nx,p=new Float32Array(nx*nz*3),uvA=new Float32Array(nx*nz*2),dep=new Float32Array(nx*nz),fl=new Float32Array(nx*nz*2),okg=new Uint8Array(nx*nz),ix=[];
     for(let j=0;j<nz;j++)for(let i=0;i<nx;i++){const k=j*nx+i,x=LG.x-A+i*S,z=LG.z-A+j*S;p[k*3]=x;p[k*3+1]=LG.level+.003;p[k*3+2]=z;uvA[k*2]=i/(nx-1);uvA[k*2+1]=j/(nz-1);
-     const h=window.arcanoIslandHeight(x,z);dep[k]=Math.max(0,LG.level-h);okg[k]=Math.hypot(x-LG.x,z-LG.z)<LG.r+15?1:0;}
-    for(let j=0;j<nz-1;j++)for(let i=0;i<nx-1;i++){const a=j*nx+i,b=a+1,c2=a+nx,d=c2+1;if(!(okg[a]&&okg[b]&&okg[c2]&&okg[d]))continue;if(dep[a]+dep[b]+dep[c2]+dep[d]<=0)continue;ix.push(a,c2,b,b,c2,d);}   // a água passa por baixo da margem: o encontro com o terreno fica liso
+     const h=window.arcanoIslandHeight(x,z);dep[k]=Math.max(-.35,LG.level-h);okg[k]=Math.hypot(x-LG.x,z-LG.z)<LG.r+15?1:0;}
+    for(let j=0;j<nz-1;j++)for(let i=0;i<nx-1;i++){const a=j*nx+i,b=a+1,c2=a+nx,d=c2+1;if(!(okg[a]&&okg[b]&&okg[c2]&&okg[d]))continue;if(Math.max(dep[a],dep[b],dep[c2],dep[d])<=0)continue;ix.push(a,c2,b,b,c2,d);}   // a água passa por baixo da margem: o encontro com o terreno fica liso
     const gg=new T.BufferGeometry();gg.setAttribute('position',new T.BufferAttribute(p,3));gg.setAttribute('uv',new T.BufferAttribute(uvA,2));gg.setAttribute('waterDepth',new T.BufferAttribute(dep,1));gg.setAttribute('waterFlow',new T.BufferAttribute(fl,2));gg.setIndex(ix);
     const big=new T.Mesh(gg,shareMat(-9999));big.name='Lago grande da floresta';big.frustumCulled=false;big.renderOrder=3;scene.add(big);
    }}

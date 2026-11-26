@@ -244,7 +244,7 @@ void main(){
    float wake=smoothstep(0.,rk.z,al)*smoothstep(rk.z*4.,rk.z,al)*smoothstep(rk.z*(.9+al*.12),0.,abs(ac));
    rockFoam+=wake*smoothstep(.5,.68,fn)*.6*spK;
    rockLines+=wake*smoothstep(.8,.93,sin((fq.x-uTime*(.5+speed))*5.+ac*4.+fn*7.))*.6*spK;}
-  col+=uFoam*(streak*.1+specks*.22+rockLines*.42)*(.3+.7*dayK);
+  col+=uFoam*(streak*.1+specks*.22+rockLines*.42)*(.3+.7*dayK)*(1.-.85*smoothstep(1.24,1.42,length(vFlow)));
   foam=clamp(foam+rockFoam,0.,1.);
  }
  col=mix(col,uFoam,foam);a=max(a,foam*.9);
@@ -269,6 +269,23 @@ void main(){
   float streak=smoothstep(.55,.85,s1*.6+s2*.5)*smoothstep(.1,.7,vFallS);
   col=mix(col,uFoam,streak*.75);
   a=mix(a,max(a,.88)+.1*streak,sheet);
+ }
+ // ---------- Corredeira: água descendo encosta (afluentes da montanha, queda da nascente) ----------
+ // Antes a superfície inclinada saía lisa e com o reflexo do espelho plano: parecia uma placa de vidro.
+ // Agora vira água branca, em listras que descem com a correnteza, quase opaca.
+ float rap=smoothstep(1.24,1.42,length(vFlow))*(1.-vFallV); // pela velocidade (suave por vértice; a inclinação de cada triângulo dava listras)
+ if(rap>.001){
+  // padrão no espaço do mundo, arrastado pela correnteza em duas fases (sem emenda onde a direção do trecho muda;
+  // com o eixo da correnteza as listras quebravam em zigue-zague a cada 2 m)
+  float tR=uTime*.9,q0=fract(tR),q1=fract(tR+.5),wmR=abs(q0-.5)*2.;
+  vec2 advR=flow*(2.2+speed*2.6),PR=vWorld.xz*2.4;
+  float sA=0.,sB=0.;
+  for(int k=0;k<4;k++){vec2 o=flow*float(k)*.55;sA+=fbm(PR-advR*q0-o);sB+=fbm(PR+vec2(.37,.61)-advR*q1-o);}
+  float w1=mix(sA,sB,wmR)*.25,w2=mix(noise(PR*3.1-advR*q0*2.),noise(PR*3.1+vec2(5.3,1.7)-advR*q1*2.),wmR);
+  float white=clamp(smoothstep(.38,.72,w1)*.8+smoothstep(.62,.9,w2)*.45,0.,1.);
+  vec3 rapC=mix(mix(uShallow,uFoam,.55),uFoam,white)*(.78+.22*dayK);
+  col=mix(col,rapC,rap*(.6+.4*white));
+  a=max(a,rap*(.85+.15*white));
  }
  float pz=vWorld.z-(uFallZ+.65);
  float plunge=exp(-pz*pz*.6)*smoothstep(-.9,-.15,pz)*(1.-sheet);

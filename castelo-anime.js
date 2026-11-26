@@ -852,7 +852,7 @@ function build(api,site){
  }
  requestAnimationFrame(frame);
  setInterval(()=>{const s=window.arcanoAnimeSky&&window.arcanoAnimeSky.material.uniforms.uSunDir.value;const night=s?Math.min(1,Math.max(0,(-s.y+.02)/.2)):0;M.glass.emissiveIntensity=.9+night*1.6;M.winOut.emissiveIntensity=.05+night*2.2;if(M.winTile)M.winTile.emissiveIntensity=.05+night*2.2;M.fire.emissiveIntensity=1.8+Math.sin(performance.now()*.01)*.3;},120);
- return {root};
+ return {root,interiors,shells,ceilings,outerPanes,roof,lid};
 }
 
 // ---------- Escadaria e chafariz ----------
@@ -1023,7 +1023,8 @@ function install(){
  const api=window.arcanoWaterV1226,site=window.arcanoCastleSite;
  if(!api||!api.scene||!site||!window.arcanoIslandHeight){setTimeout(install,300);return;}
  const c=build(api,site);buildPlaza(api,site);buildGarden(api,site);
- window.arcanoCastle={site,root:c.root};
+ // grupos por andar expostos para a exportação do Godot (o jogo mostra um andar por vez: setFloor)
+ window.arcanoCastle={site,root:c.root,interiors:c.interiors,shells:c.shells,ceilings:c.ceilings,outerPanes:c.outerPanes,roof:c.roof,lid:c.lid,stair:ST,floorH:FH,floors:NF,box:{x:BX,z0:BZ0,z1:BZ1}};
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install();
 })();
