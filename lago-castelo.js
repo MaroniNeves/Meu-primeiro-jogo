@@ -148,6 +148,7 @@ function install(){
   for(const l of LAMPS){const sp=new T.Sprite(halo);sp.position.copy(l.p);sp.scale.setScalar(1.5);sp.renderOrder=5;root.add(sp);const d=new T.Mesh(pg,pool);d.position.set(l.p.x,l.fy+.05,l.p.z);d.renderOrder=4;root.add(d);}
   const mob=/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent),lights=[];for(let i=0;i<(mob?2:4);i++){const pl=new T.PointLight('#ffb25a',0,11,1.3);root.add(pl);lights.push(pl);}
   const tmp=new T.Vector3();
+  window.arcanoLampioesCastelo={LAMPS,halo,pool,glassMat,lights};   // para a exportação do Godot
   (function tick(){requestAnimationFrame(tick);const rv=window.arcanoAnimeRiver;let day=1;if(rv){const su=rv.material.uniforms.uSun.value;day=Math.min(1,Math.max(0,(su.y+.1)/.28));}
    const n=Math.min(1,Math.max(0,(.45-day)/.35)),k=n*n*(3-2*n);
    glassMat.color.setRGB(.91+.09*k,.85-.02*k,.69-.22*k);halo.opacity=k*.95;pool.opacity=k*.5;
@@ -160,6 +161,7 @@ function install(){
   const hull=new T.Mesh(new T.SphereGeometry(1,22,10,0,TAU,PI/2,PI/2),M.woodH||M.deck);hull.rotation.x=PI;hull.scale.set(.95,.62,2.5);hull.material=new T.MeshStandardMaterial({map:M.deck.map,bumpMap:M.deck.bumpMap,bumpScale:.8,side:T.DoubleSide,roughness:1});boat.add(hull);
   for(const z of [-.8,.3,1.2]){const b=new T.Mesh(new T.BoxGeometry(1.7,.08,.28),M.woodDark);b.position.set(0,.12,z);boat.add(b);}
   for(const s of [-1,1]){const o=new T.Mesh(new T.CylinderGeometry(.03,.03,2.2,5),M.woodDark);o.rotation.z=PI/2.5*s;o.position.set(s*.95,.35,.1);boat.add(o);}
+  window.arcanoBarcoCastelo={boat,y0:WATER-.08};   // para a exportação do Godot
   const t0=performance.now();(function bob(now){requestAnimationFrame(bob);const t=(now-t0)/1000;boat.position.y=WATER-.08+Math.sin(t*1.3)*.035;boat.rotation.z=Math.sin(t*1.1)*.025;boat.rotation.x=Math.sin(t*.9+1)*.018;})(t0);
   // corda até o poste do píer
   const rp=new T.Mesh(new T.CylinderGeometry(.015,.015,3.4,4),M.cloth);rp.position.set(X0+3.4,WATER+.25,-69.6);rp.rotation.z=PI/2-.15;rp.rotation.y=0;root.add(rp);

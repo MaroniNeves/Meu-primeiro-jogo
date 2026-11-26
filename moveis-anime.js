@@ -96,6 +96,7 @@ function materiais(){
  // lambri: madeira escura, madeira clara, pintado de verde e de azul (cada casa um); molduras combinando
  M.lambris=[M.lambri,w({hue:36,light:56,boards:7,seed:309}),w({hue:150,sat:22,light:44,boards:9,seed:310}),w({hue:208,sat:26,light:46,boards:9,seed:311})];
  M.molduras=[M.moldura,w({hue:30,light:46,horizontal:true,seed:316}),w({hue:40,sat:20,light:78,horizontal:true,seed:317}),w({hue:40,sat:20,light:78,horizontal:true,seed:318})];
+ M.vidro.userData.noite=[.6,2.2];M.chama.userData.noite=[1.6,1.2];   // marcas para a exportação do Godot
  setInterval(()=>{const s=window.arcanoAnimeSky&&window.arcanoAnimeSky.material.uniforms.uSunDir.value;const n=s?Math.min(1,Math.max(0,(-s.y+.02)/.2)):0;
   M.vidro.emissiveIntensity=.6+n*2.2;M.chama.emissiveIntensity=1.6+n*1.2;},1000);
  return M;}

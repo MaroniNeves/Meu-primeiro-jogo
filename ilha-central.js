@@ -763,7 +763,7 @@ function install(){
   const floating=new T.InstancedMesh(rockGeo,new T.MeshStandardMaterial({color:'#b1aca4',roughness:1}),mobile?10:18);
   floating.name='Pedras flutuantes da ilha';
   const m=new T.Matrix4(),q=new T.Quaternion(),e=new T.Euler(),sc=new T.Vector3(),pp=new T.Vector3();
-  const floatData=[];
+  const floatData=[];floating.userData.flutua=floatData;   // exportação do Godot
   for(let i=0;i<floating.count;i++){
    const a=rnd()*Math.PI*2,dist=R+25+rnd()*90,s=4+rnd()*11;
    floatData.push({x:C.x+Math.cos(a)*dist,z:C.z+Math.sin(a)*dist,y:-10-rnd()*70,s,r:rnd()*6.28,ph:rnd()*6.28});
@@ -1097,6 +1097,7 @@ function install(){
     const lx=side*(AW/2+(GW-AW)/4),wx=gx+lx*Math.cos(rotY),wz=gz-lx*Math.sin(rotY);
     O.addBox({x:wx,z:wz,hw:(GW-AW)/4,hd:GD/2,rot:rotY});
    }
+   lampMat.userData.noite=[.6,1.8];   // marca para a exportação do Godot (luz da noite = base + noite×k)
    setInterval(()=>{const s=window.arcanoAnimeSky&&window.arcanoAnimeSky.material.uniforms.uSunDir.value;const night=s?Math.min(1,Math.max(0,(-s.y+.02)/.2)):0;lampMat.emissiveIntensity=.6+night*1.8;},1000);
   }
  }

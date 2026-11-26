@@ -514,9 +514,11 @@ function build(api,isl){
    const hy=(w,out)=>{if(!w)return;if(out>-1)w.visible=false;else if(out<-2.5)w.visible=true;};
    hy(inside.walls['v+'],cv-inside.D/2);hy(inside.walls['v-'],-inside.D/2-cv);hy(inside.walls['u+'],cu-inside.L/2);hy(inside.walls['u-'],-inside.L/2-cu);}}
  })(performance.now());
+ // marcas para a exportação do Godot (sem efeito no jogo): luz da noite = base + noite×k
+ M.glass.userData.noite=[.15,1.2];M.lamp.userData.noite=[.45,2.2];
  setInterval(()=>{const s=window.arcanoAnimeSky&&window.arcanoAnimeSky.material.uniforms.uSunDir.value;const night=s?Math.min(1,Math.max(0,(-s.y+.02)/.2)):0;
   M.glass.emissiveIntensity=.15+night*1.2;M.lamp.emissiveIntensity=.45+night*2.2;lighthouse.beacon.intensity=1.2+night*2.5;},1000);
- return {root,ship,interact,buildings};
+ return {root,ship,interact,buildings,anim:{SDY,wings,props,core,rings,crystals,flags,beacon:lighthouse.beacon}};
 }
 
 function install(){

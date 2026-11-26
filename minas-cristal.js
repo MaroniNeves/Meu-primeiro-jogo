@@ -709,7 +709,7 @@ function build(api,H){
  const dayF=()=>{const R=window.arcanoAnimeRiver,u=R&&R.material&&R.material.uniforms&&R.material.uniforms.uSun;const y=u?u.value.y:.5;return Math.min(1,Math.max(0,(y+.1)/.28));};
  const cG=new T.Color('#b89a64'),cN=new T.Color('#ffd27a'),cRay=new T.Color('#fff0c4');let last=performance.now(),t=0,near=null;
  addEventListener('keydown',e=>{if(e.key&&e.key.toLowerCase()==='e'&&near&&!e.repeat)near.act();});
- window.arcanoMinasObj={objs,SITES,inter,findCell,
+ window.arcanoMinasObj={mats:{glassEx,crMat,flameMat,glassIn,cG,cN},objs,SITES,inter,findCell,
   prewarm(){const o=objs[0];if(!o.built){o.built=true;try{buildDungeon(o);}catch(e){console.error(e);}}return new Promise(res=>{const t0=performance.now(),w=()=>(o.ready||performance.now()-t0>15000)?res(o):setTimeout(w,50);w();});},
   showAll(v){for(const o of objs){o.root.visible=true;for(const g of o.levels)g.visible=v;}}};
  const tmpC=new T.Color();

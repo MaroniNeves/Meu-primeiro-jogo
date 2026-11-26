@@ -326,6 +326,7 @@ function build(api,V){
  }
  const root=new T.Group();root.name='Vila da Montanha';scene.add(root);
  mergeInto(all,root,'Vila da Montanha · casas');for(const a of anchors)root.add(a);
+ M.glass.userData.noite=[.06,1.9];M.lamp.userData.noite=[.4,2.2];M.lantern.userData.noite=[.5,1.8];   // marcas para a exportação do Godot
  setInterval(()=>{const s=window.arcanoAnimeSky&&window.arcanoAnimeSky.material.uniforms.uSunDir.value;const night=s?Math.min(1,Math.max(0,(-s.y+.02)/.2)):0;
   M.glass.emissiveIntensity=.06+night*1.9;M.lamp.emissiveIntensity=.4+night*2.2;M.lantern.emissiveIntensity=.5+night*1.8;},1000);
  return root;

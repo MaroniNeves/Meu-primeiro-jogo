@@ -107,6 +107,7 @@ function install(){
   const night=s?Math.min(1,Math.max(0,(-s.y+.02)/.2)):0;
   M.lamp.emissiveIntensity=.4+night*1.8;
  },1000);
+ M.lamp.userData.noite=[.4,1.8];   // marca para a exportação do Godot (luz da noite = base + noite×k)
  window.arcanoAnimeBridge=g;
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install();

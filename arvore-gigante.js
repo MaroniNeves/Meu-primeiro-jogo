@@ -287,7 +287,7 @@ function install(){
  {const glow=(()=>{const c=document.createElement('canvas');c.width=c.height=32;const g=c.getContext('2d'),gr=g.createRadialGradient(16,16,0,16,16,16);gr.addColorStop(0,'rgba(255,245,170,1)');gr.addColorStop(1,'rgba(255,230,120,0)');g.fillStyle=gr;g.fillRect(0,0,32,32);return new T.CanvasTexture(c);})();
   for(let i=0;i<70;i++){const a=rnd()*TAU,r=6+rnd()*34,y=3+rnd()*48,s=new T.Sprite(new T.SpriteMaterial({map:glow,transparent:true,blending:T.AdditiveBlending,depthWrite:false,fog:false,toneMapped:false}));s.scale.set(.5,.5,1);root.add(s);
    fireflies.push({s,x:Math.sin(a)*r,y,z:Math.cos(a)*r,ax:1+rnd()*2,ay:.6+rnd()*1.2,sp:.5+rnd()*.8,ph:rnd()*6,t:rnd()*9});}}
- window.arcanoArvoreGigante={root,base,tronco:outerMesh};
+ window.arcanoArvoreGigante={root,base,tronco:outerMesh,fireflies,interior:{x:LG.x,z:LG.z,RIN,DOORW}};   // vaga-lumes/interior: exportação do Godot
  console.info('[Árvore gigante] pronta: '+(leafV.P.length/12|0)+' folhas');
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install();

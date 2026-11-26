@@ -851,8 +851,10 @@ function build(api,site){
   }
  }
  requestAnimationFrame(frame);
+ // marcas para a exportação do Godot (sem efeito no jogo): luz da noite = base + noite×k; chama tremula
+ M.glass.userData.noite=[.9,1.6];M.winOut.userData.noite=[.05,2.2];if(M.winTile)M.winTile.userData.noite=[.05,2.2];M.fire.userData.chama=[1.8,.3];
  setInterval(()=>{const s=window.arcanoAnimeSky&&window.arcanoAnimeSky.material.uniforms.uSunDir.value;const night=s?Math.min(1,Math.max(0,(-s.y+.02)/.2)):0;M.glass.emissiveIntensity=.9+night*1.6;M.winOut.emissiveIntensity=.05+night*2.2;if(M.winTile)M.winTile.emissiveIntensity=.05+night*2.2;M.fire.emissiveIntensity=1.8+Math.sin(performance.now()*.01)*.3;},120);
- return {root,interiors,shells,ceilings,outerPanes,roof,lid};
+ return {root,interiors,shells,ceilings,outerPanes,roof,lid,core,halo,coreLocal,coreLight,lamps};
 }
 
 // ---------- Escadaria e chafariz ----------
@@ -908,7 +910,7 @@ function buildPlaza(api,site){
   let k=0;setInterval(()=>{const pl=api.getGrassPlayer&&api.getGrassPlayer(),cam=api.getMainCamera&&api.getMainCamera(),pp=(pl||cam);if(!pp||Math.hypot(pp.position.x-fx,pp.position.z-fz)>60)return;
    const now=performance.now()/1000;u.uClock.value=now;const a=(k++%8)*Math.PI/4+.39,R0=6.3-3.3;
    u.uRings.value[(k*5)%12].set(fx+Math.cos(a)*R0,fz+Math.sin(a)*R0,now,.35);if(k%2===0)u.uRings.value[(k*5+3)%12].set(fx+(Math.random()-.5)*.8,fz+(Math.random()-.5)*.8,now,.25);},450);})();
- for(const [r,y0,y1] of [[3.35,4.3,1.18],[1.78,6.6,4.25]]){const c=new T.Mesh(new T.CylinderGeometry(r,r+.25,y0-y1,48,1,true),curtainMat);c.position.set(fx,fy+(y0+y1)/2,fz);scene.add(c);}
+ const curtains=[];for(const [r,y0,y1] of [[3.35,4.3,1.18],[1.78,6.6,4.25]]){const c=new T.Mesh(new T.CylinderGeometry(r,r+.25,y0-y1,48,1,true),curtainMat);c.position.set(fx,fy+(y0+y1)/2,fz);scene.add(c);curtains.push({m:c,r,y0,y1});}
  const robe=new T.LatheGeometry([new T.Vector2(0,0),new T.Vector2(.62,0),new T.Vector2(.5,.9),new T.Vector2(.33,1.7),new T.Vector2(.28,2.1),new T.Vector2(0,2.2)],16);
  const fig=new T.Mesh(robe,M.wall);fig.position.set(fx,fy+6.6,fz);g.add(fig);
  const head=new T.Mesh(new T.SphereGeometry(.28,12,10),M.wall);head.position.set(fx,fy+9.05,fz);g.add(head);
@@ -927,6 +929,7 @@ function buildPlaza(api,site){
     vA=(1.-smoothstep(.85,1.,t))*.85;vec4 mv=modelViewMatrix*vec4(p,1.);gl_PointSize=(.07+.06*seed.w)*uScale/max(.1,-mv.z);gl_Position=projectionMatrix*mv;}`,
   fragmentShader:`varying float vA;void main(){float d=length(gl_PointCoord-.5);if(d>.5)discard;gl_FragColor=vec4(.92,.99,1.,vA*smoothstep(.5,.1,d));}`});
  const jets=new T.Points(pg,jetMat);jets.frustumCulled=false;jets.name='Jatos do chafariz';scene.add(jets);
+ window.arcanoChafariz={fx,fy,fz,fWaters,curtains,jets,orb,curtainMat,fountainWaterMat,jetMat};   // para a exportação do Godot
  if(O)O.addCircle(fx,fz,7.6);
  const start=performance.now();
  (function tick(){requestAnimationFrame(tick);const t=(performance.now()-start)/1000;fountainWaterMat.uniforms.uTime.value=t;curtainMat.uniforms.uTime.value=t;})();
@@ -1024,7 +1027,7 @@ function install(){
  if(!api||!api.scene||!site||!window.arcanoIslandHeight){setTimeout(install,300);return;}
  const c=build(api,site);buildPlaza(api,site);buildGarden(api,site);
  // grupos por andar expostos para a exportação do Godot (o jogo mostra um andar por vez: setFloor)
- window.arcanoCastle={site,root:c.root,interiors:c.interiors,shells:c.shells,ceilings:c.ceilings,outerPanes:c.outerPanes,roof:c.roof,lid:c.lid,stair:ST,floorH:FH,floors:NF,box:{x:BX,z0:BZ0,z1:BZ1}};
+ window.arcanoCastle={life:LIFE,anim:{core:c.core,halo:c.halo,coreLocal:c.coreLocal,coreLight:c.coreLight,lamps:c.lamps},site,root:c.root,interiors:c.interiors,shells:c.shells,ceilings:c.ceilings,outerPanes:c.outerPanes,roof:c.roof,lid:c.lid,stair:ST,floorH:FH,floors:NF,box:{x:BX,z0:BZ0,z1:BZ1}};
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install();
 })();
