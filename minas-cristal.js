@@ -650,7 +650,8 @@ function build(api,H){
    for(const [z,sx,sz] of [[PZ-2.5,4.2,6],[PZ-7.5,5.5,7],[-11,9,7]]){const m=new T.Mesh(new T.PlaneGeometry(1,1),pm);m.rotation.x=-PI/2;m.scale.set(sx,sz,1);m.position.set(0,.04,z);lvGroups[0].add(m);}
    o.rayMat=mt;o.poolMat=pm;}
   // monta um andar por vez (evita travar o jogo)
-  let L=0;const step=()=>{if(L>2){for(const f of pendingBakes)f();o.ready=true;return;}
+  // pronto: o descola.js afasta as superfícies que ficaram brigando (z-fighting) nos andares recém-montados
+  let L=0;const step=()=>{if(L>2){for(const f of pendingBakes)f();o.ready=true;if(window.arcanoDescola)window.arcanoDescola.run({raiz:o.root});return;}
    const g=lvGroups[L];g.add(levelMesh(L));const bk=bakeFn(L);g.add(new T.Mesh(PR[L].build(bk,L===0?dayK:null),L===0?propDayMat:inMat));g.add(new T.Mesh(PC[L].build(),crMat));g.add(new T.Mesh(PG[L].build(),glassIn));g.add(new T.Mesh(PL[L].build(bk,L===0?dayK:null),L===0?plantDayMat:plantMat));g.add(new T.Mesh(PB[L].build(bk,L===0?dayK:null),L===0?rockDayMat:rockMat));
    L++;setTimeout(step,30);};step();
  }
