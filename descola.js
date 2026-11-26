@@ -40,7 +40,7 @@ async function run(opt){opt=opt||{};
   if(ms.every(m=>m.alphaTest>0))return;   // folhas em cartão
   const nome=nomeDe(o);if(EXCL.test(nome))return;if(ORGANICO.test(nome)&&!CONSTRUCAO.test(nome))return;
   const g=o.geometry,n=(g.index?g.index.count:g.attributes.position.count)/3|0;if(!n)return;
-  meshes.push({o,nome,n,terr:TERRENO.test(nome)});nt+=n;});
+  meshes.push({o,nome,n,terr:TERRENO.test(nome)||!!(o.userData&&o.userData.descolaFixo)});nt+=n;});   // descolaFixo: referência fixa como o terreno (quem sai é a outra peça)
  rel.malhas=meshes.length;rel.tris=nt;
  const P=new Float32Array(nt*9),TC=new Int32Array(nt).fill(-1),N=new Float32Array(nt*4),OFF=new Uint8Array(nt);
  let k=0;const v=new T.Vector3();

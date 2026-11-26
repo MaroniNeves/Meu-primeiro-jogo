@@ -157,7 +157,7 @@ function leafGeos(ctx,kind,w,h,side){const key=kind+w.toFixed(2)+h.toFixed(2)+si
   const r={wood:mergeGeos(fl,1/1.4),glass:null};ctx.cache[key]=r;return r;}
  const g=new T.ExtrudeGeometry(leafShape(w,h,side),{depth:.03,bevelEnabled:false,curveSegments:10});g.translate(0,0,-.015);glass.push(g);
  const bx=(x,y,ww,hh)=>{const b=new T.BoxGeometry(ww,hh,.06);b.translate(sx*x,y,0);fl.push(b);};
- bx(.03,(h-hw)/2,.06,h-hw);bx(hw-.03,(h-.1)/2,.06,h-.1);bx(hw/2,.03,hw,.06);bx(hw/2,h*.5,hw,.05);bx(hw/2,h*.8,hw,.04);
+ bx(.03,(h-hw)/2,.06,h-hw);bx(hw-.03,(h-.1)/2,.06,h-.1);bx(hw/2,.03,hw-.12,.06);bx(hw/2,h*.5,hw-.12,.05);bx(hw/2,h*.8,hw-.12,.04);   // travessas entre os montantes (sem faces sobrepostas)
  const r={wood:mergeGeos(fl,1/1.4),glass:mergeGeos(glass,1)};ctx.cache[key]=r;return r;}
 /* cria as duas folhas articuladas na posição atual (x,y,z na moldura corrente) */
 function addLeaves(B,ctx,M,kind,x,y,z,w,h,dir,maxA){
@@ -218,7 +218,7 @@ function barrelLike(B,x,z,y){B.add('plank',new T.CylinderGeometry(.34,.34,.8,10)
 function wallFrame(B,S,w,h,floors,fh,o){o=o||{};
  const post=S.postW||.24,xs=o.xs||framePos(w,o.step||3,false),nx=xs.length-1;
  for(const x of xs)B.box('timber',post,h,.22,x,h/2,.1);
- for(let f=0;f<=floors;f++)B.box('timberH',w+post,S.beamH||.24,.24,0,f*fh+.02,.1);
+ for(let f=0;f<=floors;f++){if(Math.abs(f*fh+.02-(h-.05))<.24)continue;B.box('timberH',w+post,S.beamH||.24,.24,0,f*fh+.02,.1);}   // sem viga dupla no topo
  B.box('timberH',w+post,.2,.24,0,h-.05,.1);
  for(let f=0;f<floors;f++)for(let i=0;i<nx;i++){
   const cx=(xs[i]+xs[i+1])/2,pw=xs[i+1]-xs[i],yb=f*fh+.14,yt=(f+1)*fh-.12;

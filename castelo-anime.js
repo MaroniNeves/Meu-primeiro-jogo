@@ -728,6 +728,9 @@ function build(api,site){
    if(door){const p=new T.Path();p.moveTo(-2.2,0);p.lineTo(2.2,0);p.lineTo(2.2,3.8);p.absarc(0,3.8,2.2,0,Math.PI,false);p.lineTo(-2.2,0);s.holes.push(p);}
    const geo=new T.ExtrudeGeometry(s,{depth:1,bevelEnabled:false,curveSegments:10});geo.translate(0,0,-.5);const uv=geo.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)/4,uv.getY(i)/4);
    const wm=new T.Mesh(geo,M.wall);wm.position.set(x,y0,z);wm.rotation.y=ry;wm.castShadow=wm.receiveShadow=true;grp.add(wm);
+   // parede fixa na correção de z-fighting (quem sai é o piso/friso encostado): antes o topo da parede era empurrado
+   // e a face de dentro esticava 2 cm por cima da parede do andar seguinte (faixa piscando na divisa dos andares)
+   wm.userData.descolaFixo=true;
    for(const u of holes){const fr=new T.Group();fr.position.set(x,y0,z);fr.rotation.y=ry;grp.add(fr);
     box(fr,WIN.w+.5,.18,1.25,M.trim,u,WIN.v0-.09,0);
     for(const e of [-1,1])box(fr,.16,WIN.vr-WIN.v0,1.04,M.trim,u+e*(WIN.w/2+.06),(WIN.v0+WIN.vr)/2,0);
