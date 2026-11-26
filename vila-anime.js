@@ -200,8 +200,13 @@ function houseChale(g,w,d,roof){
  box(g,w,.7,d,M.stone,0,.35,0);shell(g,w,d,fy,3.4,M.log,holes,1.6);
  gable(g,w,d+2.4,4.1,1.8,roof,.9,M.log);
  // Varanda coberta na frente.
- box(g,w,.2,2.2,M.wood,0,.25,d/2+1.1);for(const sx of [-1,-.33,.33,1])box(g,.22,3.3,.22,M.timber,sx*(w/2-.15),2.45,d/2+2.05);
- box(g,w,.12,.12,M.timber,0,3.0,d/2+2.05);box(g,1.6,.2,.4,M.wood,0,.55,d/2+.25);
+ // Pilares do piso da varanda até a face de baixo do beiral (antes começavam 45 cm acima do piso, furavam o telhado
+ // e ficavam 6 cm para fora da beira dele); viga do beiral apoiada no topo deles.
+ box(g,w,.2,2.2,M.wood,0,.25,d/2+1.1);
+ {const D2=d/2+1.2,hd=D2+.9,sl=Math.atan2(1.8,D2),len=hd/Math.cos(sl),yc=4.1+1.8-Math.sin(sl)*len/2+.1,zc=Math.cos(sl)*len/2,zp=d/2+1.95,top=yc-(zp-zc)*Math.tan(sl)-.05;
+  for(const sx of [-1,-.33,.33,1])box(g,.22,top-.35,.22,M.timber,sx*(w/2-.15),(top+.35)/2,zp);
+  box(g,w,.14,.14,M.timber,0,top-.12,zp);}
+ box(g,1.6,.2,.4,M.wood,0,.55,d/2+.25);
  door(g,w,d/2,M.timber,M.wood,fy,true);windowAt(g,-w*.3,2.5,d/2+.08,0);windowAt(g,w*.3,2.5,d/2+.08,0);
  for(const sx of [-1,1])windowAt(g,sx*(w/2+.08),2.5,0,Math.PI/2);
  box(g,1.1,6,1.1,M.stone,-w/2-.3,3,-d*.15);box(g,1.3,.25,1.3,M.stone,-w/2-.3,6.1,-d*.15);
@@ -234,11 +239,19 @@ function build(api,V){
   const house=new T.Group();house.position.y=.18;g.add(house);
   const sala=BUILD[p.style](house,p.w,p.d,M.roofs[(i*3+1)%M.roofs.length]);p.sala=sala;const portas=PEND.splice(0);
   // Degraus da porta até o terraço e um vaso de flores.
-  box(g,1.8,.2,.6,M.stone,0,.1,p.d/2+.9);
+  // No chalé a porta dá na varanda: base de pedra embaixo dela (antes o piso de madeira ficava 33 cm acima do chão,
+  // solto) e o degrau vai para a frente da varanda (antes ficava escondido embaixo dela).
+  if(p.style==='chale'){
+   let lo2=p.y;for(const fx of [-.5,0,.5])for(const lz of [p.d/2+.7,p.d/2+1.4,p.d/2+2.1,p.d/2+2.75]){const lx=fx*p.w;lo2=Math.min(lo2,H(p.x+lx*c+lz*s,p.z-lx*s+lz*c));}
+   const bot=lo2-p.y-.35;
+   box(g,p.w-.24,.33-bot,1.52,M.stone,0,(.33+bot)/2,p.d/2+1.36);
+   box(g,1.8,.27-bot,.55,M.stone,0,(.27+bot)/2,p.d/2+2.48);
+  }else box(g,1.8,.2,.6,M.stone,0,.1,p.d/2+.9);
   {const pot=new T.Mesh(new T.CylinderGeometry(.3,.22,.5,10),M.redWood);pot.position.set(p.w/2+.2,.43,p.d/2+.7);g.add(pot);const b=new T.Mesh(new T.IcosahedronGeometry(.42,1),M.leaf);b.position.set(p.w/2+.2,.95,p.d/2+.7);g.add(b);}
   g.position.set(p.x,p.y,p.z);g.rotation.y=p.rot;all.add(g);
   if(sala){const a=new T.Object3D();a.position.set(p.x,p.y+.18,p.z);a.rotation.y=p.rot;a.name='Sala da casa';anchors.push(a);
-   a.userData.rooms=[{x:0,z:0,hw:sala.W/2-WT-.15,hd:sala.D/2-WT-.15,y:sala.y,top:sala.top}];a.userData.floor={W:sala.W,D:sala.D,y:sala.y,step:{x0:-.8,x1:.8,z0:sala.D/2-.35,z1:sala.D/2+1.2,y:sala.y*.55}};
+   a.userData.rooms=[{x:0,z:0,hw:sala.W/2-WT-.15,hd:sala.D/2-WT-.15,y:sala.y,top:sala.top}];a.userData.floor={W:sala.W,D:sala.D,y:sala.y,step:{x0:-.8,x1:.8,z0:sala.D/2-.35,z1:sala.D/2+(p.style==='chale'?.15:1.2),y:sala.y*.55}};
+   if(p.style==='chale')a.userData.pisosExtra=[{x:0,z:p.d/2+1.1,hw:p.w/2,hd:1.1,y:.35},{x:0,z:p.d/2+2.48,hw:.9,hd:.28,y:.09}];
    const its=[],cen={};portas.forEach((d,k)=>{const id=k+1;d.pv.parent&&d.pv.parent.remove(d.pv);a.add(d.pv);its.push({id,kind:'door',tgt:0,cur:0,pv:d.pv});cen[id]={p:new T.Vector3(0,d.y0+1.1,d.z-WT/2)};});
    a.userData.casa={ctx:{centers:cen,list:its},
     update(dt){for(const it of its){it.cur+=(it.tgt-it.cur)*Math.min(1,dt*3.2);if(Math.abs(it.tgt-it.cur)<.002)it.cur=it.tgt;it.pv.rotation.y=it.cur*Math.PI*.5;}},
@@ -254,11 +267,11 @@ function build(api,V){
    // Vaso de flores ao lado da porta.
    const L2W=(lx,lz)=>[p.x+lx*c+lz*s,p.z-lx*s+lz*c],yr={ymin:p.y-2,ymax:p.y+8};
    if(p.style==='chale'){
-    for(const sx of [-1,-.33,.33,1]){const [x,z]=L2W(sx*(p.w/2-.15),p.d/2+2.05);O.addCircle(x,z,.16,yr);}
+    for(const sx of [-1,-.33,.33,1]){const [x,z]=L2W(sx*(p.w/2-.15),p.d/2+1.95);O.addCircle(x,z,.16,yr);}
     {const [x,z]=L2W(-p.w/2-.3,-p.d*.15);O.addBox({x,z,hw:.6,hd:.6,rot:p.rot,...yr});}
     {const [x,z]=L2W(p.w/2+.7,p.d/2-.68);O.addBox({x,z,hw:.62,hd:.55,rot:p.rot,...yr});}
     // Piso da varanda (degrau de 35 cm) onde se pisa.
-    if(window.arcanoGroundOverrides)window.arcanoGroundOverrides.push((x,z)=>{const dx=x-p.x,dz=z-p.z,lx=dx*c-dz*s,lz=dx*s+dz*c;return Math.abs(lx)<p.w/2&&lz>p.d/2&&lz<p.d/2+2.2?p.y+.53:null;});
+    if(window.arcanoGroundOverrides)window.arcanoGroundOverrides.push((x,z)=>{const dx=x-p.x,dz=z-p.z,lx=dx*c-dz*s,lz=dx*s+dz*c;return Math.abs(lx)<p.w/2&&lz>p.d/2&&lz<p.d/2+2.2?p.y+.53:(Math.abs(lx)<.9&&lz>=p.d/2+2.2&&lz<p.d/2+2.76?p.y+.27:null);});
    }
    if(p.style==='torre'){const [x,z]=L2W(p.w*.42,p.d*.05);O.addBox({x,z,hw:p.w*.275+.05,hd:p.d*.35+.05,rot:p.rot,...yr});}
    // Borda do alicerce de pedra: onde o terreno desce, o pé sobe nela (não afunda).

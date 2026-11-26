@@ -192,6 +192,16 @@ function install(){
     if(dd<best){best=dd;res={d:dd,level:a.level+(c.level-a.level)*t,s:i+t,tx:a.tx,tz:a.tz,speed:a.speed,sid:si_,w:S.south?S.w*branchWiden(S,i+t):STREAM_W};}
    }
   }
+  // Nível contínuo: média dos trechos do mesmo curso até 60 cm mais longe que o mais próximo. Só pelo trecho mais
+  // próximo, o nível pulava na parte de dentro das curvas (até 70 cm nos trechos íngremes): margem e água em dentes.
+  // Perto da nascente (queda forte logo no 1º trecho) fica como era.
+  if(res&&!STREAMS[res.sid].south){const P=STREAMS[res.sid].pts;let R=.6;
+   if(res.sid===0)R*=sm(3,9,Math.hypot(x-P[0].x,z-P[0].z));
+   if(R>.02){let sw=0,sl=0;
+    for(let i=0;i<P.length-1;i++){const a=P[i],c=P[i+1],vx=c.x-a.x,vz=c.z-a.z,wx=x-a.x,wz=z-a.z;
+     const t=clamp((wx*vx+wz*vz)/(vx*vx+vz*vz),0,1),dd=Math.hypot(wx-vx*t,wz-vz*t);if(dd>best+R)continue;
+     const w=(1-(dd-best)/R)**2;sw+=w;sl+=w*(a.level+(c.level-a.level)*t);}
+    if(sw>0)res.level=sl/sw;}}
   return res;
  }
  // Os dois afluentes da montanha mais próximos (de cursos diferentes): para emendar margens sem degrau entre eles.
@@ -903,7 +913,8 @@ function install(){
     const lo=Math.min(lev[a],lev[b],lev[c],lev[d]),hi=Math.max(lev[a],lev[b],lev[c],lev[d]);
     const jx=p[a*3],jz=p[a*3+2],nearJ=Math.min(Math.hypot(jx-splitB.x,jz-splitB.z),Math.hypot(jx-splitC.x,jz-splitC.z),Math.hypot(jx-joinC.x,jz-joinC.z))<14;
     const same=nearJ||(sidA[a]===sidA[b]&&sidA[a]===sidA[c]&&sidA[a]===sidA[d]);
-    if(hi-lo>(nearJ?2.6:same?1.2:.25))continue;
+    const nearSp=Math.hypot(jx-stream.spring.x,jz-stream.spring.z)<8; // queda logo abaixo da nascente: a água desce inteira (antes sumia e deixava dentes)
+    if(hi-lo>(nearJ?2.6:same?(nearSp?4.5:1.2):.25))continue;
     wet[j*(nx-1)+i]=1;
    }
    // Só a água ligada ao corpo principal (poças soltas na margem eram os 'vazamentos').
