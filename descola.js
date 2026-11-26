@@ -13,6 +13,7 @@
 (function(){
 'use strict';
 const T=window.THREE;if(!T)return;
+if(/[?&]descolareg=1/.test(location.search))window.arcanoDescolaRegistro=true;   // exportação para o Godot
 const EPS=.01;   // 1 cm: some a briga até ~150 m e não aparece como degrau
 const EXCL=/céu|ceu|sky|nuvem|cloud|chuva|rain|névoa|nevoa|fog|neblina|part[ií]cula|magia|orbe|esfera|bolha|vaga-?lume|inseto|borboleta|libélula|mosca|ave |aves|pássaro|passaro|pato|peixe|tartaruga|cervo|sapo|coruja|personagem|player|xbot|sombra|shadow|halo|brilho|glow|reflexo|água|agua|water|cachoeira|espuma|onda|ripple|chama|fogo|fire|fumaça|smoke|raio|luz |feixe|estrela|star|sol |lua |cursor|seta|marcador|minimapa|grama|grass|capim|folha|leaf|leaves|flor(?!esta)|flower|alga|vfx|trail|rastro|spark|contorno|tapete de grama/i;
 const TERRENO=/terreno|terra absorvente|costura do terreno|base inferior|chão da ilha|leito|areia da praia|piso da cidade/i;
@@ -145,10 +146,15 @@ async function run(opt){opt=opt||{};
   for(const I of bater){I.tent=(I.tent||0)+1;const o0=Math.min(Math.max(I.cor,1),3)*EPS,cand=[o0-.5*EPS,o0+.5*EPS,o0+EPS];I.off=cand[Math.min(I.tent-1,2)];}}
  // ---------- aplica: os vértices dos planos que saem andam pela normal (no espaço da malha) ----------
  const inv=new T.Matrix4(),m3=new T.Matrix3(),dv=new T.Vector3();
+ const qk=(t,c)=>Math.round(P[t*9+c*3]*1000)+','+Math.round(P[t*9+c*3+1]*1000)+','+Math.round(P[t*9+c*3+2]*1000);
+ // registro (só para exportar ao Godot: window.arcanoDescolaRegistro=true antes de rodar): posição no mundo de cada
+ // vértice que andou, quanto andou e as normais dele; 'amb' marca ponto que outra peça parada também usa
+ const REG=window.arcanoDescolaRegistro?{ents:(window.arcanoDescolaRegistroEnts=window.arcanoDescolaRegistroEnts||new Map()),disp:new Set()}:null,nm3=new T.Matrix3(),nv=new T.Vector3();
+ const qn=v=>Math.round(v.x*20)+','+Math.round(v.y*20)+','+Math.round(v.z*20);
  const porMalha=new Map();for(const c of movP.keys()){const mi=dono[c];let L=porMalha.get(mi);if(!L){L=[];porMalha.set(mi,L);}L.push(c);}
  for(const [mi,L] of porMalha){const M=meshes[mi],o=M.o;const minhas=new Set(L);
   // deslocamento de cada posição (mm) dos pedaços: soma dos planos que passam por ela (cada plano uma vez)
-  const desl=new Map();const qk=(t,c)=>Math.round(P[t*9+c*3]*1000)+','+Math.round(P[t*9+c*3+1]*1000)+','+Math.round(P[t*9+c*3+2]*1000);
+  const desl=new Map();
   for(let t=M.t0;t<M.t1;t++){if(!minhas.has(TC[t]))continue;const I=planoDe(t);if(!I)continue;
    for(let c=0;c<3;c++){const key=TC[t]+'|'+qk(t,c);let D=desl.get(key);if(!D){D={v:[0,0,0],ps:new Set()};desl.set(key,D);}
     if(D.ps.has(I))continue;D.ps.add(I);D.v[0]+=I.n[0]*I.off;D.v[1]+=I.n[1]*I.off;D.v[2]+=I.n[2]*I.off;}}
@@ -160,7 +166,21 @@ async function run(opt){opt=opt||{};
    for(let c=0;c<3;c++){const D=desl.get(TC[t]+'|'+qk(t,c));if(!D)continue;const lt=t-M.t0,vi=ix?ix.getX(lt*3+c):lt*3+c;if(feito.has(vi))continue;feito.add(vi);
     dv.set(D.v[0],D.v[1],D.v[2]).applyMatrix3(m3);pa.setXYZ(vi,pa.getX(vi)+dv.x,pa.getY(vi)+dv.y,pa.getZ(vi)+dv.z);}}
   pa.needsUpdate=true;g.computeBoundingSphere();if(g.boundingBox)g.computeBoundingBox();
+  if(REG){const nA=g.attributes.normal;nm3.getNormalMatrix(o.matrixWorld);
+   for(let t=M.t0;t<M.t1;t++){if(!minhas.has(TC[t]))continue;
+    for(let c=0;c<3;c++){const pk=qk(t,c),key=TC[t]+'|'+pk,D=desl.get(key);if(!D)continue;REG.disp.add(key);
+     let E=REG.ents.get(pk);if(!E){E={p:[P[t*9+c*3],P[t*9+c*3+1],P[t*9+c*3+2]],vs:[],nd:new Set(),amb:0};REG.ents.set(pk,E);}
+     // variantes: deslocamentos diferentes no mesmo ponto (peças diferentes) ficam separados, com as normais e o nome
+     let V=null;for(const w of E.vs)if(Math.abs(w.d[0]-D.v[0])+Math.abs(w.d[1]-D.v[1])+Math.abs(w.d[2]-D.v[2])<1e-4){V=w;break;}
+     if(!V){V={d:D.v.slice(),n:new Set(),nomes:new Set()};E.vs.push(V);if(E.vs.length>1)E.amb|=2;}
+     V.nomes.add(o.name||M.nome||'');
+     if(nA){const lt=t-M.t0,vi=ix?ix.getX(lt*3+c):lt*3+c;nv.fromBufferAttribute(nA,vi).applyMatrix3(nm3).normalize();V.n.add(qn(nv));}}}}
   rel.movidas+=L.length;rel.nomes[M.nome]=(rel.nomes[M.nome]||0)+L.length;await talvez();}
+ if(REG){for(let mi=0;mi<meshes.length;mi++){const M=meshes[mi],o=M.o,g=o.geometry,nA=g.attributes.normal,ix=g.index;nm3.getNormalMatrix(o.matrixWorld);
+   for(let t=M.t0;t<M.t1;t++)for(let c=0;c<3;c++){const pk=qk(t,c),E=REG.ents.get(pk);if(!E)continue;if(TC[t]>=0&&REG.disp.has(TC[t]+'|'+pk))continue;
+    E.amb|=1;if(nA){const lt=t-M.t0,vi=ix?ix.getX(lt*3+c):lt*3+c;nv.fromBufferAttribute(nA,vi).applyMatrix3(nm3).normalize();E.nd.add(qn(nv));}}
+   if(mi%8===0)await talvez();}
+  rel.registro=REG.ents;}
  rel.seg=+((performance.now()-t0)/1000).toFixed(1);
  if(opt.raiz)(window.arcanoDescola.extras=window.arcanoDescola.extras||[]).push(rel);else{window.arcanoDescola.relatorio=rel;window.arcanoDescolaPronto=true;}
  console.info('[Descola] '+rel.parte+': '+rel.pares+' pares coplanares; '+rel.movidas+' peças com face empurrada (1–3 cm) em '+rel.seg+' s');
