@@ -904,7 +904,7 @@ function buildPlaza(api,site){
  // Mesma água do rio (refração, reflexo do céu, cáusticas, brilho do sol e ondinhas): clona o material do rio
  // compartilhando os uniforms, e dá a cada bacia profundidade e um leve redemoinho.
  (function riverize(){const RM=window.arcanoAnimeRiver&&window.arcanoAnimeRiver.material;if(!RM){setTimeout(riverize,500);return;}
-  const u=RM.uniforms,m=RM.clone();for(const k of Object.keys(u))m.uniforms[k]=u[k];
+  const u=RM.uniforms;RM.uniforms={};const m=RM.clone();RM.uniforms=u;for(const k of Object.keys(u))m.uniforms[k]=u[k];
   m.uniforms.uFallZ={value:-999};m.uniforms.uFallTop={value:-999};m.uniforms.uFallDrop={value:1};m.extensions.derivatives=true;
   for(const f of fWaters){const g=f.m.geometry,p=g.attributes.position,n=p.count,dep=new Float32Array(n),fl=new Float32Array(n*2);
    for(let i=0;i<n;i++){const x=p.getX(i),y=p.getY(i),rr=Math.min(1,Math.hypot(x,y)/f.r),a=Math.atan2(y,x);dep[i]=f.d*(1-.3*rr*rr);fl[i*2]=-Math.sin(a)*.07*rr;fl[i*2+1]=-Math.cos(a)*.07*rr;}

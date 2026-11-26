@@ -829,7 +829,7 @@ function install(){
  if(riverMat){
   const u=riverMat.uniforms;
   const shareMat=(fallZ,fallTop=-999,fallDrop=1)=>{
-   const m=riverMat.clone();
+   riverMat.uniforms={};const m=riverMat.clone();riverMat.uniforms=u;   // clona sem copiar o reflexo (render target): só dava aviso
    for(const key of Object.keys(u))m.uniforms[key]=u[key];
    m.uniforms.uFallZ={value:fallZ};m.uniforms.uFallTop={value:fallTop};m.uniforms.uFallDrop={value:fallDrop};
    m.extensions.derivatives=true;

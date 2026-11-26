@@ -361,7 +361,10 @@ function install(){
  // Fora do reflexo: grama e o que fica longe do rio (floresta e base da ilha).
  // Toda água que usa o próprio reflexo também sai (senão a placa de vídeo lê e escreve a mesma imagem).
  const HIDE=new Set(['Tufos reais de grama Quaternius','Floresta da Ilha Central','Pedra da base da ilha flutuante','Pedras flutuantes da ilha','Rio da Ilha Central · até a borda','Canal da nascente','Lago da nascente','Afluente da nascente','Poço da nascente']);
- const grassGroups=()=>{const out=[];scene.traverse(o=>{if(HIDE.has(o.name))out.push(o);});return out;};
+ // Além dos nomes: qualquer malha cujo material lê este mesmo reflexo (braços do rio, lagos, lagoas, volumes das
+ // quedas, bacias do chafariz). A lista por nome ficou velha e o WebGL recusava esses desenhos com erro de laço.
+ const grassGroups=()=>{const out=[];scene.traverse(o=>{if(HIDE.has(o.name)){out.push(o);return;}
+  if(o.isMesh&&o!==water&&[].concat(o.material).some(m=>m&&m.uniforms&&m.uniforms.uRefl===u.uRefl))out.push(o);});return out;};
  let grass=null;
 
  function renderReflection(camera){

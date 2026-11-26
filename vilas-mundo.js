@@ -114,13 +114,17 @@ function install(){
   const near=main.filter(p=>p.x<=58),allRoads=[near,cross,...branches];
   const roadPieces=(pts,x0,x1)=>pts.filter(p=>p.x>=x0-.01&&p.x<=x1+.01);
   // principal em trechos de tipos diferentes; a ligação ao castelo é outra estrada
-  const PR=7.2,clipP=pts=>{const out=[];let cur=[];for(let i=0;i<pts.length;i++){const p=pts[i],inP=Math.hypot(p.x,p.z)<PR;
-    if(i>0){const a=pts[i-1],aIn=Math.hypot(a.x,a.z)<PR;if(aIn!==inP){let lo=0,hi=1;for(let k=0;k<20;k++){const m=(lo+hi)/2,q={x:a.x+(p.x-a.x)*m,z:a.z+(p.z-a.z)*m};((Math.hypot(q.x,q.z)<PR)===aIn)?lo=m:hi=m;}const q={x:a.x+(p.x-a.x)*lo,z:a.z+(p.z-a.z)*lo};cur.push(q);if(!inP){}else{out.push(cur);cur=[];}if(!inP)cur=[q];}}
+  const PR=7.2,clipP=(pts,R)=>{R=R||PR;const out=[];let cur=[];for(let i=0;i<pts.length;i++){const p=pts[i],inP=Math.hypot(p.x,p.z)<R;
+    if(i>0){const a=pts[i-1],aIn=Math.hypot(a.x,a.z)<R;if(aIn!==inP){let lo=0,hi=1;for(let k=0;k<20;k++){const m=(lo+hi)/2,q={x:a.x+(p.x-a.x)*m,z:a.z+(p.z-a.z)*m};((Math.hypot(q.x,q.z)<R)===aIn)?lo=m:hi=m;}const q={x:a.x+(p.x-a.x)*lo,z:a.z+(p.z-a.z)*lo};cur.push(q);if(!inP){}else{out.push(cur);cur=[];}if(!inP)cur=[q];}}
     if(!inP)cur.push(p);}if(cur.length>1)out.push(cur);return out;};
-  const roadC=(pts,w,t,pr)=>{for(const pc of clipP(pts))if(pc.length>1)VM.road(ctx,pc,w,t,pr);};
+  // a estrada termina numa reta: corta onde os cantos dela caem sobre o círculo da praça (antes cortava no eixo, a 7,2 m,
+  // e sobrava uma lasca de grama entre a borda curva da praça e os cantos da estrada)
+  const roadC=(pts,w,t,pr)=>{const hw=w/2+.1;for(const pc of clipP(pts,Math.sqrt(PR*PR-hw*hw)))if(pc.length>1)VM.road(ctx,pc,w,t,pr);};
   const mpiece=(a,b,t,pr)=>{const p=roadPieces(main,a,b);if(p.length>1)roadC(p,3.6,t,pr==null?4:pr);};
   mpiece(-50,-22,RT.main);mpiece(-22,22,RT.plaza);mpiece(22,58,RT.main);mpiece(58,site.conn,RT.conn,3);
-  roadC(cross.filter(p=>Math.abs(p.z)<=11),3.2,RT.plaza,4);roadC(cross.filter(p=>p.z<=-9),3.2,RT.cross,3);roadC(cross.filter(p=>p.z>=9),3.2,RT.cross,3);
+  // os trechos se encontram em ±12 m (os pontos da travessa vão de 4 em 4 m: com ±11 e ±9 faltava o trecho de 8 a 12 m
+  // dos dois lados e a estrada não chegava à praça)
+  roadC(cross.filter(p=>Math.abs(p.z)<=12.01),3.2,RT.plaza,4);roadC(cross.filter(p=>p.z<=-11.99),3.2,RT.cross,3);roadC(cross.filter(p=>p.z>=11.99),3.2,RT.cross,3);
   VM.taperEnd=true;for(const b of branches)roadC(b,2.4,RT.branch,2);VM.taperEnd=false;
   // praça
   // Praça: disco que acompanha o terreno (antes era plano na altura do centro: na encosta a borda flutuava ou sumia)
