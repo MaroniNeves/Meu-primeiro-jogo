@@ -879,28 +879,43 @@ function buildPlaza(api,site){
    const now=performance.now()/1000;u.uClock.value=now;const a=(k++%8)*Math.PI/4+.39,R0=6.3-3.3;
    u.uRings.value[(k*5)%12].set(fx+Math.cos(a)*R0,fz+Math.sin(a)*R0,now,.35);if(k%2===0)u.uRings.value[(k*5+3)%12].set(fx+(Math.random()-.5)*.8,fz+(Math.random()-.5)*.8,now,.25);},450);})();
  const curtains=[];for(const [r,y0,y1] of [[3.35,4.3,1.18],[1.78,6.6,4.25]]){const c=new T.Mesh(new T.CylinderGeometry(r,r+.25,y0-y1,48,1,true),curtainMat);c.position.set(fx,fy+(y0+y1)/2,fz);scene.add(c);curtains.push({m:c,r,y0,y1});}
- const robe=new T.LatheGeometry([new T.Vector2(0,0),new T.Vector2(.62,0),new T.Vector2(.5,.9),new T.Vector2(.33,1.7),new T.Vector2(.28,2.1),new T.Vector2(0,2.2)],16);
- const fig=new T.Mesh(robe,M.wall);fig.position.set(fx,fy+6.6,fz);g.add(fig);
- const head=new T.Mesh(new T.SphereGeometry(.28,12,10),M.wall);head.position.set(fx,fy+9.05,fz);g.add(head);
- box(g,.18,1.3,.18,M.wall,fx+.32,fy+9.2,fz).rotation.z=-.25;
- const wingShape=new T.Shape();wingShape.moveTo(0,0);wingShape.bezierCurveTo(.9,.5,1.8,1.5,2.2,2.6);wingShape.lineTo(1.7,2.2);wingShape.lineTo(1.75,1.7);wingShape.lineTo(1.2,1.5);wingShape.lineTo(1.2,1.0);wingShape.lineTo(.6,.8);wingShape.lineTo(.2,-.3);wingShape.lineTo(0,0);
- for(const sx of [-1,1]){const wg=new T.Mesh(new T.ExtrudeGeometry(wingShape,{depth:.12,bevelEnabled:false}),M.wall);wg.position.set(fx+sx*.15,fy+8.1,fz-.3);wg.scale.x=sx;wg.rotation.y=sx*.4;g.add(wg);}
  mergeInto(g,scene,'Chafariz da praça');
- const orb=new T.Mesh(new T.SphereGeometry(.38,16,12),M.core);orb.position.set(fx+.48,fy+9.95,fz);scene.add(orb);
+ // Estátua da maga (site v62): o boneco jogável (Xbot) em pose de levitação — uma perna levemente erguida —, com
+ // roupas de maga (capuz, corpete, mangas de sino, capa, vestido com fenda) e mármore; estatua-maga.js monta a malha
+ // a partir do esqueleto, em etapas curtas, quando o jogador chega perto da praça. A orbe flutua acima da mão
+ // direita com dois anéis de ouro girando e um halo.
+ const ESC_EST=1.6,orbG=new T.Group();orbG.name='Orbe da maga';orbG.visible=false;scene.add(orbG);
+ const orb=new T.Mesh(new T.SphereGeometry(.19,24,16),M.core);orb.name='Orbe da maga · esfera';orbG.add(orb);
+ const aneis=[[.3,.42],[.37,1.15]].map(([r,rx],i)=>{const a=new T.Mesh(new T.TorusGeometry(r,.012,8,56),M.goldM);a.name='Orbe da maga · anel '+i;a.rotation.x=rx;orbG.add(a);return a;});
+ const haloO=new T.Sprite(glowMat.clone());haloO.material.color=new T.Color('#9fe8ff');haloO.scale.setScalar(1.5);orbG.add(haloO);
+ const estatua={grupo:null,orbG,aneis,y0:0,pronta:false,promessa:null};
+ const geraEstatua=()=>estatua.promessa||(estatua.promessa=(async()=>{try{
+   const [mod,{GLTFLoader},BGU]=await Promise.all([import('./estatua-maga.js?v=1'),import('https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/loaders/GLTFLoader.js'),import('https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/utils/BufferGeometryUtils.js')]);
+   const mats={marmore:new T.MeshStandardMaterial({map:mod.marmore(T),roughness:.36,metalness:0,emissive:new T.Color('#1c1a17'),side:T.DoubleSide}),ouro:M.goldM,
+    gema:new T.MeshStandardMaterial({color:'#bff3ff',emissive:new T.Color('#3fb6e8'),emissiveIntensity:1.1,roughness:.15})};
+   mats.marmore.name='Mármore da estátua';mats.gema.name='Gemas da estátua';
+   const r=await mod.gerar(T,GLTFLoader,BGU,{mats});const gr=r.grupo;
+   gr.scale.setScalar(ESC_EST);gr.position.set(fx,fy+6.5,fz);gr.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});scene.add(gr);gr.updateMatrixWorld(true);
+   gr.getObjectByName('Estátua da maga · orbe').getWorldPosition(orbG.position);estatua.y0=orbG.position.y;orbG.visible=true;
+   estatua.grupo=gr;estatua.pronta=true;estatua.info=r.info;return estatua;
+  }catch(e){console.warn('[Arcano] estátua da maga:',e);estatua.promessa=null;}})());
+ (function vigia(){const pl=api.getGrassPlayer&&api.getGrassPlayer(),cam=api.getMainCamera&&api.getMainCamera(),pp=pl||cam;
+  if(pp&&Math.hypot(pp.position.x-fx,pp.position.z-fz)<260)geraEstatua();else setTimeout(vigia,2000);})();
  const N=420,seeds=new Float32Array(N*4);for(let i=0;i<N;i++){seeds[i*4]=Math.floor(Math.random()*9);seeds[i*4+1]=Math.random();seeds[i*4+2]=Math.random()*2-1;seeds[i*4+3]=Math.random();}
  const pg=new T.BufferGeometry();pg.setAttribute('position',new T.BufferAttribute(new Float32Array(N*3),3));pg.setAttribute('seed',new T.BufferAttribute(seeds,4));
  const jetMat=new T.ShaderMaterial({transparent:true,depthWrite:false,uniforms:{uTime:fountainWaterMat.uniforms.uTime,uC:{value:new T.Vector3(fx,fy,fz)},uScale:{value:innerHeight*.5}},
   vertexShader:`attribute vec4 seed;uniform float uTime,uScale;uniform vec3 uC;varying float vA;
    void main(){float t=fract(uTime*(.6+.2*seed.w)+seed.y);vec3 p;
-    if(seed.x<.5){float a=seed.z*3.1416;vec2 d=vec2(cos(a),sin(a));p=uC+vec3(d.x*t*1.2,10.2+t*1.6-6.*t*t,d.y*t*1.2);}
+    if(seed.x<.5){float a=seed.z*3.1416;vec2 d=vec2(cos(a),sin(a));float r=.72+.85*t;p=uC+vec3(d.x*r,6.72+1.05*t-1.2*t*t,d.y*r);}
     else{float a=(seed.x-1.)*.7854;vec2 o=vec2(cos(a),sin(a))*6.3;vec2 dir=-normalize(o);p=uC+vec3(o.x+dir.x*t*3.3,1.3+t*2.6-2.7*t*t,o.y+dir.y*t*3.3);}
     vA=(1.-smoothstep(.85,1.,t))*.85;vec4 mv=modelViewMatrix*vec4(p,1.);gl_PointSize=(.07+.06*seed.w)*uScale/max(.1,-mv.z);gl_Position=projectionMatrix*mv;}`,
   fragmentShader:`varying float vA;void main(){float d=length(gl_PointCoord-.5);if(d>.5)discard;gl_FragColor=vec4(.92,.99,1.,vA*smoothstep(.5,.1,d));}`});
  const jets=new T.Points(pg,jetMat);jets.frustumCulled=false;jets.name='Jatos do chafariz';scene.add(jets);
- window.arcanoChafariz={fx,fy,fz,fWaters,curtains,jets,orb,curtainMat,fountainWaterMat,jetMat};   // para a exportação do Godot
+ window.arcanoChafariz={fx,fy,fz,fWaters,curtains,jets,orb,curtainMat,fountainWaterMat,jetMat,estatua,geraEstatua};   // para a exportação do Godot
  if(O)O.addCircle(fx,fz,7.6);
  const start=performance.now();
- (function tick(){requestAnimationFrame(tick);const t=(performance.now()-start)/1000;fountainWaterMat.uniforms.uTime.value=t;curtainMat.uniforms.uTime.value=t;})();
+ (function tick(){requestAnimationFrame(tick);const t=(performance.now()-start)/1000;fountainWaterMat.uniforms.uTime.value=t;curtainMat.uniforms.uTime.value=t;
+  if(estatua.pronta){orbG.position.y=estatua.y0+.05*Math.sin(t*1.4);aneis[0].rotation.y=t*.9;aneis[1].rotation.z=-t*.7;}})();
 }
 
 // ---------- Jardim dentro do muro do castelo ----------
