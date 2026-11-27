@@ -58,7 +58,7 @@ if(AT){
  put('base',AT.stone({hue:226,sat:12,l0:36,l1:52,seed:19,moss:.5,cracks:.22}),.9);
  put('trim',AT.stone({hue:40,sat:22,l0:62,l1:76,seed:23,rows:6,cracks:.08}),.8);
  put('inner',AT.stone({hue:42,sat:14,l0:66,l1:78,seed:31,cracks:.07}),.7);
- put('floor',AT.marble({n:8}),.6);
+ put('floor',AT.stone({hue:36,sat:11,l0:60,l1:73,rows:4,seed:41,cracks:.05}),.6);
  put('wood',AT.wood({hue:28,light:44}),.8);put('woodDark',AT.wood({hue:22,light:30,seed:5}),.8);put('woodLight',AT.wood({hue:32,light:56,seed:8}),.8);
  put('slate',AT.shingles({hue:216,sat:22,l0:32,l1:48}),.9);
  put('copper',AT.shingles({hue:170,sat:36,l0:40,l1:56,seed:4}),.9);
@@ -113,7 +113,7 @@ const starTex=(w,h,lines)=>canvasTex(w,h,(g,W,Hh)=>{const gr=g.createRadialGradi
  for(let i=0;i<W*Hh/900;i++){const x=rnd()*W,y=rnd()*Hh,r=rnd()<.08?2.2:rnd()*1.2+.3;g.fillStyle=`rgba(255,${230+Math.floor(rnd()*25)},${190+Math.floor(rnd()*60)},${.5+rnd()*.5})`;g.beginPath();g.arc(x,y,r,0,6.3);g.fill();}
  g.strokeStyle='rgba(216,180,90,.75)';g.lineWidth=1.5;for(let c=0;c<lines;c++){let x=W*.1+rnd()*W*.8,y=Hh*.1+rnd()*Hh*.8;g.beginPath();g.moveTo(x,y);for(let j=0;j<4;j++){x+=rnd()*60-30;y+=rnd()*60-30;g.lineTo(x,y);g.fillStyle='#fff6d0';g.fillRect(x-2,y-2,4,4);}g.stroke();}
  g.strokeStyle='rgba(216,180,90,.55)';g.lineWidth=3;g.beginPath();g.arc(W/2,Hh/2,Math.min(W,Hh)*.45,0,6.3);g.stroke();});
-M.starCeil=new T.MeshBasicMaterial({map:starTex(512,512,9),side:T.DoubleSide});
+M.starCeil=new T.MeshBasicMaterial({map:starTex(512,512,9),side:T.FrontSide});
 M.starMap=new T.MeshBasicMaterial({map:starTex(256,160,6)});
 // Painel de cortina com pregas: largo no varão, preso pela braçadeira e abrindo de novo até o chão.
 // e = lado (±1), inner/outer = distância das bordas ao centro da janela no topo.
@@ -159,15 +159,32 @@ function gablePrism(g,len,w,h,roofM,faceM,x,y,zc,tile){tile=tile||3.5;const hw=w
  const Q=[],V=[];pushTri(Q,V,[-hw,0,zf],[hw,0,zf],[0,h,zf],[-hw/2.5,0],[hw/2.5,0],[0,h/2.5]);
  return roofMesh(g,Q,V,faceM,x,y,0);}
 function crenels(g,x0,x1,z0,z1,y,step=1.6){for(let x=x0;x<=x1+1e-3;x+=step){box(g,.8,1,.6,M.wall,x,y+.5,z0);box(g,.8,1,.6,M.wall,x,y+.5,z1);}for(let z=z0+step;z<=z1-step+1e-3;z+=step){box(g,.6,1,.8,M.wall,x0,y+.5,z);box(g,.6,1,.8,M.wall,x1,y+.5,z);}}
-function squareTower(g,x,z,s,h){box(g,s+.6,2,s+.6,M.base,x,1,z);box(g,s,h,s,M.wall,x,h/2,z);for(const y of [h*.35,h*.7])box(g,s+.3,.5,s+.3,M.trim,x,y,z);box(g,s+.6,.7,s+.6,M.trim,x,h-.35,z);crenels(g,x-s/2,x+s/2,z-s/2,z+s/2,h,1.4);
+// ux,uz (lados de fora) e cut: torre num canto do prédio — abaixo de cut ela fica em L e não invade as salas de canto
+// (antes a base de 2 m e o corpo da torre entravam 2,5 m em cada sala de canto, em todos os andares).
+function squareTower(g,x,z,s,h,ux,uz,cut){
+ const tb=(w,hh,d,m,yc)=>{if(!ux){box(g,w,hh,d,m,x,yc,z);return;}const y0=yc-hh/2,y1=yc+hh/2;if(y0>=cut){box(g,w,hh,d,m,x,yc,z);return;}
+  if(y1>cut)box(g,w,y1-cut,d,m,x,(cut+y1)/2,z);const yb=Math.min(y1,cut),hc=yb-y0,ym=(y0+yb)/2,e=.45,hw=w/2,hd=d/2;
+  box(g,hw+e,hc,d,m,x+ux*(hw-e)/2,ym,z);box(g,hw-e,hc,hd+e,m,x-ux*(hw+e)/2,ym,z+uz*(hd-e)/2);};
+ tb(s+.6,2,s+.6,M.base,1);tb(s,h,s,M.wall,h/2);for(const y of [h*.35,h*.7])tb(s+.3,.5,s+.3,M.trim,y);box(g,s+.6,.7,s+.6,M.trim,x,h-.35,z);crenels(g,x-s/2,x+s/2,z-s/2,z+s/2,h,1.4);
  for(let lv=0;lv<Math.floor(h/6.5);lv++)for(const [dx,dz,r] of [[0,s/2+.02,0],[0,-s/2-.02,0],[s/2+.02,0,Math.PI/2],[-s/2-.02,0,Math.PI/2]])box(g,.8,1.8,.1,M.winTile||M.glass,x+dx,3.5+lv*6.5,z+dz,r,1);
  pyramid(g,s+1,s+1,s*.95,M.slate,x,h+1,z);box(g,.3,1.4,.3,M.copper,x,h+1+s*.95+.7,z);}
-function mergeInto(group,parent,name){
+// UV pelas coordenadas do castelo (faces retas): as fiadas de pedra continuam de uma peça de parede para a outra
+// e começam no piso de cada andar (6,5 m = 13 fiadas), em vez de recomeçar em cada caixa.
+function worldUV(g,tile){const p=g.attributes.position,n=g.attributes.normal,uv=g.attributes.uv;
+ for(let i=0;i<p.count;i++){const ax=Math.abs(n.getX(i)),ay=Math.abs(n.getY(i)),az=Math.abs(n.getZ(i));if(Math.max(ax,ay,az)<.92)continue;
+  const x=p.getX(i),y=p.getY(i)-.4,z=p.getZ(i);if(ax>=ay&&ax>=az)uv.setXY(i,(n.getX(i)>0?-z:z)/tile,y/tile);else if(az>=ay)uv.setXY(i,(n.getZ(i)>0?x:-x)/tile,y/tile);else uv.setXY(i,x/tile,z/tile);}uv.needsUpdate=true;}
+function mergeInto(group,parent,name,wuv){
  group.updateMatrixWorld(true);const buckets=new Map();
- group.traverse(o=>{if(!o.isMesh)return;let g=o.geometry.index?o.geometry.toNonIndexed():o.geometry.clone();g.applyMatrix4(o.matrixWorld);if(!g.attributes.uv)g.setAttribute('uv',new T.BufferAttribute(new Float32Array(g.attributes.position.count*2),2));if(!buckets.has(o.material))buckets.set(o.material,[]);buckets.get(o.material).push(g);});
- for(const [m,list] of buckets){let n=0;for(const g of list)n+=g.attributes.position.count;const P=new Float32Array(n*3),N=new Float32Array(n*3),U=new Float32Array(n*2);let off=0;
-  for(const g of list){P.set(g.attributes.position.array,off*3);if(g.attributes.normal)N.set(g.attributes.normal.array,off*3);U.set(g.attributes.uv.array.subarray(0,g.attributes.position.count*2),off*2);off+=g.attributes.position.count;g.dispose();}
-  const geo=new T.BufferGeometry();geo.setAttribute('position',new T.BufferAttribute(P,3));geo.setAttribute('normal',new T.BufferAttribute(N,3));geo.setAttribute('uv',new T.BufferAttribute(U,2));geo.computeBoundingSphere();
+ group.traverse(o=>{if(!o.isMesh)return;const g=o.geometry.clone();g.applyMatrix4(o.matrixWorld);const c=g.attributes.position.count;
+  if(!g.index){const ix=new Uint32Array(c);for(let i=0;i<c;i++)ix[i]=i;g.setIndex(new T.BufferAttribute(ix,1));}
+  if(!g.attributes.normal)g.computeVertexNormals();if(!g.attributes.uv)g.setAttribute('uv',new T.BufferAttribute(new Float32Array(c*2),2));
+  if(wuv&&wuv.has(o.material))worldUV(g,wuv.get(o.material));
+  if(!buckets.has(o.material))buckets.set(o.material,[]);buckets.get(o.material).push(g);});
+ for(const [m,list] of buckets){let n=0,ni=0;for(const g of list){n+=g.attributes.position.count;ni+=g.index.count;}
+  const P=new Float32Array(n*3),N=new Float32Array(n*3),U=new Float32Array(n*2),I=n>65535?new Uint32Array(ni):new Uint16Array(ni);let off=0,oi=0;
+  for(const g of list){const c=g.attributes.position.count;P.set(g.attributes.position.array,off*3);N.set(g.attributes.normal.array,off*3);U.set(g.attributes.uv.array.subarray(0,c*2),off*2);
+   const ix=g.index.array;for(let i=0;i<ix.length;i++)I[oi+i]=ix[i]+off;off+=c;oi+=ix.length;g.dispose();}
+  const geo=new T.BufferGeometry();geo.setAttribute('position',new T.BufferAttribute(P,3));geo.setAttribute('normal',new T.BufferAttribute(N,3));geo.setAttribute('uv',new T.BufferAttribute(U,2));geo.setIndex(new T.BufferAttribute(I,1));geo.computeBoundingSphere();
   const mesh=new T.Mesh(geo,m);mesh.name=name;mesh.castShadow=m!==M.glass&&m!==M.winTile&&m!==M.winOut&&m!==M.candle&&m!==M.core&&m!==M.fire;mesh.receiveShadow=true;parent.add(mesh);}
 }
 
@@ -269,104 +286,231 @@ function loftGeo(secs,N,cap,o){
  if(cap!==false){for(const [i,top] of [[0,false],[secs.length-1,true]]){const s=secs[i],c0=P.length/3;P.push(s.ox||0,s.y,s.oz||0);U.push(1,i?2:0);for(let k=0;k<N;k++){const q=i*R+k;if(top)I.push(c0,q+1,q);else I.push(c0,q,q+1);}}}
  const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(P,3));g.setAttribute('uv',new T.Float32BufferAttribute(U,2));g.setIndex(I);g.computeVertexNormals();return g;
 }
+/* Armadura v2 (site v61): peças fechadas e completas — escarcelas em lâminas, joelheiras e cotoveleiras com aba,
+   manoplas com dedos dobrados, elmo com viseira bicuda, fenda dos olhos, respiros, crista e penacho de plumas,
+   gorjal em lâminas, ombreiras em domo com lâminas e friso dourado, peitoral com quilha, estrela e rebites,
+   cinto com fivela, tabardo com brasão, capa e pedestal com moldura e placa. Geometria indexada (≈5x mais leve). */
+const ARM_TINT=[{campo:'#9e2430',capa:'#7a1f2b',pluma:'#c7352e'},{campo:'#24457e',capa:'#22386a',pluma:'#2f5fae'},{campo:'#2c5b3c',capa:'#264d34',pluma:'#efe7d2'}];
+function heraldTex(campo,forma){return canvasTex(128,192,(g,w,h)=>{
+ g.fillStyle=campo;g.fillRect(0,0,w,h);
+ // trama do tecido e franja dourada
+ for(let y=0;y<h;y+=2){g.fillStyle=`rgba(255,255,255,${y%4?.035:.06})`;g.fillRect(0,y,w,1);}
+ g.strokeStyle='#e2b85a';g.lineWidth=6;g.strokeRect(7,7,w-14,h-14);g.lineWidth=2;g.strokeRect(15,15,w-30,h-30);
+ g.save();g.translate(w/2,h*.46);g.fillStyle='#f0cd6e';g.strokeStyle='#7a5418';g.lineWidth=2;
+ if(forma===1){// leão rampante estilizado: coroa e escudo com cruz
+  g.beginPath();g.moveTo(-30,-38);g.lineTo(30,-38);g.lineTo(30,6);g.quadraticCurveTo(30,34,0,48);g.quadraticCurveTo(-30,34,-30,6);g.closePath();g.fill();g.stroke();
+  g.fillStyle=campo;g.fillRect(-5,-30,10,68);g.fillRect(-22,-10,44,10);
+  g.fillStyle='#f0cd6e';g.beginPath();g.moveTo(-20,-44);g.lineTo(-20,-58);g.lineTo(-10,-50);g.lineTo(0,-62);g.lineTo(10,-50);g.lineTo(20,-58);g.lineTo(20,-44);g.closePath();g.fill();g.stroke();}
+ else if(forma===2){// árvore de três folhas sobre colina
+  g.beginPath();g.arc(0,-18,22,0,6.3);g.fill();g.stroke();for(const e of [-1,1]){g.beginPath();g.arc(e*18,-2,15,0,6.3);g.fill();g.stroke();}
+  g.fillRect(-4,0,8,34);g.beginPath();g.ellipse(0,40,34,10,0,Math.PI,0);g.fill();}
+ else{// sol de oito raios
+  for(let k=0;k<16;k++){g.rotate(Math.PI/8);g.beginPath();g.moveTo(-6,0);g.lineTo(0,k%2?-34:-46);g.lineTo(6,0);g.closePath();g.fill();g.stroke();}
+  g.beginPath();g.arc(0,0,15,0,6.3);g.fill();g.stroke();g.fillStyle=campo;g.beginPath();g.arc(0,0,7,0,6.3);g.fill();}
+ g.restore();
+ g.fillStyle='#e2b85a';for(let x=4;x<w;x+=12){g.beginPath();g.moveTo(x,h-10);g.lineTo(x+6,h);g.lineTo(x+12,h-10);g.fill();}});}
+const ARM_MATS=ARM_TINT.map((c,i)=>({
+ pano:mat({color:'#ffffff',map:heraldTex(c.campo,i),side:T.DoubleSide,roughness:.9}),
+ capa:mat({color:c.capa,map:fabricTex,side:T.DoubleSide,roughness:.75}),
+ pluma:mat({color:c.pluma,side:T.DoubleSide,roughness:.8})}));
 const ARM_BUILD=function(variant){
- const a=new T.Group(),S=M.steel,D=M.steelDark,G=M.goldM;
- for(const m of [S,D,G,M.leather,M.woodDark,M.plume])if(m)m.side=T.DoubleSide;
- const Y=V3(0,1,0);
- const part=(m,secs,x,y,z,o)=>{o=o||{};const me=new T.Mesh(loftGeo(secs,o.N,o.cap,o),m);me.position.set(x,y,z);if(o.rx)me.rotation.x=o.rx;if(o.ry)me.rotation.y=o.ry;if(o.rz)me.rotation.z=o.rz;a.add(me);return me;};
- const partAB=(m,A,B,secs,o)=>{o=o||{};const d=new T.Vector3().subVectors(B,A),L=d.length(),me=new T.Mesh(loftGeo(secs.map(q=>Object.assign({},q,{y:q.t*L})),o.N,o.cap,o),m);me.position.copy(A);me.quaternion.setFromUnitVectors(Y,d.normalize());a.add(me);return me;};
- const extrude=(m,shape,depth,bevel,x,y,z,o)=>{o=o||{};const g=new T.ExtrudeGeometry(shape,{depth,bevelEnabled:true,bevelSize:bevel,bevelThickness:bevel,bevelSegments:2,curveSegments:14});g.translate(0,0,-depth/2);const me=new T.Mesh(g,m);me.position.set(x,y,z);if(o.rx)me.rotation.x=o.rx;if(o.ry)me.rotation.y=o.ry;if(o.rz)me.rotation.z=o.rz;a.add(me);return me;};
- const gem=(m,r,x,y,z,sx,sy,sz)=>{const me=new T.Mesh(new T.IcosahedronGeometry(r,r<.02?0:1),m);me.position.set(x,y,z);me.scale.set(sx||1,sy||1,sz||1);a.add(me);return me;};
- box(a,1.0,.2,1.0,M.base,0,.1,0,0,2);box(a,.86,.1,.86,M.trim,0,.25,0,0,2);box(a,.9,.03,.9,G,0,.31,0);
- const yb=.32;
+ const a=new T.Group(),S=M.steel,D=M.steelDark,G=M.goldM,Lth=M.leather,WD=M.woodDark,Dk=M.iron,AM=ARM_MATS[variant%3];
+ const Y=V3(0,1,0),yb=.31;
+ const put=(geo,m,x,y,z,o)=>{o=o||{};const me=new T.Mesh(geo,m);me.position.set(x,y,z);if(o.q)me.quaternion.copy(o.q);else me.rotation.set(o.rx||0,o.ry||0,o.rz||0,o.ord||'XYZ');if(o.s)me.scale.set(o.s[0],o.s[1],o.s[2]);a.add(me);return me;};
+ const part=(m,secs,x,y,z,o)=>{o=o||{};return put(loftGeo(secs,o.N||24,o.cap,o),m,x,y,z,o);};
+ const partAB=(m,A,B,secs,o)=>{o=o||{};const d=new T.Vector3().subVectors(B,A),L=d.length(),me=new T.Mesh(loftGeo(secs.map(q=>Object.assign({},q,{y:q.t*L})),o.N||20,o.cap,o),m);me.position.copy(A);me.quaternion.setFromUnitVectors(Y,d.normalize());if(o.spin)me.rotateY(o.spin);a.add(me);return me;};
+ // perfil fechado girado (sólido inteiro): pts [[r,y],...] de um polo ao outro
+ const lath=(m,pts,seg,x,y,z,o)=>put(new T.LatheGeometry(pts.map(p=>new T.Vector2(Math.max(0,p[0]),p[1])),seg||20),m,x,y,z,o);
+ // domo com espessura (lente): borda chata de largura t, fechado por baixo
+ const domePts=(R,h,t,n=7)=>{const out=[];for(let i=0;i<=n;i++){const u=i/n,ang=u*Math.PI/2;out.push([R*Math.sin(ang),h*Math.cos(ang)]);}
+  const k=(R-t)/R,kh=(h-t)/h;for(let i=n;i>=0;i--){const u=i/n,ang=u*Math.PI/2;out.push([R*k*Math.sin(ang),h*kh*Math.cos(ang)]);}return out;};
+ // lâmina anelar fechada (tronco de cone com espessura)
+ const bandPts=(r0,r1,h,t)=>[[r0-t,0],[r0,0],[r0+t*.35,h*.15],[r1,h],[r1-t,h],[r0-t,0]];
+ // placa curva: setor de anel (raio R, espessura t, altura h, ângulos a0..a1 a partir de +x indo para +z)
+ const arcPlate=(m,R,t,h,a0,a1,x,y,z,o)=>{const sh=new T.Shape();const n=10;for(let i=0;i<=n;i++){const f=a0+(a1-a0)*i/n;const px=Math.cos(f)*R,py=-Math.sin(f)*R;i?sh.lineTo(px,py):sh.moveTo(px,py);}
+  for(let i=n;i>=0;i--){const f=a0+(a1-a0)*i/n;sh.lineTo(Math.cos(f)*(R-t),-Math.sin(f)*(R-t));}
+  const geo=new T.ExtrudeGeometry(sh,{depth:h,bevelEnabled:true,bevelSize:.004,bevelThickness:.004,bevelSegments:1,curveSegments:4});geo.rotateX(-Math.PI/2);return put(geo,m,x,y,z,o);};
+ const extrude=(m,shape,depth,bevel,x,y,z,o)=>{const g=new T.ExtrudeGeometry(shape,{depth,bevelEnabled:bevel>0,bevelSize:bevel,bevelThickness:bevel,bevelSegments:2,curveSegments:10});g.translate(0,0,-depth/2);return put(g,m,x,y,z,o);};
+ const ball=(m,r,x,y,z,ws=10,hs=7)=>put(new T.SphereGeometry(r,ws,hs),m,x,y,z);
+ const gem=(m,r,x,y,z)=>put(new T.IcosahedronGeometry(r,0),m,x,y,z);
+ const qDir=(dir,spin)=>{const q=new T.Quaternion().setFromUnitVectors(Y,dir.clone().normalize());if(spin)q.multiply(new T.Quaternion().setFromAxisAngle(Y,spin));return q;};
+ // ===== pedestal: base, moldura, corpo, tampo com friso dourado e placa =====
+ box(a,.94,.09,.94,M.base,0,.045,0,0,2);box(a,.88,.04,.88,M.trim,0,.11,0,0,2);box(a,.78,.11,.78,M.trim,0,.185,0,0,2);
+ box(a,.86,.05,.86,M.trim,0,.265,0,0,2);box(a,.87,.018,.87,G,0,.299,0);
+ box(a,.3,.065,.014,G,0,.185,.392);for(const e of [-1,1])ball(G,.012,e*.13,.185,.4,6,4);
+ // ===== pernas =====
+ const fx=.112;
  for(const s of [-1,1]){
-  const fx=s*.17;
-  part(S,[{y:0,rx:.068,rz:.068,n:2.4},{y:.09,rx:.078,rz:.078,n:2.4},{y:.17,rx:.07,rz:.056,oz:-.01,n:2.4},{y:.25,rx:.04,rz:.032,oz:-.02,n:2.4},{y:.3,rx:.006,rz:.008,oz:-.025}],fx,yb+.07,-.09,{rx:Math.PI/2});
-  part(D,[{y:0,rx:.078,rz:.058,n:2.6},{y:.07,rx:.085,rz:.063,n:2.6},{y:.11,rx:.07,rz:.05,n:2.6}],fx,yb+.07,.02,{rx:Math.PI/2,cap:false});
-  part(S,[{y:0,rx:.07,rz:.075,n:2.4},{y:.05,rx:.08,rz:.085,n:2.4},{y:.1,rx:.088,rz:.095,n:2.4}],fx,yb+.12,-.005,{cap:false});
-  partAB(S,V3(fx,yb+.2,0),V3(fx,yb+.62,0),[{t:0,rx:.062,rz:.064,n:2.6,fr:.25},{t:.28,rx:.082,rz:.088,n:2.7,fr:.55,bk:.1,fl:.05,fk:12},{t:.7,rx:.088,rz:.085,n:2.7,fr:.5,fl:.05,fk:12},{t:1,rx:.07,rz:.07,n:2.5,fr:.25}]);
-  part(S,[{y:0,rx:.1,rz:.092,n:2.4},{y:.04,rx:.104,rz:.096,n:2.4},{y:.085,rx:.075,rz:.07,n:2.4},{y:.12,rx:.03,rz:.03,n:2.4},{y:.15,rx:.004,rz:.004}],fx,yb+.66,.01,{rx:Math.PI/2});
-  partAB(D,V3(fx+s*.07,yb+.66,.02),V3(fx+s*.19,yb+.7,-.02),[{t:0,rx:.05,rz:.07,n:3},{t:.5,rx:.06,rz:.08,n:3},{t:1,rx:.004,rz:.012,n:3}]);
-  partAB(S,V3(fx,yb+.72,0),V3(fx,yb+1.12,0),[{t:0,rx:.088,rz:.092,n:2.5,fr:.15},{t:.4,rx:.112,rz:.118,n:2.6,fr:.35,fl:.045,fk:14},{t:.75,rx:.12,rz:.124,n:2.6,fr:.25,fl:.04,fk:14},{t:1,rx:.122,rz:.126,n:2.5,fr:.15}]);
-  partAB(D,V3(fx,yb+.74,0),V3(fx,yb+.76,0),[{t:0,rx:.094,rz:.098,n:2.5},{t:1,rx:.097,rz:.101,n:2.5}],{cap:false});
+  const x=s*fx;
+  // pé (escarpe): casco do calcanhar à ponta, 3 lâminas no peito do pé, sola
+  partAB(S,V3(x,yb+.05,-.085),V3(x+s*.012,yb+.034,.205),[{t:0,rx:.044,rz:.046,n:2.4},{t:.22,rx:.054,rz:.058,n:2.6,bk:.25},{t:.55,rx:.056,rz:.046,n:2.6,bk:.15},{t:.82,rx:.042,rz:.03,n:2.4},{t:1,rx:.012,rz:.012,n:2.2}],{N:18});
+  for(let i=0;i<3;i++){const tz=-.01+i*.055,tor=new T.TorusGeometry(.055-i*.004,.007,5,12,Math.PI);put(tor,i%2?G:D,x+s*.004*i,yb+.045-i*.004,tz,{s:[1,1.22,1]});}
+  box(a,.1,.012,.3,Dk,x+s*.005,yb+.006,.06,0,1);
+  // tornozelo e greva (canela com quilha, panturrilha)
+  lath(D,bandPts(.062,.056,.035,.008),16,x,yb+.075,0);
+  partAB(S,V3(x,yb+.1,0),V3(x,yb+.465,.012),[{t:0,rx:.052,rz:.054,n:2.4},{t:.3,rx:.062,rz:.07,n:2.5,fr:.14,bk:.26},{t:.7,rx:.061,rz:.066,n:2.5,fr:.12,bk:.2},{t:1,rx:.058,rz:.058,n:2.4}]);
+  for(const ty of [.18,.38]){const p=new T.Vector3(x,yb+ty,.0);ball(G,.008,p.x+s*.058,p.y,p.z+.012,6,4);}
+  // joelheira: domo, lâminas de cima e de baixo, aba lateral em coração com friso
+  lath(D,bandPts(.064,.06,.03,.008),16,x,yb+.452,.008);lath(D,bandPts(.066,.07,.03,.008),16,x,yb+.535,.006);
+  lath(S,domePts(.072,.05,.012),18,x,yb+.5,.04,{rx:Math.PI/2-.12});
+  ball(G,.014,x,yb+.5,.092,8,6);
+  {const hs=new T.Shape();hs.moveTo(0,-.05);hs.bezierCurveTo(.05,-.035,.065,.02,.03,.05);hs.quadraticCurveTo(.012,.06,0,.04);hs.quadraticCurveTo(-.012,.06,-.03,.05);hs.bezierCurveTo(-.065,.02,-.05,-.035,0,-.05);
+   extrude(S,hs,.01,.004,x+s*.068,yb+.5,.02,{ry:s*Math.PI/2});}
+  // coxote (coxa) com quilha
+  partAB(S,V3(x,yb+.555,.012),V3(x*.96,yb+.86,0),[{t:0,rx:.066,rz:.068,n:2.4,fr:.2},{t:.5,rx:.082,rz:.084,n:2.5,fr:.3,fl:.025,fk:10},{t:1,rx:.09,rz:.09,n:2.4}]);
  }
- for(let i=0;i<4;i++)part(i%2?D:S,[{y:0,rx:.225+i*.012,rz:.175+i*.01,n:2.5},{y:.07,rx:.247+i*.016,rz:.195+i*.012,n:2.5,fl:.03,fk:18},{y:.13,rx:.262+i*.02,rz:.208+i*.015,n:2.5}],0,yb+1.1-i*.07,0,{cap:false,roll:true});
- partAB(S,V3(0,yb+.92,.21),V3(0,yb+1.18,.19),[{t:0,rx:.045,rz:.016,n:3,fr:.6},{t:.5,rx:.07,rz:.02,n:3,fr:.8},{t:1,rx:.09,rz:.018,n:3,fr:.4}]);
- ring(a,.235,.026,G,0,yb+1.2,0);gem(G,.036,0,yb+1.2,.24);
- part(S,[{y:0,rx:.19,rz:.15,n:2.4,bk:.1},{y:.12,rx:.215,rz:.165,n:2.5,fr:.08,bk:.12,fl:.025,fk:16},{y:.25,rx:.245,rz:.185,n:2.6,fr:.14,bk:.15,fl:.03,fk:16},{y:.36,rx:.272,rz:.205,n:2.8,fr:.36,bk:.15,fl:.022,fk:16},{y:.46,rx:.268,rz:.19,n:2.8,fr:.3,bk:.1},{y:.53,rx:.21,rz:.15,n:2.5},{y:.575,rx:.13,rz:.115,n:2.3}],0,yb+1.2,0,{cap:false,roll:true});
- part(G,[{y:0,rx:.012,rz:.012,oz:.205,n:2},{y:.2,rx:.016,rz:.012,oz:.24,n:2},{y:.36,rx:.012,rz:.012,oz:.255,n:2}],0,yb+1.2,0,{cap:false,N:8});
- for(const s of [-1,1])part(D,[{y:0,rx:.08,rz:.03,ox:s*.1,oz:.15,n:3},{y:.1,rx:.095,rz:.035,ox:s*.1,oz:.2,n:3},{y:.2,rx:.07,rz:.03,ox:s*.1,oz:.2,n:3}],0,yb+1.43,0,{cap:false,N:14});
- for(let i=0;i<3;i++)part(i%2?D:S,[{y:0,rx:.095+i*.01,rz:.09+i*.01,n:2.3},{y:.03,rx:.115+i*.012,rz:.108+i*.012,n:2.3},{y:.055,rx:.14+i*.012,rz:.128+i*.012,n:2.3}],0,yb+1.7+i*.032,0,{cap:false,roll:true});
+ // ===== quadril: faldas em lâminas, escarcelas, cinto com fivela =====
+ for(let i=0;i<3;i++)lath(i%2?D:S,bandPts(.224+i*.016,.206+i*.015,.062,.01),24,0,yb+.86+.062*(2-i)-.002*i,0,{s:[1,1,.82]});
+ for(const s of [-1,1]){const c=s>0?Math.PI*.32:Math.PI*.68;
+  for(let i=0;i<3;i++){const R=.262+i*.01,h=.072,yy=yb+.79-i*.066;arcPlate(i%2?D:S,R,.012,h,c-.36,c+.36,0,yy,0,{s:[1,1,.86]});
+   for(const e of [-1,1]){const f=c+e*.3;ball(G,.007,Math.cos(f)*R,yy+h-.016,Math.sin(f)*R*.86,6,4);}}}
+ lath(Lth,bandPts(.214,.212,.04,.016),24,0,yb+.985,0,{s:[1,1,.83]});
+ {const bz=.181,by=yb+1.005;for(const [w,h,x,y] of [[.06,.008,0,.021],[.06,.008,0,-.021],[.008,.05,.026,0],[.008,.05,-.026,0]])box(a,w,h,.012,G,x,by+y,bz+.004+.006,0,1);box(a,.006,.04,.006,G,0,by,bz+.014,0,1);}
+ // tabardo com brasão (frente), em ondas
+ {const geo=new T.PlaneGeometry(1,1,6,12),p=geo.attributes.position;for(let i=0;i<p.count;i++){const u=p.getX(i),v=p.getY(i)+.5,w=.22+.06*(1-v);
+   p.setXYZ(i,u*w,yb+.53+v*.46,.235+.012*Math.sin(u*9+v*2)+(1-v)*.035-.03*u*u);}geo.computeVertexNormals();put(geo,AM.pano,0,0,0);}
+ // ===== tronco: peitoral com quilha, estrela, rebites e frisos =====
+ const TS=[{y:0,rx:.19,rz:.15,n:2.4,bk:.04},{y:.1,rx:.205,rz:.158,n:2.5,fr:.1,bk:.05},{y:.22,rx:.236,rz:.176,n:2.6,fr:.2,bk:.06},{y:.32,rx:.256,rz:.19,n:2.7,fr:.3,bk:.06},{y:.4,rx:.25,rz:.182,n:2.7,fr:.24,bk:.05},{y:.46,rx:.212,rz:.16,n:2.5,fr:.1},{y:.5,rx:.15,rz:.124,n:2.3}];
+ part(S,TS,0,yb+1.0,0);
+ const surfZ=(x,yl)=>{let i=0;while(i<TS.length-2&&TS[i+1].y<yl)i++;const A=TS[i],B=TS[i+1],t=Math.min(1,Math.max(0,(yl-A.y)/(B.y-A.y))),l=(k)=>(A[k]||0)+((B[k]||0)-(A[k]||0))*t;
+  const rx=l('rx'),rz=l('rz'),n=l('n')||2.4,ex=Math.min(1,Math.abs(x)/rx),ez=Math.pow(Math.max(0,1-Math.pow(ex,n)),1/n);return rz*ez*(1+l('fr')*Math.exp(-Math.pow(ex*3,2)));};
+ // friso dourado em "V" (placa da barriga) e borda do pescoço; estrela no peito; rebites na cintura
+ {const pts=[];for(let i=0;i<=8;i++){const t=i/8,x=-.17+t*.34,yl=.1+.13*(1-Math.abs(x)/.17);pts.push(V3(x,yb+1.0+yl,surfZ(x,yl)+.004));}
+  for(let i=0;i<pts.length-1;i++)partAB(G,pts[i],pts[i+1],[{t:0,rx:.0075,rz:.0075,n:2},{t:1,rx:.0075,rz:.0075,n:2}],{N:6});}
+ {const st=new T.Shape();for(let k=0;k<16;k++){const r=k%2?.028:.068,f=k/16*Math.PI*2-Math.PI/2;k?st.lineTo(Math.cos(f)*r,Math.sin(f)*r):st.moveTo(Math.cos(f)*r,Math.sin(f)*r);}st.closePath();
+  extrude(G,st,.01,.003,0,yb+1.34,surfZ(0,.34)+.006,{rx:-.32});gem(M.eyeGlow,.016,0,yb+1.34,surfZ(0,.34)+.02);}
+ for(let i=0;i<9;i++){const x=-.16+i*.04;ball(G,.007,x,yb+1.025,surfZ(x,.025)+.003,6,4);}
+ lath(G,bandPts(.146,.142,.014,.012),20,0,yb+1.488,0,{s:[1,1,.86]});
+ // ===== gorjal em lâminas =====
+ for(let i=0;i<3;i++)lath(i%2?D:S,bandPts(.138-i*.012,.124-i*.012,.04,.01),20,0,yb+1.47+i*.034,0,{s:[1,1,.9]});
+ // ===== ombreiras: domo, 3 lâminas para o braço, friso, gola alta e rebites =====
  for(const s of [-1,1]){
-  for(let i=0;i<4;i++){const k=1-i*.1;part(i%2?D:S,[{y:0,rx:.15*k,rz:.14*k,n:2.3},{y:.045,rx:.165*k,rz:.15*k,n:2.3,fl:.06,fk:10},{y:.1,rx:.125*k,rz:.12*k,n:2.3,fl:.05,fk:10},{y:.145,rx:.07*k,rz:.07*k,n:2.3},{y:.17,rx:.01,rz:.01,n:2.3}],s*(.27+i*.012),yb+1.66-i*.055,0,{rz:-s*(1.1-i*.05)});}
-  const sp=new T.Mesh(new T.ConeGeometry(.02,.1,6),G);sp.position.set(s*.38,yb+1.8,0);sp.rotation.z=-s*.5;a.add(sp);
+  const tilt=-s*.95,q=new T.Quaternion().setFromEuler(new T.Euler(0,0,tilt)),ax=new T.Vector3(0,1,0).applyQuaternion(q),c0=V3(s*.24,yb+1.49,-.005);
+  lath(S,domePts(.142,.088,.016),22,c0.x,c0.y,c0.z,{q,s:[1,1,.96]});
+  put(new T.TorusGeometry(.137,.009,5,26),G,c0.x,c0.y,c0.z,{q:q.clone().multiply(new T.Quaternion().setFromEuler(new T.Euler(Math.PI/2,0,0))),s:[1,.96,1]});
+  for(let i=0;i<3;i++){const c=c0.clone().addScaledVector(ax,-.035-i*.04);lath(i%2?D:S,bandPts(.128-i*.008,.124-i*.009,.04,.01),20,c.x,c.y,c.z,{q:q.clone().multiply(new T.Quaternion().setFromEuler(new T.Euler(Math.PI,0,0)))});}
+  {const hp=new T.Shape();hp.moveTo(-.075,0);hp.lineTo(.075,0);hp.quadraticCurveTo(.07,.05,0,.062);hp.quadraticCurveTo(-.07,.05,-.075,0);extrude(S,hp,.012,.004,s*.162,yb+1.56,-.01,{ry:Math.PI/2,rz:s*.12});
+   put(new T.TorusGeometry(.068,.005,4,14,Math.PI),G,s*.168,yb+1.562,-.01,{ry:Math.PI/2,rz:s*.12});}
+  for(let i=0;i<5;i++){const f=(i/4-.5)*1.9,p=c0.clone().add(new T.Vector3(Math.sin(f)*.105,0,Math.cos(f)*.105).applyQuaternion(q)).addScaledVector(ax,.045);ball(G,.008,p.x,p.y,p.z,6,4);}
  }
- const W=variant===1?[V3(.52,yb+1.12,.3),V3(-.3,yb+1.02,.16)]:variant===2?[V3(.44,yb+1.1,.26),V3(-.2,yb+1.14,.3)]:[V3(.07,yb+1.17,.35),V3(-.07,yb+1.17,.35)];
- [1,-1].forEach((s,i)=>{
-  const sh=V3(s*.31,yb+1.62,0),el=V3(s*(variant===1&&s<0?.4:.37),yb+1.36,.08),wr=W[i];
-  partAB(S,sh,el,[{t:0,rx:.056,rz:.058,n:2.3},{t:.45,rx:.07,rz:.068,n:2.5,fr:.2,fl:.04,fk:10},{t:1,rx:.054,rz:.055,n:2.3}]);
-  part(S,[{y:0,rx:.062,rz:.058,n:2.4},{y:.035,rx:.066,rz:.062,n:2.4},{y:.07,rx:.04,rz:.04,n:2.4},{y:.1,rx:.006,rz:.006}],el.x,el.y,el.z-.02,{rx:-Math.PI/2});
-  partAB(S,el,wr,[{t:0,rx:.052,rz:.05,n:2.3},{t:.35,rx:.064,rz:.06,n:2.5,fr:.32,fl:.04,fk:10},{t:.85,rx:.05,rz:.05,n:2.4,fr:.2},{t:1,rx:.046,rz:.046,n:2.3}]);
-  const hg=new T.Group();hg.position.copy(wr);a.add(hg);
-  const hpart=(m,A,B,rad0,rad1)=>{const d=new T.Vector3().subVectors(B,A),L=d.length(),me=new T.Mesh(loftGeo([{y:0,rx:rad0,rz:rad0,n:2.2},{y:L*.5,rx:(rad0+rad1)/2*1.1,rz:(rad0+rad1)/2*1.1,n:2.2},{y:L,rx:rad1,rz:rad1,n:2.2}],10,true),m);me.position.copy(A);me.quaternion.setFromUnitVectors(Y,d.normalize());hg.add(me);};
-  hpart(S,V3(0,0,-.02),V3(0,0,.07),.04,.036);
-  for(let f=0;f<4;f++){const fxx=-.027+f*.018;hpart(D,V3(fxx,.008,.06),V3(fxx,.004,.105),.01,.009);hpart(D,V3(fxx,.004,.105),V3(fxx,-.014,.14),.009,.007);}
-  hpart(D,V3(s*.035,-.005,.01),V3(s*.055,-.008,.07),.011,.008);
- });
- const hy=yb+1.76;
- part(S,[{y:0,rx:.112,rz:.122,n:2.2},{y:.06,rx:.126,rz:.138,n:2.3},{y:.13,rx:.122,rz:.134,n:2.3,fl:.035,fk:12},{y:.19,rx:.1,rz:.114,oz:-.01,n:2.3,fl:.04,fk:12},{y:.235,rx:.06,rz:.08,oz:-.02,n:2.3,fl:.03,fk:12},{y:.268,rx:.02,rz:.03,oz:-.03,n:2.3},{y:.28,rx:.003,rz:.004,oz:-.032}],0,hy,0);
- part(D,[{y:0,rx:.1,rz:.075,n:2.5},{y:.06,rx:.092,rz:.07,n:2.5},{y:.12,rx:.062,rz:.055,n:2.4},{y:.165,rx:.03,rz:.036,n:2.4},{y:.18,rx:.004,rz:.006}],0,hy+.055,.07,{rx:Math.PI/2});
- for(let i=0;i<3;i++)box(a,.17-i*.02,.01,.012,M.iron,0,hy+.095-i*.022,.185-i*.012,0,1);
- for(const s of [-1,1])partAB(S,V3(s*.118,hy+.07,.0),V3(s*.1,hy-.1,.08),[{t:0,rx:.016,rz:.075,n:3},{t:.6,rx:.02,rz:.085,n:3,fr:.3},{t:1,rx:.012,rz:.04,n:3}]);
- part(D,[{y:0,rx:.098,rz:.108,n:2.3},{y:.05,rx:.12,rz:.13,n:2.3},{y:.1,rx:.145,rz:.155,n:2.3}],0,hy-.085,0,{cap:false});
- ring(a,.14,.013,G,0,hy+.025,0);
- part(G,[{y:-.15,rx:.014,rz:.01,n:3},{y:-.07,rx:.014,rz:.04,n:3},{y:.06,rx:.014,rz:.062,n:3},{y:.16,rx:.014,rz:.045,n:3},{y:.2,rx:.012,rz:.012,n:3}],0,hy+.215,0,{rx:Math.PI/2,N:12});
- for(let i=0;i<3;i++)partAB(M.plume,V3(0,hy+.27,-.12-i*.02),V3((i-1)*.03,hy+.06-i*.04,-.4-i*.04),[{t:0,rx:.016,rz:.04,n:2.6},{t:.45,rx:.026,rz:.07,n:2.6},{t:1,rx:.004,rz:.01,n:2.6}]);
+ // ===== braços (pose por variante) e manoplas com dedos dobrados =====
+ const P=variant===1?{R:[V3(.37,yb+1.2,-.03),V3(.385,yb+1.06,.07)],L:[V3(-.33,yb+1.21,-.06),V3(-.235,yb+1.01,.11)]}
+  :variant===2?{R:[V3(.36,yb+1.2,-.02),V3(.375,yb+1.0,.075)],L:[V3(-.35,yb+1.21,.1),V3(-.205,yb+1.12,.3)]}
+  :{R:[V3(.31,yb+1.23,.1),V3(.093,yb+1.1,.3)],L:[V3(-.31,yb+1.21,.1),V3(-.093,yb+1.025,.3)]};
+ const grip={};
+ for(const [k,s] of [['R',1],['L',-1]]){
+  const sh=V3(s*.27,yb+1.43,-.01),el=P[k][0],wr=P[k][1];
+  partAB(S,sh,el,[{t:0,rx:.054,rz:.056,n:2.3},{t:.5,rx:.06,rz:.062,n:2.5,fr:.15,fl:.03,fk:10},{t:1,rx:.05,rz:.052,n:2.3}]);
+  partAB(S,el,wr,[{t:0,rx:.048,rz:.05,n:2.3},{t:.4,rx:.054,rz:.056,n:2.5,fr:.28,fl:.03,fk:10},{t:1,rx:.042,rz:.044,n:2.3}]);
+  // cotoveleira: domo para fora da dobra + aba
+  const u1=new T.Vector3().subVectors(sh,el).normalize(),u2=new T.Vector3().subVectors(wr,el).normalize(),out=u1.clone().add(u2).multiplyScalar(-1);if(out.lengthSq()<1e-4)out.set(0,0,-1);out.normalize();
+  lath(S,domePts(.06,.042,.011),16,el.x,el.y,el.z,{q:qDir(out)});ball(G,.012,el.x+out.x*.042,el.y+out.y*.042,el.z+out.z*.042,8,6);
+  {const side=new T.Vector3().crossVectors(u1,u2).normalize().multiplyScalar(s);if(side.lengthSq()<.5)side.set(s,0,0);const wp=el.clone().addScaledVector(side,.05);
+   const hs=new T.Shape();hs.moveTo(0,-.042);hs.bezierCurveTo(.045,-.03,.055,.018,.025,.045);hs.quadraticCurveTo(0,.05,0,.03);hs.quadraticCurveTo(0,.05,-.025,.045);hs.bezierCurveTo(-.055,.018,-.045,-.03,0,-.042);
+   const me=extrude(S,hs,.008,.003,wp.x,wp.y,wp.z,{});me.lookAt(wp.clone().add(side));}
+  // punho largo e mão fechada (palma, nós dourados, 4 dedos dobrados em volta do cabo, polegar)
+  const dir=new T.Vector3().subVectors(wr,el).normalize();
+  partAB(S,wr.clone().addScaledVector(dir,-.035),wr.clone().addScaledVector(dir,.035),[{t:0,rx:.045,rz:.047,n:2.2},{t:1,rx:.066,rz:.068,n:2.4}],{N:18});
+  const th=Math.atan2(dir.x,dir.z),hc=wr.clone().addScaledVector(dir,.07),fw=V3(Math.sin(th),0,Math.cos(th));
+  const hand=new T.Group();hand.position.copy(hc);hand.rotation.y=th;a.add(hand);
+  const hput=(geo,m,x,y,z,o)=>{o=o||{};const me=new T.Mesh(geo,m);me.position.set(x,y,z);me.rotation.set(o.rx||0,o.ry||0,o.rz||0);hand.add(me);return me;};
+  hput(loftGeo([{y:-.046,rx:.04,rz:.034,n:3},{y:0,rx:.044,rz:.036,n:3},{y:.046,rx:.04,rz:.034,n:3}],14),S,0,0,-.005);
+  for(const e of [-1,1])hput(new T.SphereGeometry(.009,6,4),G,e*.043,0,-.005);
+  for(let f=0;f<4;f++)hput(new T.TorusGeometry(.021,.0105,6,9,Math.PI*1.15),D,0,-.033+f*.022,.052,{rx:Math.PI/2,rz:-Math.PI*.075});
+  hput(loftGeo([{y:0,rx:.012,rz:.012},{y:.05,rx:.011,rz:.011},{y:.07,rx:.004,rz:.004}],8),D,-s*.034,.048,.01,{rx:Math.PI/2-.3,rz:s*.5});
+  grip[k]=hc.clone().addScaledVector(fw,.052);
+ }
+ // ===== elmo fechado: casco, viseira bicuda, fenda escura, respiros, crista, rosetas e penacho =====
+ const HC=V3(0,yb+1.71,.012);
+ lath(S,[[0,.158],[.05,.152],[.09,.132],[.116,.098],[.128,.052],[.131,0],[.128,-.05],[.118,-.095],[.1,-.118],[0,-.118]],22,HC.x,HC.y,HC.z,{s:[1,1,1.12]});
+ lath(D,bandPts(.128,.122,.03,.012),22,HC.x,HC.y-.128,HC.z-.005,{s:[1,1,1.12]});
+ part(S,[{y:-.11,rx:.1,rz:.1,oz:.02,n:2.4,fr:.22},{y:-.06,rx:.122,rz:.118,oz:.026,n:2.5,fr:.32},{y:-.018,rx:.128,rz:.124,oz:.027,n:2.5,fr:.34}],HC.x,HC.y,HC.z,{N:24});
+ part(Dk,[{y:-.024,rx:.121,rz:.118,oz:.02,n:2.5,fr:.3},{y:.004,rx:.124,rz:.12,oz:.02,n:2.5,fr:.3}],HC.x,HC.y,HC.z,{N:24});
+ part(S,[{y:.004,rx:.129,rz:.125,oz:.027,n:2.5,fr:.34},{y:.04,rx:.127,rz:.122,oz:.025,n:2.5,fr:.28},{y:.07,rx:.112,rz:.11,oz:.02,n:2.4,fr:.18}],HC.x,HC.y,HC.z,{N:24});
+ part(G,[{y:.004,rx:.131,rz:.127,oz:.027,n:2.5,fr:.35},{y:.013,rx:.131,rz:.127,oz:.027,n:2.5,fr:.35}],HC.x,HC.y,HC.z,{N:24,cap:false});
+ for(const s of [-1,1]){for(let i=0;i<3;i++)box(a,.006,.006,.03,Dk,HC.x+s*.109,HC.y-.045-i*.017,HC.z+.1,s*1.0,1);
+  put(new T.CylinderGeometry(.024,.024,.01,12),G,HC.x+s*.131,HC.y-.008,HC.z+.01,{rz:Math.PI/2});ball(G,.009,HC.x+s*.138,HC.y-.008,HC.z+.01,6,4);}
+ {const cr=new T.Shape();cr.moveTo(-.128,-.05);cr.quadraticCurveTo(0,.03,.122,-.055);cr.quadraticCurveTo(.1,.012,-.01,.038);cr.quadraticCurveTo(-.11,.02,-.128,-.05);cr.closePath();
+  extrude(G,cr,.008,.003,HC.x,HC.y+.146,HC.z-.01,{ry:-Math.PI/2});}
+ {const base=V3(0,HC.y+.118,HC.z-.104);lath(G,[[0,0],[.016,0],[.02,.03],[.014,.045],[0,.045]],10,base.x,base.y,base.z,{rx:-.7});
+  for(let i=0;i<5;i++){const sp=(i-2)*.016,dd=Math.abs(i-2),A=V3(sp,base.y+.035,base.z-.02),B=V3(sp*1.6,base.y+.085-dd*.012,base.z-.13),C=V3(sp*2.4,base.y-.06-dd*.03,base.z-.28-dd*.012);
+   partAB(AM.pluma,A,B,[{t:0,rx:.008,rz:.012},{t:1,rx:.012,rz:.034}],{N:8});partAB(AM.pluma,B,C,[{t:0,rx:.012,rz:.034},{t:.45,rx:.013,rz:.04},{t:1,rx:.003,rz:.006}],{N:8});}}
+ // ===== capa presa nos ombros =====
+ {const geo=new T.PlaneGeometry(1,1,8,14),p=geo.attributes.position;for(let i=0;i<p.count;i++){const u=p.getX(i),v=p.getY(i)+.5,w=.5+.26*(1-v);
+   p.setXYZ(i,u*w,yb+.36+v*1.12,-.225-(1-v)*.1-.018*Math.cos(u*Math.PI*5)*(1-v*.6)+.06*u*u);}geo.computeVertexNormals();put(geo,AM.capa,0,0,0);
+  for(const s of [-1,1]){partAB(G,V3(s*.17,yb+1.47,-.13),V3(s*.17,yb+1.47,-.225),[{t:0,rx:.008,rz:.008},{t:1,rx:.008,rz:.008}],{N:6});ball(G,.022,s*.17,yb+1.47,-.13,8,6);gem(M.eyeGlow,.009,s*.17,yb+1.47,-.11);}}
+ // ===== armas =====
  if(variant===0){
-  const bz=.35;
-  part(S,[{y:0,rx:.003,rz:.003,n:1.3},{y:.1,rx:.026,rz:.0065,n:1.2},{y:.5,rx:.034,rz:.0075,n:1.2},{y:1.05,rx:.036,rz:.008,n:1.2}],0,yb+.05,bz,{N:8});
-  part(D,[{y:.1,rx:.006,rz:.0095,n:2},{y:.55,rx:.007,rz:.0098,n:2},{y:1.0,rx:.006,rz:.0092,n:2}],0,yb+.05,bz,{N:8});
-  part(G,[{y:0,rx:.012,rz:.012,n:2.2},{y:.06,rx:.016,rz:.02,n:2.2},{y:.14,rx:.022,rz:.024,n:2.2},{y:.24,rx:.022,rz:.024,n:2.2},{y:.3,rx:.016,rz:.02,n:2.2},{y:.34,rx:.012,rz:.012,n:2.2}],.17,yb+1.1,bz,{rz:Math.PI/2,N:10});
-  part(M.leather,[{y:0,rx:.02,rz:.02},{y:.06,rx:.024,rz:.024},{y:.12,rx:.02,rz:.02},{y:.19,rx:.024,rz:.024},{y:.22,rx:.018,rz:.018}],0,yb+1.12,bz,{N:10});
-  gem(G,.04,0,yb+1.36,bz);
+  const sx=(grip.R.x+grip.L.x)/2,sz=(grip.R.z+grip.L.z)/2;
+  part(S,[{y:0,rx:.003,rz:.003,n:1.3},{y:.1,rx:.026,rz:.007,n:1.2},{y:.55,rx:.033,rz:.0078,n:1.2},{y:.86,rx:.035,rz:.008,n:1.2},{y:.9,rx:.02,rz:.008,n:1.6}],sx,yb+.02,sz,{N:8});
+  part(D,[{y:.12,rx:.006,rz:.0095,n:2},{y:.6,rx:.007,rz:.0098,n:2},{y:.84,rx:.006,rz:.0092,n:2}],sx,yb+.02,sz,{N:8});
+  part(G,[{y:-.18,rx:.012,rz:.012,n:2.2},{y:-.15,rx:.016,rz:.018,n:2.2},{y:-.06,rx:.02,rz:.022,n:2.2},{y:.06,rx:.02,rz:.022,n:2.2},{y:.15,rx:.016,rz:.018,n:2.2},{y:.18,rx:.012,rz:.012,n:2.2}],sx,yb+.94,sz,{rz:Math.PI/2,N:10});
+  for(const e of [-1,1])ball(G,.02,sx+e*.19,yb+.94,sz,8,6);gem(M.eyeGlow,.018,sx,yb+.94,sz+.02);
+  part(Lth,[{y:0,rx:.019,rz:.019},{y:.08,rx:.022,rz:.022},{y:.16,rx:.019,rz:.019}],sx,yb+.955,sz,{N:10});
+  for(let i=0;i<4;i++)put(new T.TorusGeometry(.021,.003,4,12),G,sx,yb+.975+i*.035,sz,{rx:Math.PI/2});
+  lath(G,[[0,0],[.018,.004],[.03,.02],[.03,.04],[.018,.054],[0,.058]],12,sx,yb+1.12,sz);
  }else if(variant===1){
-  const px=.52,pz=.3;
-  part(M.woodDark,[{y:0,rx:.02,rz:.02},{y:.8,rx:.024,rz:.024},{y:1.6,rx:.022,rz:.022},{y:2.35,rx:.021,rz:.021}],px,yb,pz,{N:10});
-  for(const yy of [.6,1.3,2.0])part(G,[{y:0,rx:.03,rz:.03},{y:.025,rx:.034,rz:.034},{y:.05,rx:.03,rz:.03}],px,yb+yy,pz,{N:10});
-  part(S,[{y:0,rx:.03,rz:.03,n:2},{y:.05,rx:.034,rz:.012,n:1.3},{y:.2,rx:.05,rz:.012,n:1.2},{y:.3,rx:.012,rz:.006,n:1.2},{y:.34,rx:.002,rz:.002}],px,yb+2.34,pz,{N:10});
-  const sh=new T.Shape();sh.moveTo(0,0);sh.bezierCurveTo(.3,.01,.36,.26,.05,.38);sh.bezierCurveTo(.2,.24,.16,.1,0,.1);sh.lineTo(0,0);
-  extrude(S,sh,.014,.006,px,yb+1.9,pz,{});
-  const hk=new T.Shape();hk.moveTo(0,0);hk.lineTo(-.12,.04);hk.lineTo(-.14,.14);hk.lineTo(-.09,.1);hk.lineTo(0,.1);hk.lineTo(0,0);
-  extrude(S,hk,.014,.005,px,yb+2.08,pz,{});
-  gem(G,.035,px,yb+2.3,pz);
+  const px=grip.R.x,pz=grip.R.z;
+  partAB(WD,V3(px,yb,pz),V3(px,yb+2.32,pz),[{t:0,rx:.019,rz:.019},{t:.5,rx:.023,rz:.023},{t:1,rx:.021,rz:.021}],{N:10});
+  for(const yy of [.02,.62,1.38,2.04])lath(G,bandPts(.026,.026,.04,.006),12,px,yb+yy,pz);
+  for(const e of [-1,1])box(a,.008,.34,.03,S,px+e*.024,yb+2.12,pz,0,1);
+  part(S,[{y:0,rx:.024,rz:.024,n:2},{y:.05,rx:.03,rz:.014,n:1.4},{y:.22,rx:.046,rz:.012,n:1.2},{y:.34,rx:.012,rz:.006,n:1.2},{y:.38,rx:.002,rz:.002}],px,yb+2.32,pz,{N:10});
+  const ax=new T.Shape();ax.moveTo(0,-.02);ax.bezierCurveTo(.14,-.06,.3,.0,.33,.14);ax.bezierCurveTo(.3,.27,.16,.33,0,.3);ax.bezierCurveTo(.12,.24,.16,.14,.15,.12);ax.bezierCurveTo(.15,.06,.1,.02,0,.04);ax.closePath();
+  extrude(S,ax,.014,.006,px+.012,yb+2.04,pz,{});
+  
+  const hk=new T.Shape();hk.moveTo(0,.02);hk.lineTo(-.15,.06);hk.quadraticCurveTo(-.18,.12,-.2,.2);hk.quadraticCurveTo(-.13,.13,-.06,.12);hk.lineTo(0,.12);hk.closePath();
+  extrude(S,hk,.012,.005,px-.012,yb+2.06,pz,{});
+  for(let i=0;i<7;i++){const f=i/7*Math.PI*2;partAB(AM.pluma,V3(px+Math.cos(f)*.02,yb+2.03,pz+Math.sin(f)*.02),V3(px+Math.cos(f)*.06,yb+1.86,pz+Math.sin(f)*.06),[{t:0,rx:.012,rz:.012},{t:1,rx:.004,rz:.004}],{N:6});}
+  // espada embainhada no quadril esquerdo, mão no punho
+  const hp=grip.L.clone(),tipb=V3(hp.x-.07,yb+.4,hp.z-.3),dv=new T.Vector3().subVectors(tipb,hp).normalize();
+  partAB(Lth,hp.clone().addScaledVector(dv,.08),tipb,[{t:0,rx:.03,rz:.014,n:2.4},{t:.9,rx:.026,rz:.012,n:2.4},{t:1,rx:.008,rz:.008}],{N:12});
+  for(const t of [.1,.5,.97]){const c=hp.clone().addScaledVector(dv,.08+t*(hp.distanceTo(tipb)-.08));put(new T.TorusGeometry(.03,.005,4,12),G,c.x,c.y,c.z,{q:qDir(dv).multiply(new T.Quaternion().setFromEuler(new T.Euler(Math.PI/2,0,0))),s:[1,.5,1]});}
+  partAB(G,hp.clone().addScaledVector(dv,.06).add(V3(-.11,0,0)),hp.clone().addScaledVector(dv,.06).add(V3(.11,0,0)),[{t:0,rx:.012,rz:.012},{t:.5,rx:.016,rz:.016},{t:1,rx:.012,rz:.012}],{N:8});
+  partAB(Lth,hp.clone().addScaledVector(dv,-.05),hp.clone().addScaledVector(dv,.06),[{t:0,rx:.017,rz:.017},{t:1,rx:.017,rz:.017}],{N:8});
+  ball(G,.026,hp.x-dv.x*.07,hp.y-dv.y*.07,hp.z-dv.z*.07,10,8);
  }else{
-  const sx=-.34,sz=.28;
-  const hs=new T.Shape();hs.moveTo(-.21,.3);hs.lineTo(.21,.3);hs.lineTo(.21,.08);hs.bezierCurveTo(.2,-.12,.08,-.27,0,-.34);hs.bezierCurveTo(-.08,-.27,-.2,-.12,-.21,.08);hs.closePath();
-  extrude(S,hs,.03,.014,sx,yb+1.2,sz,{rx:-.08,ry:.25});
-  const hs2=new T.Shape();hs2.moveTo(-.15,.22);hs2.lineTo(.15,.22);hs2.lineTo(.15,.07);hs2.bezierCurveTo(.14,-.08,.06,-.18,0,-.24);hs2.bezierCurveTo(-.06,-.18,-.14,-.08,-.15,.07);hs2.closePath();
-  extrude(D,hs2,.02,.01,sx,yb+1.2,sz+.03,{rx:-.08,ry:.25});
-  gem(G,.05,sx+.012,yb+1.22,sz+.075,1,1,.7);
-  part(G,[{y:-.17,rx:.013,rz:.007,n:3},{y:.17,rx:.013,rz:.007,n:3}],sx+.012,yb+1.2,sz+.062,{N:6});
-  part(G,[{y:-.12,rx:.011,rz:.007,n:3},{y:.12,rx:.011,rz:.007,n:3}],sx+.012,yb+1.26,sz+.062,{rz:Math.PI/2,N:6});
-  part(M.woodDark,[{y:0,rx:.02,rz:.02},{y:.4,rx:.024,rz:.024},{y:.85,rx:.021,rz:.021}],.44,yb+.45,.26,{N:10});
-  gem(S,.075,.44,yb+1.37,.26);
-  for(let i=0;i<10;i++){const t=i/10*Math.PI*2,sp=new T.Mesh(new T.ConeGeometry(.016,.075,5),D);sp.position.set(.44+Math.cos(t)*.075,yb+1.37+Math.sin(t*3)*.03,.26+Math.sin(t)*.075);sp.rotation.z=-Math.cos(t)*Math.PI/2;sp.rotation.x=Math.sin(t)*Math.PI/2;a.add(sp);}
-  const top=new T.Mesh(new T.ConeGeometry(.02,.1,6),D);top.position.set(.44,yb+1.48,.26);a.add(top);
+  // escudo de cavaleiro curvo com brasão pintado, borda e umbo
+  const sc=grip.L.clone().add(V3(-.02,0,.05));
+  const hs=(k)=>{const s=new T.Shape();s.moveTo(-.23*k,.3*k);s.lineTo(.23*k,.3*k);s.lineTo(.23*k,.06*k);s.bezierCurveTo(.22*k,-.14*k,.09*k,-.29*k,0,-.36*k);s.bezierCurveTo(-.09*k,-.29*k,-.22*k,-.14*k,-.23*k,.06*k);s.closePath();return s;};
+  const bend=(geo,z0)=>{const p=geo.attributes.position;for(let i=0;i<p.count;i++)p.setZ(i,p.getZ(i)+z0-1.1*p.getX(i)*p.getX(i));geo.computeVertexNormals();return geo;};
+  {const g1=new T.ExtrudeGeometry(hs(1),{depth:.03,bevelEnabled:true,bevelSize:.012,bevelThickness:.01,bevelSegments:2,curveSegments:12});g1.translate(0,0,-.015);bend(g1,0);put(g1,S,sc.x,sc.y,sc.z,{ry:.3});
+   const g2=new T.ShapeGeometry(hs(.9),12),uv=g2.attributes.uv,pp=g2.attributes.position;for(let i=0;i<uv.count;i++)uv.setXY(i,(pp.getX(i)+.21)/.42,(pp.getY(i)+.33)/.6);bend(g2,.0285);put(g2,AM.pano,sc.x,sc.y,sc.z,{ry:.3});
+   lath(G,domePts(.05,.03,.01),14,sc.x+Math.sin(.3)*.03,sc.y+.02,sc.z+Math.cos(.3)*.03,{rx:Math.PI/2,ry:.3,ord:'YXZ'});}
+  // maça de flanges na mão direita
+  const mx=grip.R.x,mz=grip.R.z;
+  partAB(Lth,V3(mx,yb+.93,mz),V3(mx,yb+1.07,mz),[{t:0,rx:.019,rz:.019},{t:1,rx:.019,rz:.019}],{N:8});
+  partAB(S,V3(mx,yb+.86,mz),V3(mx,yb+1.42,mz),[{t:0,rx:.014,rz:.014},{t:1,rx:.016,rz:.016}],{N:8});
+  lath(G,[[0,0],[.024,.004],[.026,.02],[.016,.03],[0,.03]],10,mx,yb+.83,mz);
+  lath(S,[[0,0],[.03,.01],[.038,.06],[.03,.12],[.012,.15],[0,.155]],12,mx,yb+1.36,mz);
+  for(let i=0;i<7;i++){const f=i/7*Math.PI*2,fl=new T.Shape();fl.moveTo(0,0);fl.lineTo(.045,.02);fl.lineTo(.04,.1);fl.lineTo(0,.13);fl.closePath();
+   const me=extrude(D,fl,.008,.002,mx+Math.cos(f)*.022,yb+1.37,mz+Math.sin(f)*.022,{});me.rotation.y=-f;}
+  gem(G,.022,mx,yb+1.53,mz);
  }
+ // ===== funde por material (índices preservados) + contorno de tinta =====
  a.updateMatrixWorld(true);const buckets=new Map(),inkList=[];
- a.traverse(o=>{if(!o.isMesh)return;let g=o.geometry.index?o.geometry.toNonIndexed():o.geometry.clone();g.applyMatrix4(o.matrixWorld);if(!g.attributes.normal)g.computeVertexNormals();if(!g.attributes.uv)g.setAttribute('uv',new T.BufferAttribute(new Float32Array(g.attributes.position.count*2),2));
+ a.traverse(o=>{if(!o.isMesh)return;let g=o.geometry.clone();g.applyMatrix4(o.matrixWorld);
+  if(!g.index){const n=g.attributes.position.count,ix=new Uint32Array(n);for(let i=0;i<n;i++)ix[i]=i;g.setIndex(new T.BufferAttribute(ix,1));}
+  if(!g.attributes.normal)g.computeVertexNormals();if(!g.attributes.uv)g.setAttribute('uv',new T.BufferAttribute(new Float32Array(g.attributes.position.count*2),2));
   if(!buckets.has(o.material))buckets.set(o.material,[]);buckets.get(o.material).push(g);
-  const gi=g.clone(),p=gi.attributes.position,n=gi.attributes.normal;for(let i=0;i<p.count;i++)p.setXYZ(i,p.getX(i)+n.getX(i)*.0075,p.getY(i)+n.getY(i)*.0075,p.getZ(i)+n.getZ(i)*.0075);inkList.push(gi);});
- const out=new T.Group(),mergeG=list=>{let n=0;for(const g of list)n+=g.attributes.position.count;const P=new Float32Array(n*3),N=new Float32Array(n*3),U=new Float32Array(n*2);let off=0;for(const g of list){P.set(g.attributes.position.array,off*3);N.set(g.attributes.normal.array,off*3);U.set(g.attributes.uv.array.subarray(0,g.attributes.position.count*2),off*2);off+=g.attributes.position.count;}const r=new T.BufferGeometry();r.setAttribute('position',new T.BufferAttribute(P,3));r.setAttribute('normal',new T.BufferAttribute(N,3));r.setAttribute('uv',new T.BufferAttribute(U,2));r.computeBoundingSphere();return r;};
- for(const [m,list] of buckets){const me=new T.Mesh(mergeG(list),m);me.castShadow=true;me.receiveShadow=true;out.add(me);}
- const ink=new T.MeshBasicMaterial({color:'#2a2038',side:T.BackSide});out.add(new T.Mesh(mergeG(inkList),ink));
+  if(o.material.map&&o.material!==G)return;   // tecidos (tabardo, capa) sem contorno
+  const gi=g.clone(),p=gi.attributes.position,n=gi.attributes.normal;for(let i=0;i<p.count;i++)p.setXYZ(i,p.getX(i)+n.getX(i)*.006,p.getY(i)+n.getY(i)*.006,p.getZ(i)+n.getZ(i)*.006);inkList.push(gi);});
+ const mergeG=list=>{let nv=0,ni=0;for(const g of list){nv+=g.attributes.position.count;ni+=g.index.count;}
+  const Pp=new Float32Array(nv*3),Nn=new Float32Array(nv*3),Uu=new Float32Array(nv*2),I=nv>65535?new Uint32Array(ni):new Uint16Array(ni);let ov=0,oi=0;
+  for(const g of list){const c=g.attributes.position.count;Pp.set(g.attributes.position.array,ov*3);Nn.set(g.attributes.normal.array,ov*3);Uu.set(g.attributes.uv.array.subarray(0,c*2),ov*2);
+   const ix=g.index.array;for(let i=0;i<ix.length;i++)I[oi+i]=ix[i]+ov;ov+=c;oi+=ix.length;}
+  const r=new T.BufferGeometry();r.setAttribute('position',new T.BufferAttribute(Pp,3));r.setAttribute('normal',new T.BufferAttribute(Nn,3));r.setAttribute('uv',new T.BufferAttribute(Uu,2));r.setIndex(new T.BufferAttribute(I,1));r.computeBoundingSphere();return r;};
+ const out=new T.Group();out.name='Armadura';
+ for(const [m,list] of buckets){const me=new T.Mesh(mergeG(list),m);me.castShadow=true;me.receiveShadow=true;me.name='Armadura';out.add(me);}
+ const ink=new T.Mesh(mergeG(inkList),ARM_INK);ink.name='Armadura · contorno';out.add(ink);
  return out;
 };
+const ARM_INK=new T.MeshBasicMaterial({color:'#2a2038',side:T.BackSide});
 const ARM_CACHE={};
 function armorModel(variant){return (ARM_CACHE[variant]||(ARM_CACHE[variant]=ARM_BUILD(variant))).clone();}
+window.arcanoArmadura={modelo:armorModel};
 
 // ---------- Vida do castelo: chamas, raios de luz, poeira e tapeçarias ----------
-const LIFE={flames:[],shafts:[],dust:[],t0:performance.now()};
+const LIFE={flames:[],shafts:[],dust:[],anim:[],t0:performance.now()};
 const flameTex=(()=>{const c=document.createElement('canvas');c.width=64;c.height=128;const g=c.getContext('2d');
  // gota de fogo: núcleo branco-amarelo, miolo laranja, borda vermelha que some
  for(const [r,col,sy] of [[30,'rgba(255,60,10,0)',1],[26,'rgba(255,92,18,.55)',1],[19,'rgba(255,160,40,.85)',.98],[11,'rgba(255,225,120,1)',.95],[5,'rgba(255,255,230,1)',.9]]){
@@ -392,13 +536,17 @@ function tapestryTex(i){return canvasTex(128,256,(g,w,h)=>{
  g.fillStyle='#d8b45a';for(let x=18;x<w-14;x+=11){g.beginPath();g.moveTo(x,h-14);g.lineTo(x+5,h-4);g.lineTo(x+10,h-14);g.fill();}});}
 const TAPEST=[0,1,2,3].map(tapestryTex);
 const tapMats=TAPEST.map(t=>new T.MeshBasicMaterial({map:t,side:T.DoubleSide,fog:false}));
-function addLife(inn,k,y0,H,FL,torches){
- // Chamas (sprites aditivos que tremulam) + brilho quente em volta.
+// Chamas (sprites aditivos que tremulam) + brilho quente em volta.
+function chamas(inn,FL,k,teto){
  for(const [x,y,z,sc] of FL){
   const s=new T.Sprite(flameMat);s.position.set(x,y,z);s.scale.set(.2*sc,.32*sc,1);s.center.set(.5,.12);inn.add(s);
-  const gl=new T.Sprite(glowMat);gl.position.set(x,y+.05*sc,z);gl.scale.setScalar(.9*sc+.4);inn.add(gl);
-  LIFE.flames.push({s,gl,sc,ph:Math.random()*6.28,sp:9+Math.random()*5});
+  // brilho só nas chamas maiores (velinhas de lustre e de mesa ficam só com a chama: menos sprites por andar)
+  let gl=null;if(sc>=.5){gl=new T.Sprite(glowMat);gl.position.set(x,y+.05*sc,z);gl.scale.setScalar(.9*sc+.4);inn.add(gl);}
+  LIFE.flames.push({s,gl,sc,k,teto:!!teto,ph:Math.random()*6.28,sp:9+Math.random()*5});
  }
+}
+function addLife(inn,k,y0,H,FL){
+ chamas(inn,FL,k);
  // Raios de luz entrando pelas janelas laterais (somem à noite).
  for(const side of [-1,1])for(const lz of [-12,-6,0,5]){
   const wx=side*(BX-.55),yTop=y0+4.4,yBot=y0+.45,len=5.0,hw=.75;
@@ -414,14 +562,6 @@ function addLife(inn,k,y0,H,FL,torches){
   const g=new T.BufferGeometry();g.setAttribute('position',new T.BufferAttribute(pp,3));
   const pt=new T.Points(g,new T.PointsMaterial({color:'#fff0c8',size:.07,transparent:true,opacity:.65,blending:T.AdditiveBlending,depthWrite:false,fog:false,sizeAttenuation:true,map:glowTex}));
   pt.frustumCulled=false;inn.add(pt);LIFE.dust.push({pt,y0,N});}
- // Tapeçarias penduradas por varão dourado (andares de cima, nas duas faces do salão).
- if(k>0)for(const sx of [-1,1]){
-  const tp=new T.Group();tp.position.set(sx*5.62,y0+.4+3.5,-6.8);tp.rotation.y=-sx*Math.PI/2;
-  const pl=new T.Mesh(new T.PlaneGeometry(1.5,3.2),tapMats[(k+(sx>0?1:0))%4]);pl.position.set(0,-.1,.03);tp.add(pl);
-  const rod=new T.Mesh(new T.CylinderGeometry(.04,.04,1.8,8),M.goldM);rod.rotation.z=Math.PI/2;rod.position.set(0,1.55,.05);tp.add(rod);
-  for(const e of [-1,1]){const kn=new T.Mesh(new T.SphereGeometry(.07,8,6),M.goldM);kn.position.set(e*.92,1.55,.05);tp.add(kn);}
-  inn.add(tp);
- }
 }
 function updateLife(now){
  const t=(now-LIFE.t0)/1000;
@@ -430,8 +570,10 @@ function updateLife(now){
  for(const f of LIFE.flames){
   const fl=.85+.15*Math.sin(t*f.sp+f.ph)+.08*Math.sin(t*f.sp*2.3+f.ph*2);
   f.s.scale.set(.2*f.sc*(.9+.1*Math.sin(t*f.sp*1.7+f.ph)),.32*f.sc*fl,1);
-  f.gl.material.opacity=1;f.gl.scale.setScalar((.9*f.sc+.4)*(.92+.08*Math.sin(t*f.sp*.7+f.ph)));
+  if(f.gl){f.gl.material.opacity=1;f.gl.scale.setScalar((.9*f.sc+.4)*(.92+.08*Math.sin(t*f.sp*.7+f.ph)));}
  }
+ // peças que se mexem (engrenagens, pêndulo, corda do sino, globos): mesmas fórmulas do Godot (sistemas/animados.gd)
+ for(const a of LIFE.anim){const o=a.o,b=o.userData.base,ax=a.c[1],r=a.c[0]==='r',v=(r?b.r[ax]:b.p[ax])+(a.f==='lin'?a.v*t:(a.b||0)+a.a*Math.sin(a.w*t+(a.ph||0)));if(r)o.rotation[ax]=v;else o.position[ax]=v;}
  const day=1-night;for(const s of LIFE.shafts)s.m.opacity=s.base*day*(.8+.2*Math.sin(t*.6+s.ph));
  for(const d of LIFE.dust){const a=d.pt.geometry.attributes.position.array;for(let i=0;i<d.N;i++){a[i*3]+=Math.sin(t*.3+i)*.0016;a[i*3+1]+=Math.sin(t*.5+i*1.7)*.0012+.0005;a[i*3+2]+=Math.cos(t*.27+i*.6)*.0016;if(a[i*3+1]>d.y0+4.9)a[i*3+1]=d.y0+.6;}d.pt.geometry.attributes.position.needsUpdate=true;}
 }
@@ -445,7 +587,7 @@ function build(api,site){
  const scene=api.scene,O=window.arcanoObstacles;
  const root=new T.Group();root.position.set(site.x,site.y,site.z);scene.add(root);
  const W=(lx,lz)=>({x:site.x+lx,z:site.z+lz});
- const obsBox=(lx,lz,hw,hd,k)=>{if(!O)return;const w=W(lx,lz),b={x:w.x,z:w.z,hw,hd,rot:0};if(k!=null){b.ymin=site.y+Fy(k)-.6;b.ymax=site.y+Fy(k+1)-.6;}O.addBox(b);};
+ const obsBox=(lx,lz,hw,hd,k,rot)=>{if(!O)return;const w=W(lx,lz),b={x:w.x,z:w.z,hw,hd,rot:rot||0};if(k!=null){b.ymin=site.y+Fy(k)-.6;b.ymax=site.y+Fy(k+1)-.6;}O.addBox(b);};
  const ang=(a,b)=>Math.abs(Math.atan2(Math.sin(a-b),Math.cos(a-b)));
 
  // ===== Exterior fixo (fundido): muralha, torres, campanário, pórtico =====
@@ -466,7 +608,9 @@ function build(api,site){
   const arch=new T.Mesh(geo,M.wall);arch.position.set(0,0,RW);ext.add(arch);box(ext,10.4,.5,3,M.trim,0,9.2,RW);
   for(const sx of [-1,1]){EXTCLOTH.push([1.3,3.4,'red',sx*3.6,7.1,RW+1.42]);box(ext,1.6,.14,.2,M.gold,sx*3.6,7.12,RW+1.4);for(const e of [-1,1]){const kn=new T.Mesh(new T.SphereGeometry(.1,8,6),M.gold);kn.position.set(sx*3.6+e*.82,7.15,RW+1.4);ext.add(kn);}}}
  // Torres de canto do prédio (mais altas que ele).
- for(const [x,z] of [[-BX,BZ1],[BX,BZ1],[-BX,BZ0],[BX,BZ0]]){squareTower(ext,x,z,6,TOP+8);obsBox(x,z,3.15,3.15);}
+ {const cg=new T.Group();for(const [x,z] of [[-BX,BZ1],[BX,BZ1],[-BX,BZ0],[BX,BZ0]]){const ux=Math.sign(x),uz=z===BZ1?1:-1;squareTower(cg,x,z,6,TOP+8,ux,uz,TOP+.8);
+   obsBox(x+ux*1.35,z,1.8,3.15);obsBox(x-ux*1.8,z+uz*1.35,1.35,1.8);}
+  mergeInto(cg,root,'Castelo de Aurora · exterior',new Map([[M.wall,4],[M.base,4],[M.trim,4]]));}
  // Contrafortes nas laterais.
  for(const sx of [-1,1])for(let z=BZ0+5;z<=BZ1-4;z+=6){box(ext,1.4,TOP*.75,1.4,M.wall,sx*(BX+.9),TOP*.375,z);pyramid(ext,1.6,1.6,1.4,M.slate,sx*(BX+.9),TOP*.75,z);}
  // Campanário atrás, com o núcleo dentro do sino.
@@ -510,208 +654,15 @@ function build(api,site){
   }
   mergeInto(r,roof,'Telhado do castelo');}
 
- // ===== Mobília de cada andar =====
- function furnish(g,k,y0,H,FL,BN){
-  const Y=y=>y0+y;
-  const F=.4;   // altura do piso acima de y0
-  // Colisão dos móveis (só neste andar).
-  const solid=(x,z,w,d,rot=0)=>{const sw=Math.abs(Math.sin(rot))>.5;obsBox(x,z,(sw?d:w)/2+.05,(sw?w:d)/2+.05,k);};
-  // Estante com livros de verdade: lombadas de cores, alturas e larguras variadas, alguns inclinados.
-  const shelf=(x,z,w,h,rot=0)=>{
-   const c=Math.cos(rot),s=Math.sin(rot),P=(a,b)=>[x+a*c+b*s,z-a*s+b*c];
-   {const [px,pz]=P(0,-.22);box(g,w,h,.06,M.woodDark,px,Y(F+h/2),pz,rot,2);}
-   for(const e of [-1,1]){const [px,pz]=P(e*(w/2-.04),0);box(g,.08,h,.5,M.woodDark,px,Y(F+h/2),pz,rot,2);}
-   box(g,w+.1,.1,.55,M.woodDark,x,Y(F+h+.05),z,rot,2);
-   for(let yy=.1;yy<h-.3;yy+=.9){
-    box(g,w-.1,.06,.48,M.wood,x,Y(F+yy),z,rot,2);
-    let a=-w/2+.12;
-    while(a<w/2-.2){const bw=.07+rnd()*.09,bh=.48+rnd()*.28,lean=rnd()<.08&&a>-w/2+.4&&a<w/2-.5;
-     if(rnd()<.06){a+=.15;continue;}
-     const [px,pz]=P(a+bw/2,.02);const b=box(g,bw,bh,.34,M.book[Math.floor(rnd()*M.book.length)],px,Y(F+yy+.03+bh/2),pz,rot,1);
-     if(lean)b.rotation.z=.16;
-     if(rnd()<.6){const [qx,qz]=P(a+bw/2,.192);box(g,bw+.005,.035,.005,M.gold,qx,Y(F+yy+.03+bh*.78),qz,rot,1);box(g,bw+.005,.035,.005,M.gold,qx,Y(F+yy+.03+bh*.22),qz,rot,1);}
-     a+=bw+.005;}
-   }
-   solid(x,z,w,.5,rot);
-  };
-  const table=(x,z,w,d,h=.85,m=M.wood)=>{box(g,w,.12,d,m,x,Y(F+h),z,0,2);for(const sx of [-1,1])for(const sz of [-1,1])box(g,.12,h,.12,M.woodDark,x+sx*(w/2-.15),Y(F+h/2),z+sz*(d/2-.15));solid(x,z,w,d);};
-  const chair=(x,z,r=0)=>{box(g,.5,.08,.5,M.wood,x,Y(F+.48),z,r,2);box(g,.5,.7,.08,M.wood,x-Math.sin(r)*.22,Y(F+.85),z-Math.cos(r)*.22,r,2);for(const sx of [-1,1])for(const sz of [-1,1])box(g,.06,.46,.06,M.woodDark,x+sx*.2,Y(F+.23),z+sz*.2);};
-  const candle=(x,y,z)=>{box(g,.08,.25,.08,M.candle,x,Y(y+.12),z);box(g,.2,.05,.2,M.gold,x,Y(y),z);FL.push([x,Y(y+.25),z,.45]);};
-  // Tocha de parede presa na coluna: braço de ferro, copo e chama.
-  const torch=(x,z,dx)=>{box(g,.3,.05,.05,M.iron,x-dx*.15,Y(2.35),z);box(g,.05,.5,.05,M.woodDark,x,Y(2.3),z);cyl(g,.09,.06,.14,M.iron,x,Y(2.78),z,8);FL.push([x,Y(2.98),z,1.1]);};
-  // Tapete com franjas, um pouco acima do piso (sem cortar nem piscar).
-  const rug=(x,z,w,d)=>{box(g,w,.035,d,M.rug,x,Y(F+.02),z,0,w);for(const e of [-1,1])for(let a=-w/2+.1;a<w/2;a+=.16)box(g,.04,.015,.16,M.cloth,x+a,Y(F+.012),z+e*(d/2+.07));};
-  const bed=(x,z,rot=0,canopy=false)=>{box(g,2,.5,2.6,M.woodDark,x,Y(.65),z,rot,2);box(g,1.9,.25,2.5,M.cloth,x,Y(1),z,rot);box(g,1.9,.12,1.5,M.velvet,x,Y(1.18),z+.5,rot);box(g,1.4,.25,.45,M.cloth,x,Y(1.2),z-1,rot);box(g,2.1,1.8,.2,M.woodDark,x,Y(1.3),z-1.35,rot,2);
-   if(canopy){for(const sx of [-1,1])for(const sz of [-1,1])box(g,.15,3,.15,M.woodDark,x+sx*.95,Y(1.9),z+sz*1.25);box(g,2.2,.15,2.8,M.velvet,x,Y(3.4),z);for(const sx of [-1,1])box(g,.06,2.6,2.7,M.red,x+sx*1.05,Y(2.1),z);}
-   solid(x,z,2.1,2.8,rot);};
-  const fireplace=(x,z,rot=0)=>{box(g,3.2,3,1.2,M.base,x,Y(1.9),z,rot);box(g,2,1.4,.5,M.iron,x,Y(1.1),z+(rot?0:.4)*Math.cos(rot),rot);box(g,1.2,.6,.3,M.fire,x,Y(.9),z,rot);box(g,3.6,.3,1.4,M.trim,x,Y(3.45),z,rot);FL.push([x+Math.sin(rot)*.4,Y(1.05),z+Math.cos(rot)*.4,2.1]);FL.push([x+Math.sin(rot)*.4+.3,Y(1.0),z+Math.cos(rot)*.4,1.5]);solid(x,z,3.2,1.2,rot);};
-  // Quadro com moldura dourada (paisagens, retratos, natureza-morta).
-  const paint=(x,z,rot,i,w=1.6,h=1.1,y=2.9)=>{const c=Math.cos(rot),s=Math.sin(rot);box(g,w+.2,h+.2,.06,M.gold,x,Y(y),z,rot);box(g,w,h,.04,M.art[i%M.art.length],x+s*.035,Y(y),z+c*.035,rot);};
-  // Cortinas de tecido dos dois lados da janela: pregas, braçadeira dourada com borla, sanefa ondulada e varão.
-  const curtain=(x,z,rot,m)=>{const tie=.42,h=4.55,gp=new T.Group();gp.position.set(x,Y(0),z);gp.rotation.y=rot;gp.translateZ(.09);g.add(gp);
-   for(const e of [-1,1]){const pm=new T.Mesh(drapeGeo(e,.5,1.55,h,tie),m);pm.position.y=F+.05+h/2;gp.add(pm);
-    const yt=F+.05+h*tie,tb=new T.Mesh(new T.TorusGeometry(.2,.035,6,14),M.gold);tb.rotation.x=Math.PI/2;tb.scale.set(1,.7,1);tb.position.set(e*1.38,yt,.14);gp.add(tb);
-    const ts=new T.Mesh(new T.ConeGeometry(.06,.28,8),M.gold);ts.position.set(e*1.38,yt-.175,.28);gp.add(ts);}
-   const va=new T.Mesh(valanceGeo(3.4),m);va.position.y=F+4.45;gp.add(va);
-   const rodM=new T.Mesh(new T.CylinderGeometry(.04,.04,3.6,8),M.gold);rodM.rotation.z=Math.PI/2;rodM.position.set(0,F+4.78,.14);gp.add(rodM);
-   for(const e of [-1,1]){const f=new T.Mesh(new T.SphereGeometry(.08,8,6),M.gold);f.position.set(e*1.85,F+4.78,.14);gp.add(f);}};
-  let armorN=0;
-  const armor=(x,z,rot,v)=>{const a=armorModel(v==null?(armorN++%3):v);a.position.set(x,Y(F),z);a.rotation.y=rot;g.add(a);solid(x,z,1.0,1.0);};
-  const plant=(x,z)=>{cyl(g,.3,.24,.6,M.base,x,Y(F),z,10);const p=new T.Mesh(new T.IcosahedronGeometry(.5,1),M.leaf);p.position.set(x,Y(F+1),z);g.add(p);solid(x,z,.6,.6);};
-  const chandelier=(x,z)=>{const r=new T.Mesh(new T.TorusGeometry(1.2,.1,6,20),M.gold);r.rotation.x=Math.PI/2;r.position.set(x,Y(H-.8),z);g.add(r);for(let i=0;i<8;i++){const a=i/8*Math.PI*2;candle(x+Math.cos(a)*1.2,H-.8,z+Math.sin(a)*1.2);}box(g,.05,.8,.05,M.iron,x,Y(H-.4),z);};
-  // Cortinas em todas as janelas (cor do andar) e quadros nas paredes livres.
-  {const cm=M.drape[k];
-   for(const lx of [-12,-8,8,12]){curtain(lx,BZ1-.5,Math.PI,cm);curtain(lx,BZ0+.5,0,cm);}
-   if(k>0)for(const lx of [-3,0,3])curtain(lx,BZ1-.5,Math.PI,cm);
-   for(const lz of [-12,-6,0,5]){curtain(-BX+.5,lz,Math.PI/2,cm);curtain(BX-.5,lz,-Math.PI/2,cm);}}
-  if(k===0){
-   // ---- Salão Principal ----
-   box(g,3,.035,BZ1-BZ0-5,M.carpet,0,Y(F+.02),(BZ0+BZ1)/2+1.5,0,3);
-   for(const sx of [-1,1])for(let z=BZ0+5;z<BZ1-1;z+=4){cyl(g,.45,.55,H-.4,M.trim,sx*4.2,Y(.4),z,12);box(g,1.2,.6,1.2,M.base,sx*4.2,Y(.7),z);solid(sx*4.2,z,1.2,1.2);torch(sx*3.55,z,-sx);}
-   chandelier(0,-6);chandelier(0,1);
-   // Trono imponente: 3 degraus, encosto alto pontudo dourado, braços com leões, baldaquino, braseiros.
-   const tz=BZ0+2.2;
-   box(g,8,.35,4.4,M.trim,0,Y(.58),tz+.4);box(g,6.4,.35,3.6,M.trim,0,Y(.93),tz+.2);box(g,4.8,.35,2.8,M.carpet,0,Y(1.28),tz,0,2);
-   box(g,1.8,.7,1.5,M.velvet,0,Y(1.8),tz);box(g,2,.25,1.7,M.gold,0,Y(1.48),tz);
-   box(g,2.1,3.6,.35,M.velvet,0,Y(3.1),tz-.75);
-   {const s=new T.Shape();s.moveTo(-1.15,0);s.lineTo(1.15,0);s.lineTo(1.15,4.2);s.lineTo(0,5.6);s.lineTo(-1.15,4.2);s.lineTo(-1.15,0);
-    const back=new T.Mesh(new T.ExtrudeGeometry(s,{depth:.2,bevelEnabled:false}),M.gold);back.position.set(0,Y(1.3),tz-1.05);g.add(back);}
-   {const crown=new T.Mesh(new T.TorusGeometry(.35,.08,6,12),M.gold);crown.position.set(0,Y(5.4),tz-.8);g.add(crown);}
-   for(const sx of [-1,1]){box(g,.3,.9,1.5,M.gold,sx*1.05,Y(2.1),tz);const lion=new T.Mesh(new T.SphereGeometry(.24,10,8),M.gold);lion.position.set(sx*1.05,Y(2.7),tz+.65);g.add(lion);}
-   for(const sx of [-1,1])for(const sz of [-1,1])box(g,.25,4.8,.25,M.gold,sx*2.8,Y(3.7),tz+sz*1.8);
-   box(g,6,.45,4,M.velvet,0,Y(6.1),tz);for(const sx of [-1,1])box(g,.1,3,3.8,M.red,sx*2.95,Y(4.6),tz);
-   box(g,6.2,.15,.1,M.gold,0,Y(5.85),tz+2.02);
-   solid(0,tz+.4,8,4.4);
-   for(const sx of [-1,1]){cyl(g,.35,.5,1.5,M.iron,sx*4.2,Y(.4),tz+1.6,10);box(g,.7,.5,.7,M.fire,sx*4.2,Y(2.1),tz+1.6);FL.push([sx*4.2,Y(2.4),tz+1.6,2.4]);BN.push([1.5,5,sx>0?'blue':'red',sx*4.6,Y(5.9),BZ0+.66]);box(g,1.8,.12,.14,M.gold,sx*4.6,Y(5.92),BZ0+.62);solid(sx*4.2,tz+1.6,.9,.9);}
-   // Quadros grandes e armaduras ao longo do salão.
-   for(const sx of [-1,1]){paint(sx*5.7,-5.5,-sx*Math.PI/2,sx>0?1:4,2.2,1.6,3.2);paint(sx*5.7,5.6,-sx*Math.PI/2,sx>0?0:6,1.6,1.2,3);armor(sx*5.2,-1,-sx*Math.PI/2);}
-   // ---- Biblioteca (oeste, fundo) ----
-   for(const z of [-13.2,-10.4,-7.6])shelf(-BX+.8,z,2.7,5.4,Math.PI/2);
-   for(const x of [-13.4,-10.7,-8.0])shelf(x,BZ0+.8,2.6,5.4);
-   shelf(-10.5,-10.2,4.5,3.4);shelf(-10.5,-7.2,4.5,3.4,Math.PI);
-   table(-9,-5.4,2.4,1.2);chair(-9.6,-4.8,Math.PI);chair(-8.4,-4.8,Math.PI);candle(-9,1.3,-5.4);
-   {const gl=new T.Mesh(new T.SphereGeometry(.5,36,20),M.globe);gl.position.set(-13.5,Y(1.5),-6);gl.rotation.set(0,.7,.41,"YXZ");g.add(gl);{const r=new T.Mesh(new T.TorusGeometry(.55,.022,6,40),M.goldM);r.position.copy(gl.position);r.rotation.copy(gl.rotation);g.add(r);}box(g,.12,1,.12,M.woodDark,-13.5,Y(.9),-6);solid(-13.5,-6,1,1);}
-   // ---- Sala de Estudos (oeste, frente) ----
-   rug(-11,2,5,4);table(-11,2,2.6,1.4);chair(-11,3.1,Math.PI);chair(-11,.9,0);candle(-11,1.35,2);shelf(-BX+.8,5,3,3,Math.PI/2);fireplace(-11,BZ1-1.1,Math.PI);
-   paint(-8.6,-3.7,0,2);paint(-13,-3.7,0,7,1.2,1);plant(-7,6.6);
-   // ---- Hall da escada (leste, frente) ----
-   plant(14.5,6.6);paint(6.3,-1.5,Math.PI/2,5,1.2,1.6);
-   // ---- Refeitório (leste, fundo) ----
-   table(11,-10,2,8,.9);for(let z=-13;z<=-7;z+=1.5){chair(9.6,z,Math.PI/2);chair(12.4,z,-Math.PI/2);}for(let z=-13;z<=-7;z+=2)candle(11,1.37,z);fireplace(BX-1.1,-10,-Math.PI/2);
-   paint(6.3,-14.2,Math.PI/2,8,2,1.3);paint(6.3,-6.2,Math.PI/2,3,1.1,.9);
-  }else if(k===1){
-   // ---- Galeria (centro, frente) ----
-   rug(0,2.5,3.2,5);chandelier(0,2);
-   for(const sx of [-1,1]){box(g,.5,.45,1.6,M.wood,sx*3.6,Y(.62),2.5,0,2);solid(sx*3.6,2.5,.5,1.6);
-    paint(sx*5.7,-1.6,-sx*Math.PI/2,sx>0?0:2,1.8,1.2);paint(sx*5.7,5.8,-sx*Math.PI/2,sx>0?6:4,1.4,1.8);}
-   for(const x of [-3.5,3.5]){box(g,.7,1.1,.7,M.trim,x,Y(F+.55),6.6);const bust=new T.Mesh(new T.SphereGeometry(.3,12,10),M.cloth);bust.position.set(x,Y(F+1.45),6.6);g.add(bust);solid(x,6.6,.7,.7);}
-   // ---- Sala do Conselho (centro, fundo) ----
-   {const t=new T.Mesh(new T.CylinderGeometry(2.2,2.2,.15,24),M.wood);t.position.set(0,Y(1.3),-10);g.add(t);cyl(g,.35,.45,.9,M.woodDark,0,Y(.4),-10,8);for(let i=0;i<8;i++){const a=i/8*Math.PI*2;chair(Math.cos(a)*3,-10+Math.sin(a)*3,-a-Math.PI/2);}chandelier(0,-10);solid(0,-10,4.4,4.4);}
-   paint(0,BZ0+.55,0,1,3,2,3.3);BN.push([1.5,5,'blue',-4.2,Y(5.9),BZ0+.66]);BN.push([1.5,5,'red',4.2,Y(5.9),BZ0+.66]);for(const bx of [-4.2,4.2])box(g,1.8,.12,.14,M.gold,bx,Y(5.92),BZ0+.62);
-   // ---- Escritório (oeste, frente) ----
-   rug(-11,2,4,3);table(-11,2.4,2.4,1.2);chair(-11,1.4,0);shelf(-BX+.8,2,3,4,Math.PI/2);candle(-10.4,1.35,2.4);paint(-10,-3.7,0,3);plant(-7,6.6);
-   // ---- Sala de Mapas (oeste, fundo) ----
-   table(-11,-10,3.2,2.2);box(g,3,.02,2,M.cloth,-11,Y(1.33),-10);{const gl=new T.Mesh(new T.SphereGeometry(.45,36,20),M.globe);gl.position.set(-13.8,Y(1.4),-13.8);gl.rotation.set(0,2.2,.41,"YXZ");g.add(gl);{const r=new T.Mesh(new T.TorusGeometry(.5,.02,6,40),M.goldM);r.position.copy(gl.position);r.rotation.copy(gl.rotation);g.add(r);}solid(-13.8,-13.8,1,1);}
-   paint(-6.3,-7.2,-Math.PI/2,0,2.4,1.6);paint(-6.3,-12.5,-Math.PI/2,6,1.2,1);
-   // ---- Arsenal (leste, fundo) ----
-   for(let z=-13.5;z<-6;z+=1.6){box(g,.15,2,.15,M.woodDark,BX-1,Y(1.4),z);box(g,.1,1.6,.6,M.steel,BX-1.3,Y(1.6),z);}solid(BX-1.1,-9.8,.8,8);
-   for(const x of [8,10])armor(x,-13.5,0);armor(12.5,-6,-Math.PI/2);
-   plant(14.5,6.6);
-  }else if(k===2){
-   // ---- Salão de Música (centro, frente) ----
-   box(g,2.2,1,1.2,M.woodDark,-1.5,Y(.9),3,0,2);box(g,2.2,.06,.4,M.cloth,-1.5,Y(1.42),3.5);chair(-1.5,4.3,Math.PI);solid(-1.5,3,2.2,1.2);
-   box(g,.2,2.2,1.2,M.gold,2,Y(1.5),2);solid(2,2,.4,1.2);rug(0,2,4.6,3.6);chandelier(0,2);
-   for(const sx of [-1,1])paint(sx*5.7,0,-sx*Math.PI/2,sx>0?2:5,1.6,1.2);
-   // ---- Capela (centro, fundo) ----
-   box(g,3,1.1,1.2,M.trim,0,Y(.95),-14);for(const x of [-1,0,1])candle(x,1.5,-14);solid(0,-14,3,1.2);
-   for(let z=-11;z<=-6;z+=1.6)for(const sx of [-1,1]){box(g,2.6,.45,.6,M.wood,sx*2,Y(.62),z,0,2);solid(sx*2,z,2.6,.6);}
-   box(g,2.4,3.2,.08,M.glass,0,Y(3.6),BZ0+.55);box(g,2.7,3.5,.06,M.gold,0,Y(3.6),BZ0+.52);
-   // ---- Quarto Real (oeste, frente) ----
-   bed(-11,1.5,0,true);rug(-11,4.6,3.6,1.8);box(g,1.6,2.4,.7,M.wood,-14.2,Y(1.6),-1,Math.PI/2,2);solid(-14.2,-1,1.6,.7,Math.PI/2);candle(-13.6,1.2,4);
-   paint(-6.3,4.5,-Math.PI/2,1,1.2,1.6);plant(-7,6.6);
-   // ---- Quarto de Vestir (oeste, fundo) ----
-   for(let z=-14;z<-6;z+=2.2){box(g,1.8,2.6,.8,M.wood,-BX+1,Y(1.7),z,Math.PI/2,2);solid(-BX+1,z,1.8,.8,Math.PI/2);}
-   box(g,1.2,2.4,.08,M.steel,-8,Y(1.8),BZ0+.6);box(g,1.4,2.6,.05,M.gold,-8,Y(1.8),BZ0+.57);
-   // ---- Quarto de Hóspedes (leste, fundo) ----
-   bed(11.5,-11);box(g,1.2,.6,.6,M.wood,9,Y(.7),-13.8,0,2);solid(9,-13.8,1.2,.6);rug(11,-7.6,3,1.8);paint(6.3,-13.3,Math.PI/2,7);
-   plant(14.5,6.6);
-  }else{
-   // Haste ligando dois pontos (tripés, tubos).
-   const rod=(ax,ay,az,bx,by,bz,r,m,seg=8)=>{const A=new T.Vector3(ax,ay,az),d=new T.Vector3(bx-ax,by-ay,bz-az),L=d.length();const mm=new T.Mesh(new T.CylinderGeometry(r,r,L,seg),m);mm.position.copy(A).addScaledVector(d,.5);mm.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),d.normalize());g.add(mm);return mm;};
-   // Cadeira de conselho: assento e encosto de veludo, braços, pináculos dourados.
-   const chairV=(x,z,r,tall=false)=>{const c=Math.cos(r),s=Math.sin(r),L=(a,b)=>[x+a*c+b*s,z-a*s+b*c],bh=tall?1.55:1.05;
-    box(g,.62,.1,.62,M.woodDark,x,Y(F+.5),z,r,2);box(g,.56,.08,.56,M.velvet,x,Y(F+.59),z,r);
-    {const [px,pz]=L(0,-.28);box(g,.62,bh,.08,M.woodDark,px,Y(F+.55+bh/2),pz,r,2);const [qx,qz]=L(0,-.235);box(g,.46,bh-.3,.03,M.velvet,qx,Y(F+.62+bh/2),qz,r);}
-    for(const e of [-1,1]){const [px,pz]=L(e*.27,-.28);const f=new T.Mesh(new T.SphereGeometry(.06,8,6),M.gold);f.position.set(px,Y(F+.6+bh),pz);g.add(f);
-     const [ax,az]=L(e*.3,0);box(g,.06,.06,.55,M.woodDark,ax,Y(F+.8),az,r);const [bx,bz]=L(e*.3,.22);box(g,.06,.25,.06,M.woodDark,bx,Y(F+.67),bz,r);}
-    for(const a of [-1,1])for(const b of [-1,1]){const [px,pz]=L(a*.25,b*.25);box(g,.07,.5,.07,M.woodDark,px,Y(F+.25),pz,r);}
-    if(tall){const [px,pz]=L(0,-.29);const cr=new T.Mesh(new T.TorusGeometry(.12,.03,6,12),M.gold);cr.position.set(px,Y(F+.66+bh),pz);cr.rotation.y=r;g.add(cr);solid(x,z,.7,.7);}};
-   // ---- Salão de Reuniões (centro, frente) ----
-   {const tz=2,TL=6.6,TW=1.9;
-    rug(0,tz,9.4,4.6);
-    box(g,TL,.1,TW,M.wood,0,Y(F+.86),tz,0,2);box(g,TL+.12,.05,TW+.12,M.gold,0,Y(F+.8),tz);box(g,TL-.4,.16,TW-.4,M.woodDark,0,Y(F+.72),tz,0,2);
-    for(const x of [-TL/2+.3,0,TL/2-.3])for(const e of [-1,1])box(g,.16,.72,.16,M.woodDark,x,Y(F+.36),tz+e*(TW/2-.3));
-    box(g,TL-.6,.015,.55,M.velvet,0,Y(F+.92),tz);
-    for(const x of [-2.2,0,2.2]){box(g,.3,.06,.3,M.gold,x,Y(F+.94),tz);box(g,.05,.35,.05,M.gold,x,Y(F+1.12),tz);box(g,.4,.04,.04,M.gold,x,Y(F+1.28),tz);candle(x-.18,F+1.3,tz);candle(x+.18,F+1.3,tz);candle(x,F+1.32,tz);}
-    for(const x of [-2.4,-1.2,0,1.2,2.4])for(const e of [-1,1]){box(g,.34,.012,.26,M.cloth,x,Y(F+.917),tz+e*.62);box(g,.07,.07,.07,M.iron,x+.22,Y(F+.95),tz+e*.55);}
-    solid(0,tz,TL,TW);
-    for(const x of [-2.4,-1.2,0,1.2,2.4]){chairV(x,tz-1.3,0);chairV(x,tz+1.3,Math.PI);}
-    chairV(-TL/2-.75,tz,Math.PI/2,true);chairV(TL/2+.75,tz,-Math.PI/2,true);
-    chandelier(-1.7,tz);chandelier(1.7,tz);
-    // Aparadores com candelabros na parede do fundo (dos dois lados da porta do observatório).
-    for(const sx of [-1,1]){const x=sx*3.7;box(g,2.4,.95,.55,M.woodDark,x,Y(F+.475),-3.42,0,2);box(g,2.5,.06,.62,M.gold,x,Y(F+.98),-3.42);
-     for(const e of [-.6,.6])box(g,.9,.6,.02,M.wood,x+e,Y(F+.5),-3.13,0,2);
-     candle(x-.8,F+1.01,-3.45);candle(x+.8,F+1.01,-3.45);cyl(g,.16,.12,.4,M.gold,x,Y(F+1.01),-3.45,10);
-     paint(x,-3.7,0,sx>0?3:5,2,1.3,3.1);solid(x,-3.42,2.4,.6);}
-    for(const sx of [-1,1]){shelf(sx*5.45,-1.4,2.6,3.0,-sx*Math.PI/2);paint(sx*5.7,5.5,-sx*Math.PI/2,sx>0?6:8,1.8,1.2,2.9);plant(sx*5.2,7.0);}}
-   // ---- Observatório (centro, fundo) ----
-   {const oz=-10;
-    const sky=new T.Mesh(new T.PlaneGeometry(11.4,11.1),M.starCeil);sky.rotation.x=Math.PI/2;sky.position.set(0,Y(H-.08),(-4.25+BZ0+.5)/2);g.add(sky);
-    cyl(g,2.3,2.5,.3,M.trim,0,Y(F),oz,28);{const r=new T.Mesh(new T.TorusGeometry(2.15,.05,6,40),M.gold);r.rotation.x=Math.PI/2;r.position.set(0,Y(F+.31),oz);g.add(r);}
-    const top=F+.3,mY=F+1.75;
-    for(let i=0;i<3;i++){const a=i/3*Math.PI*2+.5;rod(Math.cos(a)*.95,Y(top),oz+Math.sin(a)*.95,0,Y(mY),oz,.05,M.woodDark);}
-    box(g,.35,.3,.35,M.brass,0,Y(mY+.1),oz,0,1);
-    const tube=rod(-.9,Y(mY-.35),oz+.75,1.0,Y(mY+1.7),oz-.95,.2,M.brass,14);
-    {const lens=new T.Mesh(new T.TorusGeometry(.23,.05,6,16),M.goldM);lens.position.set(1.0,Y(mY+1.7),oz-.95);lens.quaternion.copy(tube.quaternion);lens.rotateX(Math.PI/2);g.add(lens);}
-    rod(-.9,Y(mY-.35),oz+.75,-1.15,Y(mY-.6),oz+.98,.06,M.iron);
-    rod(-.6,Y(mY+.0),oz+.4,.2,Y(mY+.85),oz-.35,.05,M.brass);
-    solid(0,oz,5,5);
-    // Esfera armilar, globo, mesa de cartas celestes e estantes.
-    {const ax=-3.6,az=-13.4;cyl(g,.3,.4,.9,M.trim,ax,Y(F),az,12);box(g,.5,.08,.5,M.gold,ax,Y(F+.94),az);
-     const c=new T.Vector3(ax,Y(F+1.75),az),core=new T.Mesh(new T.SphereGeometry(.13,20,12),M.globe);core.position.copy(c);g.add(core);
-     for(const [rx,ry] of [[0,0],[Math.PI/2,0],[Math.PI/2,Math.PI/2],[.41,0]]){const t=new T.Mesh(new T.TorusGeometry(.55,.025,6,32),M.goldM);t.position.copy(c);t.rotation.set(rx,ry,0);g.add(t);}
-     rod(ax,Y(F+.98),az,ax,Y(F+2.35),az,.025,M.goldM);solid(ax,az,1.1,1.1);}
-    {const gx=3.8,gz=-6.4;cyl(g,.35,.45,.1,M.woodDark,gx,Y(F),gz,12);rod(gx,Y(F+.1),gz,gx,Y(F+.85),gz,.05,M.woodDark);
-     // globo com mapa, eixo inclinado 23°, meridiano completo, anel do horizonte em 4 pés, coluna torneada
-     const gc=new T.Vector3(gx,Y(F+1.35),gz),tilt=.41,yaw=1.1;
-     const gl=new T.Mesh(new T.SphereGeometry(.45,40,24),M.globe);gl.position.copy(gc);gl.rotation.set(0,yaw,tilt,'YXZ');g.add(gl);
-     const ax=new T.Vector3(0,1,0).applyEuler(new T.Euler(0,yaw,tilt,'YXZ'));
-     const mer=new T.Mesh(new T.TorusGeometry(.5,.022,6,48),M.goldM);mer.position.copy(gc);mer.rotation.set(0,yaw,tilt,'YXZ');g.add(mer);
-     for(const s of [-1,1]){const k=new T.Mesh(new T.SphereGeometry(.035,8,6),M.goldM);k.position.copy(gc).addScaledVector(ax,s*.52);g.add(k);}
-     {const pin=new T.Mesh(new T.CylinderGeometry(.012,.012,1.12,6),M.goldM);pin.position.copy(gc);pin.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),ax);g.add(pin);}
-     const hor=new T.Mesh(new T.TorusGeometry(.56,.035,6,48),M.woodDark);hor.position.copy(gc);hor.rotation.x=Math.PI/2;g.add(hor);
-     const hb=new T.Mesh(new T.CylinderGeometry(.6,.6,.03,48,1,true),M.brass);hb.position.copy(gc);g.add(hb);
-     for(let i=0;i<4;i++){const a=i/4*Math.PI*2+Math.PI/4;rod(gx+Math.cos(a)*.58,Y(F+1.35),gz+Math.sin(a)*.58,gx+Math.cos(a)*.1,Y(F+.62),gz+Math.sin(a)*.1,.03,M.woodDark);}
-     {const col=new T.Mesh(new T.LatheGeometry([[0,0],[.1,0],[.12,.05],[.06,.1],[.08,.25],[.05,.4],[.09,.45],[.05,.55],[0,.55]].map(p=>new T.Vector2(p[0],p[1])),12),M.woodDark);col.position.set(gx,Y(F+.1),gz);g.add(col);}
-     for(let i=0;i<4;i++){const a=i/4*Math.PI*2;rod(gx,Y(F+.12),gz,gx+Math.cos(a)*.42,Y(F+.02),gz+Math.sin(a)*.42,.035,M.woodDark);}
-     solid(gx,gz,1.2,1.2);}
-    table(3.6,-13.3,2.2,1.3);box(g,2,.012,1.1,M.starMap,3.6,Y(F+.925),-13.3);chair(3.6,-12.2,Math.PI);candle(4.5,F+.92,-13.7);
-    for(const sx of [-1,1]){shelf(sx*5.45,-6.3,2.6,3.4,-sx*Math.PI/2);shelf(sx*5.45,-14,2.4,3.4,-sx*Math.PI/2);}
-    box(g,3.8,2.4,.04,M.gold,0,Y(3.2),BZ0+.53);box(g,3.6,2.2,.05,M.starMap,0,Y(3.2),BZ0+.56);}
-   // ---- Tesouro ----
-   for(let i=0;i<6;i++){box(g,1.1,.7,.7,M.wood,-14+i*1.3,Y(.75),-14.5,0,2);box(g,1.1,.25,.75,M.gold,-14+i*1.3,Y(1.2),-14.5);}solid(-10.75,-14.5,7.8,.75);
-   {const pile=new T.Mesh(new T.ConeGeometry(1.2,.8,10),M.gold);pile.position.set(-11,Y(.8),-10);g.add(pile);solid(-11,-10,2.2,2.2);}
-   // ---- Sala dos Troféus ----
-   for(let i=0;i<4;i++){const s=new T.Mesh(new T.CircleGeometry(.6,8),M.paint[i]);s.position.set(-15.4,Y(2.5),-1+i*2);s.rotation.y=Math.PI/2;g.add(s);}box(g,.5,1.9,.5,M.steel,-10,Y(1.35),3);solid(-10,3,.6,.6);
-   paint(-6.3,5.2,-Math.PI/2,4);armor(-8,6,Math.PI);
-   // ---- Acesso ao Campanário ----
-   box(g,2,2,2,M.iron,11,Y(1.4),-10);box(g,.3,2,.3,M.woodDark,11,Y(3.4),-10);solid(11,-10,2,2);
-  }
-  for(const [x,z] of [[-15.3,-10],[-15.3,3],[15.3,-10],[15.3,5.6],[-3,BZ0+.7],[3,BZ0+.7]])candle(x,2.6,z);
- }
-
+ // (a mobília de cada andar fica em castelo-salas.js: window.arcanoCasteloSalas.mobiliar)
+ // ===== Armaduras: cópias soltas no interior (a geometria é a mesma em todas; não entram na fusão do andar) =====
+ const MARMORE=new T.MeshStandardMaterial({color:'#ece6dc',roughness:.55});
+ function armadura(inn,x,z,rot,v,estatua,k,y0){const a=armorModel(v||0);a.position.set(x,y0+.4,z);a.rotation.y=rot||0;
+  if(estatua){a.name='Estátua';a.traverse(o=>{if(o.isMesh&&o.material.side!==T.BackSide)o.material=MARMORE;});}
+  inn.add(a);obsBox(x,z,.46,.46,k);return a;}
+ const WUV=new Map([[M.inner,4],[M.trim,4]]);
  // ===== Andares =====
- const shells=[],interiors=[],outerPanes=[],ceilings=[];
+ const shells=[],interiors=[],outerPanes=[],ceilings=[],lustres=[];
  for(let k=0;k<NF;k++){
   const y0=Fy(k),y1=Fy(k+1),H=y1-y0;
   const shell={front:new T.Group(),back:new T.Group(),west:new T.Group(),east:new T.Group()};
@@ -780,9 +731,23 @@ function build(api,site){
    cyl(tmp,.5,.5,H,M.trim,ST.x,y0,ST.z,10);
    if(k<NF-1){const n=18;for(let i=0;i<n;i++){const t=(i+.5)/n,a=ST.door+t*Math.PI*2,y=y0+t*FH;
      box(tmp,ST.r-.6,.3,1.05,M.wood,ST.x+Math.cos(a)*(.5+(ST.r-.6)/2),y+.25,ST.z+Math.sin(a)*(.5+(ST.r-.6)/2),-a,2);}}}
-  const FL=[],BN=[];furnish(tmp,k,y0,H,FL,BN);
-  mergeInto(tmp,inn,'Interior do castelo · andar '+k);
+  // faces de parede de cada sala (para o lambri e a cornija): tiram-se portas e os encontros com as outras paredes
+  const paredes=[],corta=(sp,c0,c1)=>{const out=[];for(const [a,b] of sp){if(c1<=a||c0>=b){out.push([a,b]);continue;}if(c0>a)out.push([a,c0]);if(c1<b)out.push([c1,b]);}return out;};
+  const faces=(eixo,c,n,a0,a1,doors,cuts)=>{let sp=[[a0,a1]];for(const [a,b] of doors.concat(cuts||[]))sp=corta(sp,a,b);for(const [x0,x1] of sp)if(x1-x0>.2)paredes.push({eixo,c,n,a0:x0,a1:x1});};
+  const dX=k===0?[[-12,-8.5],[0,3.5]]:[[-11,-9],[1.2,3.2]];
+  for(const sx of [-1,1]){faces('x',sx*6-.25,-1,BZ0+.5,BZ1-.5,dX,sx<0||k>0?[[-4.25,-3.75]]:[]);faces('x',sx*6+.25,1,BZ0+.5,BZ1-.5,dX,sx>0||k>0?[[-4.25,-3.75]]:[]);}
+  for(const n of [-1,1]){faces('z',-4+n*.25,n,-BX+.5,-6.25,[[-12,-10]]);faces('z',-4+n*.25,n,6.25,BX-.5,[[8,10]]);if(k>0)faces('z',-4+n*.25,n,-5.75,5.75,[[-1,1]]);}
+  faces('z',BZ1-.5,-1,-BX+.5,BX-.5,k===0?[[-2.2,2.2]]:[],[[-6.25,-5.75],[5.75,6.25]]);faces('z',BZ0+.5,1,-BX+.5,BX-.5,[],[[-6.25,-5.75],[5.75,6.25]]);
+  faces('x',-BX+.5,1,BZ0+.5,BZ1-.5,[],[[-4.25,-3.75]]);faces('x',BX-.5,-1,BZ0+.5,BZ1-.5,[],[[-4.25,-3.75]]);
+  const jan={frente:k>0?[-12,-8,-3,0,3,8,12]:[-12,-8,8,12],fundo:[-12,-8,8,12],oeste:[-12,-6,0,5],leste:[-12,-6,0,5]};
+  // lustres: grupo à parte que só aparece em 1ª pessoa, como o teto (na câmera de cima eles tapavam a sala)
+  const lus=new T.Group();lus.visible=false;root.add(lus);lustres.push(lus);const tetoG=new T.Group(),FLt=[];
+  const FL=[],BN=[],SALAS=window.arcanoCasteloSalas;
+  if(SALAS)SALAS.mobiliar({k,y0,H,F:.4,g:tmp,gTeto:tetoG,FLteto:FLt,inn,FL,BN,M,box,cyl,drapeGeo,valanceGeo,tapMats,ANIM:LIFE.anim,BX,BZ0,BZ1,paredes,jan,
+   obs:(lx,lz,hw,hd,rot)=>obsBox(lx,lz,hw,hd,k,rot),armadura:(x,z,rot,v,estatua)=>armadura(inn,x,z,rot,v,estatua,k,y0)});
+  mergeInto(tmp,inn,'Interior do castelo · andar '+k,WUV);
   addLife(inn,k,y0,H,FL);
+  mergeInto(tetoG,lus,'Lustres do castelo · andar '+k);chamas(lus,FLt,k,true);
   {const CLm=window.arcanoCloth;if(CLm)for(const b of BN){const m=CLm.banner(b[0],b[1],{kind:b[2],indoor:true});m.position.set(b[3],b[4],b[5]);inn.add(m);}}
  }
  if(O){const w=W(ST.x,ST.z);O.addCircle(w.x,w.z,.55);}
@@ -842,7 +807,7 @@ function build(api,site){
    if(inside){saved={d:p.camDistance,pt:p.camPitch};p.camDistance=Math.min(Math.max(p.camDistance,7),9);p.camPitch=Math.max(p.camPitch,1.25);}
    else{setFloor(-1);label.style.display='none';if(saved&&p){p.camDistance=saved.d;p.camPitch=saved.pt;}saved=null;}
   }
-  {const fp=!!(window.arcanoFirstPerson&&window.arcanoFirstPerson.active);for(let i=0;i<ceilings.length;i++)ceilings[i].visible=inside&&fp&&i===curFloor;}
+  {const fp=!!(window.arcanoFirstPerson&&window.arcanoFirstPerson.active);for(let i=0;i<ceilings.length;i++){ceilings[i].visible=inside&&fp&&i===curFloor;lustres[i].visible=inside&&fp&&i===curFloor;}}
   if(inside){
    const k=Math.max(0,Math.min(NF-1,Math.floor((p.position.y-site.y+.6)/FH)));
    if(k!==curFloor)setFloor(k);
@@ -857,7 +822,7 @@ function build(api,site){
  // marcas para a exportação do Godot (sem efeito no jogo): luz da noite = base + noite×k; chama tremula
  M.glass.userData.noite=[.9,1.6];M.winOut.userData.noite=[.05,2.2];if(M.winTile)M.winTile.userData.noite=[.05,2.2];M.fire.userData.chama=[1.8,.3];
  setInterval(()=>{const s=window.arcanoAnimeSky&&window.arcanoAnimeSky.material.uniforms.uSunDir.value;const night=s?Math.min(1,Math.max(0,(-s.y+.02)/.2)):0;M.glass.emissiveIntensity=.9+night*1.6;M.winOut.emissiveIntensity=.05+night*2.2;if(M.winTile)M.winTile.emissiveIntensity=.05+night*2.2;M.fire.emissiveIntensity=1.8+Math.sin(performance.now()*.01)*.3;},120);
- return {root,interiors,shells,ceilings,outerPanes,roof,lid,core,halo,coreLocal,coreLight,lamps};
+ return {root,interiors,shells,ceilings,lustres,outerPanes,roof,lid,core,halo,coreLocal,coreLight,lamps};
 }
 
 // ---------- Escadaria e chafariz ----------
@@ -1030,7 +995,7 @@ function install(){
  if(!api||!api.scene||!site||!window.arcanoIslandHeight){setTimeout(install,300);return;}
  const c=build(api,site);buildPlaza(api,site);buildGarden(api,site);
  // grupos por andar expostos para a exportação do Godot (o jogo mostra um andar por vez: setFloor)
- window.arcanoCastle={life:LIFE,anim:{core:c.core,halo:c.halo,coreLocal:c.coreLocal,coreLight:c.coreLight,lamps:c.lamps},site,root:c.root,interiors:c.interiors,shells:c.shells,ceilings:c.ceilings,outerPanes:c.outerPanes,roof:c.roof,lid:c.lid,stair:ST,floorH:FH,floors:NF,box:{x:BX,z0:BZ0,z1:BZ1}};
+ window.arcanoCastle={life:LIFE,anim:{core:c.core,halo:c.halo,coreLocal:c.coreLocal,coreLight:c.coreLight,lamps:c.lamps},site,root:c.root,interiors:c.interiors,shells:c.shells,ceilings:c.ceilings,lustres:c.lustres,outerPanes:c.outerPanes,roof:c.roof,lid:c.lid,stair:ST,floorH:FH,floors:NF,box:{x:BX,z0:BZ0,z1:BZ1}};
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install();
 })();
