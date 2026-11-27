@@ -54,15 +54,63 @@ const TX={
 const AT=window.arcanoTex,TB={};
 if(AT){
  const put=(k,t,sc)=>{TX[k]=t.map;TB[k]=[t.bump,sc];};
- put('wall',AT.stone({hue:40,sat:15,l0:56,l1:72,seed:7,cracks:.2}),.9);
- put('base',AT.stone({hue:226,sat:12,l0:36,l1:52,seed:19,moss:.5,cracks:.22}),.9);
- put('trim',AT.stone({hue:40,sat:22,l0:62,l1:76,seed:23,rows:6,cracks:.08}),.8);
- put('inner',AT.stone({hue:42,sat:14,l0:66,l1:78,seed:31,cracks:.07}),.7);
- put('floor',AT.stone({hue:36,sat:11,l0:60,l1:73,rows:4,seed:41,cracks:.05}),.6);
  put('wood',AT.wood({hue:28,light:44}),.8);put('woodDark',AT.wood({hue:22,light:30,seed:5}),.8);put('woodLight',AT.wood({hue:32,light:56,seed:8}),.8);
  put('slate',AT.shingles({hue:216,sat:22,l0:32,l1:48}),.9);
  put('copper',AT.shingles({hue:170,sat:36,l0:40,l1:56,seed:4}),.9);
 }
+// ---------- Mármore (site v63): o castelo inteiro, a escadaria, o jardim e o chafariz ----------
+// Placa de mármore pintada em canvas, sem emenda: manchas grandes de tom, veios longos numa direção dominante
+// (espessura variando ao longo do veio, halo borrado em volta e ramos finos), fios de cabelo e, nos mármores
+// escuros, veios claros; na cantaria, blocos com leve variação de tom e juntas finas (+ relevo só das juntas).
+// Sorteio próprio (não usa rnd(): a sequência do castelo — posições de tudo — continua a mesma).
+function marbleTex(o){
+ const S=o.S||512,c=document.createElement('canvas');c.width=c.height=S;const g=c.getContext('2d');
+ let sd=o.seed||7;const R=()=>{sd=(sd*1664525+1013904223)>>>0;return sd/4294967296;};
+ const F=o.fundo,cor=(a,dl=0,al=1)=>`hsla(${a[0]},${a[1]}%,${Math.max(0,Math.min(100,a[2]+dl))}%,${al})`,k5=S/512;
+ const wrap=(ctx,f,m=0)=>{for(const ox of [0,-S,S])for(const oy of [0,-S,S]){ctx.save();ctx.translate(ox+m,oy+m);f(ctx);ctx.restore();}};
+ g.fillStyle=cor(F);g.fillRect(0,0,S,S);
+ for(let i=0;i<(o.nuvens||60);i++){const x=R()*S,y=R()*S,r=S*(.08+R()*.3),d=(R()-.5)*(o.varTom||9),a=.3+R()*.35;
+  wrap(g,ctx=>{const gr=ctx.createRadialGradient(x,y,0,x,y,r);gr.addColorStop(0,cor(F,d,a));gr.addColorStop(1,cor(F,d,0));ctx.fillStyle=gr;ctx.fillRect(x-r,y-r,2*r,2*r);});}
+ // veios numa camada à parte (com margem), depois borrados de leve: halo largo e núcleo nítido
+ const M_=Math.ceil(24*k5),V=document.createElement('canvas');V.width=V.height=S+2*M_;const v=V.getContext('2d');v.lineCap=v.lineJoin='round';
+ const dir=o.dir!=null?o.dir:R()*3.14;
+ const veio=(cs,w0,len,passo,curva,ramos)=>{let x=R()*S,y=R()*S,ang=dir+(R()-.5)*.9;const p0=R()*6.28,pts=[[x,y]];
+  for(let k=0;k<len;k++){ang+=(R()-.5)*curva+Math.sin(dir-ang)*.05;x+=Math.cos(ang)*passo;y+=Math.sin(ang)*passo;pts.push([x,y]);}
+  const larg=k=>w0*(.2+.8*Math.sin(Math.PI*k/len))*(.65+.35*Math.abs(Math.sin(k*.29+p0)));
+  wrap(v,ctx=>{ctx.strokeStyle=cs;for(let k=1;k<pts.length;k++){ctx.lineWidth=larg(k);ctx.beginPath();ctx.moveTo(pts[k-1][0],pts[k-1][1]);ctx.lineTo(pts[k][0],pts[k][1]);ctx.stroke();}},M_);
+  for(let b=0;b<ramos;b++){const i0=1+Math.floor(R()*(pts.length-2));let bx=pts[i0][0],by=pts[i0][1],ba=ang+(R()<.5?-1:1)*(.4+R()*.6);const q=[[bx,by]],n=Math.floor(len*(.15+R()*.25));
+   for(let k=0;k<n;k++){ba+=(R()-.5)*curva*1.6;bx+=Math.cos(ba)*passo*.8;by+=Math.sin(ba)*passo*.8;q.push([bx,by]);}
+   wrap(v,ctx=>{ctx.strokeStyle=cs;for(let k=1;k<q.length;k++){ctx.lineWidth=larg(i0)*.45*(1-k/q.length);ctx.beginPath();ctx.moveTo(q[k-1][0],q[k-1][1]);ctx.lineTo(q[k][0],q[k][1]);ctx.stroke();}},M_);}};
+ // cada camada é desenhada opaca (sem contas onde os trechos se sobrepõem) e entra com a transparência dela
+ const camada=(f,alfa,halo)=>{v.clearRect(0,0,V.width,V.height);f();
+  g.save();if(halo){g.filter=`blur(${(7*k5).toFixed(1)}px)`;g.globalAlpha=alfa*halo;g.drawImage(V,-M_,-M_);}g.filter=`blur(${(.7*k5).toFixed(2)}px)`;g.globalAlpha=alfa;g.drawImage(V,-M_,-M_);g.restore();};
+ camada(()=>{for(let i=0;i<(o.veios||6);i++)veio(cor(o.veio,(R()-.5)*12),(2.2+R()*3)*k5,Math.floor(55+R()*45),S/55,.22,3);},o.alfaVeio||.62,.6);
+ camada(()=>{for(let i=0;i<(o.finos||16);i++)veio(cor(o.veio,6+(R()-.5)*10),(.7+R()*1.1)*k5,Math.floor(18+R()*30),S/70,.4,1);},(o.alfaVeio||.62)*.6,0);
+ if(o.claros)camada(()=>{for(let i=0;i<o.claros;i++)veio(cor(o.claro||[40,20,94],(R()-.5)*6),(1.2+R()*2.4)*k5,Math.floor(35+R()*45),S/60,.3,2);},.72,.45);
+ let bump=null;
+ if(o.blocos){const [lin,col]=o.blocos,bh=S/lin,bw=S/col,jw=(o.jw||2)*S/512,bc=document.createElement('canvas');bc.width=bc.height=S;const bg=bc.getContext('2d');
+  bg.fillStyle='#8a8a8a';bg.fillRect(0,0,S,S);
+  for(let r=0;r<lin;r++){const off=(r%2)*bw/2,y=r*bh;for(let k=-1;k<=col;k++){const x=k*bw+off,d=(R()-.5)*(o.varBloco||6);
+    g.fillStyle=d>0?`rgba(255,255,255,${d/45})`:`rgba(0,0,0,${-d/45})`;g.fillRect(x,y,bw,bh);}}
+  const juntas=(ctx,cs,w)=>{ctx.strokeStyle=cs;ctx.lineWidth=w;ctx.beginPath();
+   for(let r=0;r<=lin;r++){ctx.moveTo(0,r*bh);ctx.lineTo(S,r*bh);}
+   for(let r=0;r<lin;r++){const off=(r%2)*bw/2;for(let k=0;k<=col;k++){const x=k*bw+off;ctx.moveTo(x,r*bh);ctx.lineTo(x,(r+1)*bh);}}ctx.stroke();};
+  juntas(g,o.junta||'rgba(105,98,92,.45)',jw);g.translate(0,jw);juntas(g,'rgba(255,255,255,.18)',jw*.6);g.setTransform(1,0,0,1,0,0);
+  juntas(bg,'#2a2a2a',jw*1.6);
+  bump=new T.CanvasTexture(bc);bump.wrapS=bump.wrapT=T.RepeatWrapping;}
+ const t=new T.CanvasTexture(c);t.wrapS=t.wrapT=T.RepeatWrapping;t.colorSpace=T.SRGBColorSpace;t.anisotropy=8;return {map:t,bump};
+}
+{const mm=(k,o,sc)=>{const t=marbleTex(o);TX[k]=t.map;if(t.bump)TB[k]=[t.bump,sc];else delete TB[k];};
+ // paredes: mármore branco (Carrara) em cantaria de 0,5 m; base: cinza-azulado (Bardiglio) com veios claros;
+ // frisos/colunas: marfim com veios dourados; interior: placas marfim grandes; piso: xadrez creme e verde-acinzentado
+ mm('wall',{fundo:[212,7,93],veio:[218,9,52],veios:5,finos:14,varTom:7,dir:.9,seed:11,blocos:[4,2],varBloco:6,junta:'rgba(150,150,158,.4)',jw:1.6},.25);
+ mm('base',{fundo:[214,10,56],veio:[216,14,34],veios:4,claros:6,dir:.5,claro:[210,12,88],seed:23,blocos:[4,2],varBloco:8,junta:'rgba(40,44,52,.55)',jw:2.5},.45);
+ mm('trim',{fundo:[44,34,87],veio:[34,34,55],veios:5,finos:10,dir:2.2,seed:37,blocos:[2,2],varBloco:4,junta:'rgba(150,128,96,.3)',jw:1.4},.2);
+ mm('inner',{fundo:[36,18,88],veio:[28,12,60],veios:4,finos:10,dir:1.2,seed:41,blocos:[4,2],varBloco:4,junta:'rgba(150,136,118,.32)',jw:1.4},.2);
+ {const t=marbleTex({fundo:[40,18,88],veio:[30,10,62],seed:53,veios:5,finos:12,dir:.7});const c=t.map.image,g=c.getContext('2d'),S=c.width,n=8,q=S/n;
+  g.save();for(let r=0;r<n;r++)for(let k=0;k<n;k++)if((r+k)%2){g.fillStyle='rgba(70,96,90,.62)';g.fillRect(k*q,r*q,q,q);}
+  g.strokeStyle='rgba(60,55,50,.35)';g.lineWidth=1.5;for(let i=0;i<=n;i++){g.beginPath();g.moveTo(i*q,0);g.lineTo(i*q,S);g.moveTo(0,i*q);g.lineTo(S,i*q);g.stroke();}g.restore();
+  t.map.needsUpdate=true;TX.floor=t.map;delete TB.floor;}}
 const mat=o=>new T.MeshStandardMaterial(Object.assign({roughness:1,metalness:0},o));
 const M={
  wall:mat({color:'#ffffff',map:TX.wall}),base:mat({color:'#ffffff',map:TX.base}),trim:mat({color:'#ffffff',map:TX.trim}),
@@ -78,6 +126,8 @@ const M={
  leaf:mat({color:'#4f8f45'}),paint:[mat({color:'#3d6d8f'}),mat({color:'#8f6a3d'}),mat({color:'#5f8f4a'}),mat({color:'#8f3d5a'})]
 };
 if(AT)for(const [k,[b,sc]] of Object.entries(TB))if(M[k]){M[k].bumpMap=b;M[k].bumpScale=sc;}
+// mármore é polido: brilho suave do sol (a pedra antiga era fosca, rugosidade 1)
+for(const [k,r] of [['wall',.62],['base',.55],['trim',.5],['inner',.6],['floor',.42]])M[k].roughness=r;
 {const CLm=window.arcanoCloth;if(CLm)M.red=new T.MeshStandardMaterial({map:CLm.tex('red'),side:T.DoubleSide,roughness:.95});}
 // Quadros: paisagens e retratos pintados em canvas (estilo anime, cores suaves).
 function artTex(kind,seedHue){return canvasTex(128,96,(g,w,h)=>{
@@ -173,9 +223,16 @@ function squareTower(g,x,z,s,h,ux,uz,cut){
 function worldUV(g,tile){const p=g.attributes.position,n=g.attributes.normal,uv=g.attributes.uv;
  for(let i=0;i<p.count;i++){const ax=Math.abs(n.getX(i)),ay=Math.abs(n.getY(i)),az=Math.abs(n.getZ(i));if(Math.max(ax,ay,az)<.92)continue;
   const x=p.getX(i),y=p.getY(i)-.4,z=p.getZ(i);if(ax>=ay&&ax>=az)uv.setXY(i,(n.getX(i)>0?-z:z)/tile,y/tile);else if(az>=ay)uv.setXY(i,(n.getZ(i)>0?x:-x)/tile,y/tile);else uv.setXY(i,x/tile,z/tile);}uv.needsUpdate=true;}
+// UV projetada pela face de cada triângulo (no mundo), para peças curvas de mármore (tornos do chafariz): cada
+// triângulo usa o plano mais de frente para ele, então a textura nunca estica (a UV do torno esticava nas bacias).
+function faceUV(g,tile){const q=g.index?g.toNonIndexed():g,p=q.attributes.position,n=p.count,uv=new Float32Array(n*2),a=new T.Vector3(),b=new T.Vector3(),c=new T.Vector3(),f=new T.Vector3(),e=new T.Vector3();
+ for(let i=0;i+2<n;i+=3){a.fromBufferAttribute(p,i);b.fromBufferAttribute(p,i+1);c.fromBufferAttribute(p,i+2);f.subVectors(b,a).cross(e.subVectors(c,a));
+  const ax=Math.abs(f.x),ay=Math.abs(f.y),az=Math.abs(f.z);
+  for(let k=0;k<3;k++){const v=k===0?a:k===1?b:c;let u,w;if(ax>=ay&&ax>=az){u=f.x>0?-v.z:v.z;w=v.y;}else if(az>=ay){u=f.z>0?v.x:-v.x;w=v.y;}else{u=v.x;w=v.z;}uv[(i+k)*2]=u/tile;uv[(i+k)*2+1]=w/tile;}}
+ q.setAttribute('uv',new T.BufferAttribute(uv,2));if(!q.attributes.normal)q.computeVertexNormals();return q;}
 function mergeInto(group,parent,name,wuv){
  group.updateMatrixWorld(true);const buckets=new Map();
- group.traverse(o=>{if(!o.isMesh)return;const g=o.geometry.clone();g.applyMatrix4(o.matrixWorld);const c=g.attributes.position.count;
+ group.traverse(o=>{if(!o.isMesh)return;let g=o.geometry.clone();g.applyMatrix4(o.matrixWorld);if(o.material&&o.material.userData&&o.material.userData.uvFace)g=faceUV(g,o.material.userData.uvFace);const c=g.attributes.position.count;
   if(!g.index){const ix=new Uint32Array(c);for(let i=0;i<c;i++)ix[i]=i;g.setIndex(new T.BufferAttribute(ix,1));}
   if(!g.attributes.normal)g.computeVertexNormals();if(!g.attributes.uv)g.setAttribute('uv',new T.BufferAttribute(new Float32Array(c*2),2));
   if(wuv&&wuv.has(o.material))worldUV(g,wuv.get(o.material));
@@ -856,16 +913,23 @@ function buildPlaza(api,site){
  if(O)for(const sx of [-1,1]){const zc=site.z+(z0+z1)/2;O.addBox({x:site.x+sx*4.8,z:zc,hw:.35,hd:(z1-z0)/2,rot:0});}
  const fx=site.x,fz=site.z+88,fy=h(fx,fz);
  const g=new T.Group();
- const rimMat=M.trim.clone();rimMat.side=T.DoubleSide;
- const oct=(r1,r2,hh,m,y)=>{const c=new T.Mesh(new T.CylinderGeometry(r1,r2,hh,8),m);c.position.set(fx,fy+y+hh/2,fz);c.rotation.y=Math.PI/8;g.add(c);return c;};
- oct(7.6,7.8,.45,M.base,0);oct(6.7,6.7,.25,M.base,.4);
- {const pts=[new T.Vector2(6.6,.4),new T.Vector2(6.6,1.35),new T.Vector2(6.75,1.48),new T.Vector2(7.3,1.48),new T.Vector2(7.45,1.3),new T.Vector2(7.45,.4)];
-  const rim=new T.Mesh(new T.LatheGeometry(pts,8),rimMat);rim.position.set(fx,fy,fz);rim.rotation.y=Math.PI/8;g.add(rim);}
+ // Site v63: chafariz mais baixo e todo em mármore cinza-azulado com veios claros (contrasta com o creme da estátua):
+ // bacia octogonal, pedestal-balaústre, bacia de baixo (r 3,1, borda a 3 m), balaústre e bacia de cima (r 1,67,
+ // borda a 4,2 m; antes 6,7 m). As peças têm espessura (torno de perfil fechado) e a UV é projetada pela face de
+ // cada triângulo no mundo (faceUV): a textura não estica mais nas bacias.
+ const MF=new T.MeshStandardMaterial({map:marbleTex({fundo:[208,16,57],veio:[214,18,34],veios:4,finos:10,claros:9,claro:[200,18,92],varTom:12,dir:2.4,seed:71}).map,roughness:.34,metalness:0,side:T.DoubleSide});
+ MF.name='Mármore do chafariz';MF.userData.uvFace=2.4;
+ const oct=(r1,r2,hh,y)=>{const c=new T.Mesh(new T.CylinderGeometry(r1,r2,hh,8),MF);c.position.set(fx,fy+y+hh/2,fz);c.rotation.y=Math.PI/8;g.add(c);return c;};
+ oct(7.6,7.8,.45,0);oct(6.7,6.7,.25,.4);
+ const torno=(pts,seg,rot)=>{const l=new T.Mesh(new T.LatheGeometry(pts.map(p=>new T.Vector2(p[0],p[1])),seg),MF);l.position.set(fx,fy,fz);if(rot)l.rotation.y=rot;g.add(l);return l;};
+ torno([[6.6,.4],[6.6,1.35],[6.75,1.48],[7.3,1.48],[7.45,1.3],[7.45,.4]],8,Math.PI/8);   // borda da bacia grande
+ torno([[0,.62],[1.25,.62],[1.25,.8],[1.1,.88],[1,1.02],[.84,1.25],[.72,1.55],[.68,1.75],[.74,1.92],[.92,2.04],[1.02,2.12],[0,2.12]],28);   // pedestal
+ torno([[0,2.1],[.95,2.1],[1.6,2.25],[2.4,2.5],[2.85,2.75],[3.05,2.9],[3.1,3],[3,3.05],[2.86,3],[2.4,2.86],[1.4,2.7],[0,2.64]],44);   // bacia de baixo
+ torno([[0,2.64],[.62,2.64],[.62,2.74],[.47,2.86],[.37,3.1],[.35,3.3],[.41,3.48],[.56,3.6],[0,3.6]],22);   // balaústre de cima
+ torno([[0,3.58],[.5,3.58],[.9,3.72],[1.35,3.93],[1.6,4.08],[1.67,4.17],[1.6,4.22],[1.5,4.17],[1.2,4.04],[.7,3.95],[0,3.92]],36);   // bacia de cima
  const fWaters=[];
  const water=new T.Mesh(new T.RingGeometry(.001,6.6,48,10),fountainWaterMat);water.rotation.x=-Math.PI/2;water.position.set(fx,fy+1.18,fz);scene.add(water);fWaters.push({m:water,r:6.6,d:.95});
- const bowl=(r,y,hh)=>{const pts=[new T.Vector2(.3,0),new T.Vector2(r*.35,.05),new T.Vector2(r*.85,hh*.6),new T.Vector2(r,hh),new T.Vector2(r*.95,hh*1.1)];const l=new T.Mesh(new T.LatheGeometry(pts,24),rimMat);l.position.set(fx,fy+y,fz);g.add(l);};
- cyl(g,1.3,1.7,2.4,M.wall,fx,fy+1.1,fz,12);bowl(3.4,3.4,.9);cyl(g,.6,.8,1.8,M.wall,fx,fy+4.3,fz,10);bowl(1.8,6.0,.6);
- for(const [r,y] of [[3.15,4.2],[1.62,6.55]]){const w=new T.Mesh(new T.RingGeometry(.001,r,32,6),fountainWaterMat);w.rotation.x=-Math.PI/2;w.position.set(fx,fy+y,fz);scene.add(w);fWaters.push({m:w,r,d:.45});}
+ for(const [r,y] of [[2.88,2.92],[1.5,4.12]]){const w=new T.Mesh(new T.RingGeometry(.001,r,32,6),fountainWaterMat);w.rotation.x=-Math.PI/2;w.position.set(fx,fy+y,fz);scene.add(w);fWaters.push({m:w,r,d:.3});}
  // Mesma água do rio (refração, reflexo do céu, cáusticas, brilho do sol e ondinhas): clona o material do rio
  // compartilhando os uniforms, e dá a cada bacia profundidade e um leve redemoinho.
  (function riverize(){const RM=window.arcanoAnimeRiver&&window.arcanoAnimeRiver.material;if(!RM){setTimeout(riverize,500);return;}
@@ -878,24 +942,24 @@ function buildPlaza(api,site){
   let k=0;setInterval(()=>{const pl=api.getGrassPlayer&&api.getGrassPlayer(),cam=api.getMainCamera&&api.getMainCamera(),pp=(pl||cam);if(!pp||Math.hypot(pp.position.x-fx,pp.position.z-fz)>60)return;
    const now=performance.now()/1000;u.uClock.value=now;const a=(k++%8)*Math.PI/4+.39,R0=6.3-3.3;
    u.uRings.value[(k*5)%12].set(fx+Math.cos(a)*R0,fz+Math.sin(a)*R0,now,.35);if(k%2===0)u.uRings.value[(k*5+3)%12].set(fx+(Math.random()-.5)*.8,fz+(Math.random()-.5)*.8,now,.25);},450);})();
- const curtains=[];for(const [r,y0,y1] of [[3.35,4.3,1.18],[1.78,6.6,4.25]]){const c=new T.Mesh(new T.CylinderGeometry(r,r+.25,y0-y1,48,1,true),curtainMat);c.position.set(fx,fy+(y0+y1)/2,fz);scene.add(c);curtains.push({m:c,r,y0,y1});}
+ const curtains=[];for(const [r,y0,y1] of [[3.12,3,1.18],[1.68,4.18,2.92]]){const c=new T.Mesh(new T.CylinderGeometry(r,r+.25,y0-y1,48,1,true),curtainMat);c.position.set(fx,fy+(y0+y1)/2,fz);scene.add(c);curtains.push({m:c,r,y0,y1});}
  mergeInto(g,scene,'Chafariz da praça');
  // Estátua da maga (site v62): o boneco jogável (Xbot) em pose de levitação — uma perna levemente erguida —, com
  // roupas de maga (capuz, corpete, mangas de sino, capa, vestido com fenda) e mármore; estatua-maga.js monta a malha
  // a partir do esqueleto, em etapas curtas, quando o jogador chega perto da praça. A orbe flutua acima da mão
  // direita com dois anéis de ouro girando e um halo.
- const ESC_EST=1.6,orbG=new T.Group();orbG.name='Orbe da maga';orbG.visible=false;scene.add(orbG);
+ const ESC_EST=1.5,orbG=new T.Group();orbG.name='Orbe da maga';orbG.visible=false;scene.add(orbG);
  const orb=new T.Mesh(new T.SphereGeometry(.19,24,16),M.core);orb.name='Orbe da maga · esfera';orbG.add(orb);
  const aneis=[[.3,.42],[.37,1.15]].map(([r,rx],i)=>{const a=new T.Mesh(new T.TorusGeometry(r,.012,8,56),M.goldM);a.name='Orbe da maga · anel '+i;a.rotation.x=rx;orbG.add(a);return a;});
  const haloO=new T.Sprite(glowMat.clone());haloO.material.color=new T.Color('#9fe8ff');haloO.scale.setScalar(1.5);orbG.add(haloO);
  const estatua={grupo:null,orbG,aneis,y0:0,pronta:false,promessa:null};
  const geraEstatua=()=>estatua.promessa||(estatua.promessa=(async()=>{try{
    const [mod,{GLTFLoader},BGU]=await Promise.all([import('./estatua-maga.js?v=1'),import('https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/loaders/GLTFLoader.js'),import('https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/utils/BufferGeometryUtils.js')]);
-   const mats={marmore:new T.MeshStandardMaterial({map:mod.marmore(T),roughness:.36,metalness:0,emissive:new T.Color('#1c1a17'),side:T.DoubleSide}),ouro:M.goldM,
+   const mats={marmore:new T.MeshStandardMaterial({map:marbleTex({fundo:[40,24,90],veio:[30,14,58],veios:5,finos:12,dir:1.1,seed:91}).map,roughness:.36,metalness:0,emissive:new T.Color('#1c1a17'),side:T.DoubleSide}),ouro:M.goldM,
     gema:new T.MeshStandardMaterial({color:'#bff3ff',emissive:new T.Color('#3fb6e8'),emissiveIntensity:1.1,roughness:.15})};
    mats.marmore.name='Mármore da estátua';mats.gema.name='Gemas da estátua';
    const r=await mod.gerar(T,GLTFLoader,BGU,{mats});const gr=r.grupo;
-   gr.scale.setScalar(ESC_EST);gr.position.set(fx,fy+6.5,fz);gr.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});scene.add(gr);gr.updateMatrixWorld(true);
+   gr.scale.setScalar(ESC_EST);gr.position.set(fx,fy+4,fz);gr.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});scene.add(gr);gr.updateMatrixWorld(true);
    gr.getObjectByName('Estátua da maga · orbe').getWorldPosition(orbG.position);estatua.y0=orbG.position.y;orbG.visible=true;
    estatua.grupo=gr;estatua.pronta=true;estatua.info=r.info;return estatua;
   }catch(e){console.warn('[Arcano] estátua da maga:',e);estatua.promessa=null;}})());
@@ -906,7 +970,7 @@ function buildPlaza(api,site){
  const jetMat=new T.ShaderMaterial({transparent:true,depthWrite:false,uniforms:{uTime:fountainWaterMat.uniforms.uTime,uC:{value:new T.Vector3(fx,fy,fz)},uScale:{value:innerHeight*.5}},
   vertexShader:`attribute vec4 seed;uniform float uTime,uScale;uniform vec3 uC;varying float vA;
    void main(){float t=fract(uTime*(.6+.2*seed.w)+seed.y);vec3 p;
-    if(seed.x<.5){float a=seed.z*3.1416;vec2 d=vec2(cos(a),sin(a));float r=.72+.85*t;p=uC+vec3(d.x*r,6.72+1.05*t-1.2*t*t,d.y*r);}
+    if(seed.x<.5){float a=seed.z*3.1416;vec2 d=vec2(cos(a),sin(a));float r=.78+.62*t;p=uC+vec3(d.x*r,4.25+.75*t-.88*t*t,d.y*r);}
     else{float a=(seed.x-1.)*.7854;vec2 o=vec2(cos(a),sin(a))*6.3;vec2 dir=-normalize(o);p=uC+vec3(o.x+dir.x*t*3.3,1.3+t*2.6-2.7*t*t,o.y+dir.y*t*3.3);}
     vA=(1.-smoothstep(.85,1.,t))*.85;vec4 mv=modelViewMatrix*vec4(p,1.);gl_PointSize=(.07+.06*seed.w)*uScale/max(.1,-mv.z);gl_Position=projectionMatrix*mv;}`,
   fragmentShader:`varying float vA;void main(){float d=length(gl_PointCoord-.5);if(d>.5)discard;gl_FragColor=vec4(.92,.99,1.,vA*smoothstep(.5,.1,d));}`});
